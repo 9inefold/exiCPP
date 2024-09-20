@@ -8,8 +8,16 @@ project(
   LANGUAGES CXX C
 )
 
+include(ListUtils)
 include(SetFlags)
 include(SetOptions)
 
 # option(ENABLE_FOO "Enable some setting..." OFF)
 # valued_option(MAX_BAR "Maximum amount of ..." 8)
+
+add_subdirectory(vendored/exip)
+
+if(PROJECT_IS_TOP_LEVEL)
+  add_executable(exi-driver Driver.cpp)
+  target_link_libraries(exi-driver exip::exip)
+endif()

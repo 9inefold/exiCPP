@@ -1,0 +1,15 @@
+include_guard(DIRECTORY)
+
+macro(set_parent)
+  foreach(arg ${ARGN})
+    set(${arg} ${${arg}} PARENT_SCOPE)
+  endforeach()
+endmacro()
+
+function(include_items name folder)
+  set(LIST_SRCS ${ARGN})
+  string(REGEX REPLACE "^\/|\/$" "" folder ${folder})
+  set(folder "${CMAKE_CURRENT_SOURCE_DIR}/${folder}")
+  list(TRANSFORM LIST_SRCS PREPEND "${folder}/")
+  set(${name} "${LIST_SRCS}" PARENT_SCOPE)
+endfunction()
