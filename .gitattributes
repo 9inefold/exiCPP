@@ -1,2 +1,11 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Hide language data
+vendored/** linguist-vendored
+
+# Highlight files with internal conventions
+*.h     linguist-language=cpp
+*.mac   linguist-language=cpp
+*.inc   linguist-language=cpp
+*.impl  linguist-language=cpp
