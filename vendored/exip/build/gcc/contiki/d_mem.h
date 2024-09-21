@@ -31,6 +31,10 @@
 #define D_MEM_LEN     0x0fff
 #define D_MEM_INUSE   0x8000
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern uint8_t heap[D_MEM_HEAP_SIZE];
 typedef uint16_t bndrt_t;
 
@@ -42,5 +46,9 @@ uint16_t d_malloc_freespace();
 void* d_realloc(void* ptr, uint16_t size);
 
 uint16_t getMemUsage();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // D_MEM_H_
