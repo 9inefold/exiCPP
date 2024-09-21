@@ -12,8 +12,9 @@ include(ListUtils)
 include(SetFlags)
 include(SetOptions)
 
-# option(ENABLE_FOO "Enable some setting..." OFF)
-# valued_option(MAX_BAR "Maximum amount of ..." 8)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+  message(FATAL_ERROR "MSVC currently unsupported!")
+endif()
 
 add_subdirectory(vendored/exip)
 
