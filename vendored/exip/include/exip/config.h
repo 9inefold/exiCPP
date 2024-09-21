@@ -21,9 +21,19 @@
 
 #include "exipConfig.h"
 
+#if EXIP_SCOPE_NS
+# define EXIP_NS_TAG
+#else
+# define EXIP_NS_TAG inline
+#endif
+
 #ifdef __cplusplus
-# define EXIP_BEGIN_DEFS extern "C" {
-# define EXIP_END_DEFS }
+# define EXIP_BEGIN_DEFS \
+  EXIP_NS_TAG namespace exip { \
+    extern "C" {
+# define EXIP_END_DEFS \
+    } \
+  }
 #else
 # define EXIP_BEGIN_DEFS
 # define EXIP_END_DEFS

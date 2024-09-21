@@ -16,6 +16,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")
 endif()
 
+option(SCOPE_EXIP "If the exip namespace should be forced." ON)
+
 add_subdirectory(vendored/exip)
 
 if(PROJECT_IS_TOP_LEVEL)

@@ -55,4 +55,8 @@ else()
   endif()
 endif()
 
+if(SCOPE_EXIP)
+  target_compile_definitions(exip PUBLIC EXIP_SCOPE_NS=1)
+endif()
+
 add_library(exip::exip ALIAS exip)
