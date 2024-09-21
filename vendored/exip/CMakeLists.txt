@@ -48,7 +48,7 @@ endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # ...
 else()
-  target_compile_options(exip PUBLIC -Wpacked -Wall)
+  target_compile_options(exip PUBLIC -Wpacked PRIVATE -Wall)
   target_include_directories(exip PUBLIC ${CONFIG_FOLDER})
   if(EXI_CONFIG_TYPE STREQUAL "contiki")
     target_sources(exip PRIVATE ${CONFIG_FOLDER}/d_mem.c)
