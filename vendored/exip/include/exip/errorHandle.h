@@ -24,8 +24,6 @@
 #define WARNING 2
 #define ERROR 3
 
-EXIP_BEGIN_DEFS
-
 /**
  * @page debugging How to debug
  *
@@ -129,6 +127,8 @@ EXIP_BEGIN_DEFS
 #  define DEBUG_MSG(level, module, msg)
 #endif /* EXIP_DEBUG */
 
+EXIP_BEGIN_DEFS
+
 // IMPORTANT: remember to keep in sync with "errorCodeStrings[]" in procTypes.c!
 /* Definitions for error constants. */
 enum errorCode
@@ -203,12 +203,12 @@ typedef enum errorCode errorCode;
 
 # define TRY(func) do { tmp_err_code = func;\
 						if (tmp_err_code != EXIP_OK) { \
-							DEBUG_MSG(ERROR, EXIP_DEBUG, ("\n>Error %s:%d at %s, line %d", GET_ERR_STRING(tmp_err_code), tmp_err_code, __FILE__, __LINE__)); \
+							DEBUG_MSG(ERROR, EXIP_DEBUG, (">Error %s:%d at %s, line %d\n", GET_ERR_STRING(tmp_err_code), tmp_err_code, __FILE__, __LINE__)); \
 							return tmp_err_code; } } while(0)
 
 # define TRY_CATCH(func, cblock) do { tmp_err_code = func;\
 									  if (tmp_err_code != EXIP_OK) { \
-									  DEBUG_MSG(ERROR, EXIP_DEBUG, ("\n>Error %s:%d at %s, line %d", GET_ERR_STRING(tmp_err_code), tmp_err_code, __FILE__, __LINE__)); \
+									  DEBUG_MSG(ERROR, EXIP_DEBUG, (">Error %s:%d at %s, line %d\n", GET_ERR_STRING(tmp_err_code), tmp_err_code, __FILE__, __LINE__)); \
 									  cblock;\
 									  return tmp_err_code; } } while(0)
 
