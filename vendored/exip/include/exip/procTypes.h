@@ -22,8 +22,10 @@
 #include <stdint.h>
 #include <time.h>
 #include <string.h>
-#include "exipConfig.h"
+#include "config.h"
 #include <limits.h>
+
+EXIP_BEGIN_DEFS
 
 enum boolean
 {
@@ -72,7 +74,7 @@ typedef struct stackNode GenericStack;
 #define FRAGMENT        0x04 // 0b00000100
 #define SELF_CONTAINED  0x08 // 0b00001000
 
-#define GET_ALIGNMENT(p)       ((p) & ALIGNMENT)
+#define GET_ALIGNMENT(p)       ((p)  & ALIGNMENT)
 #define WITH_COMPRESSION(p)    (((p) & COMPRESSION) != 0)
 #define WITH_STRICT(p)         (((p) & STRICT) != 0)
 #define WITH_FRAGMENT(p)       (((p) & FRAGMENT) != 0)
@@ -1346,5 +1348,7 @@ errorCode pushOnStack(GenericStack** stack, void* item);
 void popFromStack(GenericStack** stack, void** item);
 
 int compareEnumDefs(const void* enum1, const void* enum2);
+
+EXIP_END_DEFS
 
 #endif /* PROCTYPES_H_ */

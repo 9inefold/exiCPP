@@ -22,6 +22,8 @@
 
 #include "procTypes.h"
 
+EXIP_BEGIN_DEFS
+
 /**
  * Simple container for function pointers for document events.
  */
@@ -66,5 +68,7 @@ typedef struct ContentHandler ContentHandler;
  *
  */
 void initContentHandler(ContentHandler* handler);
+
+EXIP_END_DEFS
 
 #endif /* CONTENTHANDLER_H_ */

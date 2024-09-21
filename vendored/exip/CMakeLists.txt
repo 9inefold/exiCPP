@@ -7,13 +7,12 @@ project(
   LANGUAGES C
 )
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  message(FATAL_ERROR "MSVC currently unsupported!")
-endif()
-
 valued_option(EXI_CONFIG_TYPE "The target (pc or contiki)" "pc")
+set(CONFIG_FOLDER "build/gcc/${EXI_CONFIG_TYPE}")
+
 option(EXI_GRAMMAR_GENERATION "" ON)
 option(EXI_SCHEMA_GRAMMAR_GENERATION "" ON)
+
 
 include_items(PRIVATE_INC "src"
   "common/include"
@@ -34,7 +33,7 @@ add_library(exip STATIC
 
 target_include_directories(exip
   PUBLIC include
-  PRIVATE ${PRIVATE_INC}
+  PRIVATE include/exip ${PRIVATE_INC}
 )
 
 if(EXI_GRAMMAR_GENERATION AND NOT EXI_CONFIG_TYPE STREQUAL "contiki")
@@ -50,7 +49,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # ...
 else()
   target_compile_options(exip PUBLIC -Wpacked -Wall)
-  target_include_directories(exip PUBLIC "build/gcc/${EXI_CONFIG_TYPE}")
+  target_include_directories(exip PUBLIC ${CONFIG_FOLDER})
+  if(EXI_CONFIG_TYPE STREQUAL "contiki")
+    target_sources(exip PRIVATE ${CONFIG_FOLDER}/d_mem.c)
+  endif()
 endif()
 
 add_library(exip::exip ALIAS exip)

@@ -21,6 +21,8 @@
 
 #include "procTypes.h"
 
+EXIP_BEGIN_DEFS
+
 struct EXISerializer
 {
 	// For handling the meta-data (document structure)
@@ -327,5 +329,7 @@ errorCode flushEXIData(EXIStream* strm, char* outBuf, unsigned int bufSize, unsi
 errorCode serializeEvent(EXIStream* strm, EventCode ec, QName* qname);
 
 /****  END: Fast, low level API for schema encoding only ****/
+
+EXIP_END_DEFS
 
 #endif /* EXISERIALIZER_H_ */

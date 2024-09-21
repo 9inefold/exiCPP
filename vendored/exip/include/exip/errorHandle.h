@@ -18,11 +18,13 @@
 #ifndef ERRORHANDLE_H_
 #define ERRORHANDLE_H_
 
-#include "exipConfig.h"
+#include "config.h"
 
 #define INFO 1
 #define WARNING 2
 #define ERROR 3
+
+EXIP_BEGIN_DEFS
 
 /**
  * @page debugging How to debug
@@ -209,5 +211,7 @@ typedef enum errorCode errorCode;
 									  DEBUG_MSG(ERROR, EXIP_DEBUG, ("\n>Error %s:%d at %s, line %d", GET_ERR_STRING(tmp_err_code), tmp_err_code, __FILE__, __LINE__)); \
 									  cblock;\
 									  return tmp_err_code; } } while(0)
+
+EXIP_END_DEFS
 
 #endif /* ERRORHANDLE_H_ */

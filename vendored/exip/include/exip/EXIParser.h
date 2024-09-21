@@ -21,6 +21,8 @@
 
 #include "contentHandler.h"
 
+EXIP_BEGIN_DEFS
+
 /**
  * Parses an EXI document.
  */
@@ -129,5 +131,7 @@ errorCode pushEXIData(char* inBuf, unsigned int bufSize, unsigned int* bytesRead
  * @param[in] parser the parser object
  */
 void destroyParser(Parser* parser);
+
+EXIP_END_DEFS
 
 #endif /* EXIPARSER_H_ */

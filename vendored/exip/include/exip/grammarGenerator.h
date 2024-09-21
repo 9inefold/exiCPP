@@ -20,6 +20,8 @@
 #include "errorHandle.h"
 #include "procTypes.h"
 
+EXIP_BEGIN_DEFS
+
 /** @name Supported schema formats
  * Such as XML-XSD, EXI-XSD, DTD or any other schema representation
  */
@@ -86,5 +88,7 @@ errorCode generateSchemaInformedGrammars(BinaryBuffer* buffers, unsigned int buf
  * @param[in] schema the schema containing the EXI grammars to be freed
  */
 void destroySchema(EXIPSchema* schema);
+
+EXIP_END_DEFS
 
 #endif /* GRAMMARGENERATOR_H_ */
