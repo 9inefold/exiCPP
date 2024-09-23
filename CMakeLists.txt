@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.12)
 include_guard(DIRECTORY)
 include(Setup.cmake)
 
@@ -16,11 +16,16 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")
 endif()
 
-option(SCOPE_EXIP "If the exip namespace should be forced." ON)
+option(EXIP_FORCE_SCOPE "If the exip namespace should be forced." ON)
 
 add_subdirectory(vendored/exip)
 
+add_library(exicpp STATIC src/Empty.cpp)
+target_include_directories(exicpp PUBLIC include)
+target_link_libraries(exicpp PUBLIC exip::exip)
+target_compile_features(exicpp PUBLIC cxx_std_17)
+
 if(PROJECT_IS_TOP_LEVEL)
   add_executable(exi-driver Driver.cpp)
-  target_link_libraries(exi-driver exip::exip)
+  target_link_libraries(exi-driver exicpp)
 endif()

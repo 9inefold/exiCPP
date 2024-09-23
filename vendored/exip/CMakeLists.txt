@@ -7,8 +7,11 @@ project(
   LANGUAGES C
 )
 
-valued_option(EXI_CONFIG_TYPE "The target (pc or contiki)" "pc")
-set(CONFIG_FOLDER "build/gcc/${EXI_CONFIG_TYPE}")
+valued_option(EXIP_CONFIG_TYPE "The target (pc or contiki)" "pc")
+set(CONFIG_FOLDER "build/gcc/${EXIP_CONFIG_TYPE}")
+
+option(EXIP_DEBUG "" ON)
+valued_option(EXIP_DEBUG_LEVEL "The debugging level (INFO, WARNING or ERROR)" "INFO")
 
 option(EXI_GRAMMAR_GENERATION "" ON)
 option(EXI_SCHEMA_GRAMMAR_GENERATION "" ON)
@@ -36,6 +39,8 @@ target_include_directories(exip
   PRIVATE include/exip ${PRIVATE_INC}
 )
 
+target_forward_options(exip PUBLIC EXIP_DEBUG EXIP_DEBUG_LEVEL)
+
 if(EXI_GRAMMAR_GENERATION AND NOT EXI_CONFIG_TYPE STREQUAL "contiki")
   # target_include_directories(exip PRIVATE "src/grammarGen/include")
   target_sources(exip PRIVATE ${GRAMMAR_GEN_SRC})
@@ -55,7 +60,7 @@ else()
   endif()
 endif()
 
-if(SCOPE_EXIP)
+if(EXIP_FORCE_SCOPE)
   target_compile_definitions(exip PUBLIC EXIP_SCOPE_NS=1)
 endif()
 

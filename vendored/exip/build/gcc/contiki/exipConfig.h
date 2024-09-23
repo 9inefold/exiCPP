@@ -23,8 +23,9 @@
 #define ON  1
 #define OFF 0
 
-#define EXIP_DEBUG  	  OFF
-#define EXIP_DEBUG_LEVEL INFO
+#undef  EXIP_DEBUG
+#define EXIP_DEBUG  	  	OFF
+#define EXIP_DEBUG_LEVEL 	INFO
 
 #define DEBUG_STREAM_IO   OFF
 #define DEBUG_COMMON      OFF

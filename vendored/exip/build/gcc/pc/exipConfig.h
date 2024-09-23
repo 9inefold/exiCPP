@@ -24,33 +24,26 @@
 #define ON  1
 #define OFF 0
 
-/**
- * @def EXIP_DEBUG
- * 		Turn the debugging ON/OFF
- * @def EXIP_DEBUG_LEVEL
- * 		Sets the debugging level (INFO, WARNING or ERROR)
- *
- * @def DEBUG_STREAM_IO
- * 		Turns the debugging ON/OFF for the STREAM_IO module
- * @def DEBUG_COMMON
- * 		Turns the debugging ON/OFF for the COMMON module
- * @def DEBUG_CONTENT_IO
- * 		Turns the debugging ON/OFF for the CONTENT_IO module
- * @def DEBUG_GRAMMAR
- * 		Turns the debugging ON/OFF for the GRAMMAR module
- * @def DEBUG_GRAMMAR_GEN
- * 		Turns the debugging ON/OFF for the GRAMMAR_GEN module
- * @def DEBUG_STRING_TBLS
- * 		Turns the debugging ON/OFF for the STRING_TBLS module
- * @ref debugging */
-#define EXIP_DEBUG  	   ON
-#define EXIP_DEBUG_LEVEL INFO
+#ifndef EXIP_DEBUG
+/// Turn the debugging ON/OFF
+# define EXIP_DEBUG ON
+#endif
+#ifndef EXIP_DEBUG_LEVEL
+/// Sets the debugging level (INFO, WARNING or ERROR)
+# define EXIP_DEBUG_LEVEL INFO
+#endif
 
+/// Turns the debugging ON/OFF for the STREAM_IO module
 #define DEBUG_STREAM_IO   OFF
+/// Turns the debugging ON/OFF for the COMMON module
 #define DEBUG_COMMON      OFF
+/// Turns the debugging ON/OFF for the CONTENT_IO module
 #define DEBUG_CONTENT_IO  OFF
+/// Turns the debugging ON/OFF for the GRAMMAR module
 #define DEBUG_GRAMMAR     OFF
+/// Turns the debugging ON/OFF for the GRAMMAR_GEN module
 #define DEBUG_GRAMMAR_GEN OFF
+/// Turns the debugging ON/OFF for the STRING_TBLS module
 #define DEBUG_STRING_TBLS OFF
 
 #if EXIP_DEBUG != ON
