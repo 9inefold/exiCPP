@@ -23,11 +23,6 @@
 namespace exi {
 
 using CParser = exip::Parser;
-using CContentHandler = exip::ContentHandler;
-
-//======================================================================//
-// Parser
-//======================================================================//
 
 class Parser : protected CParser {
   using BBType = BinaryBufferType;
@@ -35,78 +30,13 @@ class Parser : protected CParser {
   void(*shutdown)(CParser*) = nullptr;
 public:
   ~Parser() { this->deinit(); }
-
-private:
-  template <typename Source, typename AppData>
-  static CErrCode startDocument(void* appData) {
-    const ErrCode ret = Source::startDocument(
-      static_cast<AppData*>(appData)
-    );
-    return CErrCode(ret);
-  }
-
-  template <typename Source, typename AppData>
-  static CErrCode endDocument(void* appData) {
-    const ErrCode ret = Source::endDocument(
-      static_cast<AppData*>(appData)
-    );
-    return CErrCode(ret);
-  }
-
-  template <typename Source, typename AppData>
-  static CErrCode startElement(CQName qname, void* appData) {
-    const ErrCode ret = Source::startElement(
-      QName(qname),
-      static_cast<AppData*>(appData)
-    );
-    return CErrCode(ret);
-  }
-
-  template <typename Source, typename AppData>
-  static CErrCode endElement(void* appData) {
-    const ErrCode ret = Source::endElement(
-      static_cast<AppData*>(appData)
-    );
-    return CErrCode(ret);
-  }
-
-  template <typename Source, typename AppData>
-  static CErrCode attribute(CQName qname, void* appData) {
-    const ErrCode ret = Source::attribute(
-      QName(qname),
-      static_cast<AppData*>(appData)
-    );
-    return CErrCode(ret);
-  }
-
-  ////////////////////////////////////////////////////////////////////////
-
-  template <class Source, typename AppData>
-  static void SetContent(CContentHandler& handler, AppData* data) {
-    REQUIRES_FUNC(startDocument, (), (data)) {
-      handler.startDocument = &Parser::startDocument<Source, AppData>;
-    }
-    REQUIRES_FUNC(endDocument, (), (data)) {
-      handler.endDocument = &Parser::endDocument<Source, AppData>;
-    }
-    REQUIRES_FUNC(startElement, (QName qname), (qname, data)) {
-      handler.startElement = &Parser::startElement<Source, AppData>;
-    }
-    REQUIRES_FUNC(endElement, (QName qname), (qname, data)) {
-      handler.endElement = &Parser::endElement<Source, AppData>;
-    }
-    REQUIRES_FUNC(attribute, (QName qname), (qname, data)) {
-      handler.attribute = &Parser::attribute<Source, AppData>;
-    }
-  }
-
 public:
   template <class Source, typename AppData>
   [[nodiscard]]
   static Parser New(const StackBuffer& buf, AppData* appData) {
     Parser parser {};
     parser.init(&buf, appData);
-    Parser::SetContent<Source>(parser.handler, appData);
+    ContentHandler::SetContent<Source>(parser.handler, appData);
     return parser;
   }
 
