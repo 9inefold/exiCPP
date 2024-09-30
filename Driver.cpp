@@ -136,7 +136,7 @@ void iter_nodes(rapidxml::xml_node<>* pnode, std::size_t depth = 0) {
     {
       exi::StrRef attr_name(attr->name(), attr->name_size());
       exi::StrRef attr_val(attr->value(), attr->value_size());
-      std::cout << padding << " {" << name
+      std::cout << padding << " {"
         << attr_name << '=' << attr->value() << "}\n";
     }
 
