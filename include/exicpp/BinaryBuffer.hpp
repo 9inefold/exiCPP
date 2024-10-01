@@ -43,9 +43,7 @@ enum class BinaryBufferType : int {
   Unknown,
 };
 
-//======================================================================//
-// Implementation
-//======================================================================//
+//////////////////////////////////////////////////////////////////////////
 
 template <BinaryBufferType Ty = BinaryBufferType::Unknown>
 struct BinaryBuffer : IBinaryBuffer {

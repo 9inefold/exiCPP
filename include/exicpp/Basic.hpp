@@ -29,6 +29,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
+#include <utility>
 #include <exip/procTypes.h>
 
 namespace exi {
