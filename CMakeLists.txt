@@ -20,7 +20,7 @@ option(EXIP_FORCE_SCOPE "If the exip namespace should be forced." ON)
 
 add_subdirectory(vendored/exip)
 
-add_library(exicpp STATIC src/Empty.cpp)
+add_library(exicpp STATIC src/BinaryBuffer.cpp)
 target_include_directories(exicpp PUBLIC include vendored/rapidxml)
 target_link_libraries(exicpp PUBLIC exip::exip)
 target_compile_features(exicpp PUBLIC cxx_std_17)

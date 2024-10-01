@@ -22,44 +22,100 @@
 #define EXIP_BINARYBUFFER_HPP
 
 #include "Basic.hpp"
+#include "HeapBuffer.hpp"
 
 namespace exi {
 
-enum class BinaryBufferType {
-  Stack,
-  Vector,
+struct IBinaryBuffer : public CBinaryBuffer {
+protected:
+  void setInternal(Char* data, std::size_t len);
+private:
+  bool isSameBuffer(Char* data, std::size_t len) const {
+    return (CBinaryBuffer::buf == data) &&
+      (CBinaryBuffer::bufLen == len);
+  }
+};
+
+enum class BinaryBufferType : int {
+  Stack,  // A stack-allocated `Char` buffer.
+  Unique, // A `HeapBuffer`.
+  Vector, // A `std::vector<Char>`.
   Unknown,
 };
 
-template <BinaryBufferType>
-struct BinaryBuffer;
+//======================================================================//
+// Implementation
+//======================================================================//
+
+template <BinaryBufferType Ty = BinaryBufferType::Unknown>
+struct BinaryBuffer : IBinaryBuffer {
+  static_assert(int(Ty),
+    "Unknown/unimplemented BinaryBuffer type!");
+};
+
+using StackBuffer  = BinaryBuffer<BinaryBufferType::Stack>;
+using UniqueBuffer = BinaryBuffer<BinaryBufferType::Unique>;
+using VecBuffer    = BinaryBuffer<BinaryBufferType::Vector>;
+
+//======================================================================//
+// BinaryBuffer
+//======================================================================//
 
 template <>
-struct BinaryBuffer<BinaryBufferType::Stack> : protected CBinaryBuffer {
+struct BinaryBuffer<BinaryBufferType::Stack> : protected IBinaryBuffer {
+  friend class IBinaryBuffer;
   friend class Parser;
-  constexpr BinaryBuffer() = default;
+public:
+  constexpr BinaryBuffer() : IBinaryBuffer() {}
 
   template <std::size_t N>
   ALWAYS_INLINE BinaryBuffer(Char(&data)[N]) :
-   CBinaryBuffer{data, N, 0} {}
+   IBinaryBuffer{data, N, 0} {
+  }
 
   template <std::size_t N>
   ALWAYS_INLINE void set(Char(&data)[N]) {
-    return this->setInternal(data, N);
+    IBinaryBuffer::setInternal(data, N);
   }
 
 private:
-  void setInternal(Char* data, std::size_t len) {
-    CBinaryBuffer::buf = data;
-    CBinaryBuffer::bufLen = len;
-    CBinaryBuffer::bufContent = 0;
+  /// Internal function, used in `IBinaryBuffer::New`.
+  constexpr BinaryBuffer(Char* data, std::size_t len) :
+   IBinaryBuffer{data, len, 0} {
+    if EXICPP_UNLIKELY(!data && len) {
+      CBinaryBuffer::bufLen = 0;
+    }
   }
 };
 
-using StackBuffer = BinaryBuffer<BinaryBufferType::Stack>;
-
 template <std::size_t N>
 BinaryBuffer(Char(&)[N]) -> StackBuffer;
+BinaryBuffer(Char*, std::size_t) -> StackBuffer;
+
+//======================================================================//
+// UniqueBuffer
+//======================================================================//
+
+template <>
+struct BinaryBuffer<BinaryBufferType::Unique> : protected IBinaryBuffer {
+  friend class IBinaryBuffer;
+  friend class Parser;
+public:
+  constexpr BinaryBuffer() : IBinaryBuffer() {}
+  ~BinaryBuffer() = default;
+
+  BinaryBuffer(HeapBuffer& buf) :
+   IBinaryBuffer{buf.data(), buf.size(), 0} {
+  }
+
+  void set(HeapBuffer& buf) {
+    // TODO: buf.reset();
+    IBinaryBuffer::setInternal(buf.data(), buf.size());
+  }
+
+private:
+  HeapBuffer::BufType buf = nullptr;
+};
 
 } // namespace exi
 
