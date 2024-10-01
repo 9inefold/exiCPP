@@ -22,7 +22,6 @@
 #define EXIP_CONTENT_HPP
 
 #include <type_traits>
-#include <utility>
 #include <exip/contentHandler.h>
 
 #include "Basic.hpp"
@@ -36,6 +35,9 @@
 #endif
 
 namespace exi {
+
+
+
 namespace H {
 
 // TODO: Update
@@ -46,46 +48,46 @@ using Decimal = Float;
 #if !EXICPP_CONCEPTS
 
 #define GEN_REQUIRES(fn, ...) \
-template <typename Source, typename AppData, typename = void>     \
+template <typename Source, typename = void>                       \
 struct Func_##fn { static constexpr bool value = false; };        \
                                                                   \
-template <typename Source, typename AppData>                      \
+template <class Source>                      \
 struct Func_##fn<Source, AppData, std::void_t<decltype(           \
-  Source::fn(__VA_ARGS__)                                         \
+  Decl<Source*>()->fn(__VA_ARGS__)                                \
 )>> { static constexpr bool value = true; };
 
 #define Decl std::declval
 
 // For handling the meta-data (document structure)
-GEN_REQUIRES(startDocument, Decl<AppData*>())
-GEN_REQUIRES(endDocument,   Decl<AppData*>())
-GEN_REQUIRES(startElement,  Decl<QName&>(), Decl<AppData*>())
-GEN_REQUIRES(endElement,    Decl<AppData*>())
-GEN_REQUIRES(attribute,     Decl<QName&>(), Decl<AppData*>())
+GEN_REQUIRES(startDocument)
+GEN_REQUIRES(endDocument)
+GEN_REQUIRES(startElement,  Decl<QName&>())
+GEN_REQUIRES(endElement)
+GEN_REQUIRES(attribute,     Decl<QName&>())
 
 // For handling the data
-GEN_REQUIRES(intData,       std::uint64_t(0), Decl<AppData*>())
-GEN_REQUIRES(booleanData,   false,            Decl<AppData*>())
-GEN_REQUIRES(stringData,    Decl<StrRef>(),   Decl<AppData*>())
-GEN_REQUIRES(floatData,     Decl<Float>(),    Decl<AppData*>())
-GEN_REQUIRES(binaryData,    Decl<Span>(),     Decl<AppData*>())
-// GEN_REQUIRES(dateTimeData,  Decl<...>(),     Decl<AppData*>())
-GEN_REQUIRES(decimalData,   Decl<Decimal>(),  Decl<AppData*>())
-// GEN_REQUIRES(listData,      Decl<...>(),     Decl<AppData*>())
-GEN_REQUIRES(qnameData,     Decl<QName&>(),   Decl<AppData*>())
+GEN_REQUIRES(intData,       std::uint64_t(0))
+GEN_REQUIRES(booleanData,   false)
+GEN_REQUIRES(stringData,    Decl<StrRef>())
+GEN_REQUIRES(floatData,     Decl<Float>())
+GEN_REQUIRES(binaryData,    Decl<Span>())
+// GEN_REQUIRES(dateTimeData,  Decl<...>())
+GEN_REQUIRES(decimalData,   Decl<Decimal>())
+// GEN_REQUIRES(listData,      Decl<...>())
+GEN_REQUIRES(qnameData,     Decl<QName&>())
 
 // Miscellaneous
-GEN_REQUIRES(processingInstruction, Decl<AppData*>())
+GEN_REQUIRES(processingInstruction)
 GEN_REQUIRES(namespaceDeclaration,  
-  Decl<StrRef>(), Decl<StrRef>(), false, Decl<AppData*>())
+  Decl<StrRef>(), Decl<StrRef>(), false)
 
 // For error handling
-GEN_REQUIRES(warning,     ErrCode::Ok, Decl<StrRef>(), Decl<AppData*>())
-GEN_REQUIRES(error,       ErrCode::Ok, Decl<StrRef>(), Decl<AppData*>())
-GEN_REQUIRES(fatalError,  ErrCode::Ok, Decl<StrRef>(), Decl<AppData*>())
+GEN_REQUIRES(warning,     ErrCode::Ok, Decl<StrRef>())
+GEN_REQUIRES(error,       ErrCode::Ok, Decl<StrRef>())
+GEN_REQUIRES(fatalError,  ErrCode::Ok, Decl<StrRef>())
 
 // EXI specific
-GEN_REQUIRES(selfContained, Decl<AppData*>())
+GEN_REQUIRES(selfContained)
 
 #undef Decl
 #undef GEN_REQUIRES
@@ -103,252 +105,212 @@ GEN_REQUIRES(selfContained, Decl<AppData*>())
 # include <concepts>
 /// Assumes `Source` is defined in the current context.
 # define REQUIRES_FUNC(fn, fn_args, call_args) if constexpr \
-  (requires fn_args { \
-    {Source::fn call_args} -> std::same_as<ErrCode>; \
+  (requires fn_args {                                       \
+    requires requires(Source* src) {                        \
+      {src->fn call_args} -> std::same_as<ErrCode>;         \
+    };                                                      \
   })
 #else // !EXICPP_CONCEPTS
-/// Assumes `Source` and `AppData` are defined in the current context.
+/// Assumes `Source` is defined in the current context.
 # define REQUIRES_FUNC(fn, fn_args, call_args) if constexpr \
-  (::exi::H::Func_##fn<Source, AppData>::value)
+  (::exi::H::Func_##fn<Source>::value)
 #endif
+
+#define CH_INIT_FUNC(fn, fn_args, call_args)  \
+REQUIRES_FUNC(fn, fn_args, call_args) {       \
+  handler.fn = &fn<Source>;                   \
+}
 
 namespace exi {
 
 using CContentHandler = exip::ContentHandler;
 
 class ContentHandler {
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode startDocument(void* appData) {
-    const ErrCode ret = Source::startDocument(
-      static_cast<AppData*>(appData)
-    );
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->startDocument();
     return CErrCode(ret);
   }
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode endDocument(void* appData) {
-    const ErrCode ret = Source::endDocument(
-      static_cast<AppData*>(appData)
-    );
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->endDocument();
     return CErrCode(ret);
   }
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode startElement(CQName qname, void* appData) {
-    const ErrCode ret = Source::startElement(
-      QName(qname),
-      static_cast<AppData*>(appData)
-    );
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->startElement(QName(qname));
     return CErrCode(ret);
   }
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode endElement(void* appData) {
-    const ErrCode ret = Source::endElement(
-      static_cast<AppData*>(appData)
-    );
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->endElement();
     return CErrCode(ret);
   }
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode attribute(CQName qname, void* appData) {
-    const ErrCode ret = Source::attribute(
-      QName(qname),
-      static_cast<AppData*>(appData)
-    );
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->attribute(QName(qname));
     return CErrCode(ret);
   }
 
   ////////////////////////////////////////////////////////////////////////
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode intData(exip::Integer val, void* appData) {
-    const ErrCode ret = Source::intData(
-      val,
-      static_cast<AppData*>(appData)
-    );
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->intData(val);
     return CErrCode(ret);
   }
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode booleanData(exip::boolean val, void* appData) {
-    const ErrCode ret = Source::booleanData(
-      static_cast<bool>(val),
-      static_cast<AppData*>(appData)
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->booleanData(
+      static_cast<bool>(val)
     );
     return CErrCode(ret);
   }
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode stringData(const CString val, void* appData) {
-    const ErrCode ret = Source::stringData(
-      StrRef(val.str, val.length),
-      static_cast<AppData*>(appData)
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->stringData(
+      StrRef(val.str, val.length)
     );
     return CErrCode(ret);
   }
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode binaryData(const char* val, Index nbytes, void* appData) {
-    const ErrCode ret = Source::binaryData(
-      H::Span(val, nbytes),
-      static_cast<AppData*>(appData)
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->binaryData(
+      H::Span(val, nbytes)
     );
     return CErrCode(ret);
   }
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode decimalData(exip::Decimal val, void* appData) {
-    const ErrCode ret = Source::decimalData(
-      H::Decimal(val),
-      static_cast<AppData*>(appData)
-    );
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->decimalData(H::Decimal(val));
     return CErrCode(ret);
   }
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode qnameData(CQName val, void* appData) {
-    const ErrCode ret = Source::qnameData(
-      QName(val),
-      static_cast<AppData*>(appData)
-    );
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->qnameData(QName(val));
     return CErrCode(ret);
   }
 
   ////////////////////////////////////////////////////////////////////////
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode processingInstruction(void* appData) {
-    const ErrCode ret = Source::processingInstruction(
-      static_cast<AppData*>(appData)
-    );
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->processingInstruction();
     return CErrCode(ret);
   }
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode namespaceDeclaration(
     const CString ns, const CString prefix,
     exip::boolean isLocalElement, 
     void* appData)
   {
-    const ErrCode ret = Source::namespaceDeclaration(
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->namespaceDeclaration(
       StrRef(ns.str, ns.length),
       StrRef(prefix.str, prefix.length),
-      static_cast<bool>(isLocalElement),
-      static_cast<AppData*>(appData)
+      static_cast<bool>(isLocalElement)
     );
     return CErrCode(ret);
   }
 
   ////////////////////////////////////////////////////////////////////////
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode warning(CErrCode err, const char* msg, void* appData) {
-    const ErrCode ret = Source::warning(
-      ErrCode(err), StrRef(msg),
-      static_cast<AppData*>(appData)
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->warning(
+      ErrCode(err), StrRef(msg)
     );
     return CErrCode(ret);
   }
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode error(CErrCode err, const char* msg, void* appData) {
-    const ErrCode ret = Source::error(
-      ErrCode(err), StrRef(msg),
-      static_cast<AppData*>(appData)
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->error(
+      ErrCode(err), StrRef(msg)
     );
     return CErrCode(ret);
   }
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode fatalError(CErrCode err, const char* msg, void* appData) {
-    const ErrCode ret = Source::fatalError(
-      ErrCode(err), StrRef(msg),
-      static_cast<AppData*>(appData)
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->fatalError(
+      ErrCode(err), StrRef(msg)
     );
     return CErrCode(ret);
   }
 
   ////////////////////////////////////////////////////////////////////////
 
-  template <typename Source, typename AppData>
+  template <class Source>
   static CErrCode selfContained(void* appData) {
-    const ErrCode ret = Source::selfContained(
-      static_cast<AppData*>(appData)
-    );
+    const auto ptr = static_cast<Source*>(appData);
+    const ErrCode ret = ptr->selfContained();
     return CErrCode(ret);
   }
 
 public:
-  template <class Source, typename AppData>
-  static void SetContent(CContentHandler& handler, AppData* data) {
+  template <class Source>
+  static void SetContent(CContentHandler& handler, Source* data) {
     // For handling the meta-data (document structure)
-    REQUIRES_FUNC(startDocument, (), (data)) {
-      handler.startDocument = &startDocument<Source, AppData>;
-    }
-    REQUIRES_FUNC(endDocument, (), (data)) {
-      handler.endDocument = &endDocument<Source, AppData>;
-    }
-    REQUIRES_FUNC(startElement, (QName qname), (qname, data)) {
-      handler.startElement = &startElement<Source, AppData>;
-    }
-    REQUIRES_FUNC(endElement, (QName qname), (qname, data)) {
-      handler.endElement = &endElement<Source, AppData>;
-    }
-    REQUIRES_FUNC(attribute, (QName qname), (qname, data)) {
-      handler.attribute = &attribute<Source, AppData>;
-    }
+    CH_INIT_FUNC(startDocument, (), ())
+    CH_INIT_FUNC(endDocument,   (), ())
+    CH_INIT_FUNC(startElement,  (QName qname), (qname))
+    CH_INIT_FUNC(endElement,    (QName qname), (qname))
+    CH_INIT_FUNC(attribute,     (QName qname), (qname))
 
     // For handling the data
-    REQUIRES_FUNC(intData, (std::uint64_t val), (val, data)) {
-      handler.intData = &intData<Source, AppData>;
-    }
-    REQUIRES_FUNC(booleanData, (bool val), (val, data)) {
-      handler.booleanData = &booleanData<Source, AppData>;
-    }
-    REQUIRES_FUNC(stringData, (StrRef val), (val, data)) {
-      handler.stringData = &stringData<Source, AppData>;
-    }
-    REQUIRES_FUNC(binaryData, (H::Span val), (val, data)) {
-      handler.binaryData = &binaryData<Source, AppData>;
-    }
+    CH_INIT_FUNC(intData,     (std::uint64_t val), (val))
+    CH_INIT_FUNC(booleanData, (bool val), (val))
+    CH_INIT_FUNC(stringData,  (StrRef val), (val))
+    CH_INIT_FUNC(binaryData,  (H::Span val), (val))
     // TODO: dateTimeData
-    REQUIRES_FUNC(decimalData, (H::Decimal val), (val, data)) {
-      handler.decimalData = &decimalData<Source, AppData>;
-    }
+    CH_INIT_FUNC(decimalData, (H::Decimal val), (val))
     // TODO: listData
-    REQUIRES_FUNC(qnameData, (QName val), (val, data)) {
-      handler.qnameData = &qnameData<Source, AppData>;
-    }
+    CH_INIT_FUNC(qnameData,   (QName val), (val))
 
     // Miscellaneous
-    REQUIRES_FUNC(processingInstruction, (), (data)) {
-      handler.processingInstruction = &processingInstruction<Source, AppData>;
-    }
-    REQUIRES_FUNC(namespaceDeclaration,
+    CH_INIT_FUNC(processingInstruction, (), (data))
+    CH_INIT_FUNC(namespaceDeclaration,
       (StrRef ns, StrRef prefix, bool isLocalElement),
-     (ns, prefix, isLocalElement, data)) {
-      handler.namespaceDeclaration = &namespaceDeclaration<Source, AppData>;
-    }
+     (ns, prefix, isLocalElement))
 
     // For error handling
-    REQUIRES_FUNC(warning, (ErrCode err, StrRef msg), (err, msg, data)) {
-      handler.warning = &warning<Source, AppData>;
-    }
-    REQUIRES_FUNC(error, (ErrCode err, StrRef msg), (err, msg, data)) {
-      handler.error = &error<Source, AppData>;
-    }
-    REQUIRES_FUNC(fatalError, (ErrCode err, StrRef msg), (err, msg, data)) {
-      handler.fatalError = &fatalError<Source, AppData>;
-    }
+    CH_INIT_FUNC(warning,     (ErrCode err, StrRef msg), (err, msg))
+    CH_INIT_FUNC(error,       (ErrCode err, StrRef msg), (err, msg))
+    CH_INIT_FUNC(fatalError,  (ErrCode err, StrRef msg), (err, msg))
 
     // EXI specific
-    REQUIRES_FUNC(selfContained, (), (data)) {
-      handler.selfContained = &selfContained<Source, AppData>;
-    }
+    CH_INIT_FUNC(selfContained, (), (data))
   }
 };
 
 } // namespace exi
+
+// #undef CH_INIT_FUNC
 
 #endif // EXIP_CONTENT_HPP
