@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <customers>
-   <customer id="55000">
+   <customer id="55000" idname="zz">
       <name>Charter Group</name>
       <address>
          <street>100 Main</street>
