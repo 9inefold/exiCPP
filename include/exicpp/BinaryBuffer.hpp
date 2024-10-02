@@ -107,7 +107,7 @@ public:
   }
 
   void set(HeapBuffer& buf) {
-    // TODO: buf.reset();
+    this->buf.reset();
     IBinaryBuffer::setInternal(buf.data(), buf.size());
   }
 

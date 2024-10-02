@@ -46,8 +46,17 @@ public:
 
   /// Allocates a new buffer of size `len`.
   void set(std::size_t len) {
-    this->buf = std::make_unique<Char[]>(len);
-    this->len = len;
+    if EXICPP_LIKELY(len != 0) {
+      this->buf = std::make_unique<Char[]>(len);
+      this->len = len;
+    } else {
+      this->reset();
+    }
+  }
+
+  void reset() {
+    buf.reset();
+    this->len = 0;
   }
 
   Char* data() { return buf.get(); }
