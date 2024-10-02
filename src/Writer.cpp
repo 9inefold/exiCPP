@@ -16,7 +16,7 @@
 //
 //===----------------------------------------------------------------===//
 
-#include <exicpp/Writer.hpp>
+#include <Writer.hpp>
 #include <exip/stringManipulate.h>
 
 using namespace exi;

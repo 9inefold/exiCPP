@@ -16,7 +16,7 @@
 //
 //===----------------------------------------------------------------===//
 
-#include <exicpp/XML.hpp>
+#include <XML.hpp>
 #include <filesystem>
 #include <fstream>
 #include <iterator>

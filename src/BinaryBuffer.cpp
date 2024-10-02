@@ -16,7 +16,7 @@
 //
 //===----------------------------------------------------------------===//
 
-#include <exicpp/BinaryBuffer.hpp>
+#include <BinaryBuffer.hpp>
 #include <cstdio>
 
 using namespace exi;
