@@ -189,7 +189,8 @@ enum errorCode
 	  * Send a signal to the EXIP parser from a content handler callback
 	  * for gracefully stopping the EXI stream parsing.
 	  */
-	 EXIP_HANDLER_STOP                           =16
+	 EXIP_HANDLER_STOP                           =16,
+	 EXIP_ERROR_LAST														 =EXIP_HANDLER_STOP
 };
 
 typedef enum errorCode errorCode;
@@ -197,24 +198,25 @@ typedef enum errorCode errorCode;
 #if EXIP_DEBUG == ON
   extern const char* errorCodeStrings[];
 # ifdef __cplusplus
-#  define GET_ERR_STRING(indx) ::exip::errorCodeStrings[indx]
+#  define EXIP_ERROR_LAST_ ::exip::EXIP_ERROR_LAST
+#  define GET_ERR_STRING_(indx) ::exip::errorCodeStrings[indx]
 # else
-#  define GET_ERR_STRING(indx) errorCodeStrings[indx]
+#  define EXIP_ERROR_LAST_ EXIP_ERROR_LAST
+#  define GET_ERR_STRING_(indx) errorCodeStrings[indx]
 # endif
+# define EXIP_VALID_ERR(indx) ((indx) >= 0 && (indx) <= EXIP_ERROR_LAST_)
+# define GET_ERR_STRING(indx) (EXIP_VALID_ERR(indx) ? GET_ERR_STRING_(indx) : "")
 #else
 # define GET_ERR_STRING(indx) ""
 #endif
 
-# define TRY(func) do { tmp_err_code = func;\
+# define TRY_CATCH(func, cblock) do { tmp_err_code = func;\
 						if (tmp_err_code != EXIP_OK) { \
 							DEBUG_MSG(ERROR, EXIP_DEBUG, (">Error %s:%d at %s, line %d\n", GET_ERR_STRING(tmp_err_code), tmp_err_code, __FILE__, __LINE__)); \
+							cblock;\
 							return tmp_err_code; } } while(0)
 
-# define TRY_CATCH(func, cblock) do { tmp_err_code = func;\
-									  if (tmp_err_code != EXIP_OK) { \
-									  DEBUG_MSG(ERROR, EXIP_DEBUG, (">Error %s:%d at %s, line %d\n", GET_ERR_STRING(tmp_err_code), tmp_err_code, __FILE__, __LINE__)); \
-									  cblock;\
-									  return tmp_err_code; } } while(0)
+# define TRY(func) TRY_CATCH(func, ((void)(0)))
 
 EXIP_END_DEFS
 
