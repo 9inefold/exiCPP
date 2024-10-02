@@ -94,7 +94,7 @@ struct BinaryBuffer<BinaryBufferType::Stack> : protected IBinaryBuffer {
   using IBinaryBuffer::readFile;
   using IBinaryBuffer::writeFile;
 public:
-  constexpr BinaryBuffer() : IBinaryBuffer() {}
+  constexpr BinaryBuffer() : IBinaryBuffer{} {}
 
   template <std::size_t N>
   ALWAYS_INLINE BinaryBuffer(Char(&data)[N]) :
@@ -136,7 +136,7 @@ struct BinaryBuffer<BinaryBufferType::Unique> : protected IBinaryBuffer {
   friend class IBinaryBuffer;
   friend class Parser;
 public:
-  constexpr BinaryBuffer() : IBinaryBuffer() {}
+  constexpr BinaryBuffer() : IBinaryBuffer{} {}
   ~BinaryBuffer() = default;
 
   BinaryBuffer(HeapBuffer& buf) :

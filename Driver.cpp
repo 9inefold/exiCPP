@@ -34,29 +34,29 @@ struct Example {
   unsigned elementCount = 0;
   unsigned nestingLevel = 0;
 public:
-  using enum exi::ErrCode;
+  using ErrCode = exi::ErrCode;
 
-  exi::ErrCode startDocument() const {
+  ErrCode startDocument() const {
     std::cout << "Beg: " << this << '\n';
-    return Ok;
+    return ErrCode::Ok;
   }
 
-  exi::ErrCode endDocument() const {
+  ErrCode endDocument() const {
     std::cout << "End: " << this << '\n';
-    return Ok;
+    return ErrCode::Ok;
   }
 
-  exi::ErrCode startElement(exi::QName name) {
+  ErrCode startElement(exi::QName name) {
     std::cout << "#" << elementCount << ": "
       << name << '\n';
     ++this->elementCount;
     ++this->nestingLevel;
-    return Ok;
+    return ErrCode::Ok;
   }
 
   exi::ErrCode endElement() {
     --this->nestingLevel;
-    return Ok;
+    return ErrCode::Ok;
   }
 };
 

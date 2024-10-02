@@ -51,8 +51,8 @@ using Decimal = Float;
 template <typename Source, typename = void>                       \
 struct Func_##fn { static constexpr bool value = false; };        \
                                                                   \
-template <class Source>                      \
-struct Func_##fn<Source, AppData, std::void_t<decltype(           \
+template <class Source>                                           \
+struct Func_##fn<Source, std::void_t<decltype(                    \
   Decl<Source*>()->fn(__VA_ARGS__)                                \
 )>> { static constexpr bool value = true; };
 
