@@ -311,6 +311,6 @@ public:
 
 } // namespace exi
 
-// #undef CH_INIT_FUNC
+#undef CH_INIT_FUNC
 
 #endif // EXIP_CONTENT_HPP
