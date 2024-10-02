@@ -27,6 +27,9 @@ using Traits = std::char_traits<char>;
 do { const auto err_code = (serialize.fn(__VA_ARGS__));   \
 if (err_code != exip::EXIP_OK) {                          \
   serialize.closeEXIStream(&stream);                      \
+  std::fprintf(stderr, "[%s:%u] in %s: %s\n",             \
+    __FILE__, __LINE__, __PRETTY_FUNCTION__,              \
+    GET_ERR_STRING(err_code));                            \
   return Error::From(ErrCode(err_code));                  \
 }} while(0)
 
@@ -152,6 +155,8 @@ CQName WriterImpl::makeName(XMLNode* node) {
   }
 
   EXICPP_UNREACHABLE();
+  auto prefix  = rawName.substr(0, pos);
+  auto postfix = rawName.substr(pos);
   return {};
 }
 
@@ -213,19 +218,6 @@ bool WriterImpl::nextNode() {
 }
 
 } // namespace `anonymous`
-
-static void getQName(CQName& name, XMLNode* node) {
-  StrRef wholeName = getName(node);
-  const auto loc = wholeName.find(':');
-  if (loc == StrRef::npos) {
-    name = {&EMPTY_STR, &EMPTY_STR};
-    return;
-  }
-  
-  auto prefix = wholeName.substr(0, loc);
-  auto postfix = wholeName.substr(loc);
-  assert(0 && "Unimplemented");
-}
 
 namespace exi {
 Error write_xml(XMLDocument* doc, const StackBuffer& buf) {

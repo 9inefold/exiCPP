@@ -196,7 +196,11 @@ typedef enum errorCode errorCode;
 
 #if EXIP_DEBUG == ON
   extern const char* errorCodeStrings[];
-# define GET_ERR_STRING(indx) errorCodeStrings[indx]
+# ifdef __cplusplus
+#  define GET_ERR_STRING(indx) ::exip::errorCodeStrings[indx]
+# else
+#  define GET_ERR_STRING(indx) errorCodeStrings[indx]
+# endif
 #else
 # define GET_ERR_STRING(indx) ""
 #endif
