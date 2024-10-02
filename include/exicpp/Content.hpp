@@ -24,7 +24,7 @@
 #include <type_traits>
 #include <exip/contentHandler.h>
 
-#include "Basic.hpp"
+#include "Traits.hpp"
 #include "Errors.hpp"
 #include "Strings.hpp"
 
@@ -35,9 +35,6 @@
 #endif
 
 namespace exi {
-
-
-
 namespace H {
 
 // TODO: Update
@@ -55,8 +52,6 @@ template <class Source>                                           \
 struct Func_##fn<Source, std::void_t<decltype(                    \
   Decl<Source*>()->fn(__VA_ARGS__)                                \
 )>> { static constexpr bool value = true; };
-
-#define Decl std::declval
 
 // For handling the meta-data (document structure)
 GEN_REQUIRES(startDocument)
@@ -89,9 +84,7 @@ GEN_REQUIRES(fatalError,  ErrCode::Ok, Decl<StrRef>())
 // EXI specific
 GEN_REQUIRES(selfContained)
 
-#undef Decl
 #undef GEN_REQUIRES
-
 #endif
 
 } // namespace H

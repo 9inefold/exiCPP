@@ -34,8 +34,16 @@
 #endif
 
 namespace exi {
-  template <bool B>
-  using bool_constant = std::integral_constant<bool, B>;
+
+template <bool B>
+using bool_constant = std::integral_constant<bool, B>;
+
+template <typename T>
+auto Decl() noexcept -> typename std::add_rvalue_reference<T>::type {
+  static_assert(sizeof(T) == 0,
+    "Decl not allowed in an evaluated context.");
+};
+
 } // namespace exi
 
 //======================================================================//
