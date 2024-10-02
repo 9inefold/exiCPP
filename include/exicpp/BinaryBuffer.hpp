@@ -22,18 +22,16 @@
 #define EXIP_BINARYBUFFER_HPP
 
 #include "Basic.hpp"
+#include "Errors.hpp"
 #include "HeapBuffer.hpp"
 
 namespace exi {
 
-struct IBinaryBuffer : public CBinaryBuffer {
-protected:
-  void setInternal(Char* data, std::size_t len);
-private:
-  bool isSameBuffer(Char* data, std::size_t len) const {
-    return (CBinaryBuffer::buf == data) &&
-      (CBinaryBuffer::bufLen == len);
-  }
+enum class StreamType : int {
+  RFile, // A `std::FILE*` reading in.
+  WFile, // A `std::FILE*` writing out.
+  None,  // Nothing.
+  Unknown,
 };
 
 enum class BinaryBufferType : int {
@@ -43,9 +41,39 @@ enum class BinaryBufferType : int {
   Unknown,
 };
 
+template <BinaryBufferType Ty = BinaryBufferType::Unknown>
+struct BinaryBuffer;
+
+struct IBinaryBuffer : public CBinaryBuffer {
+  template <BinaryBufferType>
+  friend struct exi::BinaryBuffer;
+
+  /// @brief Creates a handle to the file at `name`.
+  /// @return `true` on failure.
+  Error readFile(StrRef name);
+
+  /// @brief Creates a handle to the file at `name`.
+  /// @return `true` on failure.
+  Error writeFile(StrRef name);
+
+protected:
+  /// Directly sets the values in the base object.
+  void setInternal(Char* data, std::size_t len);
+  /// Destroys any stream already set.
+  void destroyStream();
+private:
+  bool isSameBuffer(Char* data, std::size_t len) const {
+    return (CBinaryBuffer::buf == data) &&
+      (CBinaryBuffer::bufLen == len);
+  }
+
+public:
+  StreamType stream_type = StreamType::None;
+};
+
 //////////////////////////////////////////////////////////////////////////
 
-template <BinaryBufferType Ty = BinaryBufferType::Unknown>
+template <BinaryBufferType Ty>
 struct BinaryBuffer : IBinaryBuffer {
   static_assert(int(Ty),
     "Unknown/unimplemented BinaryBuffer type!");
@@ -63,6 +91,8 @@ template <>
 struct BinaryBuffer<BinaryBufferType::Stack> : protected IBinaryBuffer {
   friend class IBinaryBuffer;
   friend class Parser;
+  using IBinaryBuffer::readFile;
+  using IBinaryBuffer::writeFile;
 public:
   constexpr BinaryBuffer() : IBinaryBuffer() {}
 
@@ -84,6 +114,13 @@ private:
       CBinaryBuffer::bufLen = 0;
     }
   }
+};
+
+template <std::size_t N>
+struct InlineStackBuffer : public StackBuffer {
+  InlineStackBuffer() : StackBuffer(data) {}
+private:
+  Char data[N] {};
 };
 
 template <std::size_t N>
@@ -114,6 +151,8 @@ public:
 private:
   HeapBuffer::BufType buf = nullptr;
 };
+
+BinaryBuffer(HeapBuffer&) -> UniqueBuffer;
 
 } // namespace exi
 

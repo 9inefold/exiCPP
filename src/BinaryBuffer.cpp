@@ -17,8 +17,47 @@
 //===----------------------------------------------------------------===//
 
 #include <exicpp/BinaryBuffer.hpp>
+#include <cstdio>
 
 using namespace exi;
+
+static std::size_t readFromFP(void* buf, std::size_t count, void* stream) {
+  auto* const fp = static_cast<std::FILE*>(stream);
+  return std::fread(buf, sizeof(Char), count, fp);
+}
+
+static std::size_t writeToFP(void* buf, std::size_t count, void* stream) {
+  auto* const fp = static_cast<std::FILE*>(stream);
+  return std::fwrite(buf, sizeof(Char), count, fp);
+}
+
+Error IBinaryBuffer::readFile(StrRef name) {
+  this->destroyStream();
+  auto* fp = std::fopen(name.data(), "rb");
+  if (!fp)
+    return Error::From("Unable to open file to read.");
+  
+  this->stream_type = StreamType::RFile;
+  this->ioStrm.readWriteToStream = &readFromFP;
+  this->ioStrm.stream = fp;
+
+  return Error::Ok();
+}
+
+Error IBinaryBuffer::writeFile(StrRef name) {
+  this->destroyStream();
+  auto* fp = std::fopen(name.data(), "wb");
+  if (!fp)
+    return Error::From("Unable to open file to write.");
+  
+  this->stream_type = StreamType::WFile;
+  this->ioStrm.readWriteToStream = &writeToFP;
+  this->ioStrm.stream = fp;
+
+  return Error::Ok();
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 void IBinaryBuffer::setInternal(Char* data, std::size_t len) {
   if EXICPP_UNLIKELY(this->isSameBuffer(data, len))
@@ -26,4 +65,17 @@ void IBinaryBuffer::setInternal(Char* data, std::size_t len) {
   CBinaryBuffer::buf = data;
   CBinaryBuffer::bufLen = len;
   CBinaryBuffer::bufContent = 0;
+}
+
+void IBinaryBuffer::destroyStream() {
+  auto& stream = this->ioStrm;
+  switch (this->stream_type) {
+   case StreamType::RFile:
+   case StreamType::WFile: {
+    auto* const fp = static_cast<std::FILE*>(stream.stream);
+    std::fclose(fp);
+    break;
+   }
+  }
+  stream = exip::IOStream();
 }
