@@ -32,6 +32,7 @@
 namespace exi {
 
 using XMLDocument = rapidxml::xml_document<Char>;
+using XMLAttribute = rapidxml::xml_attribute<Char>;
 using XMLBase = rapidxml::xml_base<Char>;
 using XMLNode = rapidxml::xml_node<Char>;
 using XMLType = rapidxml::node_type;

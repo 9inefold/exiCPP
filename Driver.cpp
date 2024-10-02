@@ -194,22 +194,27 @@ void iter_nodes(exi::XMLDocument* pnode, std::size_t starting_depth = 0) {
 
 /////////////////////////////////////////////////////////////////////////
 
-bool write_file(const fs::path& path, const fs::path& outpath) {
+bool write_file(const std::string& path, const std::string& outpath) {
   using namespace exi;
-  auto filepath = path.string();
-  auto xmldoc = BoundDocument::ParseFrom(filepath);
+  auto xmldoc = BoundDocument::ParseFrom(path);
   if (!xmldoc) {
     std::cout 
       << ansi::red << "Unable to locate file "
-      << path.filename() << "!\n" << ansi::reset;
+      << path << "!\n" << ansi::reset;
     return false;
   }
 
-  auto exiFile = outpath.string();
   InlineStackBuffer<512> buf;
-  if (Error E = buf.writeFile(exiFile)) {
+  if (Error E = buf.writeFile(outpath)) {
     std::cout 
-      << ansi::red << "Error in '" << exiFile << "': " << E.message()
+      << ansi::red << "Error in '" << outpath << "': " << E.message()
+      << ansi::reset << std::endl;
+    return false;
+  }
+
+  if (Error E = write_xml(xmldoc.document(), buf)) {
+    std::cout 
+      << ansi::red << "Serialization error: " << E.message()
       << ansi::reset << std::endl;
     return false;
   }
@@ -217,10 +222,8 @@ bool write_file(const fs::path& path, const fs::path& outpath) {
   return true;
 }
 
-bool read_file(const fs::path& outpath) {
+bool read_file(const std::string& outpath) {
   using namespace exi;
-  auto exiFile = outpath.string();
-  
 
   // rapidxml::print(std::cout, *xmldoc.document());
   // std::cout << std::endl;
@@ -228,8 +231,8 @@ bool read_file(const fs::path& outpath) {
 }
 
 void test_file(exi::StrRef filepath) {
-  fs::path path = fs::absolute(filepath);
-  fs::path outpath = path.replace_extension("exi");
+  std::string path = std::string(filepath) + ".xml";
+  std::string outpath = std::string(filepath) + ".exi";
 
   if (!write_file(path, outpath))
     return;
@@ -264,6 +267,6 @@ int main() {
       << ansi::reset << std::endl;
   }
 
-  test_file("examples/Customers.xm");
+  test_file("examples/Basic");
   // test_file("examples/Namespace.xml");
 }

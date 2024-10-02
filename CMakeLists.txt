@@ -23,6 +23,7 @@ add_subdirectory(vendored/exip)
 add_library(exicpp STATIC
   src/BinaryBuffer.cpp
   src/Errors.cpp
+  src/Writer.cpp
   src/XML.cpp
 )
 target_include_directories(exicpp PUBLIC include vendored/rapidxml)
