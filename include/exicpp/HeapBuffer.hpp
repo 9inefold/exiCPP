@@ -30,9 +30,15 @@
 
 namespace exi {
 
+template <typename T, class Deleter = std::default_delete<T>>
+using Box = std::unique_ptr<T, Deleter>;
+
+template <typename T>
+using BoxedSpan = std::unique_ptr<T[]>;
+
 class HeapBuffer {
 public:
-  using BufType  = std::unique_ptr<Char[]>;
+  using BufType  = BoxedSpan<Char>;
 public:
   /// Default constructor, no buffer.
   HeapBuffer() = default;
@@ -40,8 +46,11 @@ public:
   HeapBuffer(HeapBuffer&&) = default;
 
   /// Allocates a buffer of size `len`.
-  HeapBuffer(std::size_t len) :
-   buf(std::make_unique<Char[]>(len)), len(len) {
+  HeapBuffer(std::size_t len) : HeapBuffer() {
+    if EXICPP_LIKELY(len != 0) {
+      this->buf = std::make_unique<Char[]>(len);
+      this->len = len;
+    }
   }
 
   /// Allocates a new buffer of size `len`.
