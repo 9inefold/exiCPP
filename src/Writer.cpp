@@ -1,4 +1,4 @@
-//===- exicpp/Writer.hpp --------------------------------------------===//
+//===- Writer.cpp ---------------------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -16,23 +16,15 @@
 //
 //===----------------------------------------------------------------===//
 
-#pragma once
+#include <exicpp/Writer.hpp>
 
-#ifndef EXIP_WRITER_HPP
-#define EXIP_WRITER_HPP
-
-#include "Basic.hpp"
-#include "BinaryBuffer.hpp"
-#include "Content.hpp"
-#include "Errors.hpp"
-#include "XML.hpp"
-#include <exip/EXISerializer.h>
-// #include <exip/grammarGenerator.h>
+using namespace exi;
+using Traits = std::char_traits<char>;
 
 namespace exi {
+Error write_xml(XMLDocument* doc, const StackBuffer& buf) {
+  
 
-Error write_xml(XMLDocument* doc, const StackBuffer& buf);
-
-} // namespace exi
-
-#endif // EXIP_WRITER_HPP
+  return Error::Ok();
+}
+} // namespace exi;
