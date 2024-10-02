@@ -41,8 +41,10 @@
 // Setup
 //======================================================================//
 
-#if EXIP_DEBUG
-# define EXICPP_DEBUG 1
+#ifndef EXICPP_DEBUG
+# if EXIP_DEBUG
+#  define EXICPP_DEBUG 1
+# endif
 #endif
 
 #undef EXICPP_MSVC
