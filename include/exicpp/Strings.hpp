@@ -40,7 +40,7 @@ class IString : public CString {
   }
 
   static EXICPP_CXPR14 String New(Char* str, std::size_t len);
-  static EXICPP_CXPR14 ImmString New(const Char* str, std::size_t len);
+  static ImmString New(const Char* str, std::size_t len);
 };
 
 class String : protected IString {
@@ -57,8 +57,7 @@ public:
    IString{const_cast<Char*>(str), len} {
   }
 
-  EXICPP_CXPR17 ImmString(StrRef str) :
-   ImmString(str.data(), str.size()) {
+  ImmString(StrRef str) : ImmString(str.data(), str.size()) {
   }
 
   template <typename T>
@@ -67,13 +66,11 @@ public:
   }
 };
 
-inline EXICPP_CXPR14
- String IString::New(Char* str, std::size_t len) {
+inline EXICPP_CXPR14 String IString::New(Char* str, std::size_t len) {
   return String(str, len);
 }
 
-inline EXICPP_CXPR14
- ImmString IString::New(const Char* str, std::size_t len) {
+inline ImmString IString::New(const Char* str, std::size_t len) {
   return ImmString(str, len);
 }
 
@@ -81,6 +78,9 @@ inline EXICPP_CXPR14
 
 class QName : protected CQName {
   friend class Parser;
+public:
+  QName(QName&&) = default;
+private:
   constexpr QName() : CQName() {}
   constexpr QName(const CQName& name) : CQName(name) {}
 
