@@ -94,6 +94,7 @@ boolean isStringEmpty(const String* str);
  * @return Error handling code
  */
 errorCode asciiToString(const char* inStr, String* outStr, AllocList* memList, boolean clone);
+errorCode asciiToStringN(const char* inStr, Index len, String* outStr, AllocList* memList, boolean clone);
 
 /**
  * @brief Tests if two strings are equal

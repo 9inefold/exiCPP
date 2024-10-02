@@ -61,9 +61,9 @@ boolean isStringEmpty(const String* str)
 	return 0;
 }
 
-errorCode asciiToString(const char* inStr, String* outStr, AllocList* memList, boolean clone)
+errorCode asciiToStringN(const char* inStr, Index len, String* outStr, AllocList* memList, boolean clone)
 {
-	outStr->length = strlen(inStr);
+	outStr->length = len;
 	if(outStr->length > 0)  // If == 0 -> empty string
 	{
 		if(clone == FALSE)
@@ -83,6 +83,12 @@ errorCode asciiToString(const char* inStr, String* outStr, AllocList* memList, b
 	else
 		outStr->str = NULL;
 	return EXIP_OK;
+}
+
+
+errorCode asciiToString(const char* inStr, String* outStr, AllocList* memList, boolean clone)
+{
+	return asciiToStringN(inStr, strlen(inStr), outStr, memList, clone);
 }
 
 boolean stringEqual(const String str1, const String str2)
