@@ -16,76 +16,46 @@
 //
 //===----------------------------------------------------------------===//
 
-#include <exicpp/Content.hpp>
-#include <exicpp/BinaryBuffer.hpp>
-#include <exip/EXIParser.h>
+#include <exicpp/Reader.hpp>
+#include <exicpp/Writer.hpp>
+#include <exicpp/XML.hpp>
 #include <exip/EXISerializer.h>
-#include <rapidxml.hpp>
-
-namespace exi {
-
-using CParser = exip::Parser;
-
-class Parser : protected CParser {
-  using BBType = BinaryBufferType;
-  Parser() noexcept : CParser() {}
-  void(*shutdown)(CParser*) = nullptr;
-public:
-  ~Parser() { this->deinit(); }
-public:
-  template <class Source>
-  [[nodiscard]]
-  static Parser New(Source& appData, const StackBuffer& buf) {
-    Parser parser {};
-    parser.init(&buf, &appData);
-    ContentHandler::SetContent(parser.handler, &appData);
-    return parser;
-  }
-
-public:
-  [[nodiscard]] ErrCode parseHeader(bool outOfBandOpts = false) {
-    const CErrCode ret = exip::parseHeader(
-      this, exip::boolean(outOfBandOpts));
-    return ErrCode(ret);
-  }
-
-private:
-  bool init(const CBinaryBuffer* buf, void* appData) {
-    auto* const parser = static_cast<CParser*>(this);
-    CErrCode err = exip::initParser(parser, *buf, appData);
-    if (err != CErrCode::EXIP_OK) {
-      return false;
-    }
-    return true;
-  }
-
-  void deinit() {
-    exip::destroyParser(this);
-    if (shutdown)
-      shutdown(this);
-  }
-};
-
-} // namespace exi
-
-/////////////////////////////////////////////////////////////////////////
 
 #include <iostream>
+
+inline std::ostream& operator<<(std::ostream& os, const exi::QName& name) {
+  const auto prefix = name.prefix();
+  if (prefix.empty())
+    return os << name.localName();
+  return os << prefix << ':' << name.localName();
+}
 
 struct Example {
   unsigned elementCount = 0;
   unsigned nestingLevel = 0;
-
 public:
   using enum exi::ErrCode;
 
   exi::ErrCode startDocument() const {
-    std::cout << "Start: " << this << '\n';
+    std::cout << "Beg: " << this << '\n';
     return Ok;
   }
 
   exi::ErrCode endDocument() const {
     std::cout << "End: " << this << '\n';
+    return Ok;
+  }
+
+  exi::ErrCode startElement(exi::QName name) {
+    std::cout << "#" << elementCount << ": "
+      << name << '\n';
+    ++this->elementCount;
+    ++this->nestingLevel;
+    return Ok;
+  }
+
+  exi::ErrCode endElement() {
+    --this->nestingLevel;
     return Ok;
   }
 };
@@ -95,67 +65,42 @@ public:
 //======================================================================//
 
 #include <filesystem>
-#include <fstream>
-#include <iterator>
-#include <string>
 
 namespace fs = std::filesystem;
-using Str = std::string;
-using BoxedStr = std::unique_ptr<Str>;
 
 namespace ansi {
-  struct AnsiBase {
-    std::string_view color {};
-    friend std::ostream& operator<<(std::ostream& os, const AnsiBase& c) {
-      if (!c.color.empty())
-        return os << c.color;
-      return os;
-    }
-  };
-
-
-#ifndef DISABLE_ANSI
-  inline constexpr AnsiBase reset   {"\u001b[0m"};
-  inline constexpr AnsiBase red     {"\u001b[31;1m"};
-  inline constexpr AnsiBase green   {"\u001b[32;1m"};
-  inline constexpr AnsiBase blue    {"\u001b[34;1m"};
-  inline constexpr AnsiBase yellow  {"\u001b[33;1m"};
-  inline constexpr AnsiBase cyan    {"\u001b[36;1m"};
-  inline constexpr AnsiBase white   {"\u001b[37;1m"};
-#else
-  inline constexpr AnsiBase reset   {};
-  inline constexpr AnsiBase red     {};
-  inline constexpr AnsiBase green   {};
-  inline constexpr AnsiBase blue    {};
-  inline constexpr AnsiBase yellow  {};
-  inline constexpr AnsiBase cyan    {};
-  inline constexpr AnsiBase white   {};
-#endif
-}
-
-BoxedStr read_file(fs::path filepath) {
-  if(filepath.is_relative()) {
-    filepath = (fs::current_path() / filepath);
+struct AnsiBase {
+  std::string_view color {};
+  friend std::ostream& operator<<(std::ostream& os, const AnsiBase& c) {
+    if (!c.color.empty())
+      return os << c.color;
+    return os;
   }
-  std::ifstream is ( filepath, std::ios::binary );
-  is.unsetf(std::ios::skipws);
-  if(!is) return BoxedStr();
+};
 
-  std::streampos size;
-  is.seekg(0, std::ios::end);
-  size = is.tellg();
-  is.seekg(0, std::ios::beg);
+#if DISABLE_ANSI
+# define DECL_ANSI(name, val) \
+  inline constexpr AnsiBase name {}
+#else
+# define DECL_ANSI(name, val) \
+  inline constexpr AnsiBase name {val}
+#endif
 
-  Str file_data;
-  std::istream_iterator<char> start(is), end;
-  file_data.reserve(size);
-  file_data.insert(file_data.cbegin(), start, end);
-  return std::make_unique<Str>(std::move(file_data));
+DECL_ANSI(reset, "\u001b[0m");
+DECL_ANSI(red,   "\u001b[31;1m");
+DECL_ANSI(green, "\u001b[32;1m");
+DECL_ANSI(blue,  "\u001b[34;1m");
+DECL_ANSI(yellow,"\u001b[33;1m");
+DECL_ANSI(cyan,  "\u001b[36;1m");
+DECL_ANSI(white, "\u001b[37;1m");
+
+#undef DECL_ANSI
 }
 
 /////////////////////////////////////////////////////////////////////////
 
 #include <cassert>
+#include <rapidxml_print.hpp>
 
 [[noreturn]] void flushing_assert(
  const char* message, const char* file, unsigned line) {
@@ -172,17 +117,17 @@ BoxedStr read_file(fs::path filepath) {
    (flushing_assert(#expr,__FILE__,__LINE__), false)))
 #endif /* !defined (NDEBUG) */
 
-exi::StrRef get_name(rapidxml::xml_base<>* data) {
+exi::StrRef get_name(exi::XMLBase* data) {
   if (!data || data->name_size() == 0) return "";
   return {data->name(), data->name_size()};
 }
 
-exi::StrRef get_value(rapidxml::xml_base<>* data) {
+exi::StrRef get_value(exi::XMLBase* data) {
   if (!data || data->value_size() == 0) return "";
   return {data->value(), data->value_size()};
 }
 
-void iter_nodes(rapidxml::xml_document<>* pnode, std::size_t starting_depth = 0) {
+void iter_nodes(exi::XMLDocument* pnode, std::size_t starting_depth = 0) {
   using namespace rapidxml;
   std::size_t depth = starting_depth;
   std::string padding(starting_depth, ' ');
@@ -247,76 +192,78 @@ void iter_nodes(rapidxml::xml_document<>* pnode, std::size_t starting_depth = 0)
   }
 }
 
-void recurse_nodes(rapidxml::xml_node<>* pnode, std::size_t depth = 0) {
-  if EXICPP_UNLIKELY(!pnode->parent()) {
-    return recurse_nodes(pnode->first_node(), depth);
+/////////////////////////////////////////////////////////////////////////
+
+bool write_file(const fs::path& path, const fs::path& outpath) {
+  using namespace exi;
+  auto filepath = path.string();
+  auto xmldoc = BoundDocument::ParseFrom(filepath);
+  if (!xmldoc) {
+    std::cout 
+      << ansi::red << "Unable to locate file "
+      << path.filename() << "!\n" << ansi::reset;
+    return false;
   }
 
-  std::string padding(depth, ' ');
-  for (auto* node = pnode; node; node = node->next_sibling()) {
-    if (node->type() == rapidxml::node_data) {
-      std::cout << padding << '[' << get_value(node) << "]\n";
-      continue;
-    }
-
-    std::cout << padding << get_name(node) << ":\n";
-
-    for (auto* attr = node->first_attribute();
-      attr; attr = attr->next_attribute())
-    {
-      std::cout << padding << " {"
-        << ansi::red    << get_name(attr) 
-        << ansi::reset  << '='
-        << ansi::cyan   << get_value(attr) 
-        << ansi::reset  << "}\n";
-    }
-
-    auto* first_node = node->first_node();
-    if (first_node) {
-      recurse_nodes(first_node, depth + 2);
-    }
+  auto exiFile = outpath.string();
+  InlineStackBuffer<512> buf;
+  if (Error E = buf.writeFile(exiFile)) {
+    std::cout 
+      << ansi::red << "Error in '" << exiFile << "': " << E.message()
+      << ansi::reset << std::endl;
+    return false;
   }
+
+  return true;
 }
 
-template <bool UseRecursive = false>
-void test_file(const fs::path& filepath) {
-  auto file = read_file(filepath);
-  if (!file) {
-    std::cerr << "Unable to locate file "
-      << filepath << "!\n";
+bool read_file(const fs::path& outpath) {
+  using namespace exi;
+  auto exiFile = outpath.string();
+  
+
+  // rapidxml::print(std::cout, *xmldoc.document());
+  // std::cout << std::endl;
+  return true;
+}
+
+void test_file(exi::StrRef filepath) {
+  fs::path path = fs::absolute(filepath);
+  fs::path outpath = path.replace_extension("exi");
+
+  if (!write_file(path, outpath))
     return;
-  }
-
-  using namespace rapidxml;
-  xml_document<exi::Char> doc;
-  doc.parse<0>(file->data());
-
-  std::cout
-    << ansi::red << '[' << (UseRecursive ? "recursive" : "iterative") << "] "
-    << ansi::yellow << "In " << filepath << ':'
-    << ansi::reset << '\n';
-
-  if constexpr (UseRecursive) {
-    recurse_nodes(&doc, 1);
-  } else {
-    iter_nodes(&doc, 1);
-  }
-  std::cout << std::endl;
+  read_file(outpath);
 }
 
 int main() {
-  std::cout << std::boolalpha;
+  using namespace exi;
+  using exi::Error;
+  using exi::ErrCode;
 
-  exi::Char stackData[512] {};
-  exi::BinaryBuffer buf(stackData);
+  InlineStackBuffer<512> buf;
+  StrRef filename = "vendored/exip/examples/simpleDecoding/exipd-test.exi";
+  if (Error E = buf.readFile(filename)) {
+    std::cout 
+      << ansi::red << "Error in '" << filename << "': " << E.message()
+      << ansi::reset << std::endl;
+  }
+
   Example appData {};
   auto parser = exi::Parser::New(appData, buf);
-  // auto err = parser.parseHeader();
-  // std::cout << exi::getErrString(err) << std::endl;
 
-  // initParser(&parser, buffer.getCBuffer(), &data);
-  // destroyParser(&parser);
+  if (Error E = parser.parseHeader()) {
+    std::cout
+      << ansi::red << "Header error: " << E.message()
+      << ansi::reset << std::endl;
+  }
 
-  test_file("examples/Customers.xml");
-  test_file("examples/Namespace.xml");
+  if (Error E = parser.parseAll()) {
+    std::cout
+      << ansi::red << "Parse error: " << E.message()
+      << ansi::reset << std::endl;
+  }
+
+  test_file("examples/Customers.xm");
+  // test_file("examples/Namespace.xml");
 }
