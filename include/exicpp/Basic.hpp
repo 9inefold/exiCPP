@@ -35,7 +35,7 @@
 namespace exi {
 
 /// Defined as `char` most of the time.
-using Char   = exip::CharType;
+using Char = exip::CharType;
 using exip::Index;
 /// A non-owning span over an array of `Char`s.
 using StrRef = std::basic_string_view<Char>;
