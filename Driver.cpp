@@ -102,98 +102,6 @@ DECL_ANSI(white, "\u001b[37;1m");
 #include <cassert>
 #include <rapidxml_print.hpp>
 
-[[noreturn]] void flushing_assert(
- const char* message, const char* file, unsigned line) {
-  std::fflush(stdout);
-  _assert(message, file, line);
-  __builtin_unreachable();
-}
-
-#ifdef NDEBUG
-# define my_assert(expr) ((void)0)
-#else
-# define my_assert(expr) \
-  ((void)((static_cast<bool>((expr))) || \
-   (flushing_assert(#expr,__FILE__,__LINE__), false)))
-#endif /* !defined (NDEBUG) */
-
-exi::StrRef get_name(exi::XMLBase* data) {
-  if (!data || data->name_size() == 0) return "";
-  return {data->name(), data->name_size()};
-}
-
-exi::StrRef get_value(exi::XMLBase* data) {
-  if (!data || data->value_size() == 0) return "";
-  return {data->value(), data->value_size()};
-}
-
-void iter_nodes(exi::XMLDocument* pnode, std::size_t starting_depth = 0) {
-  using namespace rapidxml;
-  std::size_t depth = starting_depth;
-  std::string padding(starting_depth, ' ');
-
-  xml_node<>* curr_node = pnode;
-  xml_node<>* last_node = nullptr;
-  auto& node = curr_node;
-
-  auto next = [&]() -> bool {
-    last_node = curr_node;
-    if (curr_node->first_node()) {
-      curr_node = curr_node->first_node();
-      depth += 2;
-      padding.resize(depth, ' ');
-      return true;
-    }
-
-    auto* parent = curr_node->parent();
-    if (!parent) return false;
-
-    if (curr_node->next_sibling()) {
-      curr_node = curr_node->next_sibling();
-      return true;
-    }
-
-    curr_node = parent;
-    parent = curr_node->parent();
-
-    while (parent) {
-      depth -= 2;
-      padding.resize(depth);
-
-      if (curr_node->next_sibling()) {
-        curr_node = curr_node->next_sibling();
-        return true;
-      }
-
-      curr_node = parent;
-      parent = curr_node->parent();
-    }
-
-    return false;
-  };
-
-  while (next()) {
-    if (node->type() == rapidxml::node_data) {
-      std::cout << padding << '[' << get_value(node) << "]\n";
-      continue;
-    }
-
-    std::cout << padding << get_name(node) << ":\n";
-
-    for (auto* attr = node->first_attribute();
-      attr; attr = attr->next_attribute())
-    {
-      std::cout << padding << " {"
-        << ansi::red    << get_name(attr) 
-        << ansi::reset  << '='
-        << ansi::cyan   << get_value(attr) 
-        << ansi::reset  << "}\n";
-    }
-  }
-}
-
-/////////////////////////////////////////////////////////////////////////
-
 bool write_file(const std::string& path, const std::string& outpath) {
   using namespace exi;
   auto xmldoc = BoundDocument::ParseFrom(path);
@@ -225,6 +133,15 @@ bool write_file(const std::string& path, const std::string& outpath) {
 bool read_file(const std::string& outpath) {
   using namespace exi;
 
+  InlineStackBuffer<512> buf;
+  if (Error E = buf.readFile(outpath)) {
+    std::cout 
+      << ansi::red << "Error in '" << outpath << "': " << E.message()
+      << ansi::reset << std::endl;
+    return false;
+  }
+
+  // TODO: Add parser
   // rapidxml::print(std::cout, *xmldoc.document());
   // std::cout << std::endl;
   return true;
