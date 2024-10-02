@@ -56,7 +56,7 @@ typedef enum SchemaFormat SchemaFormat;
  * that has non empty target namespace and the referenced/included XML schema have an empty target
  * namespace, although this is allowed by the XML Schema spec.
  */
-errorCode loadSchemaHandler(String* namespace, String* schemaLocation, BinaryBuffer** buffers, unsigned int* bufCount, SchemaFormat* schemaFormat, EXIOptions** opt);
+errorCode loadSchemaHandler(String* ns, String* schemaLocation, BinaryBuffer** buffers, unsigned int* bufCount, SchemaFormat* schemaFormat, EXIOptions** opt);
 
 /**
  * @brief Given a set of XML schemes, generates all Schema-informed Element and Type Grammars
@@ -81,7 +81,7 @@ errorCode loadSchemaHandler(String* namespace, String* schemaLocation, BinaryBuf
  * namespace, although this is allowed by the XML Schema spec.
  */
 errorCode generateSchemaInformedGrammars(BinaryBuffer* buffers, unsigned int bufCount, SchemaFormat schemaFormat, EXIOptions* opt, EXIPSchema* schema,
-		errorCode (*loadSchemaHandler) (String* namespace, String* schemaLocation, BinaryBuffer** buffers, unsigned int* bufCount, SchemaFormat* schemaFormat, EXIOptions** opt));
+		errorCode (*loadSchemaHandler) (String* ns, String* schemaLocation, BinaryBuffer** buffers, unsigned int* bufCount, SchemaFormat* schemaFormat, EXIOptions** opt));
 
 /**
  * @brief Frees all the memory allocated by an EXIPSchema object
