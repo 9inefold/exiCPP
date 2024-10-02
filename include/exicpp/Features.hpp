@@ -41,6 +41,10 @@
 // Setup
 //======================================================================//
 
+#if EXIP_DEBUG
+# define EXICPP_DEBUG 1
+#endif
+
 #undef EXICPP_MSVC
 #if (defined(_MSC_VER) || defined(_MSVC_LANG)) && !defined(__MINGW32__)
 # define EXICPP_MSVC 1
