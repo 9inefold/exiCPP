@@ -26,6 +26,7 @@
 #define EXIP_ERRORS_HPP
 
 #include "Basic.hpp"
+#include "Traits.hpp"
 #include <exip/errorHandle.h>
 
 namespace exi {
@@ -95,7 +96,7 @@ enum class ErrCode {
   LastValue                                   = Stop,
 };
 
-inline static StrRef getErrString(ErrCode err) {
+inline StrRef getErrString(ErrCode err) {
 #if EXIP_DEBUG == ON
   const auto idx = std::size_t(err);
   if EXICPP_LIKELY(idx <= std::size_t(ErrCode::LastValue))
@@ -103,6 +104,53 @@ inline static StrRef getErrString(ErrCode err) {
 #endif
   return "";
 }
+
+//======================================================================//
+// Error
+//======================================================================//
+
+class Error {
+	using MsgType = const char*;
+
+	enum State : std::uint8_t {
+		NoError,
+		Unowned,
+		Owned,
+		Invalid,
+	};
+
+	constexpr Error() = default;
+	Error(MsgType msg, State state = Unowned) :
+	 msg(msg), state(state) {
+	}
+
+public:
+	Error(const Error&) = delete;
+	Error(Error&& e) : Error(e.msg, e.state) {
+		e.clear();
+	}
+
+	Error& operator=(const Error&) = delete;
+	Error& operator=(Error&& e);
+	~Error() { this->clear(); }
+
+	static Error Ok() { return Error(); }
+	static Error From(StrRef msg, bool clone = false);
+	static Error From(ErrCode err);
+	static Error MakeOwned(StrRef msg);
+
+public:
+	void clear();
+	StrRef message() const;
+
+	explicit operator bool() const {
+		return (state != NoError);
+	}
+
+private:
+	MsgType msg = nullptr;
+	State state = NoError;
+};
 
 } // namespace exi
 
