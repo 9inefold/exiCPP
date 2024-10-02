@@ -21,9 +21,63 @@
 #ifndef EXIP_STRINGS_HPP
 #define EXIP_STRINGS_HPP
 
-#include "Basic.hpp"
+#include "Traits.hpp"
+#include <cstring>
 
 namespace exi {
+
+//======================================================================//
+// Objects
+//======================================================================//
+
+class String;
+class ImmString;
+
+class IString : public CString {
+  template <typename T>
+  static EXICPP_CXPR17 auto New(T&& t) {
+    return IString::New(strdata(t), strsize(t));
+  }
+
+  static EXICPP_CXPR14 String New(Char* str, std::size_t len);
+  static EXICPP_CXPR14 ImmString New(const Char* str, std::size_t len);
+};
+
+class String : protected IString {
+public:
+  String() : IString() {}
+  EXICPP_CXPR14 String(Char* str, std::size_t n) : IString{str, n} {}
+  EXICPP_CXPR17 String(Char* str) : String(str, strsize(str)) {}
+};
+
+class ImmString : protected IString {
+public:
+  ImmString() : IString() {}
+  ImmString(const Char* str, std::size_t len) :
+   IString{const_cast<Char*>(str), len} {
+  }
+
+  EXICPP_CXPR17 ImmString(StrRef str) :
+   ImmString(str.data(), str.size()) {
+  }
+
+  template <typename T>
+  ALWAYS_INLINE ImmString(T&& t) :
+   ImmString(strdata(t), strsize(t)) {
+  }
+};
+
+inline EXICPP_CXPR14
+ String IString::New(Char* str, std::size_t len) {
+  return String(str, len);
+}
+
+inline EXICPP_CXPR14
+ ImmString IString::New(const Char* str, std::size_t len) {
+  return ImmString(str, len);
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 class QName : protected CQName {
   friend class Parser;
