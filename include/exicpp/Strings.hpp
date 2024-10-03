@@ -99,7 +99,9 @@ inline ImmString IString::New(const Char* str, std::size_t len) {
 
 class QName : protected CQName {
   friend class Parser;
+  friend class ContentHandler;
 public:
+  // TODO: Make these private in C++17.
   constexpr QName(const CQName& name) : CQName(name) {}
   QName(QName&&) = default;
 private:
