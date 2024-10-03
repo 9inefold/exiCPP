@@ -17,8 +17,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 endif()
 
 option(EXICPP_DEBUG  "If debug printing should be enabled." ON)
+option(EXICPP_ANSI   "If ANSI should be enabled." OFF)
 option(EXICPP_FORMAT "If fmtlib should be enabled." ON)
 option(EXIP_FORCE_SCOPE "If the exip namespace should be forced." ON)
+
+if(EXICPP_ANSI)
+  set(EXIP_ANSI ON)
+endif()
 
 add_subdirectory(vendored/exip)
 add_subdirectory(vendored/fmt)
@@ -36,7 +41,13 @@ target_include_directories(exicpp
 )
 target_link_libraries(exicpp PUBLIC exip::exip fmt::fmt)
 target_compile_features(exicpp PUBLIC cxx_std_17)
-target_forward_options(exicpp PUBLIC EXICPP_DEBUG EXICPP_FORMAT)
+target_forward_options(exicpp PUBLIC EXICPP_DEBUG EXICPP_ANSI EXICPP_FORMAT)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+  # ...
+else()
+  target_compile_options(exip PRIVATE -Wall -Wpedantic)
+endif()
 
 if(PROJECT_IS_TOP_LEVEL)
   add_executable(exi-driver Driver.cpp)

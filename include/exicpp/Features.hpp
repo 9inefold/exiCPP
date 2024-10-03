@@ -120,12 +120,20 @@
 
 #ifndef EXICPP_DEBUG
 # if EXIP_DEBUG
-#  define EXICPP_DEBUG 1
+#  define EXICPP_DEBUG ON
 # endif
 #endif
 
+#ifndef EXICPP_DEBUG_LEVEL
+# define EXICPP_DEBUG_LEVEL EXIP_DEBUG_LEVEL
+#endif
+
+#ifndef EXICPP_ANSI
+# define EXICPP_ANSI EXIP_ANSI
+#endif
+
 #ifndef EXICPP_FORMAT
-# define EXICPP_FORMAT 1
+# define EXICPP_FORMAT ON
 #endif
 
 #if EXICPP_COMPILER(LLVM)

@@ -21,6 +21,8 @@
 #include <exicpp/XML.hpp>
 #include <exip/EXISerializer.h>
 
+#define NFORMAT
+#include <exicpp/Debug/Format.hpp>
 #include <iostream>
 
 inline std::ostream& operator<<(std::ostream& os, const exi::QName& name) {
@@ -65,43 +67,166 @@ DECL_ANSI(cyan,  "\033[36;1m");
 DECL_ANSI(white, "\033[37;1m");
 
 #undef DECL_ANSI
+
+struct AnsiEnd {};
+inline constexpr AnsiEnd endl {};
+
+inline std::ostream& operator<<(std::ostream& os, const AnsiEnd&) {
+#if DISABLE_ANSI
+  return os << '\n';
+#else
+  return os << ansi::reset << '\n';
+#endif
+}
+
 }
 
 struct Example {
-  unsigned elementCount = 0;
-  unsigned nestingLevel = 0;
-public:
   using ErrCode = exi::ErrCode;
 
-  ErrCode startDocument() const {
-    std::cout << "Beg: " << this << '\n';
+  enum Ty {
+    DOCTYPE,
+    ELEMENT,
+    DATA,
+    ATTRIBUTE,
+    ATTRIBUTE_DATA,
+    NONE,
+  };
+
+public:
+  constexpr Example() = default;
+
+  ErrCode startDocument() {
+    LOG_INFO("");
+    this->lastType = DOCTYPE;
     return ErrCode::Ok;
   }
 
-  ErrCode endDocument() const {
-    std::cout << "End: " << this << '\n';
+  ErrCode endDocument() {
+    LOG_INFO("");
+    this->lastType = NONE;
     return ErrCode::Ok;
   }
 
   ErrCode startElement(const exi::QName& name) {
-    std::cout << ansi::red
+    if (lastType == ATTRIBUTE) {
+      LOG_INFO("Attr");
+      outs() << ansi::yellow
+        << " > " << name;
+#ifndef NFORMAT
+      outs(false) << ansi::endl;
+#endif
+      this->lastType = ATTRIBUTE_DATA;
+      return ErrCode::Ok; 
+    } else if (lastType == ATTRIBUTE_DATA) {
+      LOG_INFO("AttrData");
+      return ErrCode::Ok; 
+    }
+
+    LOG_INFO("");
+
+    if (name.localName().empty()) {
+      this->lastType = DATA;
+      return ErrCode::Ok;
+    }
+
+    outs() << ansi::red
       << "#" << elementCount << ": "
-      << name << '\n' << ansi::reset;
+      << name << ansi::endl;
     ++this->elementCount;
     ++this->nestingLevel;
     return ErrCode::Ok;
   }
 
   exi::ErrCode endElement() {
-    std::cout 
-      << ansi::blue << "END!" << '\n'
-      << ansi::reset;
-    --this->nestingLevel;
+    if (lastType == ATTRIBUTE) {
+      LOG_INFO("Attr");
+      this->lastType = ELEMENT;
+      return ErrCode::Ok;
+    } else if (lastType == ATTRIBUTE_DATA) {
+      LOG_INFO("AttrData");
+      this->lastType = ATTRIBUTE;
+      return ErrCode::Ok;
+    }
+
+    if (lastType == DATA) {
+      LOG_INFO("Data");
+      this->lastType = ELEMENT;
+      return ErrCode::Ok;
+    }
+
+    if (nestingLevel > 0) {
+      LOG_INFO("");
+      --this->nestingLevel;
+    } else {
+      LOG_ERR("INVALID NESTING LEVEL");
+    }
+    outs()
+      << ansi::blue << "END!"
+      << ansi::endl;
     return ErrCode::Ok;
   }
+
+  exi::ErrCode attribute(const exi::QName& name) {
+    LOG_INFO("");
+    this->lastType = ATTRIBUTE;
+    return ErrCode::Ok;
+  }
+
+  exi::ErrCode stringData(exi::StrRef str) {
+    if (lastType == ATTRIBUTE) {
+      LOG_INFO("Attr");
+      return ErrCode::Ok;
+    } else if (lastType == ATTRIBUTE_DATA) {
+      LOG_INFO("AttrData");
+#ifndef NFORMAT
+      outs()
+        << ansi::yellow << " = "
+#else
+      outs(false) << "="
+#endif
+        << str << ansi::endl;
+      return ErrCode::Ok;
+    }
+
+    if (lastType == DATA)
+      LOG_INFO("Data");
+    else
+      LOG_INFO("");
+
+    outs()
+      << ansi::white << " = "
+      << str << ansi::endl;
+    return ErrCode::Ok;
+  }
+
+private:
+  std::ostream& outs(bool printDepth = true) {
+    if (!printDepth)
+      return std::cout;
+    return std::cout << std::string(nestingLevel * 2, ' ');
+  }
+
+private:
+  unsigned elementCount = 0;
+  unsigned nestingLevel = 0;
+  Ty lastType = NONE;
 };
 
 /////////////////////////////////////////////////////////////////////////
+
+struct XMLBuilder {
+  using Ch = exi::Char;
+  XMLBuilder() : doc(), node(doc.document()) {}
+public:
+
+private:
+
+
+private:
+  exi::XMLDocument doc;
+  exi::XMLNode* node = nullptr;
+};
 
 bool write_file(const std::string& path, const std::string& outpath);
 bool read_file(const std::string& outpath);
@@ -183,13 +308,8 @@ void test_file(exi::StrRef filepath) {
   std::string path = basepath + ".xml";
   std::string outpath = basepath + ".exi";
 
-  if (!write_file(path, outpath)) {
-    fs::path outfile(outpath);
-    if (fs::is_regular_file(outpath) && fs::exists(outfile)) {
-      fs::remove(outpath);
-    }
+  if (!write_file(path, outpath))
     return;
-  }
   fmt::print(fmt::fg(fmt::color::blue_violet),
     "\n----------------------------------------------\n");
   test_exi(std::string(filepath) + ".exi");
