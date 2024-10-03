@@ -11,7 +11,8 @@ So... I made my own.
 
 ## Todo
 
-- Improve error generality
 - Finish wrapping the serializer
-- Add JSON support
-- Generic character encoding
+- Schema support
+- Improve error generality
+- JSON support
+- Generic character encoding?
