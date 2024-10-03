@@ -186,9 +186,7 @@ void test_file(exi::StrRef filepath) {
   if (!write_file(path, outpath)) {
     fs::path outfile(outpath);
     if (fs::is_regular_file(outpath) && fs::exists(outfile)) {
-      try {
-        fs::remove(outpath);
-      } catch (...) {}
+      fs::remove(outpath);
     }
     return;
   }
