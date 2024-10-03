@@ -23,12 +23,22 @@ using namespace exi;
 
 static std::size_t readFromFP(void* buf, std::size_t count, void* stream) {
   auto* const fp = static_cast<std::FILE*>(stream);
-  return std::fread(buf, sizeof(Char), count, fp);
+  const auto ret = std::fread(buf, sizeof(Char), count, fp);
+#if EXICPP_DEBUG
+  if (count != 0 && ret == 0)
+    std::perror("std::fread");
+#endif
+  return ret;
 }
 
 static std::size_t writeToFP(void* buf, std::size_t count, void* stream) {
   auto* const fp = static_cast<std::FILE*>(stream);
-  return std::fwrite(buf, sizeof(Char), count, fp);
+  const auto ret = std::fwrite(buf, sizeof(Char), count, fp);
+#if EXICPP_DEBUG
+  if (count != 0 && ret == 0)
+    std::perror("std::fwrite");
+#endif
+  return ret;
 }
 
 Error IBinaryBuffer::readFile(StrRef name) {
@@ -77,5 +87,5 @@ void IBinaryBuffer::destroyStream() {
     break;
    }
   }
-  stream = exip::IOStream();
+  stream = exip::IOStream{};
 }

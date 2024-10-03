@@ -56,6 +56,8 @@ struct IBinaryBuffer : public CBinaryBuffer {
   /// @return `true` on failure.
   Error writeFile(StrRef name);
 
+  ~IBinaryBuffer() { this->destroyStream(); }
+
 protected:
   /// Directly sets the values in the base object.
   void setInternal(Char* data, std::size_t len);
