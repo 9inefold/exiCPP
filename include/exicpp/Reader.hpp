@@ -98,8 +98,8 @@ public:
 private:
   [[nodiscard]] Error init(const CBinaryBuffer* buf, void* appData) {
     auto* const parser = static_cast<CParser*>(this);
-    // CErrCode ret = exip::initParser(parser, *buf, appData);
-    CErrCode ret = exip::parse.initParser(parser, *buf, appData);
+    CErrCode ret = exip::initParser(parser, *buf, appData);
+    // CErrCode ret = exip::parse.initParser(parser, *buf, appData);
     if (ret != CErrCode::EXIP_OK) {
       const auto err = ErrCode(ret);
       return Error::From(err);
