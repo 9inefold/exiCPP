@@ -273,7 +273,7 @@ public:
     CH_INIT_FUNC(startDocument, (), ())
     CH_INIT_FUNC(endDocument,   (), ())
     CH_INIT_FUNC(startElement,  (QName qname), (qname))
-    CH_INIT_FUNC(endElement,    (QName qname), (qname))
+    CH_INIT_FUNC(endElement,    (), ())
     CH_INIT_FUNC(attribute,     (QName qname), (qname))
 
     // For handling the data
