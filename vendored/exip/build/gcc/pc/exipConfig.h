@@ -33,18 +33,20 @@
 # define EXIP_DEBUG_LEVEL INFO
 #endif
 
+#define DBG_DEF ON
+
 /// Turns the debugging ON/OFF for the STREAM_IO module
-#define DEBUG_STREAM_IO   OFF
+#define DEBUG_STREAM_IO   DBG_DEF
 /// Turns the debugging ON/OFF for the COMMON module
-#define DEBUG_COMMON      OFF
+#define DEBUG_COMMON      DBG_DEF
 /// Turns the debugging ON/OFF for the CONTENT_IO module
-#define DEBUG_CONTENT_IO  OFF
+#define DEBUG_CONTENT_IO  DBG_DEF
 /// Turns the debugging ON/OFF for the GRAMMAR module
-#define DEBUG_GRAMMAR     OFF
+#define DEBUG_GRAMMAR     DBG_DEF
 /// Turns the debugging ON/OFF for the GRAMMAR_GEN module
 #define DEBUG_GRAMMAR_GEN OFF
 /// Turns the debugging ON/OFF for the STRING_TBLS module
-#define DEBUG_STRING_TBLS OFF
+#define DEBUG_STRING_TBLS DBG_DEF
 
 #if EXIP_DEBUG != ON
 # define NDEBUG

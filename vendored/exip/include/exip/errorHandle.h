@@ -124,7 +124,7 @@
 
 # define DEBUG_MSG(level, module, msg) do { if (level >= EXIP_DEBUG_LEVEL && module == ON) { DEBUG_OUTPUT(msg); } } while(0)
 #else
-#  define DEBUG_MSG(level, module, msg)
+#  define DEBUG_MSG(level, module, msg) ((void)(0))
 #endif /* EXIP_DEBUG */
 
 EXIP_BEGIN_DEFS
@@ -195,24 +195,39 @@ enum errorCode
 
 typedef enum errorCode errorCode;
 
+/// Definition in `ASCII_stringManipulate.c`.
+const char* getFilename(const char* name, unsigned int size);
+
 #if EXIP_DEBUG == ON
   extern const char* errorCodeStrings[];
 # ifdef __cplusplus
 #  define EXIP_ERROR_LAST_ ::exip::EXIP_ERROR_LAST
 #  define GET_ERR_STRING_(indx) ::exip::errorCodeStrings[indx]
+#  define GET_FNAME_(file) ::exip::getFilename(file, sizeof(file))
 # else
 #  define EXIP_ERROR_LAST_ EXIP_ERROR_LAST
 #  define GET_ERR_STRING_(indx) errorCodeStrings[indx]
+#  define GET_FNAME_(file) getFilename(file, sizeof(file))
 # endif
 # define EXIP_VALID_ERR(indx) ((indx) >= 0 && (indx) <= EXIP_ERROR_LAST_)
 # define GET_ERR_STRING(indx) (EXIP_VALID_ERR(indx) ? GET_ERR_STRING_(indx) : "")
 #else
 # define GET_ERR_STRING(indx) ""
+# define GET_FNAME_(file) file
 #endif
 
 # define TRY_CATCH(func, cblock) do { tmp_err_code = func;\
 						if (tmp_err_code != EXIP_OK) { \
-							DEBUG_MSG(ERROR, EXIP_DEBUG, (">Error %s:%d at %s, line %d\n", GET_ERR_STRING(tmp_err_code), tmp_err_code, __FILE__, __LINE__)); \
+							DEBUG_MSG(ERROR, EXIP_DEBUG, ( \
+								"\n>Error " \
+								"\033[34;1m" "%s" \
+								"\033[0m" " at " \
+								"\033[36;1m" "[\"%s\":%d]" \
+								"\033[0m" "\n > %s", \
+									GET_ERR_STRING(tmp_err_code), \
+									GET_FNAME_(__FILE__), __LINE__, \
+									"\033[31;1m" #func "\033[0m" \
+							)); \
 							cblock;\
 							return tmp_err_code; } } while(0)
 

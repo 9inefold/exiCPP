@@ -23,6 +23,17 @@
 
 #include "Traits.hpp"
 #include <cstring>
+#if EXICPP_FORMAT
+# include <fmt/format.h>
+#endif
+
+EXIP_NS_TAG namespace exip {
+
+inline exi::StrRef format_as(const String& str) {
+  return {str.str, str.length};
+}
+
+} // namespace exip
 
 namespace exi {
 
@@ -41,6 +52,10 @@ class IString : public CString {
 
   static EXICPP_CXPR14 String New(Char* str, std::size_t len);
   static ImmString New(const Char* str, std::size_t len);
+
+protected:
+  StrRef asStrRef() const { return {this->str, this->length}; }
+  friend StrRef format_as(IString str) { return str.asStrRef(); }
 };
 
 class String : protected IString {
@@ -48,6 +63,9 @@ public:
   String() : IString() {}
   EXICPP_CXPR14 String(Char* str, std::size_t n) : IString{str, n} {}
   EXICPP_CXPR17 String(Char* str) : String(str, strsize(str)) {}
+public:
+  explicit operator StrRef() const { return this->asStrRef(); }
+  friend StrRef format_as(String str) { return str.asStrRef(); }
 };
 
 class ImmString : protected IString {
@@ -57,13 +75,16 @@ public:
    IString{const_cast<Char*>(str), len} {
   }
 
-  ImmString(StrRef str) : ImmString(str.data(), str.size()) {
-  }
+  ImmString(StrRef str) : ImmString(str.data(), str.size()) {}
 
   template <typename T>
   ALWAYS_INLINE ImmString(T&& t) :
    ImmString(strdata(t), strsize(t)) {
   }
+
+public:
+  explicit operator StrRef() const { return this->asStrRef(); }
+  friend StrRef format_as(ImmString str) { return str.asStrRef(); }
 };
 
 inline EXICPP_CXPR14 String IString::New(Char* str, std::size_t len) {

@@ -24,6 +24,7 @@ add_subdirectory(vendored/exip)
 add_subdirectory(vendored/fmt)
 
 add_library(exicpp STATIC
+  src/Debug/Format.cpp
   src/BinaryBuffer.cpp
   src/Errors.cpp
   src/Writer.cpp

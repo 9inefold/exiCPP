@@ -231,7 +231,7 @@ errorCode encodeProduction(EXIStream* strm, EventTypeClass eventClass, boolean i
 	{
 		// Production not found: encoded as second or third level production
 
-		DEBUG_MSG(INFO, DEBUG_CONTENT_IO, (">Secodn/third level production \n"));
+		DEBUG_MSG(INFO, DEBUG_CONTENT_IO, (">Second/third level production \n"));
 
 		ec.length = 2;
 		ec.part[0] = prodCount;

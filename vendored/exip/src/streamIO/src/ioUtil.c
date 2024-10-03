@@ -119,8 +119,13 @@ errorCode readEXIChunkForParsing(EXIStream* strm, unsigned int numBytesToBeRead)
 
 	bytesRead = strm->buffer.ioStrm.readWriteToStream(strm->buffer.buf + bytesCopied, strm->buffer.bufLen - bytesCopied, strm->buffer.ioStrm.stream);
 	strm->buffer.bufContent = bytesCopied + bytesRead;
-	if(strm->buffer.bufContent < numBytesToBeRead)
+	if(strm->buffer.bufContent < numBytesToBeRead) {
+		DEBUG_MSG(ERROR, DEBUG_STREAM_IO,
+			("\n> Did not read enough bytes! Expected: %d, Got: %d",
+				(int)(numBytesToBeRead),
+				(int)(strm->buffer.bufContent)));
 		return EXIP_UNEXPECTED_ERROR;
+	}
 
 	strm->context.bufferIndx = 0;
 

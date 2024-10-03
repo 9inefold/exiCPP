@@ -41,12 +41,6 @@
 // Setup
 //======================================================================//
 
-#ifndef EXICPP_DEBUG
-# if EXIP_DEBUG
-#  define EXICPP_DEBUG 1
-# endif
-#endif
-
 #undef EXICPP_MSVC
 #if (defined(_MSC_VER) || defined(_MSVC_LANG)) && !defined(__MINGW32__)
 # define EXICPP_MSVC 1
@@ -98,9 +92,9 @@
 
 #define COMPILER_UNK_   0
 #define COMPILER_GCC_   1
-#define COMPILER_LLVM_  2
 #define COMPILER_CLANG_ 2
 #define COMPILER_MSVC_  3
+#define COMPILER_LLVM_  COMPILER_CLANG_
 
 #if EXICPP_MSVC
 # define EXICPP_COMPILER_ COMPILER_MSVC_
@@ -123,6 +117,23 @@
 //======================================================================//
 // Compiler Specific
 //======================================================================//
+
+#ifndef EXICPP_DEBUG
+# if EXIP_DEBUG
+#  define EXICPP_DEBUG 1
+# endif
+#endif
+
+#ifndef EXICPP_FORMAT
+# define EXICPP_FORMAT 1
+#endif
+
+#if EXICPP_COMPILER(LLVM)
+# pragma clang final(EXICPP_DEBUG)
+# pragma clang final(EXICPP_FORMAT)
+#endif
+
+//////////////////////////////////////////////////////////////////////////
 
 #ifndef ALWAYS_INLINE
 # if EXICPP_HAS_ATTR(always_inline)

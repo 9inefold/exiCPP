@@ -41,10 +41,14 @@
 # define EXICPP_COLUMN_ 0
 #endif
 
-#define EXICPP_LOCATION()     \
-::exi::dbg::Location {        \
-  __FILE__, EXICPP_FUNCTION,  \
-  __LINE__, EXICPP_COLUMN     \
+#define EXICPP_LOCATION_() EXICPP_FUNCTION
+#define EXICPP_LOCATION_FUNC() __func__
+
+#define EXICPP_LOCATION(...)        \
+::exi::dbg::Location {              \
+  __FILE__,                         \
+  EXICPP_LOCATION_##__VA_ARGS__(),  \
+  int(__LINE__), int(EXICPP_COLUMN) \
 }
 
 namespace exi {
@@ -58,8 +62,8 @@ struct Location {
 public:
   const char* file = "";
   const char* func = "";
-  int line   = 0;
-  int column = 0;
+  int line   = -1;
+  int column = -1;
 };
 
 } // namespace dbg
