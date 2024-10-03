@@ -90,10 +90,12 @@ void exipDebugPrint(
   const char* outFuncData = (function && *function) ? funcData : NULL;
 
 #if EXIP_ANSI
-  if (!!ansiMode)
-    return debugPrintAnsi(err, text, shortFilename, outFuncData, line);
+  if (!!ansiMode) {
+    debugPrintAnsi(err, text, shortFilename, outFuncData, line);
+    return;
+  }
 #endif
-  return debugPrintNorm(err, text, shortFilename, funcData, line);
+  debugPrintNorm(err, text, shortFilename, funcData, line);
 }
 
 //////////////////////////////////////////////////////////////////////////
