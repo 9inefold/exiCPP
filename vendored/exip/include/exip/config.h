@@ -39,4 +39,13 @@
 # define EXIP_END_DEFS
 #endif
 
+#if defined(__cplusplus) || (__STDC_VERSION__ >= 199901L)
+# define EXIP_FUNC __func__
+#elif defined(__STDC__) && defined(__GNUC__)
+# define EXIP_FUNC __FUNCTION__
+#else
+# define EXIP_FUNC NULL
+# define EXIP_FUNC_NONE 1
+#endif
+
 #endif // EXIPCONFIG2_H_
