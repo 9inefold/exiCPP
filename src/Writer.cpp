@@ -63,7 +63,7 @@ private:
   void attrs(XMLNode* node);
   void attr(XMLAttribute* attrib);
 private:
-  CQName makeName(XMLNode* node);
+  CQName makeQName(XMLNode* node);
   CString makeData(StrRef data, bool clone = false);
   bool nextNode();
   void incDepth();
@@ -128,7 +128,7 @@ Error WriterImpl::parse() {
 //////////////////////////////////////////////////////////////////////////
 
 void WriterImpl::begElem(XMLNode* node) {
-  const CQName name = this->makeName(node);
+  const CQName name = this->makeQName(node);
   if (this->hasName())
     LOG_INFO("<{}>: {}", *name.localName, VPtr(node));
   serialize.startElement(&this->stream, name, &this->valueType);
@@ -149,7 +149,7 @@ void WriterImpl::attrs(XMLNode* node) {
 }
 
 void WriterImpl::attr(XMLAttribute* attrib) {
-  const CQName name = this->makeName(node);
+  const CQName name = this->makeQName(node);
   serialize.attribute(&this->stream, name, exip::TRUE, &this->valueType);
 
   auto value = getValue(node);
@@ -159,19 +159,23 @@ void WriterImpl::attr(XMLAttribute* attrib) {
 
 //////////////////////////////////////////////////////////////////////////
 
-CQName WriterImpl::makeName(XMLNode* node) {
+static CString MakeString(StrRef str) {
+  if (str.empty())
+    return {nullptr, 0};
+  auto* data = const_cast<Char*>(str.data());
+  return {data, str.size()};
+}
+
+CQName WriterImpl::makeQName(XMLNode* node) {
   StrRef rawName = ::getName(node);
   const auto pos = rawName.find(':');
   if (pos == StrRef::npos) {
-    CQName name {
+    this->localName = MakeString(rawName);
+    return {
       &EMPTY_STR,
       &this->localName,
       nullptr
     };
-    
-    auto* data = const_cast<Char*>(rawName.data());
-    this->localName = CString{data, rawName.size()};
-    return name;
   }
 
   auto prefix  = rawName.substr(0, pos);
