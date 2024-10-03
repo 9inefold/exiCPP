@@ -42,6 +42,7 @@ public:
   static Parser New(Source& appData, const StackBuffer& buf) {
     Parser parser {};
     if (Error E = parser.init(&buf, &appData)) {
+      // TODO: Return Result<Parser, Error>
 #if EXICPP_DEBUG && 0
       std::printf("\u001b[31;1m");
       std::printf("Error initializing: %s\n", E.message().data());
@@ -57,14 +58,10 @@ public:
   /// @brief Parses the EXI header.
   /// @return An `Error` on failure.
   [[nodiscard]] Error parseHeader(bool outOfBandOpts = false) {
-    /*
-    const CErrCode ret = exip::parseHeader(
-      this, exip::boolean(outOfBandOpts));
-    */
     const CErrCode ret = exip::parseHeader(
       this, exip::boolean(outOfBandOpts));
     // Fill with the default schema.
-    (void) this->setSchema(nullptr);
+    (void) this->setSchema();
     return Error::From(ErrCode(ret));
   }
 
@@ -99,7 +96,6 @@ private:
   [[nodiscard]] Error init(const CBinaryBuffer* buf, void* appData) {
     auto* const parser = static_cast<CParser*>(this);
     CErrCode ret = exip::initParser(parser, *buf, appData);
-    // CErrCode ret = exip::parse.initParser(parser, *buf, appData);
     if (ret != CErrCode::EXIP_OK) {
       const auto err = ErrCode(ret);
       return Error::From(err);
@@ -110,6 +106,7 @@ private:
   void deinit() {
     exip::destroyParser(this);
     if (CParser::strm.schema) {
+      // TODO: Fix schemas
       // exip::destroySchema(CParser::strm.schema);
     }
     if (shutdown)
