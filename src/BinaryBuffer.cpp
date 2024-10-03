@@ -24,20 +24,12 @@ using namespace exi;
 static std::size_t readFromFP(void* buf, std::size_t count, void* stream) {
   auto* const fp = static_cast<std::FILE*>(stream);
   const auto ret = std::fread(buf, sizeof(Char), count, fp);
-#if EXICPP_DEBUG
-  if (count != 0 && ret == 0)
-    std::perror("std::fread");
-#endif
   return ret;
 }
 
 static std::size_t writeToFP(void* buf, std::size_t count, void* stream) {
   auto* const fp = static_cast<std::FILE*>(stream);
   const auto ret = std::fwrite(buf, sizeof(Char), count, fp);
-#if EXICPP_DEBUG
-  if (count != 0 && ret == 0)
-    std::perror("std::fwrite");
-#endif
   return ret;
 }
 
