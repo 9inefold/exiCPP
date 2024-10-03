@@ -86,21 +86,35 @@ struct AnsiBase {
   inline constexpr AnsiBase name {val}
 #endif
 
-DECL_ANSI(reset, "\u001b[0m");
-DECL_ANSI(red,   "\u001b[31;1m");
-DECL_ANSI(green, "\u001b[32;1m");
-DECL_ANSI(blue,  "\u001b[34;1m");
-DECL_ANSI(yellow,"\u001b[33;1m");
-DECL_ANSI(cyan,  "\u001b[36;1m");
-DECL_ANSI(white, "\u001b[37;1m");
+DECL_ANSI(reset, "\033[0m");
+DECL_ANSI(red,   "\033[31;1m");
+DECL_ANSI(green, "\033[32;1m");
+DECL_ANSI(blue,  "\033[34;1m");
+DECL_ANSI(yellow,"\033[33;1m");
+DECL_ANSI(cyan,  "\033[36;1m");
+DECL_ANSI(white, "\033[37;1m");
 
 #undef DECL_ANSI
 }
 
 /////////////////////////////////////////////////////////////////////////
 
+bool write_file(const std::string& path, const std::string& outpath);
+bool read_file(const std::string& outpath);
+void test_file(exi::StrRef filepath);
+void test_exi(exi::StrRef file);
+
+int main() {
+  // test_exi("vendored/exip/examples/simpleDecoding/exipd-test.exi");
+  test_file("examples/Basic");
+  // test_exi("examples/Basic.exi");
+  // test_file("examples/Customers");
+  // test_file("examples/Namespace.xml");
+}
+
 #include <cassert>
 #include <rapidxml_print.hpp>
+#include <fmt/color.h>
 
 bool write_file(const std::string& path, const std::string& outpath) {
   using namespace exi;
@@ -121,9 +135,9 @@ bool write_file(const std::string& path, const std::string& outpath) {
   }
 
   if (Error E = write_xml(xmldoc.document(), buf)) {
-    std::cout 
-      << ansi::red << "Serialization error: " << E.message()
-      << ansi::reset << std::endl;
+    // std::cout 
+    //   << ansi::red << "Serialization error: " << E.message()
+    //   << ansi::reset << std::endl;
     return false;
   }
 
@@ -147,43 +161,65 @@ bool read_file(const std::string& outpath) {
   return true;
 }
 
-void test_file(exi::StrRef filepath) {
-  std::string path = std::string(filepath) + ".xml";
-  std::string outpath = std::string(filepath) + ".exi";
-
-  if (!write_file(path, outpath))
-    return;
-  read_file(outpath);
+exi::StrRef file_folder() {
+  constexpr auto& rawfile = __FILE__;
+  constexpr exi::StrRef file {rawfile};
+  constexpr std::size_t pos = file.find_last_of("\\/");
+  if (pos == exi::StrRef::npos)
+    return "";
+  return file.substr(0, pos + 1);
 }
 
-int main() {
-  using namespace exi;
-  using exi::Error;
-  using exi::ErrCode;
+std::string get_relative(exi::StrRef path) {
+  return std::string(file_folder()) + std::string(path);
+}
 
+void test_file(exi::StrRef filepath) {
+  const auto basepath = get_relative(filepath);
+  std::string path = basepath + ".xml";
+  std::string outpath = basepath + ".exi";
+
+  if (!write_file(path, outpath)) {
+    fs::path outfile(outpath);
+    if (fs::is_regular_file(outpath) && fs::exists(outfile)) {
+      try {
+        fs::remove(outpath);
+      } catch (...) {}
+    }
+    return;
+  }
+  fmt::print(fmt::fg(fmt::color::blue_violet),
+    "\n----------------------------------------------\n");
+  test_exi(std::string(filepath) + ".exi");
+  // read_file(outpath);
+}
+
+void test_exi(exi::StrRef file) {
+  using namespace exi;
   InlineStackBuffer<512> buf;
-  StrRef filename = "vendored/exip/examples/simpleDecoding/exipd-test.exi";
+  auto filename = get_relative(file);
   if (Error E = buf.readFile(filename)) {
-    std::cout 
+    std::cout
       << ansi::red << "Error in '" << filename << "': " << E.message()
       << ansi::reset << std::endl;
+    return;
   }
 
   Example appData {};
   auto parser = exi::Parser::New(appData, buf);
 
   if (Error E = parser.parseHeader()) {
-    std::cout
-      << ansi::red << "Header error: " << E.message()
-      << ansi::reset << std::endl;
+    std::cout << '\n'
+      << "In '" << filename << "': "
+      << ansi::reset << '\n';
+    return;
   }
 
   if (Error E = parser.parseAll()) {
-    std::cout
-      << ansi::red << "Parse error: " << E.message()
-      << ansi::reset << std::endl;
+    std::cout << '\n'
+      << "In '" << filename << "': "
+      << ansi::reset << '\n';
+    return;
   }
-
-  test_file("examples/Basic");
-  // test_file("examples/Namespace.xml");
+  std::cout << std::endl;
 }

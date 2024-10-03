@@ -16,37 +16,45 @@
 //
 //===----------------------------------------------------------------===//
 
+// #define NFORMAT 1
 #include <Writer.hpp>
+#include <Debug/Format.hpp>
 #include <exip/stringManipulate.h>
+#include <filesystem>
+#include <fmt/format.h>
+#include <fmt/color.h>
 
 using namespace exi;
+namespace fs = std::filesystem;
 using ::exip::serialize;
 using Traits = std::char_traits<char>;
+using VPtr = void*;
 
 #define HANDLE_FN(fn, ...)                                \
 do { const auto err_code = (serialize.fn(__VA_ARGS__));   \
 if (err_code != exip::EXIP_OK) {                          \
   serialize.closeEXIStream(&stream);                      \
-  std::fprintf(stderr, "[%s:%u] in %s: %s\n",             \
-    __FILE__, __LINE__, __PRETTY_FUNCTION__,              \
-    GET_ERR_STRING(err_code));                            \
+  LOG_ERRCODE(err_code);                                  \
   return Error::From(ErrCode(err_code));                  \
 }} while(0)
 
-static const CString EMPTY_STR { nullptr, 0 };
+//////////////////////////////////////////////////////////////////////////
 
 static StrRef getName(XMLBase* data) {
-  if (!data || data->name_size() == 0) return "";
+  if EXICPP_UNLIKELY(!data) return "";
+  if (data->name_size() == 0) return "";
   return {data->name(), data->name_size()};
 }
 
 static StrRef getValue(XMLBase* data) {
-  if (!data || data->value_size() == 0) return "";
+  if EXICPP_UNLIKELY(!data) return "";
+  if (data->value_size() == 0) return "";
   return {data->value(), data->value_size()};
 }
 
 namespace {
 struct WriterImpl {
+  static constexpr CString EMPTY_STR { nullptr, 0 };
   Error init(XMLDocument* doc, const StackBuffer& buf);
   Error parse();
 private:
@@ -58,21 +66,24 @@ private:
   CQName makeName(XMLNode* node);
   CString makeData(StrRef data, bool clone = false);
   bool nextNode();
+  void incDepth();
+  void decDepth();
+private:
+  bool hasName() const;
+  bool hasValue() const;
 private:
   exip::EXIStream stream;
   exip::EXITypeClass valueType;
   CString uri;
   CString localName;
   // ...
-  XMLDocument* doc = nullptr;
   XMLNode* node = nullptr;
   XMLNode* last_node = nullptr;
+  std::int64_t depth = 0;
 };
 
 Error WriterImpl::init(XMLDocument* doc, const StackBuffer& buf) {
-  this->doc  = doc;
   this->node = doc;
-
   auto& header = stream.header;
   serialize.initHeader(&stream);
 
@@ -95,6 +106,11 @@ Error WriterImpl::init(XMLDocument* doc, const StackBuffer& buf) {
 Error WriterImpl::parse() {
   HANDLE_FN(startDocument, &stream);
 
+  if (node->type() != XMLType::node_document) {
+    serialize.closeEXIStream(&stream);
+    return Error::From("Top level node was not a document!");
+  }
+
   while (this->nextNode()) {
     this->attrs(node);
     if (node->type() == XMLType::node_data) {
@@ -113,10 +129,14 @@ Error WriterImpl::parse() {
 
 void WriterImpl::begElem(XMLNode* node) {
   const CQName name = this->makeName(node);
+  if (this->hasName())
+    LOG_INFO("<{}>: {}", *name.localName, VPtr(node));
   serialize.startElement(&this->stream, name, &this->valueType);
 }
 
 void WriterImpl::endElem() {
+  if (this->hasName())
+    LOG_INFO("</{}>: {}", getName(this->node), VPtr(this->node));
   serialize.endElement(&this->stream);
 }
 
@@ -154,9 +174,10 @@ CQName WriterImpl::makeName(XMLNode* node) {
     return name;
   }
 
-  EXICPP_UNREACHABLE();
   auto prefix  = rawName.substr(0, pos);
   auto postfix = rawName.substr(pos);
+  LOG_ERR("UNIMPLEMENTED!!!");
+  EXICPP_UNREACHABLE();
   return {};
 }
 
@@ -166,6 +187,7 @@ CString WriterImpl::makeData(StrRef data, bool clone) {
     data.data(), data.size(), 
     &str, &stream.memList,
     exip::boolean(clone)
+    // exip::TRUE
   );
   return str;
 }
@@ -173,9 +195,10 @@ CString WriterImpl::makeData(StrRef data, bool clone) {
 bool WriterImpl::nextNode() {
   last_node = node;
   if (node->first_node()) {
-    // Begin the parent element.
-    this->begElem(node);
     node = node->first_node();
+    this->incDepth();
+    // Begin the parent element.
+    // this->begElem(last_node);
     // Begin the child element.
     this->begElem(node);
     return true;
@@ -197,6 +220,7 @@ bool WriterImpl::nextNode() {
   this->endElem();
   node = parent;
   parent = node->parent();
+  this->decDepth();
 
   while (parent) {
     if (node->next_sibling()) {
@@ -210,11 +234,39 @@ bool WriterImpl::nextNode() {
 
     // End the child element.
     this->endElem();
+    last_node = node;
     node = parent;
     parent = node->parent();
+    this->decDepth();
   }
 
   return false;
+}
+
+void WriterImpl::incDepth() {
+  ++this->depth;
+  // LOG_WARN("Depth+: {}", this->depth);
+}
+
+void WriterImpl::decDepth() {
+  --this->depth;
+  // LOG_WARN("Depth-: {}", this->depth);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+bool WriterImpl::hasName() const {
+  const auto ty = node->type();
+  return
+    (ty == XMLType::node_element) || 
+    (ty == XMLType::node_pi);
+}
+
+bool WriterImpl::hasValue() const {
+  const auto ty = node->type();
+  return
+    (ty != XMLType::node_document) &&
+    (ty != XMLType::node_declaration);
 }
 
 } // namespace `anonymous`
