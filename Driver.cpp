@@ -30,36 +30,6 @@ inline std::ostream& operator<<(std::ostream& os, const exi::QName& name) {
   return os << prefix << ':' << name.localName();
 }
 
-struct Example {
-  unsigned elementCount = 0;
-  unsigned nestingLevel = 0;
-public:
-  using ErrCode = exi::ErrCode;
-
-  ErrCode startDocument() const {
-    std::cout << "Beg: " << this << '\n';
-    return ErrCode::Ok;
-  }
-
-  ErrCode endDocument() const {
-    std::cout << "End: " << this << '\n';
-    return ErrCode::Ok;
-  }
-
-  ErrCode startElement(exi::QName name) {
-    std::cout << "#" << elementCount << ": "
-      << name << '\n';
-    ++this->elementCount;
-    ++this->nestingLevel;
-    return ErrCode::Ok;
-  }
-
-  exi::ErrCode endElement() {
-    --this->nestingLevel;
-    return ErrCode::Ok;
-  }
-};
-
 //======================================================================//
 // rapidxml
 //======================================================================//
@@ -97,6 +67,40 @@ DECL_ANSI(white, "\033[37;1m");
 #undef DECL_ANSI
 }
 
+struct Example {
+  unsigned elementCount = 0;
+  unsigned nestingLevel = 0;
+public:
+  using ErrCode = exi::ErrCode;
+
+  ErrCode startDocument() const {
+    std::cout << "Beg: " << this << '\n';
+    return ErrCode::Ok;
+  }
+
+  ErrCode endDocument() const {
+    std::cout << "End: " << this << '\n';
+    return ErrCode::Ok;
+  }
+
+  ErrCode startElement(const exi::QName& name) {
+    std::cout << ansi::red
+      << "#" << elementCount << ": "
+      << name << '\n' << ansi::reset;
+    ++this->elementCount;
+    ++this->nestingLevel;
+    return ErrCode::Ok;
+  }
+
+  exi::ErrCode endElement() {
+    std::cout 
+      << ansi::blue << "END!" << '\n'
+      << ansi::reset;
+    --this->nestingLevel;
+    return ErrCode::Ok;
+  }
+};
+
 /////////////////////////////////////////////////////////////////////////
 
 bool write_file(const std::string& path, const std::string& outpath);
@@ -106,8 +110,8 @@ void test_exi(exi::StrRef file);
 
 int main() {
   // test_exi("vendored/exip/examples/simpleDecoding/exipd-test.exi");
-  test_file("examples/Basic");
-  // test_exi("examples/Basic.exi");
+  test_file("examples/Basic2");
+  // test_file("examples/Basic");
   // test_file("examples/Customers");
   // test_file("examples/Namespace.xml");
 }
