@@ -100,10 +100,10 @@ inline ImmString IString::New(const Char* str, std::size_t len) {
 class QName : protected CQName {
   friend class Parser;
 public:
+  constexpr QName(const CQName& name) : CQName(name) {}
   QName(QName&&) = default;
 private:
   constexpr QName() : CQName() {}
-  constexpr QName(const CQName& name) : CQName(name) {}
 
   ALWAYS_INLINE static StrRef ToStr(const CString& str) {
     return StrRef(str.str, str.length);
