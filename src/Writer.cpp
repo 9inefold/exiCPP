@@ -66,8 +66,8 @@ private:
   CQName makeQName(XMLNode* node);
   CString makeData(StrRef data, bool clone = false);
   bool nextNode();
-  void incDepth();
-  void decDepth();
+  void incDepth() { ++this->depth; }
+  void decDepth() { --this->depth; }
 private:
   bool hasName() const;
   bool hasValue() const;
@@ -198,11 +198,10 @@ CString WriterImpl::makeData(StrRef data, bool clone) {
 
 bool WriterImpl::nextNode() {
   last_node = node;
+  // This works only because we always begin at the document level.
   if (node->first_node()) {
     node = node->first_node();
     this->incDepth();
-    // Begin the parent element.
-    // this->begElem(last_node);
     // Begin the child element.
     this->begElem(node);
     return true;
@@ -245,16 +244,6 @@ bool WriterImpl::nextNode() {
   }
 
   return false;
-}
-
-void WriterImpl::incDepth() {
-  ++this->depth;
-  // LOG_WARN("Depth+: {}", this->depth);
-}
-
-void WriterImpl::decDepth() {
-  --this->depth;
-  // LOG_WARN("Depth-: {}", this->depth);
 }
 
 //////////////////////////////////////////////////////////////////////////
