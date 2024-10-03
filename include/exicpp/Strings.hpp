@@ -103,7 +103,7 @@ public:
   constexpr QName(const CQName& name) : CQName(name) {}
   QName(QName&&) = default;
 private:
-  constexpr QName() : CQName() {}
+  constexpr QName() : CQName{} {}
 
   ALWAYS_INLINE static StrRef ToStr(const CString& str) {
     return StrRef(str.str, str.length);
