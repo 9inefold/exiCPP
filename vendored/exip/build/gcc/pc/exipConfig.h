@@ -37,7 +37,7 @@
 # define EXIP_ANSI OFF
 #endif
 
-#define DEBUG_DEFAULT ON
+#define DEBUG_DEFAULT OFF
 
 /// Turns the debugging ON/OFF for the STREAM_IO module
 #define DEBUG_STREAM_IO   DEBUG_DEFAULT

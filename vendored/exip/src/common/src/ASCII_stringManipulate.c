@@ -21,22 +21,6 @@
 
 #define PARSING_STRING_MAX_LENGTH 100
 
-const char* getFilename(const char* name, unsigned int size) {
-	if (!name)
-		return "";
-#if EXIP_DEBUG
-	if (size == 0)
-		size = strlen(name);
-	const char* end = (name + size);
-	while ((--end) != name) {
-		const char c = *end;
-		if (c == '/' || c == '\\')
-			return end + 1;
-	}
-#endif
-	return name;
-}
-
 errorCode allocateStringMemory(CharType** str, Index UCSchars)
 {
 	*str = EXIP_MALLOC(sizeof(CharType)*UCSchars);

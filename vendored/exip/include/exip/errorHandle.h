@@ -122,10 +122,18 @@
 #  define EXIP_DEBUG_LEVEL INFO
 # endif
 
-# define DEBUG_MSG(level, module, msg) do { if (level >= EXIP_DEBUG_LEVEL && module == ON) { DEBUG_OUTPUT(msg); } } while(0)
+# define DEBUG_CHECK(level, module) (level >= EXIP_DEBUG_LEVEL && module == ON)
+# define DEBUG_MSG(level, module, msg) do { if (DEBUG_CHECK(level, module)) { DEBUG_OUTPUT(msg); } } while(0)
 #else
-#  define DEBUG_MSG(level, module, msg) ((void)(0))
+# define DEBUG_CHECK(level, module) (0)
+# define DEBUG_MSG(level, module, msg) ((void)(0))
 #endif /* EXIP_DEBUG */
+
+#ifdef __cplusplus
+# define EXIP_PREFIX ::exip::
+#else
+# define EXIP_PREFIX
+#endif
 
 EXIP_BEGIN_DEFS
 
@@ -190,48 +198,47 @@ enum errorCode
 	  * for gracefully stopping the EXI stream parsing.
 	  */
 	 EXIP_HANDLER_STOP                           =16,
-	 EXIP_ERROR_LAST														 =EXIP_HANDLER_STOP
+	 EXIP_ERROR_LAST,
 };
 
 typedef enum errorCode errorCode;
 
-/// Definition in `ASCII_stringManipulate.c`.
-const char* getFilename(const char* name, unsigned int size);
-
 #if EXIP_DEBUG == ON
   extern const char* errorCodeStrings[];
-# ifdef __cplusplus
-#  define EXIP_ERROR_LAST_ ::exip::EXIP_ERROR_LAST
-#  define GET_ERR_STRING_(indx) ::exip::errorCodeStrings[indx]
-#  define GET_FNAME_(file) ::exip::getFilename(file, sizeof(file))
-# else
-#  define EXIP_ERROR_LAST_ EXIP_ERROR_LAST
-#  define GET_ERR_STRING_(indx) errorCodeStrings[indx]
-#  define GET_FNAME_(file) getFilename(file, sizeof(file))
-# endif
-# define EXIP_VALID_ERR(indx) ((indx) >= 0 && (indx) <= EXIP_ERROR_LAST_)
-# define GET_ERR_STRING(indx) (EXIP_VALID_ERR(indx) ? GET_ERR_STRING_(indx) : "")
+# define EXIP_VALID_ERR(indx) ((indx) >= 0 && (indx) < EXIP_PREFIX EXIP_ERROR_LAST)
+# define GET_ERR_STRING_UNCHECKED(indx) EXIP_PREFIX errorCodeStrings[indx]
+# define GET_ERR_STRING(indx) (EXIP_VALID_ERR(indx) ? \
+	GET_ERR_STRING_UNCHECKED(indx) : "INVALID_ERROR_CODE")
 #else
 # define GET_ERR_STRING(indx) ""
-# define GET_FNAME_(file) file
+#endif
+
+#if EXIP_DEBUG == ON
+	void exipDebugPrint(errorCode err, const char* text, const char* filename, const char* function, int line);
+# define DEBUG_TRACE_PRINT(err, text) do { \
+	if (DEBUG_CHECK(ERROR, EXIP_DEBUG)) { \
+		exipDebugPrint(err, text, __FILE__, EXIP_FUNC, (int)(__LINE__)); } } while(0)
+#else
+# define DEBUG_TRACE_PRINT(err, text) ((void)(0))
+#endif
+
+#if (EXIP_DEBUG == ON) && (EXIP_ANSI == ON)
+	extern int ansiMode;
+# define DEBUG_SET_ANSI(mode) (EXIP_PREFIX ansiMode = (!!(mode)))
+#else
+# define DEBUG_SET_ANSI(mode) ((void)(0))
 #endif
 
 # define TRY_CATCH(func, cblock) do { tmp_err_code = func;\
 						if (tmp_err_code != EXIP_OK) { \
-							DEBUG_MSG(ERROR, EXIP_DEBUG, ( \
-								"\n>Error " \
-								"\033[34;1m" "%s" \
-								"\033[0m" " at " \
-								"\033[36;1m" "[\"%s\":%d]" \
-								"\033[0m" "\n > %s", \
-									GET_ERR_STRING(tmp_err_code), \
-									GET_FNAME_(__FILE__), __LINE__, \
-									"\033[31;1m" #func "\033[0m" \
-							)); \
+							DEBUG_TRACE_PRINT(tmp_err_code, #func); \
 							cblock;\
 							return tmp_err_code; } } while(0)
 
-# define TRY(func) TRY_CATCH(func, ((void)(0)))
+# define TRY(func) do { tmp_err_code = func;\
+						if (tmp_err_code != EXIP_OK) { \
+							DEBUG_TRACE_PRINT(tmp_err_code, #func); \
+							return tmp_err_code; } } while(0)
 
 EXIP_END_DEFS
 
