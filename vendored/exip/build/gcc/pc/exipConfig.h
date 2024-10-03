@@ -32,21 +32,25 @@
 /// Sets the debugging level (INFO, WARNING or ERROR)
 # define EXIP_DEBUG_LEVEL INFO
 #endif
+#ifndef EXIP_ANSI
+/// Turn colored printing ON/OFF
+# define EXIP_ANSI OFF
+#endif
 
-#define DBG_DEF ON
+#define DEBUG_DEFAULT ON
 
 /// Turns the debugging ON/OFF for the STREAM_IO module
-#define DEBUG_STREAM_IO   DBG_DEF
+#define DEBUG_STREAM_IO   DEBUG_DEFAULT
 /// Turns the debugging ON/OFF for the COMMON module
-#define DEBUG_COMMON      DBG_DEF
+#define DEBUG_COMMON      DEBUG_DEFAULT
 /// Turns the debugging ON/OFF for the CONTENT_IO module
-#define DEBUG_CONTENT_IO  DBG_DEF
+#define DEBUG_CONTENT_IO  DEBUG_DEFAULT
 /// Turns the debugging ON/OFF for the GRAMMAR module
-#define DEBUG_GRAMMAR     DBG_DEF
+#define DEBUG_GRAMMAR     DEBUG_DEFAULT
 /// Turns the debugging ON/OFF for the GRAMMAR_GEN module
 #define DEBUG_GRAMMAR_GEN OFF
 /// Turns the debugging ON/OFF for the STRING_TBLS module
-#define DEBUG_STRING_TBLS DBG_DEF
+#define DEBUG_STRING_TBLS DEBUG_DEFAULT
 
 #if EXIP_DEBUG != ON
 # define NDEBUG

@@ -10,12 +10,12 @@ project(
 valued_option(EXIP_CONFIG_TYPE "The target (pc or contiki)" "pc")
 set(CONFIG_FOLDER "build/gcc/${EXIP_CONFIG_TYPE}")
 
-option(EXIP_DEBUG "" ON)
+option(EXIP_DEBUG "Enable debug printing." ON)
+option(EXIP_ANSI "Enable ANSI codes." OFF)
 valued_option(EXIP_DEBUG_LEVEL "The debugging level (INFO, WARNING or ERROR)" "INFO")
 
 option(EXI_GRAMMAR_GENERATION "" ON)
 option(EXI_SCHEMA_GRAMMAR_GENERATION "" ON)
-
 
 include_items(PRIVATE_INC "src"
   "common/include"
@@ -39,7 +39,8 @@ target_include_directories(exip
   PRIVATE include/exip ${PRIVATE_INC}
 )
 
-target_forward_options(exip PUBLIC EXIP_DEBUG EXIP_DEBUG_LEVEL)
+target_compile_features(exip PRIVATE c_std_99)
+target_forward_options(exip PUBLIC EXIP_DEBUG EXIP_DEBUG_LEVEL EXIP_ANSI)
 
 if(EXI_GRAMMAR_GENERATION AND NOT EXI_CONFIG_TYPE STREQUAL "contiki")
   # target_include_directories(exip PRIVATE "src/grammarGen/include")

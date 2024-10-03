@@ -24,8 +24,11 @@
 #define OFF 0
 
 #undef  EXIP_DEBUG
+#undef  EXIP_ANSI
+
 #define EXIP_DEBUG  	  	OFF
 #define EXIP_DEBUG_LEVEL 	INFO
+#define EXIP_ANSI					OFF
 
 #define DEBUG_STREAM_IO   OFF
 #define DEBUG_COMMON      OFF
