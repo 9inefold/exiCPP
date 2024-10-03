@@ -109,7 +109,7 @@ inline StrRef getErrString(ErrCode err) {
 // Error
 //======================================================================//
 
-class Error {
+class [[nodiscard]] Error {
 	using MsgType = const char*;
 
 	enum State : std::uint8_t {
