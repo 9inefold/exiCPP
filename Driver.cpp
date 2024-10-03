@@ -21,7 +21,7 @@
 #include <exicpp/XML.hpp>
 #include <exip/EXISerializer.h>
 
-#define NFORMAT
+#define NFORMAT 1
 #include <exicpp/Debug/Format.hpp>
 #include <iostream>
 
@@ -109,22 +109,7 @@ public:
   }
 
   ErrCode startElement(const exi::QName& name) {
-    if (lastType == ATTRIBUTE) {
-      LOG_INFO("Attr");
-      outs() << ansi::yellow
-        << " > " << name;
-#ifndef NFORMAT
-      outs(false) << ansi::endl;
-#endif
-      this->lastType = ATTRIBUTE_DATA;
-      return ErrCode::Ok; 
-    } else if (lastType == ATTRIBUTE_DATA) {
-      LOG_INFO("AttrData");
-      return ErrCode::Ok; 
-    }
-
     LOG_INFO("");
-
     if (name.localName().empty()) {
       this->lastType = DATA;
       return ErrCode::Ok;
@@ -139,16 +124,6 @@ public:
   }
 
   exi::ErrCode endElement() {
-    if (lastType == ATTRIBUTE) {
-      LOG_INFO("Attr");
-      this->lastType = ELEMENT;
-      return ErrCode::Ok;
-    } else if (lastType == ATTRIBUTE_DATA) {
-      LOG_INFO("AttrData");
-      this->lastType = ATTRIBUTE;
-      return ErrCode::Ok;
-    }
-
     if (lastType == DATA) {
       LOG_INFO("Data");
       this->lastType = ELEMENT;
@@ -170,22 +145,24 @@ public:
   exi::ErrCode attribute(const exi::QName& name) {
     LOG_INFO("");
     this->lastType = ATTRIBUTE;
+    outs() << ansi::yellow << name << "=";
+#ifndef NFORMAT
+    outs(false) << ansi::endl;
+#endif
     return ErrCode::Ok;
   }
 
   exi::ErrCode stringData(exi::StrRef str) {
     if (lastType == ATTRIBUTE) {
       LOG_INFO("Attr");
-      return ErrCode::Ok;
-    } else if (lastType == ATTRIBUTE_DATA) {
-      LOG_INFO("AttrData");
 #ifndef NFORMAT
       outs()
-        << ansi::yellow << " = "
+        << ansi::yellow << " "
 #else
-      outs(false) << "="
+      outs(false)
 #endif
         << str << ansi::endl;
+      this->lastType = ELEMENT;
       return ErrCode::Ok;
     }
 
@@ -204,7 +181,11 @@ private:
   std::ostream& outs(bool printDepth = true) {
     if (!printDepth)
       return std::cout;
-    return std::cout << std::string(nestingLevel * 2, ' ');
+    const auto len = nestingLevel * 2u;
+    if (lastType == ATTRIBUTE) {
+      return std::cout << std::string(len - 1, ' ');
+    }
+    return std::cout << std::string(len, ' ');
   }
 
 private:
@@ -235,8 +216,8 @@ void test_exi(exi::StrRef file);
 
 int main() {
   // test_exi("vendored/exip/examples/simpleDecoding/exipd-test.exi");
-  test_file("examples/Basic2");
-  // test_file("examples/Basic");
+  // test_file("examples/Basic2");
+  test_file("examples/Basic");
   // test_file("examples/Customers");
   // test_file("examples/Namespace.xml");
 }

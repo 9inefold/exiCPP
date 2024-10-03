@@ -63,7 +63,7 @@ private:
   void attrs(XMLNode* node);
   void attr(XMLAttribute* attrib);
 private:
-  CQName makeQName(XMLNode* node);
+  CQName makeQName(XMLBase* node);
   CString makeData(StrRef data, bool clone = false);
   bool nextNode();
   void incDepth() { ++this->depth; }
@@ -144,16 +144,16 @@ void WriterImpl::attrs(XMLNode* node) {
   for (auto* attrib = node->first_attribute();
     attrib; attrib = attrib->next_attribute())
   {
+    LOG_INFO(" {}={}", getName(attrib), getValue(attrib));
     this->attr(attrib);
   }
 }
 
 void WriterImpl::attr(XMLAttribute* attrib) {
-  const CQName name = this->makeQName(node);
-  serialize.attribute(&this->stream, name, exip::TRUE, &this->valueType);
+  const CQName name = this->makeQName(attrib);
+  serialize.attribute(&this->stream, name, exip::FALSE, &this->valueType);
 
-  auto value = getValue(node);
-  auto str = this->makeData(value);
+  auto str = this->makeData(::getValue(attrib));
   serialize.stringData(&this->stream, str);
 }
 
@@ -166,7 +166,7 @@ static CString MakeString(StrRef str) {
   return {data, str.size()};
 }
 
-CQName WriterImpl::makeQName(XMLNode* node) {
+CQName WriterImpl::makeQName(XMLBase* node) {
   StrRef rawName = ::getName(node);
   const auto pos = rawName.find(':');
   if (pos == StrRef::npos) {
