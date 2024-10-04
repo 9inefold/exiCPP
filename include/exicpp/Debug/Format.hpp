@@ -40,13 +40,14 @@
 #endif
 
 #define LOG(dbglevel, ...) \
-  LOG_INTERNAL(EXICPP_FMT_LOC(), \
-    fmt::format(__VA_ARGS__), dbglevel)
+  ((dbglevel >= EXICPP_DEBUG_LEVEL) \
+    ? LOG_INTERNAL(EXICPP_FMT_LOC(), \
+        fmt::format(__VA_ARGS__), dbglevel) \
+    : (void(0)))
 
 #define LOG_INFO(...)   LOG(INFO,     __VA_ARGS__)
 #define LOG_WARN(...)   LOG(WARNING,  __VA_ARGS__)
 #define LOG_ERROR(...)  LOG(ERROR,    __VA_ARGS__)
-
 #define LOG_FATAL(...)  \
   EXICPP_LOG_FUNC(EXICPP_FMT_LOC(), \
     fmt::format(__VA_ARGS__), FATAL)
