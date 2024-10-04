@@ -17,11 +17,18 @@
 //===----------------------------------------------------------------===//
 
 #include <Debug/Format.hpp>
+#include <cstdlib>
 #include <fmt/format.h>
 #include <fmt/color.h>
 
 #define FG(col) fmt::fg(fmt::color::col)
 #define BG(col) fmt::bg(fmt::color::col)
+
+#if EXICPP_ANSI
+# define STYLED(msg, col) fmt::styled(msg, col)
+#else
+# define STYLED(msg, col) (msg)
+#endif
 
 using namespace exi;
 
@@ -76,6 +83,12 @@ static auto getFgColor(int debugLevel) {
   }
 }
 
+ALWAYS_INLINE static void handleFatal(int debugLevel) {
+  if EXICPP_UNLIKELY(debugLevel == FATAL) {
+    dbg::fatalError();
+  }
+}
+
 namespace exi {
 namespace dbg {
 
@@ -85,10 +98,11 @@ template <> void logInternal<true>(
   int debugLevel)
 {
   fmt::println("In {} {}: {}",
-    fmt::styled(formatFunc(loc), FG(aquamarine)),
-    fmt::styled(formatFileLoc(loc), FG(aqua)),
-    fmt::styled(msg, getFgColor(debugLevel))
+    STYLED(formatFunc(loc), FG(aquamarine)),
+    STYLED(formatFileLoc(loc), FG(aqua)),
+    STYLED(msg, getFgColor(debugLevel))
   );
+  handleFatal(debugLevel);
 }
 
 template <> void logInternal<false>(
@@ -97,9 +111,15 @@ template <> void logInternal<false>(
   int debugLevel)
 {
   fmt::println("In {}: {}",
-    fmt::styled(formatFunc(loc), FG(aquamarine)),
-    fmt::styled(msg, getFgColor(debugLevel))
+    STYLED(formatFunc(loc), FG(aquamarine)),
+    STYLED(msg, getFgColor(debugLevel))
   );
+  handleFatal(debugLevel);
+}
+
+[[noreturn]] void fatalError() {
+  std::fflush(stdout);
+  std::abort();
 }
 
 } // namespace dbg

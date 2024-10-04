@@ -26,9 +26,10 @@
 
 #define EXICPP_FMT_LOC() EXICPP_LOCATION(FUNC)
 #define EXICPP_LOG_LOC true
+#define EXICPP_LOG_INTERNAL ::exi::dbg::logInternal<EXICPP_LOG_LOC>
 
 #if EXICPP_DEBUG && !defined(NFORMAT)
-# define LOG_INTERNAL(...) ::exi::dbg::logInternal<EXICPP_LOG_LOC>(__VA_ARGS__)
+# define LOG_INTERNAL(...) EXICPP_LOG_INTERNAL(__VA_ARGS__)
 #else
 # define LOG_INTERNAL(...) ((void)0)
 #endif
@@ -40,7 +41,10 @@
 #define LOG_INFO(...)   LOG(INFO,     __VA_ARGS__)
 #define LOG_WARN(...)   LOG(WARNING,  __VA_ARGS__)
 #define LOG_ERROR(...)  LOG(ERROR,    __VA_ARGS__)
-#define LOG_FATAL(...)  LOG(FATAL,    __VA_ARGS__)
+
+#define LOG_FATAL(...)  \
+  EXICPP_LOG_INTERNAL(EXICPP_FMT_LOC(), \
+    fmt::format(__VA_ARGS__), FATAL)
 
 #define LOG_ERRCODE(err_code) \
   LOG_INTERNAL(EXICPP_FMT_LOC(), \
@@ -62,6 +66,9 @@ template <> void logInternal<true>(
   const dbg::Location&, const std::string&, int);
 template <> void logInternal<false>(
   const dbg::Location&, const std::string&, int);
+
+/// Flushes `stdout` then aborts.
+[[noreturn]] void fatalError();
 
 } // namespace dbg
 } // namespace exi
