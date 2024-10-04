@@ -25,9 +25,15 @@
 #include <fmt/base.h>
 
 #define EXICPP_FMT_LOC() EXICPP_LOCATION(FUNC)
-#define EXICPP_LOG_FUNC ::exi::dbg::logInternal<true>
 
-#if EXICPP_DEBUG && !defined(NFORMAT)
+#if !NFORMAT
+# define EXICPP_LOG_FUNC(...) \
+  ::exi::dbg::logInternal<true>(__VA_ARGS__)
+#else
+# define EXICPP_LOG_FUNC(...) ((void)0)
+#endif
+
+#if EXICPP_DEBUG
 # define LOG_INTERNAL(...) EXICPP_LOG_FUNC(__VA_ARGS__)
 #else
 # define LOG_INTERNAL(...) ((void)0)
@@ -56,6 +62,8 @@
 #else
 # define LOG_ASSERT(expr) ((void)0)
 #endif
+
+//////////////////////////////////////////////////////////////////////////
 
 namespace exi {
 namespace dbg {
