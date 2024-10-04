@@ -25,15 +25,31 @@
 
 using namespace exi;
 
+#ifdef _WIN32
+  static constexpr char folderDelim = '\\';
+#else
+  static constexpr char folderDelim = '/';
+#endif
+
 static auto formatFunc(const dbg::Location& loc) {
   return fmt::format("'{}'", loc.func);
 }
 
-static StrRef sliceFilename(StrRef file) {
-  std::size_t pos = file.find_last_of("\\/");
-  if (pos == exi::StrRef::npos)
+static AsciiStrRef sliceFilename(AsciiStrRef file) {
+  std::size_t startPos = AsciiStrRef::npos;
+  int hitCount = 0;
+  std::size_t pos = 0;
+  
+  for (int hitCount = 0; hitCount < dbg::filenameDepth; ++hitCount) {
+    pos = file.find_last_of(folderDelim, startPos);
+    if (!pos || pos == AsciiStrRef::npos)
+      break;
+    startPos = pos - 1;
+  }
+
+  if (startPos == AsciiStrRef::npos)
     return file;
-  return file.substr(pos + 1);
+  return file.substr(startPos + 2);
 }
 
 static auto formatFileLoc(const dbg::Location& loc) {
@@ -52,7 +68,9 @@ static auto getFgColor(int debugLevel) {
    case WARNING:
     return FG(yellow);
    case ERROR:
-    return FG(red);
+    return fmt::fg(fmt::terminal_color::bright_red);
+   case FATAL:
+    return fmt::fg(fmt::terminal_color::red);
    default:
     return FG(light_gray);
   }

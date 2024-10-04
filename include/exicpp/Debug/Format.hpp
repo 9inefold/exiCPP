@@ -37,9 +37,10 @@
   LOG_INTERNAL(EXICPP_FMT_LOC(), \
     fmt::format(__VA_ARGS__), dbglevel)
 
-#define LOG_INFO(...) LOG(INFO,     __VA_ARGS__)
-#define LOG_WARN(...) LOG(WARNING,  __VA_ARGS__)
-#define LOG_ERR(...)  LOG(ERROR,    __VA_ARGS__)
+#define LOG_INFO(...)   LOG(INFO,     __VA_ARGS__)
+#define LOG_WARN(...)   LOG(WARNING,  __VA_ARGS__)
+#define LOG_ERROR(...)  LOG(ERROR,    __VA_ARGS__)
+#define LOG_FATAL(...)  LOG(FATAL,    __VA_ARGS__)
 
 #define LOG_ERRCODE(err_code) \
   LOG_INTERNAL(EXICPP_FMT_LOC(), \
@@ -47,6 +48,8 @@
 
 namespace exi {
 namespace dbg {
+
+inline constexpr int filenameDepth = 3;
 
 template <bool PrintLoc = true>
 void logInternal(
