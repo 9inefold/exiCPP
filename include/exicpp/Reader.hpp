@@ -57,7 +57,7 @@ public:
 public:
   /// @brief Parses the EXI header.
   /// @return An `Error` on failure.
-  [[nodiscard]] Error parseHeader(bool outOfBandOpts = false) {
+  Error parseHeader(bool outOfBandOpts = false) {
     const CErrCode ret = exip::parseHeader(
       this, exip::boolean(outOfBandOpts));
     // Fill with the default schema.
@@ -67,7 +67,7 @@ public:
 
   /// @brief Sets the schema.
   /// @return An `Error` on failure.
-  [[nodiscard]] Error setSchema(exip::EXIPSchema* schema = nullptr) {
+  Error setSchema(exip::EXIPSchema* schema = nullptr) {
     const CErrCode ret = exip::setSchema(this, schema);
     return Error::From(ErrCode(ret));
   }
@@ -82,7 +82,7 @@ public:
 
   /// @brief Parses all the EXI items.
   /// @return An `Error` on failure.
-  [[nodiscard]] Error parseAll() {
+  Error parseAll() {
     ErrCode lasterr = ErrCode::Ok;
     while (lasterr == ErrCode::Ok) {
       lasterr = this->parseNext();
@@ -93,7 +93,7 @@ public:
   }
 
 private:
-  [[nodiscard]] Error init(const CBinaryBuffer* buf, void* appData) {
+  Error init(const CBinaryBuffer* buf, void* appData) {
     auto* const parser = static_cast<CParser*>(this);
     CErrCode ret = exip::initParser(parser, *buf, appData);
     if (ret != CErrCode::EXIP_OK) {
