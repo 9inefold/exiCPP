@@ -39,7 +39,6 @@ namespace H {
 
 // TODO: Update
 using Float   = exip::Float;
-using Span    = StrRef;
 using Decimal = Float;
 
 #if !EXICPP_CONCEPTS
@@ -65,7 +64,7 @@ GEN_REQUIRES(intData,       std::uint64_t(0))
 GEN_REQUIRES(booleanData,   false)
 GEN_REQUIRES(stringData,    Decl<StrRef>())
 GEN_REQUIRES(floatData,     Decl<Float>())
-GEN_REQUIRES(binaryData,    Decl<Span>())
+GEN_REQUIRES(binaryData,    Decl<BinarySpan>())
 // GEN_REQUIRES(dateTimeData,  Decl<...>())
 GEN_REQUIRES(decimalData,   Decl<Decimal>())
 // GEN_REQUIRES(listData,      Decl<...>())
@@ -185,7 +184,7 @@ class ContentHandler {
   static CErrCode binaryData(const char* val, Index nbytes, void* appData) {
     const auto ptr = static_cast<Source*>(appData);
     const ErrCode ret = ptr->binaryData(
-      H::Span(val, nbytes)
+      BinarySpan(val, nbytes)
     );
     return CErrCode(ret);
   }

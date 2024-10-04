@@ -41,6 +41,7 @@ using exip::Index;
 using StrRef = std::basic_string_view<Char>;
 /// A non-owning span over an array of `char`s, may be the same as `StrRef`.
 using AsciiStrRef = std::basic_string_view<char>;
+using BinarySpan  = AsciiStrRef;
 
 using CBinaryBuffer = exip::BinaryBuffer;
 using CQName  = exip::QName;
