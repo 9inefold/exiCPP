@@ -25,11 +25,10 @@
 #include <fmt/base.h>
 
 #define EXICPP_FMT_LOC() EXICPP_LOCATION(FUNC)
-#define EXICPP_LOG_LOC true
-#define EXICPP_LOG_INTERNAL ::exi::dbg::logInternal<EXICPP_LOG_LOC>
+#define EXICPP_LOG_FUNC ::exi::dbg::logInternal<true>
 
 #if EXICPP_DEBUG && !defined(NFORMAT)
-# define LOG_INTERNAL(...) EXICPP_LOG_INTERNAL(__VA_ARGS__)
+# define LOG_INTERNAL(...) EXICPP_LOG_FUNC(__VA_ARGS__)
 #else
 # define LOG_INTERNAL(...) ((void)0)
 #endif
@@ -43,12 +42,20 @@
 #define LOG_ERROR(...)  LOG(ERROR,    __VA_ARGS__)
 
 #define LOG_FATAL(...)  \
-  EXICPP_LOG_INTERNAL(EXICPP_FMT_LOC(), \
+  EXICPP_LOG_FUNC(EXICPP_FMT_LOC(), \
     fmt::format(__VA_ARGS__), FATAL)
 
 #define LOG_ERRCODE(err_code) \
   LOG_INTERNAL(EXICPP_FMT_LOC(), \
     GET_ERR_STRING(CErrCode(err_code)), ERROR)
+
+#ifndef NDEBUG
+# define LOG_ASSERT(expr) \
+  (EXPECT_TRUE(static_cast<bool>(expr)) ? ((void)0) \
+    : LOG_FATAL("Assertion failed: {}", #expr))
+#else
+# define LOG_ASSERT(expr) ((void)0)
+#endif
 
 namespace exi {
 namespace dbg {

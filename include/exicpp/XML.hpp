@@ -46,7 +46,10 @@ public:
 public:
   static BoundDocument From(StrRef filename);
 
-  template <int Flags = 0>
+  template <int Flags =
+    rapidxml::parse_no_utf8 |
+    rapidxml::parse_no_string_terminators
+  >
   static BoundDocument ParseFrom(StrRef filename) {
     auto res = BoundDocument::From(filename);
     Char* bufdata = res.buf.data();
