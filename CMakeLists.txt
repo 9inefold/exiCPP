@@ -16,6 +16,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")
 endif()
 
+option(EXICPP_EXCEPTIONS "If exceptions should be enabled." OFF)
 option(EXICPP_DEBUG  "If debug printing should be enabled." ON)
 option(EXICPP_ANSI   "If ANSI should be enabled." OFF)
 option(EXICPP_FORMAT "If fmtlib should be enabled." ON)
@@ -28,20 +29,34 @@ endif()
 add_subdirectory(vendored/exip)
 add_subdirectory(vendored/fmt)
 
-add_library(exicpp STATIC
-  src/Debug/Format.cpp
-  src/BinaryBuffer.cpp
-  src/Errors.cpp
-  src/Writer.cpp
-  src/XML.cpp
+include_items(EXICPP_SRC "src"
+  BinaryBuffer.cpp
+  Errors.cpp
+  Writer.cpp
+  XML.cpp
+  Debug/Format.cpp
+  Debug/RapidxmlHandler.cpp
 )
+
+add_library(exicpp STATIC ${EXICPP_SRC})
 target_include_directories(exicpp
   PUBLIC include vendored/rapidxml
   PRIVATE include/exicpp 
 )
 target_link_libraries(exicpp PUBLIC exip::exip fmt::fmt)
 target_compile_features(exicpp PUBLIC cxx_std_17)
-target_forward_options(exicpp PUBLIC EXICPP_DEBUG EXICPP_ANSI EXICPP_FORMAT)
+target_forward_options(exicpp PUBLIC
+  EXICPP_DEBUG
+  EXICPP_ANSI
+  EXICPP_FORMAT
+)
+
+if(NOT EXICPP_EXCEPTIONS)
+  target_compile_definitions(exicpp PUBLIC
+    EXICPP_NO_EXCEPTIONS=1
+    RAPIDXML_NO_EXCEPTIONS=1
+  )
+endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # ...
