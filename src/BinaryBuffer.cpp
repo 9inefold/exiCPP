@@ -71,7 +71,7 @@ void IBinaryBuffer::setInternal(Char* data, std::size_t len) {
 
 void IBinaryBuffer::destroyStream() {
   auto& stream = this->ioStrm;
-  switch (this->stream_type) {
+  switch (stream_type) {
    case StreamType::RFile:
    case StreamType::WFile: {
     auto* const fp = static_cast<std::FILE*>(stream.stream);
@@ -80,4 +80,5 @@ void IBinaryBuffer::destroyStream() {
    }
   }
   stream = exip::IOStream{};
+  this->stream_type = StreamType::None;
 }
