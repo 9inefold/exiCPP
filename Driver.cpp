@@ -134,7 +134,7 @@ public:
       LOG_INFO("");
       --this->nestingLevel;
     } else {
-      LOG_ERR("INVALID NESTING LEVEL");
+      LOG_ERROR("INVALID NESTING LEVEL");
     }
     outs()
       << ansi::blue << "END!"

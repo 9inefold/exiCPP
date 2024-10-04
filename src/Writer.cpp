@@ -180,7 +180,7 @@ CQName WriterImpl::makeQName(XMLBase* node) {
 
   auto prefix  = rawName.substr(0, pos);
   auto postfix = rawName.substr(pos);
-  LOG_ERR("UNIMPLEMENTED!!!");
+  LOG_ERROR("UNIMPLEMENTED!!!");
   EXICPP_UNREACHABLE();
   return {};
 }
