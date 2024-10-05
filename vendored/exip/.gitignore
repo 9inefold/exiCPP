@@ -3,9 +3,6 @@
 # .project
 # /.launches/
 
-# doxygen output
-/doc/
-
 # build folder
 !build/
 !build/**
