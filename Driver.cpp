@@ -27,9 +27,12 @@
 
 inline std::ostream& operator<<(std::ostream& os, const exi::QName& name) {
   const auto prefix = name.prefix();
-  if (prefix.empty())
+  if (!prefix.empty())
+    return os << prefix << ':';
+  const auto uri = name.uri();
+  if (uri.empty())
     return os << name.localName();
-  return os << prefix << ':' << name.localName();
+  return os << name.localName() << '[' << uri << ']';
 }
 
 //======================================================================//
@@ -142,10 +145,22 @@ public:
     return ErrCode::Ok;
   }
 
+  exi::ErrCode namespaceDeclaration(
+    exi::StrRef ns,
+    exi::StrRef prefix,
+    bool isLocal) 
+  {
+    LOG_INFO("");
+    outs() << ansi::yellow
+      << prefix << (!isLocal ? "" : "*") << "="
+      << ns << ansi::endl;
+    return ErrCode::Ok;
+  }
+
   exi::ErrCode attribute(const exi::QName& name) {
     LOG_INFO("");
     this->lastType = ATTRIBUTE;
-    outs() << ansi::yellow << name << "=";
+    outs() << ansi::yellow << name << "=" << ansi::reset;
 #ifndef NFORMAT
     outs(false) << ansi::endl;
 #endif
@@ -160,6 +175,7 @@ public:
         << ansi::yellow << " "
 #else
       outs(false)
+        << ansi::yellow
 #endif
         << str << ansi::endl;
       this->lastType = ELEMENT;
@@ -217,9 +233,9 @@ void test_exi(exi::StrRef file);
 int main() {
   // test_exi("vendored/exip/examples/simpleDecoding/exipd-test.exi");
   // test_file("examples/Basic2");
-  test_file("examples/Basic");
+  // test_file("examples/Basic");
   // test_file("examples/Customers");
-  // test_file("examples/Namespace.xml");
+  test_file("examples/Namespace");
 }
 
 #include <cassert>

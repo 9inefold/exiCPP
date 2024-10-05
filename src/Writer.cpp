@@ -16,11 +16,13 @@
 //
 //===----------------------------------------------------------------===//
 
-// #define NFORMAT 1
 #include <Writer.hpp>
 #include <Debug/Format.hpp>
 #include <exip/stringManipulate.h>
+#include <algorithm>
 #include <filesystem>
+#include <unordered_map>
+#include <vector>
 #include <fmt/format.h>
 #include <fmt/color.h>
 
@@ -30,10 +32,17 @@ using ::exip::serialize;
 using Traits = std::char_traits<char>;
 using VPtr = void*;
 
+#if EXICPP_DEBUG && (EXICPP_DEBUG_LEVEL <= ERROR)
+# define PRINT_NEWLINE() fmt::println("")
+#else
+# define PRINT_NEWLINE() (void(0))
+#endif
+
 #define HANDLE_FN(fn, ...)                                \
 do { const auto err_code = (serialize.fn(__VA_ARGS__));   \
 if (err_code != exip::EXIP_OK) {                          \
   serialize.closeEXIStream(&stream);                      \
+  PRINT_NEWLINE();                                        \
   LOG_ERRCODE(err_code);                                  \
   return Error::From(ErrCode(err_code));                  \
 }} while(0)
@@ -53,45 +62,59 @@ static StrRef getValue(XMLBase* data) {
 }
 
 namespace {
+
+using InlNsStackType = std::vector<CString>;
+using NsMappingType  = std::unordered_map<StrRef, StrRef>;
+
 struct WriterImpl {
   static constexpr CString EMPTY_STR { nullptr, 0 };
+public:
+  WriterImpl() { ns_stack.reserve(4); }
   Error init(XMLDocument* doc, const StackBuffer& buf);
   Error parse();
 private:
   void begElem(XMLNode* node);
   void endElem();
-  void attrs(XMLNode* node);
-  void attr(XMLAttribute* attrib);
+  void handleAttrs(XMLNode* node);
+  void handleNs(XMLAttribute* attrib);
+  void handleAttr(XMLAttribute* attrib);
 private:
-  CQName makeQName(XMLBase* node);
+  CQName makeQName(XMLBase* node, bool isElem = false);
   CString makeData(StrRef data, bool clone = false);
+private:
   bool nextNode();
   void incDepth() { ++this->depth; }
   void decDepth() { --this->depth; }
-private:
   bool hasName() const;
   bool hasValue() const;
 private:
-  exip::EXIStream stream;
+  exip::EXIStream stream {};
   exip::EXITypeClass valueType;
-  CString uri;
-  CString localName;
+  CString uri {};
+  CString localName {};
+  CString prefix {};
   // ...
+  XMLDocument* doc = nullptr;
   XMLNode* node = nullptr;
   XMLNode* last_node = nullptr;
+  StrRef last_prefix = "";
   std::int64_t depth = 0;
+  InlNsStackType ns_stack;
+  NsMappingType  ns_map;
 };
 
 Error WriterImpl::init(XMLDocument* doc, const StackBuffer& buf) {
+  this->doc  = doc;
   this->node = doc;
-  auto& header = stream.header;
   serialize.initHeader(&stream);
 
+  auto& header = stream.header;
   header.has_cookie = exip::TRUE;
   header.has_options = exip::TRUE;
-  header.opts.valueMaxLength = 300;
-  header.opts.valuePartitionCapacity = 50;
-  SET_STRICT(header.opts.enumOpt);
+  header.opts.valueMaxLength = INDEX_MAX;
+  header.opts.valuePartitionCapacity = INDEX_MAX;
+  // SET_STRICT(header.opts.enumOpt);
+  SET_PRESERVED(header.opts.preserve, PRESERVE_PREFIXES);
 
   HANDLE_FN(initStream,
     &stream, 
@@ -104,6 +127,7 @@ Error WriterImpl::init(XMLDocument* doc, const StackBuffer& buf) {
 }
 
 Error WriterImpl::parse() {
+  LOG_ASSERT(this->node != nullptr);
   HANDLE_FN(startDocument, &stream);
 
   if (node->type() != XMLType::node_document) {
@@ -112,7 +136,7 @@ Error WriterImpl::parse() {
   }
 
   while (this->nextNode()) {
-    this->attrs(node);
+    this->handleAttrs(node);
     if (node->type() == XMLType::node_data) {
       auto value = getValue(node);
       auto str = this->makeData(value);
@@ -127,33 +151,105 @@ Error WriterImpl::parse() {
 
 //////////////////////////////////////////////////////////////////////////
 
+static bool StartsWith(StrRef S, StrRef toCmp) {
+  const auto len = std::min(S.size(), toCmp.size());
+  return S.substr(0, len) == toCmp;
+}
+
+static bool ConsumeStartsWith(StrRef& S, StrRef toCmp) {
+  const bool ret = StartsWith(S, toCmp);
+  if (!ret)
+    return false;
+  S = S.substr(toCmp.length());
+  return true;
+}
+
 void WriterImpl::begElem(XMLNode* node) {
-  const CQName name = this->makeQName(node);
+  CQName name = this->makeQName(node, true);
+  if (name.prefix) {
+    const auto* pre = name.prefix;
+    auto attrName = std::string("xmlns:")
+      + std::string(pre->str, pre->length);
+    auto* attr = node->first_attribute(
+      attrName.c_str(), attrName.size());
+    if (attr) {
+      this->uri = this->makeData(getValue(attr));
+      name.uri = &this->uri;
+    }
+  }
+
+#if EXICPP_DEBUG
   if (this->hasName())
-    LOG_INFO("<{}>: {}", *name.localName, VPtr(node));
+    LOG_INFO("<{}>: {}", getName(node), VPtr(node));
+#endif
   serialize.startElement(&this->stream, name, &this->valueType);
 }
 
 void WriterImpl::endElem() {
+#if EXICPP_DEBUG
   if (this->hasName())
     LOG_INFO("</{}>: {}", getName(this->node), VPtr(this->node));
+#endif
   serialize.endElement(&this->stream);
 }
 
-void WriterImpl::attrs(XMLNode* node) {
-  for (auto* attrib = node->first_attribute();
-    attrib; attrib = attrib->next_attribute())
+void WriterImpl::handleAttrs(XMLNode* node) {
+  using AttrCacheType = std::vector<XMLAttribute*>;
+  AttrCacheType nsDecls;
+  AttrCacheType attrs;
+
+  for (auto* attr = node->first_attribute();
+    attr; attr = attr->next_attribute())
   {
-    LOG_INFO(" {}={}", getName(attrib), getValue(attrib));
-    this->attr(attrib);
+    using namespace std::literals;
+    auto name = getName(attr);
+    LOG_ASSERT(!name.empty());
+
+    if (ConsumeStartsWith(name, "xmlns"sv)) {
+      if (name.empty()) {
+        // TODO: Use nonLocalNs?
+        LOG_FATAL("Inline namespaces are unimplemented!");
+        continue;
+      } else if (name.front() == ':') {
+        nsDecls.push_back(attr);
+        continue;
+      }
+    }
+    // TODO: Deal with xsi:*
+    attrs.push_back(attr);
   }
+
+  const auto sorter = [](XMLAttribute* a, XMLAttribute* b) {
+    return getName(a) < getName(b);
+  };
+
+  std::sort(nsDecls.begin(), nsDecls.end(), sorter);
+  std::sort(attrs.begin(), attrs.end(), sorter);
+
+  for (auto* ns : nsDecls)
+    this->handleNs(ns);
+  for (auto* attr : attrs)
+    this->handleAttr(attr);
 }
 
-void WriterImpl::attr(XMLAttribute* attrib) {
-  const CQName name = this->makeQName(attrib);
+void WriterImpl::handleNs(XMLAttribute* ns) {
+  const auto name = getName(ns);
+  LOG_ASSERT(StartsWith(name, "xmlns"));
+  // sizeof("xmlns:") - 1
+  const auto rawPrefix = name.substr(6);
+  auto prefix = this->makeData(rawPrefix);
+  auto uri = this->makeData(getValue(ns));
+  LOG_INFO(" NS {}=\"{}\"", prefix, uri);
+  const auto localNs = exip::boolean(rawPrefix == this->last_prefix);
+  serialize.namespaceDeclaration(&this->stream, uri, prefix, localNs);
+}
+
+void WriterImpl::handleAttr(XMLAttribute* attr) {
+  LOG_INFO(" AT {}=\"{}\"", getName(attr), getValue(attr));
+  const CQName name = this->makeQName(attr);
   serialize.attribute(&this->stream, name, exip::FALSE, &this->valueType);
 
-  auto str = this->makeData(::getValue(attrib));
+  auto str = this->makeData(::getValue(attr));
   serialize.stringData(&this->stream, str);
 }
 
@@ -166,23 +262,49 @@ static CString MakeString(StrRef str) {
   return {data, str.size()};
 }
 
-CQName WriterImpl::makeQName(XMLBase* node) {
+CQName WriterImpl::makeQName(XMLBase* node, bool isElem) {
+  const auto* ns = &EMPTY_STR;
   StrRef rawName = ::getName(node);
   const auto pos = rawName.find(':');
   if (pos == StrRef::npos) {
+    if (isElem)
+      this->last_prefix = "";
     this->localName = MakeString(rawName);
     return {
-      &EMPTY_STR,
+      ns,
       &this->localName,
       nullptr
     };
   }
 
-  auto prefix  = rawName.substr(0, pos);
-  auto postfix = rawName.substr(pos);
-  LOG_ERROR("UNIMPLEMENTED!!!");
-  EXICPP_UNREACHABLE();
-  return {};
+  auto prefix = rawName.substr(0, pos);
+  auto postfix = rawName.substr(pos + 1);
+  this->prefix = MakeString(prefix);
+  this->localName = MakeString(postfix);
+  // this->localName = MakeString(rawName);
+
+#if 1
+  if (isElem) {
+    this->last_prefix = prefix;
+    // Find attr.
+    XMLAttribute* attr = nullptr;
+    if (!(attr = this->node->first_attribute("xmlns", 5))) {
+      auto attrName = std::string("xmlns:") + std::string(prefix);
+      auto* attr = this->node->first_attribute(
+        attrName.c_str(), attrName.size());
+    }
+    if (attr) {
+      this->uri = this->makeData(getValue(attr));
+      ns = &this->uri;
+    }
+  }
+#endif
+
+  return {
+    ns,
+    &this->localName,
+    &this->prefix
+  };
 }
 
 CString WriterImpl::makeData(StrRef data, bool clone) {
@@ -191,10 +313,11 @@ CString WriterImpl::makeData(StrRef data, bool clone) {
     data.data(), data.size(), 
     &str, &stream.memList,
     exip::boolean(clone)
-    // exip::TRUE
   );
   return str;
 }
+
+//////////////////////////////////////////////////////////////////////////
 
 bool WriterImpl::nextNode() {
   last_node = node;
@@ -245,8 +368,6 @@ bool WriterImpl::nextNode() {
 
   return false;
 }
-
-//////////////////////////////////////////////////////////////////////////
 
 bool WriterImpl::hasName() const {
   const auto ty = node->type();
