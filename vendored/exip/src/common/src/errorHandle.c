@@ -37,7 +37,8 @@ enum ErrorExtra_ {
   FUNC_NAME_MAX   = FUNC_NAME_SIZE + FUNC_TEXT_SIZE + FUNC_XTRA_SIZE,
 };
 
-int ansiMode = 1;
+int debugMode = ON;
+int ansiMode  = ON;
 
 static void copyStringData(char** pdst, const char* src, size_t len);
 static const char* getFileName(const char* name);
@@ -84,13 +85,16 @@ void exipDebugPrint(
   errorCode err, const char* text,
   const char* filename, const char* function, int line)
 {
+  if (debugMode == OFF)
+    return;
+
   const char* shortFilename = getFileName(filename);
   char funcData[FUNC_NAME_MAX + 1];
   formatFuncData(funcData, function);
   const char* outFuncData = (function && *function) ? funcData : NULL;
 
 #if EXIP_ANSI
-  if (!!ansiMode) {
+  if (ansiMode == ON) {
     debugPrintAnsi(err, text, shortFilename, outFuncData, line);
     return;
   }
@@ -143,7 +147,7 @@ static errorCode formatFuncData(char funcData[], const char* function)
 }
 
 
-void copyStringData(char** pdst, const char* src, size_t len) {
+static void copyStringData(char** pdst, const char* src, size_t len) {
   if (!src)
     return;
   if (len == 0)
@@ -152,7 +156,7 @@ void copyStringData(char** pdst, const char* src, size_t len) {
   *pdst = (*pdst) + len;
 }
 
-const char* getNextline(const char** ptext) {
+static const char* getNextline(const char** ptext) {
   if (!*ptext) {
     *ptext = "";
     return "";

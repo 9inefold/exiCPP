@@ -123,7 +123,7 @@
 #  define EXIP_DEBUG_LEVEL INFO
 # endif
 
-# define DEBUG_CHECK(level, module) (level >= EXIP_DEBUG_LEVEL && module == ON)
+# define DEBUG_CHECK(level, module) (DEBUG_GET_MODE() && level >= EXIP_DEBUG_LEVEL && module == ON)
 # define DEBUG_MSG(level, module, msg) do { if (DEBUG_CHECK(level, module)) { DEBUG_OUTPUT(msg); } } while(0)
 #else
 # define DEBUG_CHECK(level, module) (0)
@@ -205,6 +205,15 @@ enum errorCode
 typedef enum errorCode errorCode;
 
 #if EXIP_DEBUG == ON
+	extern int debugMode;
+# define DEBUG_SET_MODE(mode) ((void)(EXIP_PREFIX debugMode = (int)(!!mode)))
+# define DEBUG_GET_MODE() (!!(EXIP_PREFIX debugMode))
+#else
+# define DEBUG_SET_MODE(mode) ((void)(0))
+# define DEBUG_GET_MODE() (0)
+#endif
+
+#if EXIP_DEBUG == ON
   extern const char* errorCodeStrings[];
 # define EXIP_VALID_ERR(indx) ((indx) >= 0 && (indx) < EXIP_PREFIX EXIP_ERROR_LAST)
 # define GET_ERR_STRING_UNCHECKED(indx) EXIP_PREFIX errorCodeStrings[indx]
@@ -225,9 +234,12 @@ typedef enum errorCode errorCode;
 
 #if (EXIP_DEBUG == ON) && (EXIP_ANSI == ON)
 	extern int ansiMode;
-# define DEBUG_SET_ANSI(mode) (EXIP_PREFIX ansiMode = (!!(mode)))
+/// Set ANSI printing ON/OFF.
+# define DEBUG_SET_ANSI(mode) ((void)(EXIP_PREFIX ansiMode = (int)(!!mode)))
+# define DEBUG_GET_ANSI() (!!(EXIP_PREFIX ansiMode)) 
 #else
 # define DEBUG_SET_ANSI(mode) ((void)(0))
+# define DEBUG_GET_ANSI() (0) 
 #endif
 
 # define TRY_CATCH(func, cblock) do { tmp_err_code = func;\

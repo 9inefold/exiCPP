@@ -305,12 +305,18 @@ void test_file(exi::StrRef filepath) {
   std::string path = basepath + ".xml";
   std::string outpath = basepath + ".exi";
 
-  if (!write_file(path, outpath))
+  const bool oldval = DEBUG_GET_MODE();
+  DEBUG_SET_MODE(ON);
+  if (!write_file(path, outpath)) {
+    DEBUG_SET_MODE(oldval);
     return;
+  }
   fmt::print(fmt::fg(fmt::color::blue_violet),
     "\n----------------------------------------------\n");
+  DEBUG_SET_MODE(OFF);
   test_exi(std::string(filepath) + ".exi");
   // read_file(outpath);
+  DEBUG_SET_MODE(oldval);
 }
 
 void test_exi(exi::StrRef file) {
