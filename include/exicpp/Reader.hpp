@@ -62,6 +62,7 @@ public:
       this, exip::boolean(outOfBandOpts));
     // Fill with the default schema.
     (void) this->setSchema();
+    SET_PRESERVED(this->strm.header.opts.preserve, PRESERVE_PREFIXES);
     return Error::From(ErrCode(ret));
   }
 

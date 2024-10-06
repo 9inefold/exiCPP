@@ -33,21 +33,29 @@ using Traits = std::char_traits<char>;
 using VPtr = void*;
 
 #if EXICPP_DEBUG && (EXICPP_DEBUG_LEVEL <= ERROR)
-# define PRINT_NEWLINE() fmt::println("")
+# define PRINT_NEWLINE() \
+  do { if (DEBUG_GET_MODE()) fmt::println(""); } while(0)
+# define INTERNAL_LOG(err) do { \
+    if (DEBUG_GET_MODE()) { \
+      fmt::println(""); \
+      LOG_ERRCODE(err); \
+    }} while(0)
 #else
 # define PRINT_NEWLINE() (void(0))
+# define INTERNAL_LOG(err) (void(0))
 #endif
 
 #define HANDLE_FN(fn, ...)                                \
 do { const auto err_code = (serialize.fn(__VA_ARGS__));   \
 if (err_code != exip::EXIP_OK) {                          \
   serialize.closeEXIStream(&stream);                      \
-  PRINT_NEWLINE();                                        \
-  LOG_ERRCODE(err_code);                                  \
+  INTERNAL_LOG(err_code);                                 \
   return Error::From(ErrCode(err_code));                  \
 }} while(0)
 
-//////////////////////////////////////////////////////////////////////////
+//======================================================================//
+// Utils
+//======================================================================//
 
 static StrRef getName(XMLBase* data) {
   if EXICPP_UNLIKELY(!data) return "";
@@ -61,6 +69,170 @@ static StrRef getValue(XMLBase* data) {
   return {data->value(), data->value_size()};
 }
 
+//======================================================================//
+// Namespaces
+//======================================================================//
+
+namespace {
+
+class NsStack {
+public:
+  using Type = XMLAttribute;
+  using EntryType = Type*;
+  using It  = const EntryType*;
+  using EntriesType = std::vector<EntryType>;
+
+  struct Level {
+    std::uint64_t start = 0; // entry starting offset
+    std::uint32_t count = 0; // element count
+    std::uint32_t depth = 1; // number of nested levels
+  };
+
+  struct EntrySpan {
+    It begin() const { return I; } 
+    It end() const { return E; } 
+  public:
+    It I = nullptr;
+    It E = nullptr;
+  };
+
+public:
+  void incDepth(bool isNewLevel);
+  void decDepth();
+  void addEntry(EntryType entry);
+  void addEntries(const EntriesType& entries);
+  EntryType findEntry(StrRef prefix) const;
+  StrRef findEntryUri(StrRef prefix) const;
+private:
+  EntrySpan getEntries(const Level& level) const;
+  void splitTopLevel();
+  Level& curr();
+  const Level& curr() const;
+  bool shouldSplit() const;
+  bool isCurrentLevelEmpty() const;
+private:
+  std::vector<Level> level_buf;
+  EntriesType entry_buf;
+};
+
+void NsStack::incDepth(bool isNewLevel) {
+  if (isNewLevel) {
+    // LOG_ASSERT(!level_buf.empty());
+    level_buf.push_back({level_buf.size()});
+    return;
+  }
+  if EXICPP_UNLIKELY(level_buf.empty()) {
+    level_buf.push_back({0});
+    return;
+  }
+  ++level_buf.back().depth;
+}
+
+void NsStack::decDepth() {
+  if (level_buf.empty()) {
+    // LOG_WARN("NsStack::level_buf is empty.");
+    return;
+  }
+  Level& last = level_buf.back();
+  // Check if exiting scope.
+  if (--last.depth == 0) {
+    const auto count = std::size_t(last.count);
+    entry_buf.resize(entry_buf.size() - count);
+    level_buf.pop_back();
+  }
+}
+
+void NsStack::addEntry(NsStack::EntryType entry) {
+  LOG_ASSERT(entry != nullptr);
+  LOG_ASSERT(!level_buf.empty());
+  if (this->shouldSplit()) {
+    this->splitTopLevel();
+  }
+  entry_buf.push_back(entry);
+  ++level_buf.back().count;
+}
+
+void NsStack::addEntries(const NsStack::EntriesType& entries) {
+  if (entries.empty())
+    return;
+  LOG_ASSERT(!level_buf.empty());
+  if (this->shouldSplit()) {
+    this->splitTopLevel();
+  }
+
+  const std::size_t len = entries.size();
+  entry_buf.reserve(entry_buf.size() + len);
+  entry_buf.insert(
+    entry_buf.cend(),
+    entries.begin(), entries.end()
+  );
+  level_buf.back().count += len;
+}
+
+NsStack::EntryType NsStack::findEntry(StrRef prefix) const {
+  const auto str = "xmlns:" + std::string(prefix);
+  for (std::size_t Ix = level_buf.size(); Ix > 0; --Ix) {
+    const auto entries = this->getEntries(level_buf[Ix - 1]);
+    for (Type* entry : entries) {
+      if (getName(entry) == str)
+        return entry;
+    }
+  }
+
+  return nullptr;
+}
+
+StrRef NsStack::findEntryUri(StrRef prefix) const {
+  if (EntryType entry = this->findEntry(prefix))
+    return getValue(entry);
+  return "";
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+NsStack::EntrySpan NsStack::getEntries(
+ const NsStack::Level& level) const {
+  const auto count = level.count;
+  if (count == 0)
+    return {};
+  Type* const* I = entry_buf.data() + level.start;
+  return {I, I + count};
+}
+
+void NsStack::splitTopLevel() {
+  LOG_ASSERT(!level_buf.empty());
+  this->decDepth();
+  this->incDepth(true);
+}
+
+NsStack::Level& NsStack::curr() {
+  const auto& c = const_cast<const NsStack*>(this)->curr();
+  return const_cast<Level&>(c);
+}
+
+const NsStack::Level& NsStack::curr() const {
+  LOG_ASSERT(!level_buf.empty());
+  return level_buf.back();
+}
+
+bool NsStack::shouldSplit() const {
+  if (this->isCurrentLevelEmpty())
+    return true;
+  return curr().depth > 1;
+}
+
+bool NsStack::isCurrentLevelEmpty() const {
+  if (level_buf.empty())
+    return true;
+  return curr().count == 0;
+}
+
+} // namespace `anonymous`
+
+//======================================================================//
+// Writer
+//======================================================================//
+
 namespace {
 
 using InlNsStackType = std::vector<CString>;
@@ -69,7 +241,7 @@ using NsMappingType  = std::unordered_map<StrRef, StrRef>;
 struct WriterImpl {
   static constexpr CString EMPTY_STR { nullptr, 0 };
 public:
-  WriterImpl() { ns_stack.reserve(4); }
+  WriterImpl() = default;
   Error init(XMLDocument* doc, const StackBuffer& buf);
   Error parse();
 private:
@@ -83,8 +255,14 @@ private:
   CString makeData(StrRef data, bool clone = false);
 private:
   bool nextNode();
-  void incDepth() { ++this->depth; }
-  void decDepth() { --this->depth; }
+  void incDepth() {
+    ++this->depth;
+    namespaces.incDepth(false);
+  }
+  void decDepth() {
+    --this->depth;
+    namespaces.decDepth();
+  }
   bool hasName() const;
   bool hasValue() const;
 private:
@@ -99,8 +277,7 @@ private:
   XMLNode* last_node = nullptr;
   StrRef last_prefix = "";
   std::int64_t depth = 0;
-  InlNsStackType ns_stack;
-  NsMappingType  ns_map;
+  NsStack namespaces;
 };
 
 Error WriterImpl::init(XMLDocument* doc, const StackBuffer& buf) {
@@ -113,7 +290,6 @@ Error WriterImpl::init(XMLDocument* doc, const StackBuffer& buf) {
   header.has_options = exip::TRUE;
   header.opts.valueMaxLength = INDEX_MAX;
   header.opts.valuePartitionCapacity = INDEX_MAX;
-  // SET_STRICT(header.opts.enumOpt);
   SET_PRESERVED(header.opts.preserve, PRESERVE_PREFIXES);
 
   HANDLE_FN(initStream,
@@ -166,21 +342,19 @@ static bool ConsumeStartsWith(StrRef& S, StrRef toCmp) {
 
 void WriterImpl::begElem(XMLNode* node) {
   CQName name = this->makeQName(node, true);
-  if (name.prefix) {
-    const auto* pre = name.prefix;
-    auto attrName = std::string("xmlns:")
-      + std::string(pre->str, pre->length);
-    auto* attr = node->first_attribute(
-      attrName.c_str(), attrName.size());
-    if (attr) {
-      this->uri = this->makeData(getValue(attr));
-      name.uri = &this->uri;
-    }
-  }
-
 #if EXICPP_DEBUG
-  if (this->hasName())
-    LOG_INFO("<{}>: {}", getName(node), VPtr(node));
+  if (this->hasName()) {
+    const auto* ln = name.localName;
+    const auto* uri = name.uri;
+    if (last_prefix.empty()) {
+      LOG_INFO("SE {}", StrRef(ln->str, ln->length));
+    } else {
+      LOG_INFO("SE {} : {}",
+        this->last_prefix, StrRef(ln->str, ln->length));
+    }
+    if (uri)
+      LOG_INFO("  URI [{}]", StrRef(uri->str, uri->length));
+  }
 #endif
   serialize.startElement(&this->stream, name, &this->valueType);
 }
@@ -188,7 +362,7 @@ void WriterImpl::begElem(XMLNode* node) {
 void WriterImpl::endElem() {
 #if EXICPP_DEBUG
   if (this->hasName())
-    LOG_INFO("</{}>: {}", getName(this->node), VPtr(this->node));
+    LOG_INFO("EE {}", getName(this->node));
 #endif
   serialize.endElement(&this->stream);
 }
@@ -223,7 +397,8 @@ void WriterImpl::handleAttrs(XMLNode* node) {
     return getName(a) < getName(b);
   };
 
-  std::sort(nsDecls.begin(), nsDecls.end(), sorter);
+  // std::sort(nsDecls.begin(), nsDecls.end(), sorter);
+  namespaces.addEntries(nsDecls);
   std::sort(attrs.begin(), attrs.end(), sorter);
 
   for (auto* ns : nsDecls)
@@ -239,6 +414,7 @@ void WriterImpl::handleNs(XMLAttribute* ns) {
   const auto rawPrefix = name.substr(6);
   auto prefix = this->makeData(rawPrefix);
   auto uri = this->makeData(getValue(ns));
+
   LOG_INFO(" NS {}=\"{}\"", prefix, uri);
   const auto localNs = exip::boolean(rawPrefix == this->last_prefix);
   serialize.namespaceDeclaration(&this->stream, uri, prefix, localNs);
@@ -283,22 +459,24 @@ CQName WriterImpl::makeQName(XMLBase* node, bool isElem) {
   this->localName = MakeString(postfix);
   // this->localName = MakeString(rawName);
 
-#if 1
   if (isElem) {
     this->last_prefix = prefix;
     // Find attr.
     XMLAttribute* attr = nullptr;
     if (!(attr = this->node->first_attribute("xmlns", 5))) {
       auto attrName = std::string("xmlns:") + std::string(prefix);
-      auto* attr = this->node->first_attribute(
+      attr = this->node->first_attribute(
         attrName.c_str(), attrName.size());
     }
+
     if (attr) {
       this->uri = this->makeData(getValue(attr));
       ns = &this->uri;
+    } else if (auto* lkup = namespaces.findEntry(prefix)) {
+      this->uri = this->makeData(getValue(lkup));
+      ns = &this->uri;
     }
   }
-#endif
 
   return {
     ns,

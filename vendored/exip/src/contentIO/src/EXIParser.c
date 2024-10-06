@@ -191,7 +191,8 @@ errorCode parseNext(Parser* parser)
 
 	if(tmp_err_code != EXIP_OK)
 	{
-		DEBUG_MSG(ERROR, EXIP_DEBUG, ("\n>Error %s:%d at %s, line %d", GET_ERR_STRING(tmp_err_code), tmp_err_code, __FILE__, __LINE__));
+		DEBUG_TRACE_PRINT(tmp_err_code, "");
+		// DEBUG_MSG(ERROR, EXIP_DEBUG, ("\n>Error %s:%d at %s, line %d", GET_ERR_STRING(tmp_err_code), tmp_err_code, __FILE__, __LINE__));
 		return tmp_err_code;
 	}
 

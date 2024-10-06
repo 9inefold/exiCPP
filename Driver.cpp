@@ -28,11 +28,12 @@
 inline std::ostream& operator<<(std::ostream& os, const exi::QName& name) {
   const auto prefix = name.prefix();
   if (!prefix.empty())
-    return os << prefix << ':';
+    os << prefix << "::";
+  os << name.localName();
   const auto uri = name.uri();
   if (uri.empty())
-    return os << name.localName();
-  return os << name.localName() << '[' << uri << ']';
+    return os;
+  return os << '[' << uri << ']';
 }
 
 //======================================================================//
@@ -212,35 +213,64 @@ private:
 
 /////////////////////////////////////////////////////////////////////////
 
+#include <fmt/color.h>
+
 struct XMLBuilder {
   using Ch = exi::Char;
   XMLBuilder() : doc(), node(doc.document()) {}
 public:
 
 private:
-
+  exi::StrRef makePooledStr(exi::StrRef str) {
+    if (str.empty())
+      return str;
+    const std::size_t len = str.size();
+    exi::Char* rawStr = doc.allocate_string(str.data(), len);
+    return {rawStr, len};
+  }
 
 private:
   exi::XMLDocument doc;
   exi::XMLNode* node = nullptr;
 };
 
+std::string get_relative(exi::StrRef path);
 bool write_file(const std::string& path, const std::string& outpath);
 bool read_file(const std::string& outpath);
 void test_file(exi::StrRef filepath);
-void test_exi(exi::StrRef file);
+void test_exi(exi::StrRef file, bool printSep = true);
 
-int main() {
+void write_file_test(exi::StrRef filepath, bool debugMode = true) {
+  fmt::print(fmt::fg(fmt::color::blue_violet),
+    "\n|=[ {} ]===========================================|\n", filepath);
+  const auto basepath = get_relative(filepath);
+  std::string path = basepath + ".xml";
+  std::string outpath = basepath + ".exi";
+  
+  const bool oldval = DEBUG_GET_MODE();
+  DEBUG_SET_MODE(debugMode);
+  write_file(path, outpath);
+  DEBUG_SET_MODE(oldval);
+}
+
+int main(int argc, char* argv[]) {
   // test_exi("vendored/exip/examples/simpleDecoding/exipd-test.exi");
   // test_file("examples/Basic2");
   // test_file("examples/Basic");
-  // test_file("examples/Customers");
-  test_file("examples/Namespace");
+  // test_file("examples/Namespace");
+  write_file_test("examples/Namespace", false);
+  test_exi("examples/NamespaceG.exi");
+  DEBUG_SET_MODE(OFF);
+  test_exi("examples/Namespace.exi");
+  // test_exi("examples/nspreserve.exi");
+  // test_file("examples/PersonnelA");
+  // test_exi("examples/PersonnelB.exi");
+  // test_exi("examples/notebook.xml.exi");
+  // test_exi("examples/XMLSample.exi");
 }
 
 #include <cassert>
 #include <rapidxml_print.hpp>
-#include <fmt/color.h>
 
 bool write_file(const std::string& path, const std::string& outpath) {
   using namespace exi;
@@ -301,6 +331,8 @@ std::string get_relative(exi::StrRef path) {
 }
 
 void test_file(exi::StrRef filepath) {
+  fmt::print(fmt::fg(fmt::color::blue_violet),
+    "\n|=[ {} ]===========================================|\n", filepath);
   const auto basepath = get_relative(filepath);
   std::string path = basepath + ".xml";
   std::string outpath = basepath + ".exi";
@@ -313,13 +345,17 @@ void test_file(exi::StrRef filepath) {
   }
   fmt::print(fmt::fg(fmt::color::blue_violet),
     "\n----------------------------------------------\n");
-  DEBUG_SET_MODE(OFF);
-  test_exi(std::string(filepath) + ".exi");
+  // DEBUG_SET_MODE(OFF);
+  test_exi(std::string(filepath) + ".exi", false);
   // read_file(outpath);
   DEBUG_SET_MODE(oldval);
 }
 
-void test_exi(exi::StrRef file) {
+void test_exi(exi::StrRef file, bool printSep) {
+  if (printSep) {
+    fmt::print(fmt::fg(fmt::color::blue_violet),
+      "\n|=[ {} ]===========================================|\n", file);
+  }
   using namespace exi;
   InlineStackBuffer<512> buf;
   auto filename = get_relative(file);
@@ -335,15 +371,15 @@ void test_exi(exi::StrRef file) {
 
   if (Error E = parser.parseHeader()) {
     std::cout << '\n'
-      << "In '" << filename << "': "
-      << ansi::reset << '\n';
+      << "In '" << filename << "'"
+      << ansi::reset << "\n\n";
     return;
   }
 
   if (Error E = parser.parseAll()) {
     std::cout << '\n'
-      << "In '" << filename << "': "
-      << ansi::reset << '\n';
+      << "In '" << filename << "'"
+      << ansi::reset << "\n\n";
     return;
   }
   std::cout << std::endl;
