@@ -47,7 +47,7 @@ using VPtr = void*;
 
 #define HANDLE_FN(fn, ...)                                \
 do { const auto err_code = (serialize.fn(__VA_ARGS__));   \
-if (err_code != exip::EXIP_OK) {                          \
+if EXICPP_UNLIKELY(err_code != exip::EXIP_OK) {           \
   serialize.closeEXIStream(&stream);                      \
   INTERNAL_LOG(err_code);                                 \
   return Error::From(ErrCode(err_code));                  \
