@@ -86,6 +86,7 @@ public:
     std::uint64_t start = 0; // entry starting offset
     std::uint32_t count = 0; // element count
     std::uint32_t depth = 1; // number of nested levels
+    EntryType inline_ns = nullptr;
   };
 
   struct EntrySpan {
@@ -102,8 +103,10 @@ public:
   void addEntry(EntryType entry);
   void addEntries(const EntriesType& entries);
   EntryType findEntry(StrRef prefix) const;
+  EntryType findInlineEntry() const;
   StrRef findEntryUri(StrRef prefix) const;
 private:
+  void addInlineNs(EntryType entry);
   EntrySpan getEntries(const Level& level) const;
   void splitTopLevel();
   Level& curr();
@@ -148,8 +151,14 @@ void NsStack::addEntry(NsStack::EntryType entry) {
   if (this->shouldSplit()) {
     this->splitTopLevel();
   }
+  if (getName(entry) == "xmlns") {
+    /// This is an inline namespace.
+    LOG_ASSERT(entry->value_size() > 0);
+    curr().inline_ns = entry;
+    return;
+  }
   entry_buf.push_back(entry);
-  ++level_buf.back().count;
+  ++curr().count;
 }
 
 void NsStack::addEntries(const NsStack::EntriesType& entries) {
@@ -160,25 +169,42 @@ void NsStack::addEntries(const NsStack::EntriesType& entries) {
     this->splitTopLevel();
   }
 
-  const std::size_t len = entries.size();
+  std::size_t len = entries.size();
   entry_buf.reserve(entry_buf.size() + len);
-  entry_buf.insert(
-    entry_buf.cend(),
-    entries.begin(), entries.end()
-  );
-  level_buf.back().count += len;
+  for (auto* entry : entries) {
+    if (getName(entry) == "xmlns") {
+      this->addInlineNs(entry);
+      --len;
+      continue;
+    }
+    entry_buf.push_back(entry);
+  }
+  curr().count += len;
 }
 
 NsStack::EntryType NsStack::findEntry(StrRef prefix) const {
-  const auto str = "xmlns:" + std::string(prefix);
+  if (prefix.empty())
+    return this->findInlineEntry();
+  // Not inline
+  const auto str = fmt::format("xmlns:{}", prefix);
   for (std::size_t Ix = level_buf.size(); Ix > 0; --Ix) {
-    const auto entries = this->getEntries(level_buf[Ix - 1]);
+    auto& level = level_buf[Ix - 1];
+    const auto entries = this->getEntries(level);
     for (Type* entry : entries) {
       if (getName(entry) == str)
         return entry;
     }
   }
 
+  return nullptr;
+}
+
+NsStack::EntryType NsStack::findInlineEntry() const {
+  for (std::size_t Ix = level_buf.size(); Ix > 0; --Ix) {
+    auto& level = level_buf[Ix - 1];
+    if (level.inline_ns)
+      return level.inline_ns;
+  }
   return nullptr;
 }
 
@@ -189,6 +215,12 @@ StrRef NsStack::findEntryUri(StrRef prefix) const {
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+void NsStack::addInlineNs(EntryType entry) {
+  // Can only have one inline namespace per level.
+  LOG_ASSERT(curr().inline_ns == nullptr);
+  curr().inline_ns = entry;
+}
 
 NsStack::EntrySpan NsStack::getEntries(
  const NsStack::Level& level) const {
@@ -224,7 +256,8 @@ bool NsStack::shouldSplit() const {
 bool NsStack::isCurrentLevelEmpty() const {
   if (level_buf.empty())
     return true;
-  return curr().count == 0;
+  auto& c = curr();
+  return (c.count == 0) && !c.inline_ns;
 }
 
 } // namespace `anonymous`
@@ -406,8 +439,8 @@ void WriterImpl::handleAttrs(XMLNode* node) {
 
     if (ConsumeStartsWith(name, "xmlns"sv)) {
       if (name.empty()) {
-        // TODO: Use nonLocalNs?
-        LOG_FATAL("Inline namespaces are unimplemented!");
+        // LOG_FATAL("Inline namespaces are unimplemented!");
+        nsDecls.push_back(attr);
         continue;
       } else if (name.front() == ':') {
         nsDecls.push_back(attr);
@@ -436,9 +469,16 @@ void WriterImpl::handleNs(XMLAttribute* ns) {
   const auto name = getName(ns);
   LOG_ASSERT(StartsWith(name, "xmlns"));
   // sizeof("xmlns:") - 1
-  const auto rawPrefix = name.substr(6);
+  const auto rawPrefix = (name.size() == 5) ? "" : name.substr(6);
   auto prefix = this->makeData(rawPrefix);
   auto uri = this->makeData(getValue(ns));
+  
+  if (rawPrefix.empty()) {
+    LOG_INFO(" NSINL \"{}\"", uri);
+    serialize.namespaceDeclaration(
+      &this->stream, uri, prefix, exip::TRUE);
+    return;
+  }
 
   LOG_INFO(" NS {}=\"{}\"", prefix, uri);
   const auto localNs = exip::boolean(rawPrefix == this->last_prefix);
@@ -468,8 +508,19 @@ CQName WriterImpl::makeQName(XMLBase* node, bool isElem) {
   StrRef rawName = ::getName(node);
   const auto pos = rawName.find(':');
   if (pos == StrRef::npos) {
-    if (isElem)
+    if (isElem) {
       this->last_prefix = "";
+      // Find inl attr (if exists.)
+      XMLAttribute* attr =
+        this->node->first_attribute("xmlns", 5);
+      if (attr) {
+        this->uri = this->makeData(getValue(attr));
+        ns = &this->uri;
+      } else if (auto* lkup = namespaces.findInlineEntry()) {
+        this->uri = this->makeData(getValue(lkup));
+        ns = &this->uri;
+      }
+    }
     this->localName = MakeString(rawName);
     return {
       ns,
@@ -482,17 +533,14 @@ CQName WriterImpl::makeQName(XMLBase* node, bool isElem) {
   auto postfix = rawName.substr(pos + 1);
   this->prefix = MakeString(prefix);
   this->localName = MakeString(postfix);
-  // this->localName = MakeString(rawName);
 
   if (isElem) {
     this->last_prefix = prefix;
     // Find attr.
-    XMLAttribute* attr = nullptr;
-    if (!(attr = this->node->first_attribute("xmlns", 5))) {
-      auto attrName = std::string("xmlns:") + std::string(prefix);
-      attr = this->node->first_attribute(
-        attrName.c_str(), attrName.size());
-    }
+    auto attrName = fmt::format("xmlns:{}", prefix);
+    XMLAttribute* attr = this->node->first_attribute(
+      attrName.c_str(), attrName.size()
+    );
 
     if (attr) {
       this->uri = this->makeData(getValue(attr));

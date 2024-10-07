@@ -276,14 +276,14 @@ public:
     exi::StrRef prefix,
     bool isLocal) 
   {
-    if (isLocal) {
+    if (isLocal && !prefix.empty()) {
       StrRef name(node->name(), node->name_size());
       auto fullName = fmt::format("{}:{}", prefix, name);
       InternRef iname = this->intern(fullName);
       node->name(iname.data(), iname.size());
     }
 
-    auto fullPre = fmt::format("xmlns:{}", prefix);
+    auto fullPre = XMLBuilder::FormatNs(prefix);
     auto* attr = this->makeAttribute(fullPre, ns);
     node->append_attribute(attr);
     return ErrCode::Ok;
@@ -311,6 +311,12 @@ public:
   }
 
 private:
+  static std::string FormatNs(StrRef prefix) {
+    if (prefix.empty())
+      return "xmlns";
+    return fmt::format("xmlns:{}", prefix);
+  }
+
   InternRef internQName(const exi::QName& qname) {
     const auto prefix = qname.prefix();
     if (prefix.empty()) {

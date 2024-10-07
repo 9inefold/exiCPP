@@ -7,7 +7,7 @@
 <html>
 <body>
   <h2>My CD Collection</h2>
-  <table border="1">
+  <table xmlns="http://www.w3.org/1999/XSL/Transform2" border="1">
     <tr>
       <th style="text-align:left">Title</th>
       <th style="text-align:left">Artist</th>
