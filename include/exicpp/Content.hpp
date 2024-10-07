@@ -40,6 +40,7 @@ namespace H {
 // TODO: Update
 using Float   = exip::Float;
 using Decimal = Float;
+using Span    = BinarySpan;
 
 #if !EXICPP_CONCEPTS
 
@@ -279,7 +280,7 @@ public:
     CH_INIT_FUNC(intData,     (std::uint64_t val), (val))
     CH_INIT_FUNC(booleanData, (bool val), (val))
     CH_INIT_FUNC(stringData,  (StrRef val), (val))
-    CH_INIT_FUNC(binaryData,  (H::Span val), (val))
+    CH_INIT_FUNC(binaryData,  (BinarySpan val), (val))
     // TODO: dateTimeData
     CH_INIT_FUNC(decimalData, (H::Decimal val), (val))
     // TODO: listData
