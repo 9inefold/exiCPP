@@ -19,203 +19,23 @@
 #include <exicpp/Reader.hpp>
 #include <exicpp/Writer.hpp>
 #include <exicpp/XML.hpp>
-#include <exip/EXISerializer.h>
-
-#define NFORMAT 1
 #include <exicpp/Debug/Format.hpp>
-#include <iostream>
+// #include <exip/EXISerializer.h>
 
-inline std::ostream& operator<<(std::ostream& os, const exi::QName& name) {
-  const auto prefix = name.prefix();
-  if (!prefix.empty())
-    os << prefix << "::";
-  os << name.localName();
-  const auto uri = name.uri();
-  if (uri.empty())
-    return os;
-  return os << '[' << uri << ']';
-}
-
-//======================================================================//
-// rapidxml
-//======================================================================//
-
+// #define RAPIDXML_NO_STREAMS
 #include <filesystem>
-
-namespace fs = std::filesystem;
-
-namespace ansi {
-struct AnsiBase {
-  std::string_view color {};
-  friend std::ostream& operator<<(std::ostream& os, const AnsiBase& c) {
-    if (!c.color.empty())
-      return os << c.color;
-    return os;
-  }
-};
-
-#if DISABLE_ANSI
-# define DECL_ANSI(name, val) \
-  inline constexpr AnsiBase name {}
-#else
-# define DECL_ANSI(name, val) \
-  inline constexpr AnsiBase name {val}
-#endif
-
-DECL_ANSI(reset, "\033[0m");
-DECL_ANSI(red,   "\033[31;1m");
-DECL_ANSI(green, "\033[32;1m");
-DECL_ANSI(blue,  "\033[34;1m");
-DECL_ANSI(yellow,"\033[33;1m");
-DECL_ANSI(cyan,  "\033[36;1m");
-DECL_ANSI(white, "\033[37;1m");
-
-#undef DECL_ANSI
-
-struct AnsiEnd {};
-inline constexpr AnsiEnd endl {};
-
-inline std::ostream& operator<<(std::ostream& os, const AnsiEnd&) {
-#if DISABLE_ANSI
-  return os << '\n';
-#else
-  return os << ansi::reset << '\n';
-#endif
-}
-
-}
-
-struct Example {
-  using ErrCode = exi::ErrCode;
-
-  enum Ty {
-    DOCTYPE,
-    ELEMENT,
-    DATA,
-    ATTRIBUTE,
-    ATTRIBUTE_DATA,
-    NONE,
-  };
-
-public:
-  constexpr Example() = default;
-
-  ErrCode startDocument() {
-    LOG_INFO("");
-    this->lastType = DOCTYPE;
-    return ErrCode::Ok;
-  }
-
-  ErrCode endDocument() {
-    LOG_INFO("");
-    this->lastType = NONE;
-    return ErrCode::Ok;
-  }
-
-  ErrCode startElement(const exi::QName& name) {
-    LOG_INFO("");
-    if (name.localName().empty()) {
-      this->lastType = DATA;
-      return ErrCode::Ok;
-    }
-
-    outs() << ansi::red
-      << "#" << elementCount << ": "
-      << name << ansi::endl;
-    ++this->elementCount;
-    ++this->nestingLevel;
-    return ErrCode::Ok;
-  }
-
-  exi::ErrCode endElement() {
-    if (lastType == DATA) {
-      LOG_INFO("Data");
-      this->lastType = ELEMENT;
-      return ErrCode::Ok;
-    }
-
-    if (nestingLevel > 0) {
-      LOG_INFO("");
-      --this->nestingLevel;
-    } else {
-      LOG_ERROR("INVALID NESTING LEVEL");
-    }
-    outs()
-      << ansi::blue << "END!"
-      << ansi::endl;
-    return ErrCode::Ok;
-  }
-
-  exi::ErrCode namespaceDeclaration(
-    exi::StrRef ns,
-    exi::StrRef prefix,
-    bool isLocal) 
-  {
-    LOG_INFO("");
-    outs() << ansi::yellow
-      << prefix << (!isLocal ? "" : "*") << "="
-      << ns << ansi::endl;
-    return ErrCode::Ok;
-  }
-
-  exi::ErrCode attribute(const exi::QName& name) {
-    LOG_INFO("");
-    this->lastType = ATTRIBUTE;
-    outs() << ansi::yellow << name << "=" << ansi::reset;
-#ifndef NFORMAT
-    outs(false) << ansi::endl;
-#endif
-    return ErrCode::Ok;
-  }
-
-  exi::ErrCode stringData(exi::StrRef str) {
-    if (lastType == ATTRIBUTE) {
-      LOG_INFO("Attr");
-#ifndef NFORMAT
-      outs()
-        << ansi::yellow << " "
-#else
-      outs(false)
-        << ansi::yellow
-#endif
-        << str << ansi::endl;
-      this->lastType = ELEMENT;
-      return ErrCode::Ok;
-    }
-
-    if (lastType == DATA)
-      LOG_INFO("Data");
-    else
-      LOG_INFO("");
-
-    outs()
-      << ansi::white << " = "
-      << str << ansi::endl;
-    return ErrCode::Ok;
-  }
-
-private:
-  std::ostream& outs(bool printDepth = true) {
-    if (!printDepth)
-      return std::cout;
-    const auto len = nestingLevel * 2u;
-    if (lastType == ATTRIBUTE) {
-      return std::cout << std::string(len - 1, ' ');
-    }
-    return std::cout << std::string(len, ' ');
-  }
-
-private:
-  unsigned elementCount = 0;
-  unsigned nestingLevel = 0;
-  Ty lastType = NONE;
-};
-
-/////////////////////////////////////////////////////////////////////////
-
+#include <iostream>
 #include <unordered_map>
 #include <rapidxml_print.hpp>
 #include <fmt/color.h>
+
+#define COLOR_PRINT_(col, fstr, ...) \
+  fmt::print(fstr, fmt::styled( \
+    fmt::format(__VA_ARGS__), fmt::fg(col)))
+#define COLOR_PRINT(col, ...) COLOR_PRINT_(col, "{}", __VA_ARGS__)
+#define COLOR_PRINTLN(col, ...) COLOR_PRINT_(col, "{}\n", __VA_ARGS__)
+
+namespace fs = std::filesystem;
 
 struct InternRef : public exi::StrRef {
   using BaseType = exi::StrRef;
@@ -420,17 +240,15 @@ bool write_file(const std::string& path, const std::string& outpath) {
   using namespace exi;
   auto xmldoc = BoundDocument::ParseFrom(path);
   if (!xmldoc) {
-    std::cout 
-      << ansi::red << "Unable to locate file "
-      << path << "!\n" << ansi::reset;
+    COLOR_PRINTLN(fmt::color::red,
+      "Unable to locate file '{}'!", path);
     return false;
   }
 
   InlineStackBuffer<512> buf;
   if (Error E = buf.writeFile(outpath)) {
-    std::cout 
-      << ansi::red << "Error in '" << outpath << "': " << E.message()
-      << ansi::reset << std::endl;
+    COLOR_PRINTLN(fmt::color::red,
+      "Error in '{}': {}", outpath, E.message());
     return false;
   }
 
@@ -449,9 +267,8 @@ bool read_file(const std::string& outpath) {
 
   InlineStackBuffer<512> buf;
   if (Error E = buf.readFile(outpath)) {
-    std::cout 
-      << ansi::red << "Error in '" << outpath << "': " << E.message()
-      << ansi::reset << std::endl;
+    COLOR_PRINTLN(fmt::color::red,
+      "Error in '{}': {}", outpath, E.message());
     return false;
   }
 
@@ -459,16 +276,14 @@ bool read_file(const std::string& outpath) {
   auto parser = exi::Parser::New(builder, buf);
 
   if (Error E = parser.parseHeader()) {
-    std::cout << '\n'
-      << "In '" << outpath << "'"
-      << ansi::reset << "\n\n";
+    COLOR_PRINTLN(fmt::color::red,
+      "\nError in '{}'\n", outpath);
     return false;
   }
 
   if (Error E = parser.parseAll()) {
-    std::cout << '\n'
-      << "In '" << outpath << "'"
-      << ansi::reset << "\n\n";
+    COLOR_PRINTLN(fmt::color::red,
+      "\nError in '{}'\n", outpath);
     return false;
   }
 
@@ -508,38 +323,4 @@ void test_file(exi::StrRef filepath) {
   // test_exi(std::string(filepath) + ".exi", false);
   read_file(outpath);
   DEBUG_SET_MODE(oldval);
-}
-
-void test_exi(exi::StrRef file, bool printSep) {
-  if (printSep) {
-    fmt::print(fmt::fg(fmt::color::blue_violet),
-      "\n|=[ {} ]===========================================|\n", file);
-  }
-  using namespace exi;
-  InlineStackBuffer<512> buf;
-  auto filename = get_relative(file);
-  if (Error E = buf.readFile(filename)) {
-    std::cout
-      << ansi::red << "Error in '" << filename << "': " << E.message()
-      << ansi::reset << std::endl;
-    return;
-  }
-
-  Example appData {};
-  auto parser = exi::Parser::New(appData, buf);
-
-  if (Error E = parser.parseHeader()) {
-    std::cout << '\n'
-      << "In '" << filename << "'"
-      << ansi::reset << "\n\n";
-    return;
-  }
-
-  if (Error E = parser.parseAll()) {
-    std::cout << '\n'
-      << "In '" << filename << "'"
-      << ansi::reset << "\n\n";
-    return;
-  }
-  std::cout << std::endl;
 }
