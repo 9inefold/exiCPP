@@ -31,6 +31,7 @@
 
 namespace exi {
 
+using XMLPool = rapidxml::memory_pool<Char>;
 using XMLDocument = rapidxml::xml_document<Char>;
 using XMLAttribute = rapidxml::xml_attribute<Char>;
 using XMLBase = rapidxml::xml_base<Char>;

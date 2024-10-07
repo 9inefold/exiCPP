@@ -315,6 +315,7 @@ Error WriterImpl::parse() {
     this->handleAttrs(node);
     if (node->type() == XMLType::node_data) {
       auto value = getValue(node);
+      LOG_INFO("    DATA {}", value);
       auto str = this->makeData(value);
       serialize.stringData(&this->stream, str);
     }
@@ -340,12 +341,36 @@ static bool ConsumeStartsWith(StrRef& S, StrRef toCmp) {
   return true;
 }
 
+static StrRef GetNodeTypeName(XMLType ty) {
+  switch (ty) {
+   case XMLType::node_document:
+    return "document";
+   case XMLType::node_element:
+    return "element";
+   case XMLType::node_data:
+    return "data";
+   case XMLType::node_cdata:
+    return "cdata";
+   case XMLType::node_comment:
+    return "comment";
+   case XMLType::node_declaration:
+    return "declaration";
+   case XMLType::node_doctype:
+    return "doctype";
+   case XMLType::node_pi:
+    return "pi";
+   default:
+    return "unknown";
+  }
+}
+
 void WriterImpl::begElem(XMLNode* node) {
   CQName name = this->makeQName(node, true);
 #if EXICPP_DEBUG
   if (this->hasName()) {
     const auto* ln = name.localName;
     const auto* uri = name.uri;
+    LOG_INFO("SETYPE {}", GetNodeTypeName(node->type()));
     if (last_prefix.empty()) {
       LOG_INFO("SE {}", StrRef(ln->str, ln->length));
     } else {
