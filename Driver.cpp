@@ -19,13 +19,15 @@
 #include <exicpp/Reader.hpp>
 #include <exicpp/Writer.hpp>
 #include <exicpp/XML.hpp>
-#include <exicpp/Debug/Format.hpp>
-// #include <exip/EXISerializer.h>
+#include "Driver.hpp"
 
-// #define RAPIDXML_NO_STREAMS
-#include <filesystem>
-#include <iostream>
+#define RAPIDXML_NO_STREAMS
+#include <algorithm>
+#include <fstream>
+#include <iterator>
+#include <optional>
 #include <unordered_map>
+#include <unordered_set>
 #include <rapidxml_print.hpp>
 #include <fmt/color.h>
 
@@ -35,32 +37,62 @@
 #define COLOR_PRINT(col, ...) COLOR_PRINT_(col, "{}", __VA_ARGS__)
 #define COLOR_PRINTLN(col, ...) COLOR_PRINT_(col, "{}\n", __VA_ARGS__)
 
-namespace fs = std::filesystem;
+using namespace exi;
 
-struct InternRef : public exi::StrRef {
-  using BaseType = exi::StrRef;
+using Str = std::basic_string<Char>;
+
+template <typename T>
+using Option = std::optional<T>;
+
+template <typename K, typename V>
+using Map = std::unordered_map<K, V>;
+
+template <typename K>
+using Set = std::unordered_set<K>;
+
+//////////////////////////////////////////////////////////////////////////
+
+struct InternRef : public StrRef {
+  using BaseType = StrRef;
 public:
   constexpr InternRef() noexcept = default;
-  InternRef(exi::Char* data, std::size_t len) noexcept : BaseType(data, len) { }
+  InternRef(Char* data, std::size_t len) noexcept : BaseType(data, len) { }
   constexpr InternRef(const InternRef&) noexcept = default;
   constexpr InternRef& operator=(const InternRef&) noexcept = default;
 public:
-  exi::Char* data() const { return const_cast<exi::Char*>(BaseType::data()); }
+  Char* data() const { return const_cast<Char*>(BaseType::data()); }
 };
 
 struct XMLBuilder {
-  using Ch = exi::Char;
-  using StrRef = exi::StrRef;
-  using ErrCode = exi::ErrCode;
-  using Ty = exi::XMLType;
+  using Ty = XMLType;
 
   XMLBuilder() :
-    doc(std::make_unique<exi::XMLDocument>()),
+    doc(std::make_unique<XMLDocument>()),
     node(doc->document()) {
   }
 
+  static StrRef GetXMLHead() {
+    return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+  }
+
   void dump() {
-    std::cout << *doc << std::endl;
+    // std::cout << GetXMLHead() << '\n';
+    // std::cout << *doc << std::endl;
+  }
+
+  void dump(const fs::path& outpath) {
+    std::ofstream os(outpath, std::ios::binary);
+    os.unsetf(std::ios::skipws);
+
+    if (!os) {
+      COLOR_PRINTLN(fmt::color::red,
+        "ERROR: Unable to write to file '{}'", outpath);
+      return;
+    }
+
+    os << GetXMLHead() << '\n';
+    rapidxml::print(
+      std::ostream_iterator<Char>(os), *this->doc);
   }
 
 public:
@@ -75,7 +107,7 @@ public:
     return ErrCode::Ok;
   }
 
-  ErrCode startElement(const exi::QName& name) {
+  ErrCode startElement(const QName& name) {
     const auto ln = this->internQName(name);
     auto ty = ln.empty() ? Ty::node_data : Ty::node_element;
     auto* newNode = this->makeNode<true>(ty, ln);
@@ -92,8 +124,8 @@ public:
   }
 
   ErrCode namespaceDeclaration(
-    exi::StrRef ns,
-    exi::StrRef prefix,
+    StrRef ns,
+    StrRef prefix,
     bool isLocal) 
   {
     if (isLocal && !prefix.empty()) {
@@ -109,14 +141,14 @@ public:
     return ErrCode::Ok;
   }
 
-  ErrCode attribute(const exi::QName& name) {
+  ErrCode attribute(const QName& name) {
     LOG_ASSERT(!this->attr);
     this->attr = this->makeAttribute(name.localName());
     node->append_attribute(attr);
     return ErrCode::Ok;
   }
 
-  ErrCode stringData(exi::StrRef str) {
+  ErrCode stringData(StrRef str) {
     if (this->attr) {
       InternRef istr = this->intern(str);
       attr->value(istr.data(), istr.size());
@@ -137,7 +169,7 @@ private:
     return fmt::format("xmlns:{}", prefix);
   }
 
-  InternRef internQName(const exi::QName& qname) {
+  InternRef internQName(const QName& qname) {
     const auto prefix = qname.prefix();
     if (prefix.empty()) {
       return this->intern(qname.localName());
@@ -152,7 +184,7 @@ private:
     if (str.empty())
       return {nullptr, 0};
     if constexpr (AssureInterned) {
-      auto* raw = const_cast<Ch*>(str.data());
+      auto* raw = const_cast<Char*>(str.data());
       return {raw, str.size()};
     }
     auto it = intern_table.find(str);
@@ -165,8 +197,8 @@ private:
     if (str.empty())
       return {nullptr, 0};
     const std::size_t len = str.size();
-    Ch* rawStr = doc->allocate_string(nullptr, len);
-    std::char_traits<Ch>::copy(rawStr, str.data(), len);
+    Char* rawStr = doc->allocate_string(nullptr, len);
+    std::char_traits<Char>::copy(rawStr, str.data(), len);
 
     InternRef is {rawStr, len};
     LOG_ASSERT(intern_table.count(str) == 0);
@@ -175,7 +207,7 @@ private:
   }
 
   template <bool AssureInterned = false>
-  exi::XMLNode* makeNode(Ty type, StrRef name = "", StrRef value = "") {
+  XMLNode* makeNode(Ty type, StrRef name = "", StrRef value = "") {
     auto iname = this->intern<AssureInterned>(name);
     auto ivalue = this->intern<AssureInterned>(value);
     return doc->allocate_node(type,
@@ -185,7 +217,7 @@ private:
   }
 
   template <bool AssureInterned = false>
-  exi::XMLAttribute* makeAttribute(StrRef name, StrRef value = "") {
+  XMLAttribute* makeAttribute(StrRef name, StrRef value = "") {
     auto iname = this->intern<AssureInterned>(name);
     auto ivalue = this->intern<AssureInterned>(value);
     return doc->allocate_attribute(
@@ -195,132 +227,219 @@ private:
   }
 
 private:
-  exi::Box<exi::XMLDocument> doc;
-  exi::XMLNode* node = nullptr;
-  exi::XMLAttribute* attr = nullptr;
-  std::unordered_map<StrRef, InternRef> intern_table;
+  Box<XMLDocument> doc;
+  XMLNode* node = nullptr;
+  XMLAttribute* attr = nullptr;
+  Map<StrRef, InternRef> intern_table;
 };
 
-std::string get_relative(exi::StrRef path);
-bool write_file(const std::string& path, const std::string& outpath);
-bool read_file(const std::string& outpath);
-void test_file(exi::StrRef filepath);
-void test_exi(exi::StrRef file, bool printSep = true);
+//////////////////////////////////////////////////////////////////////////
 
-void write_file_test(exi::StrRef filepath, bool debugMode = true) {
-  fmt::print(fmt::fg(fmt::color::blue_violet),
-    "\n|=[ {} ]===========================================|\n", filepath);
-  const auto basepath = get_relative(filepath);
-  std::string path = basepath + ".xml";
-  std::string outpath = basepath + ".exi";
+Mode progMode = Mode::Default;
+
+Option<fs::path> inpath;
+Option<fs::path> outpath;
+
+bool includeOptions = true;
+bool includeCookie = true;
+bool preservePrefixes = true;
+
+static void printHelp();
+static void encodeXML();
+static void decodeEXI();
+static void encodeDecode();
+
+static Str normalizeCommand(StrRef S) {
+  auto lower = +[](char c) -> char { return std::tolower(c); };
+  std::string outstr(S.size(), '\0');
+  std::transform(S.begin(), S.end(), outstr.begin(), lower);
+  return outstr;
+}
+
+static fs::path validatePath(StrRef path) {
+  fs::path outpath(path);
+  if (fs::exists(outpath))
+    return outpath;
+  COLOR_PRINTLN(fmt::color::red,
+    "ERROR: Invalid path '{}'", path);
+  std::exit(1);
+}
+
+static void processCommand(ArgProcessor& P) {
+  auto cmd = P.curr();
+  cmd.remove_prefix(1);
+  auto str = normalizeCommand(cmd);
+
+  if (str == "h" || str == "help") {
+    printHelp();
+    std::exit(0);
+  }
   
-  const bool oldval = DEBUG_GET_MODE();
-  DEBUG_SET_MODE(debugMode);
-  write_file(path, outpath);
-  DEBUG_SET_MODE(oldval);
+  if (str == "i" || str == "-input") {
+    fs::path path = validatePath(P.peek());
+    inpath.emplace(path);
+    P.next();
+  } else if (str == "o" || str == "-output") {
+    fs::path path = fs::absolute(P.peek());
+    outpath.emplace(path);
+    P.next();
+  } else if (str == "e" || str == "-encode") {
+    progMode = Mode::Encode;
+  } else if (str == "d" || str == "-decode") {
+    progMode = Mode::Decode;
+  } else if (str == "ed" || str == "-encodedecode") {
+    progMode = Mode::EncodeDecode;
+  } else if (str == "includeoptions") {
+    includeOptions = true;
+  } else if (str == "includecookie") {
+    includeCookie = true;
+  } else if (str == "preserveprefixes") {
+    preservePrefixes = true;
+  }
 }
 
 int main(int argc, char* argv[]) {
-  // test_exi("vendored/exip/examples/simpleDecoding/exipd-test.exi");
-  // test_file("examples/Basic2");
-  // test_file("examples/Basic");
-  test_file("examples/Namespace");
-  // write_file_test("examples/Namespace", false);
-  // test_exi("examples/NamespaceG.exi");
-  // DEBUG_SET_MODE(OFF);
-  // test_exi("examples/Namespace.exi");
-  // test_exi("examples/nspreserve.exi");
-  // test_file("examples/PersonnelA");
-  // test_exi("examples/PersonnelB.exi");
-  // test_exi("examples/notebook.xml.exi");
-  // test_exi("examples/XMLSample.exi");
-}
-
-bool write_file(const std::string& path, const std::string& outpath) {
-  using namespace exi;
-  auto xmldoc = BoundDocument::ParseFrom(path);
-  if (!xmldoc) {
-    COLOR_PRINTLN(fmt::color::red,
-      "Unable to locate file '{}'!", path);
-    return false;
+  if (argc < 2) {
+    printHelp();
+    return 0;
   }
 
-  InlineStackBuffer<512> buf;
-  if (Error E = buf.writeFile(outpath)) {
+  ArgProcessor P {argc, argv};
+  while (P) {
+    auto str = P.curr();
+    if (str.empty()) {
+      P.next();
+      continue;
+    }
+
+    if (str.front() != '-') {
+      COLOR_PRINTLN(fmt::color::red,
+        "ERROR: Unknown option '{}'", str);
+      return 1;
+    }
+
+    processCommand(P);
+    P.next();
+  }
+
+  if (progMode == Mode::Help) {
+    printHelp();
+    return 0;
+  }
+
+  if (!inpath) {
     COLOR_PRINTLN(fmt::color::red,
-      "Error in '{}': {}", outpath, E.message());
-    return false;
+      "ERROR: 'inpath' must be specified in this mode.");
+    return 1;
+  }
+
+  switch (progMode) {
+   case Encode:
+    encodeXML();
+    break;
+   case Decode:
+    decodeEXI();
+    break;
+   case EncodeDecode:
+    encodeDecode();
+    break;
+  }
+}
+
+using BufferType = InlineStackBuffer<512>;
+
+void printHelp() {
+  fmt::println(
+    "\nCOMMAND LINE OPTIONS:\n"
+    "  -h, --help:            Prints help\n"
+    "  -e, --encode:          Encode XML as EXI\n"
+    "  -d, --decode:          Decode EXI as XML\n"
+    "  -ed, --enodeDecode:    Decode EXI as XML\n"
+    "  \n"
+    "  -i, --input  <file>:   Input file\n"
+    "  -o, --output <file>:   Output file (optional)\n"
+    "  \n"
+    "  -includeOptions\n"
+    "  -includeCookie\n"
+    "  -preservePrefixes\n"
+  );
+}
+
+static fs::path outpathOr(fs::path inpath, const Str& ext) {
+  return outpath.value_or(
+    inpath.replace_extension(ext));
+}
+
+void encodeXML() {
+  fs::path xml = fs::absolute(*inpath);
+  fs::path exi = outpathOr(xml, "exi");
+  fmt::println("Reading from '{}'", xml);
+  
+  auto xmldoc = BoundDocument::ParseFrom(xml);
+  if (!xmldoc) {
+#if !EXICPP_DEBUG
+    COLOR_PRINTLN(fmt::color::red,
+      "Unable to locate file '{}'!", xml);
+#endif
+    std::exit(1);
+  }
+
+  BufferType buf {};
+  auto existr = to_multibyte(exi);
+  if (Error E = buf.writeFile(existr)) {
+    COLOR_PRINTLN(fmt::color::red,
+      "Error in '{}': {}", exi, E.message());
+    std::exit(1);
   }
 
   if (Error E = write_xml(xmldoc.document(), buf)) {
-    // std::cout 
-    //   << ansi::red << "Serialization error: " << E.message()
-    //   << ansi::reset << std::endl;
-    return false;
+    COLOR_PRINTLN(fmt::color::red,
+      "Error in '{}': {}", exi, E.message());
+    std::exit(1);
   }
 
-  return true;
+  COLOR_PRINTLN(fmt::color::light_green,
+    "Wrote to '{}'", exi);
 }
 
-bool read_file(const std::string& outpath) {
-  using namespace exi;
+void decodeEXI() {
+  fs::path exi = fs::absolute(*inpath);
+  fs::path xml = outpathOr(exi, "xml");;
+  fmt::println("Reading from '{}'", exi);
 
-  InlineStackBuffer<512> buf;
-  if (Error E = buf.readFile(outpath)) {
+  BufferType buf {};
+  auto existr = to_multibyte(exi);
+  if (Error E = buf.readFile(existr)) {
     COLOR_PRINTLN(fmt::color::red,
-      "Error in '{}': {}", outpath, E.message());
-    return false;
+      "Error in '{}': {}", exi, E.message());
+    std::exit(1);
   }
 
   XMLBuilder builder {};
-  auto parser = exi::Parser::New(builder, buf);
+  auto parser = Parser::New(builder, buf);
 
   if (Error E = parser.parseHeader()) {
     COLOR_PRINTLN(fmt::color::red,
-      "\nError in '{}'\n", outpath);
-    return false;
+      "\nError in '{}'\n", exi);
+    std::exit(1);
   }
 
   if (Error E = parser.parseAll()) {
     COLOR_PRINTLN(fmt::color::red,
-      "\nError in '{}'\n", outpath);
-    return false;
+      "\nError in '{}'\n", exi);
+    std::exit(1);
   }
 
-  builder.dump();
-  return true;
+  builder.dump(xml);
+  COLOR_PRINTLN(fmt::color::light_green,
+    "Wrote to '{}'", xml);
 }
 
-exi::StrRef file_folder() {
-  constexpr auto& rawfile = __FILE__;
-  constexpr exi::StrRef file {rawfile};
-  constexpr std::size_t pos = file.find_last_of("\\/");
-  if (pos == exi::StrRef::npos)
-    return "";
-  return file.substr(0, pos + 1);
-}
+void encodeDecode() {
+  fs::path xml = fs::absolute(*inpath);
+  fs::path exi = outpathOr(xml, "exi");
 
-std::string get_relative(exi::StrRef path) {
-  return std::string(file_folder()) + std::string(path);
-}
-
-void test_file(exi::StrRef filepath) {
-  fmt::print(fmt::fg(fmt::color::blue_violet),
-    "\n|=[ {} ]===========================================|\n", filepath);
-  const auto basepath = get_relative(filepath);
-  std::string path = basepath + ".xml";
-  std::string outpath = basepath + ".exi";
-
-  const bool oldval = DEBUG_GET_MODE();
-  DEBUG_SET_MODE(ON);
-  if (!write_file(path, outpath)) {
-    DEBUG_SET_MODE(oldval);
-    return;
-  }
-  fmt::print(fmt::fg(fmt::color::blue_violet),
-    "\n----------------------------------------------\n");
-  DEBUG_SET_MODE(OFF);
-  // test_exi(std::string(filepath) + ".exi", false);
-  read_file(outpath);
-  DEBUG_SET_MODE(oldval);
+  COLOR_PRINTLN(fmt::color::yellow,
+    "-encodeDecode is currently unimplemented!");
+  std::exit(0);
 }

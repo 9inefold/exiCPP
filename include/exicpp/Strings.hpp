@@ -23,9 +23,8 @@
 
 #include "Traits.hpp"
 #include <cstring>
-#if EXICPP_FORMAT
-# include <fmt/format.h>
-#endif
+#include <string>
+#include <fmt/format.h>
 
 EXIP_NS_TAG namespace exip {
 
@@ -36,6 +35,9 @@ inline exi::StrRef format_as(const String& str) {
 } // namespace exip
 
 namespace exi {
+
+std::string to_multibyte(const std::string& str);
+std::string to_multibyte(const std::wstring& str);
 
 //======================================================================//
 // Objects

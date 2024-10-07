@@ -17,6 +17,7 @@
 //===----------------------------------------------------------------===//
 
 #include <XML.hpp>
+#include <Strings.hpp>
 #include <Debug/Format.hpp>
 #include <cstdlib>
 #include <filesystem>
@@ -52,21 +53,6 @@ static BoxedStr read_file(fs::path filepath) {
   return std::make_unique<Str>(std::move(file_data));
 }
 
-static std::string to_multibyte(const std::string& str) {
-  return str;
-}
-
-static std::string to_multibyte(const std::wstring& str) {
-  std::string outstr;
-  const std::size_t wsize = str.size() + 1;
-  outstr.resize(wsize * 2);
-  const auto len = std::wcstombs(outstr.data(), str.data(), outstr.size());
-  if (len == static_cast<std::size_t>(-1))
-    return "...";
-  outstr.resize(len);
-  return outstr;
-}
-
 BoundDocument BoundDocument::From(fs::path filename) {
   BoundDocument res;
   auto str = read_file(filename);
@@ -84,3 +70,24 @@ BoundDocument BoundDocument::From(fs::path filename) {
   Traits::copy(buf.data(), str->data(), len);
   return res;
 }
+
+
+// TODO: MOVE
+namespace exi {
+
+std::string to_multibyte(const std::string& str) {
+  return str;
+}
+
+std::string to_multibyte(const std::wstring& str) {
+  std::string outstr;
+  const std::size_t wsize = str.size() + 1;
+  outstr.resize(wsize * 2);
+  const auto len = std::wcstombs(outstr.data(), str.data(), outstr.size());
+  if (len == static_cast<std::size_t>(-1))
+    return "...";
+  outstr.resize(len);
+  return outstr;
+}
+
+} // namespace exi
