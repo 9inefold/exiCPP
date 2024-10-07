@@ -280,8 +280,10 @@ void printString(const String* inStr)
 {
 	if(inStr->length == 0)
 		return;
+#if EXIP_DEBUG_LEVEL < WARNING
 	if(debugMode == ON)
 		DEBUG_OUTPUT(("%.*s", (int) inStr->length, inStr->str));
+#endif
 }
 
 #endif /* EXIP_DEBUG */
