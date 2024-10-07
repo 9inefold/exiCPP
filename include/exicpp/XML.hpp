@@ -27,6 +27,7 @@
 
 #include "Basic.hpp"
 #include "HeapBuffer.hpp"
+#include <filesystem>
 #include <rapidxml.hpp>
 
 namespace exi {
@@ -45,13 +46,13 @@ public:
   }
   BoundDocument(BoundDocument&&) = default;
 public:
-  static BoundDocument From(StrRef filename);
+  static BoundDocument From(std::filesystem::path filename);
 
   template <int Flags =
     rapidxml::parse_no_utf8 |
     rapidxml::parse_no_string_terminators
   >
-  static BoundDocument ParseFrom(StrRef filename) {
+  static BoundDocument ParseFrom(std::filesystem::path filename) {
     auto res = BoundDocument::From(filename);
     Char* bufdata = res.buf.data();
     if (bufdata)

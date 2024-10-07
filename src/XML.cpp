@@ -17,6 +17,8 @@
 //===----------------------------------------------------------------===//
 
 #include <XML.hpp>
+#include <Debug/Format.hpp>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -50,16 +52,29 @@ static BoxedStr read_file(fs::path filepath) {
   return std::make_unique<Str>(std::move(file_data));
 }
 
-BoundDocument BoundDocument::From(StrRef filename) {
+static std::string to_multibyte(const std::string& str) {
+  return str;
+}
+
+static std::string to_multibyte(const std::wstring& str) {
+  std::string outstr;
+  const std::size_t wsize = str.size() + 1;
+  outstr.resize(wsize * 2);
+  const auto len = std::wcstombs(outstr.data(), str.data(), outstr.size());
+  if (len == static_cast<std::size_t>(-1))
+    return "...";
+  outstr.resize(len);
+  return outstr;
+}
+
+BoundDocument BoundDocument::From(fs::path filename) {
   BoundDocument res;
   auto str = read_file(filename);
   if (!str || str->empty()) {
 #if EXICPP_DEBUG
-    std::fprintf(stderr, 
-      ">Error: Could not read file \"%.*s\"\n", 
-      int(filename.size()), filename.data()
-    );
-#endif // EXICPP_DEBUG
+    auto mbstr = to_multibyte(filename.native());
+    LOG_ERROR("Could not read file '{}'", mbstr);
+#endif
     return res;
   }
 

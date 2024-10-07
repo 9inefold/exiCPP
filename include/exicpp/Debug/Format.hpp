@@ -22,7 +22,7 @@
 #define EXICPP_DEBUG_FORMAT_HPP
 
 #include "Location.hpp"
-#include <fmt/base.h>
+#include <fmt/format.h>
 
 #define EXICPP_FMT_LOC() EXICPP_LOCATION(FUNC)
 
