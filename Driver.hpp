@@ -41,7 +41,7 @@ struct ArgProcessor {
     }
 
     It& operator++() {
-      ++this->data_;
+      this->next();
       return *this;
     }
  
@@ -53,6 +53,16 @@ struct ArgProcessor {
  
     bool operator==(const It& rhs) const {
       return (this->data_ == rhs.data_);
+    }
+
+    bool operator!=(const It& rhs) const {
+      return (this->data_ != rhs.data_);
+    }
+  
+  private:
+    void next() {
+      ++this->data_;
+      this->len = exi::strsize(*data_);
     }
 
   private:
