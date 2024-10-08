@@ -33,9 +33,14 @@ static std::size_t writeToFP(void* buf, std::size_t count, void* stream) {
   return ret;
 }
 
-Error IBinaryBuffer::readFile(StrRef name) {
+static Str getFilename(const fs::path& name) {
+  return to_multibyte(fs::absolute(name).native());
+}
+
+Error IBinaryBuffer::readFile(const fs::path& name) {
   this->destroyStream();
-  auto* fp = std::fopen(name.data(), "rb");
+  const auto filename = getFilename(name);
+  auto* fp = std::fopen(filename.c_str(), "rb");
   if (!fp)
     return Error::From("Unable to open file to read.");
   
@@ -46,9 +51,10 @@ Error IBinaryBuffer::readFile(StrRef name) {
   return Error::Ok();
 }
 
-Error IBinaryBuffer::writeFile(StrRef name) {
+Error IBinaryBuffer::writeFile(const fs::path& name) {
   this->destroyStream();
-  auto* fp = std::fopen(name.data(), "wb");
+  const auto filename = getFilename(name);
+  auto* fp = std::fopen(filename.c_str(), "wb");
   if (!fp)
     return Error::From("Unable to open file to write.");
   

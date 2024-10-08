@@ -23,6 +23,7 @@
 
 #include "Basic.hpp"
 #include "Errors.hpp"
+#include "Filesystem.hpp"
 #include "HeapBuffer.hpp"
 
 namespace exi {
@@ -50,11 +51,11 @@ struct IBinaryBuffer : public CBinaryBuffer {
 
   /// @brief Creates a handle to the file at `name`.
   /// @return `true` on failure.
-  Error readFile(StrRef name);
+  Error readFile(const fs::path& name);
 
   /// @brief Creates a handle to the file at `name`.
   /// @return `true` on failure.
-  Error writeFile(StrRef name);
+  Error writeFile(const fs::path& name);
 
   ~IBinaryBuffer() { this->destroyStream(); }
 
