@@ -34,12 +34,18 @@
 #define COLOR_PRINT_(col, fstr, ...) \
   fmt::print(fstr, fmt::styled( \
     fmt::format(__VA_ARGS__), fmt::fg(col)))
+
 #define COLOR_PRINT(col, ...) COLOR_PRINT_(col, "{}", __VA_ARGS__)
 #define COLOR_PRINTLN(col, ...) COLOR_PRINT_(col, "{}\n", __VA_ARGS__)
 
-using namespace exi;
+#define PRINT_INFO(...) COLOR_PRINT_( \
+  fmt::color::light_blue, "{}\n", __VA_ARGS__)
+#define PRINT_WARN(...) COLOR_PRINT_( \
+  fmt::color::yellow, "{}\n", "WARNING: " __VA_ARGS__)
+#define PRINT_ERR(...)  COLOR_PRINT_( \
+  fmt::terminal_color::bright_red, "{}\n", "ERROR: " __VA_ARGS__)
 
-using Str = std::basic_string<Char>;
+using namespace exi;
 
 template <typename T>
 using Option = std::optional<T>;
@@ -235,14 +241,15 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
-Mode progMode = Mode::Default;
+static Mode progMode = Mode::Default;
 
-Option<fs::path> inpath;
-Option<fs::path> outpath;
+static Option<fs::path> inpath;
+static Option<fs::path> outpath;
 
-bool includeOptions = true;
-bool includeCookie = true;
-bool preservePrefixes = true;
+static bool verbose = false;
+static bool includeOptions = true;
+static bool includeCookie = true;
+static bool preservePrefixes = true;
 
 static void printHelp();
 static void encodeXML();
@@ -260,28 +267,56 @@ static fs::path validatePath(StrRef path) {
   fs::path outpath(path);
   if (fs::exists(outpath))
     return outpath;
-  COLOR_PRINTLN(fmt::color::red,
-    "ERROR: Invalid path '{}'", path);
+  PRINT_ERR("Invalid path '{}'.", path);
   std::exit(1);
+}
+
+static bool setPath(Option<fs::path>& toSet, const fs::path& path) {
+  if (toSet.has_value())
+    return false;
+  toSet.emplace(path);
+  return true;
+}
+
+static void checkVerbose(ArgProcessor& P) {
+  for (StrRef cmd : P) {
+    const auto str = normalizeCommand(cmd);
+    if (str == "-v" || str == "--verbose") {
+      PRINT_INFO("Enabled verbose output.");
+      verbose = true;
+      break;
+    }
+  }
+
+  fmt::print("Command line:");
+  for (StrRef cmd : P) {
+    const auto len = cmd.size();
+    fmt::print(" {}", cmd);
+  }
+  fmt::println("");
 }
 
 static void processCommand(ArgProcessor& P) {
   auto cmd = P.curr();
   cmd.remove_prefix(1);
-  auto str = normalizeCommand(cmd);
+  const auto str = normalizeCommand(cmd);
 
   if (str == "h" || str == "help") {
     printHelp();
     std::exit(0);
+  } else if (str == "v" || str == "-verbose") {
+    return;
   }
   
   if (str == "i" || str == "-input") {
     fs::path path = validatePath(P.peek());
-    inpath.emplace(path);
+    if (!setPath(inpath, path))
+      PRINT_WARN("Input path has already been set.");
     P.next();
   } else if (str == "o" || str == "-output") {
     fs::path path = fs::absolute(P.peek());
-    outpath.emplace(path);
+    if (!setPath(outpath, path))
+      PRINT_WARN("Output path has already been set.");
     P.next();
   } else if (str == "e" || str == "-encode") {
     progMode = Mode::Encode;
@@ -295,16 +330,19 @@ static void processCommand(ArgProcessor& P) {
     includeCookie = true;
   } else if (str == "preserveprefixes") {
     preservePrefixes = true;
+  } else {
+    PRINT_WARN("Unknown command '{}', ignoring.", P.curr());
   }
 }
 
-int main(int argc, char* argv[]) {
+static int driverMain(int argc, char* argv[]) {
   if (argc < 2) {
     printHelp();
     return 0;
   }
 
   ArgProcessor P {argc, argv};
+  checkVerbose(P);
   while (P) {
     auto str = P.curr();
     if (str.empty()) {
@@ -313,9 +351,8 @@ int main(int argc, char* argv[]) {
     }
 
     if (str.front() != '-') {
-      COLOR_PRINTLN(fmt::color::red,
-        "ERROR: Unknown option '{}'", str);
-      return 1;
+      PRINT_WARN("Unknown input '{}', ignoring.", str);
+      continue;
     }
 
     processCommand(P);
@@ -328,11 +365,11 @@ int main(int argc, char* argv[]) {
   }
 
   if (!inpath) {
-    COLOR_PRINTLN(fmt::color::red,
-      "ERROR: 'inpath' must be specified in this mode.");
+    PRINT_ERR("Input path must be specified with '-i' in this mode.");
     return 1;
   }
 
+  DEBUG_SET_MODE(verbose);
   switch (progMode) {
    case Encode:
     encodeXML();
@@ -344,6 +381,17 @@ int main(int argc, char* argv[]) {
     encodeDecode();
     break;
   }
+
+  return 0;
+}
+
+int main(int argc, char* argv[]) {
+  try {
+    return driverMain(argc, argv);
+  } catch (const std::exception& e) {
+    fmt::println("");
+    PRINT_ERR("Exception thrown: {}", e.what());
+  }
 }
 
 using BufferType = InlineStackBuffer<512>;
@@ -351,50 +399,59 @@ using BufferType = InlineStackBuffer<512>;
 void printHelp() {
   fmt::println(
     "\nCOMMAND LINE OPTIONS:\n"
-    "  -h, --help:            Prints help\n"
-    "  -e, --encode:          Encode XML as EXI\n"
-    "  -d, --decode:          Decode EXI as XML\n"
+    " MODE:\n"
+    "  -h,  --help:           Prints help\n"
+    "  -v,  --verbose:        Prints extra information (if available)\n"
+    "  -e,  --encode:         Encode XML as EXI\n"
+    "  -d,  --decode:         Decode EXI as XML\n"
     "  -ed, --enodeDecode:    Decode EXI as XML\n"
-    "  \n"
+    "\n IO:\n"
     "  -i, --input  <file>:   Input file\n"
     "  -o, --output <file>:   Output file (optional)\n"
     "  \n"
+    "\n EXI SPECIFIC:\n"
     "  -includeOptions\n"
     "  -includeCookie\n"
     "  -preservePrefixes\n"
+    "  \n"
+    "\n MISC:\n"
+    "  -compareXML:           Check if output XML is the same\n"
   );
 }
 
-static fs::path outpathOr(fs::path inpath, const Str& ext) {
-  return outpath.value_or(
-    inpath.replace_extension(ext));
+static fs::path outpathOr(fs::path reppath, const Str& ext) {
+  if (outpath.has_value())
+    return *outpath;
+  reppath = reppath.replace_extension(ext);
+  if (verbose)
+    PRINT_INFO("Output path not specified, set to '{}'", reppath);
+  return reppath;
 }
 
 void encodeXML() {
-  fs::path xml = fs::absolute(*inpath);
-  fs::path exi = outpathOr(xml, "exi");
-  fmt::println("Reading from '{}'", xml);
+  fs::path xmlIn = fs::absolute(*inpath);
+  fs::path exi = outpathOr(xmlIn, "exi");
+  fmt::println("Reading from '{}'", xmlIn);
   
-  auto xmldoc = BoundDocument::ParseFrom(xml);
+  auto xmldoc = BoundDocument::ParseFrom(xmlIn);
   if (!xmldoc) {
 #if !EXICPP_DEBUG
     COLOR_PRINTLN(fmt::color::red,
-      "Unable to locate file '{}'!", xml);
+      "Unable to locate file '{}'!", xmlIn);
 #endif
     std::exit(1);
   }
 
   BufferType buf {};
-  auto existr = to_multibyte(exi);
-  if (Error E = buf.writeFile(existr)) {
+  if (Error E = buf.writeFile(exi)) {
     COLOR_PRINTLN(fmt::color::red,
-      "Error in '{}': {}", exi, E.message());
+      "Error opening '{}': {}", exi, E.message());
     std::exit(1);
   }
 
   if (Error E = write_xml(xmldoc.document(), buf)) {
     COLOR_PRINTLN(fmt::color::red,
-      "Error in '{}': {}", exi, E.message());
+      "Error with '{}': {}", xmlIn, E.message());
     std::exit(1);
   }
 
@@ -403,15 +460,14 @@ void encodeXML() {
 }
 
 void decodeEXI() {
-  fs::path exi = fs::absolute(*inpath);
-  fs::path xml = outpathOr(exi, "xml");;
-  fmt::println("Reading from '{}'", exi);
+  fs::path exiIn = fs::absolute(*inpath);
+  fs::path xml = outpathOr(exiIn, "xml");
+  fmt::println("Reading from '{}'", exiIn);
 
   BufferType buf {};
-  auto existr = to_multibyte(exi);
-  if (Error E = buf.readFile(existr)) {
+  if (Error E = buf.readFile(exiIn)) {
     COLOR_PRINTLN(fmt::color::red,
-      "Error in '{}': {}", exi, E.message());
+      "Error in '{}': {}", exiIn, E.message());
     std::exit(1);
   }
 
@@ -420,13 +476,13 @@ void decodeEXI() {
 
   if (Error E = parser.parseHeader()) {
     COLOR_PRINTLN(fmt::color::red,
-      "\nError in '{}'\n", exi);
+      "\nError in '{}'\n", exiIn);
     std::exit(1);
   }
 
   if (Error E = parser.parseAll()) {
     COLOR_PRINTLN(fmt::color::red,
-      "\nError in '{}'\n", exi);
+      "\nError in '{}'\n", exiIn);
     std::exit(1);
   }
 
@@ -436,10 +492,9 @@ void decodeEXI() {
 }
 
 void encodeDecode() {
-  fs::path xml = fs::absolute(*inpath);
-  fs::path exi = outpathOr(xml, "exi");
+  fs::path xmlIn = fs::absolute(*inpath);
+  fs::path exi = outpathOr(xmlIn, "exi");
 
-  COLOR_PRINTLN(fmt::color::yellow,
-    "-encodeDecode is currently unimplemented!");
+  PRINT_WARN("encodeDecode is currently unimplemented!");
   std::exit(0);
 }
