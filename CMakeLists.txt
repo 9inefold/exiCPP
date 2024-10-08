@@ -20,7 +20,6 @@ endif()
 option(EXICPP_EXCEPTIONS "If exceptions should be enabled." OFF)
 option(EXICPP_DEBUG  "If debug printing should be enabled." ON)
 option(EXICPP_ANSI   "If ANSI should be enabled." ON)
-option(EXICPP_FORMAT "If fmtlib should be enabled." ON)
 option(EXIP_FORCE_SCOPE "If the exip namespace should be forced." ON)
 
 set(EXIP_DEBUG ${EXICPP_DEBUG})
@@ -55,7 +54,6 @@ target_compile_features(exicpp PUBLIC cxx_std_17)
 target_forward_options(exicpp PUBLIC
   EXICPP_DEBUG
   EXICPP_ANSI
-  EXICPP_FORMAT
 )
 
 if(NOT EXICPP_EXCEPTIONS)

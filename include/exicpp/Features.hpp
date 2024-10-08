@@ -132,10 +132,6 @@
 # define EXICPP_ANSI EXIP_ANSI
 #endif
 
-#ifndef EXICPP_FORMAT
-# define EXICPP_FORMAT ON
-#endif
-
 #if EXICPP_COMPILER(LLVM)
 # pragma clang final(EXICPP_DEBUG)
 # pragma clang final(EXICPP_FORMAT)
