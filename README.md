@@ -11,6 +11,9 @@ So... I made my own.
 
 ## Todo
 
+- Add full options support
+- Implement compression
+- Add full utf8 support
 - Finish wrapping the serializer
 - Schema support
 - Improve error generality
