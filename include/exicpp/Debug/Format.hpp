@@ -16,22 +16,31 @@
 //
 //===----------------------------------------------------------------===//
 
-#pragma once
+#include "_Format.hpp"
 
-#ifndef EXICPP_DEBUG_FORMAT_HPP
-#define EXICPP_DEBUG_FORMAT_HPP
-
-#include "Location.hpp"
-#include <fmt/format.h>
-
-#define EXICPP_FMT_LOC() EXICPP_LOCATION(FUNC)
-
+#undef EXICPP_LOG_FUNC
 #if !NFORMAT
 # define EXICPP_LOG_FUNC(...) \
   ::exi::dbg::logInternal<true>(__VA_ARGS__)
 #else
 # define EXICPP_LOG_FUNC(...) ((void)0)
 #endif
+
+#undef LOG_ASSERT
+#ifndef NDEBUG
+# define LOG_ASSERT(expr) \
+  (EXPECT_TRUE(static_cast<bool>(expr)) ? ((void)0) \
+    : LOG_FATAL("Assertion failed: {}", #expr))
+#else
+# define LOG_ASSERT(expr) ((void)0)
+#endif
+
+//======================================================================//
+// Persistent
+//======================================================================//
+
+#ifndef EXICPP_DEBUG_FORMAT_HPP
+#define EXICPP_DEBUG_FORMAT_HPP
 
 #if EXICPP_DEBUG
 # define LOG_INTERNAL(...) EXICPP_LOG_FUNC(__VA_ARGS__)
@@ -55,38 +64,5 @@
 #define LOG_ERRCODE(err_code) \
   LOG_INTERNAL(EXICPP_FMT_LOC(), \
     GET_ERR_STRING(CErrCode(err_code)), ERROR)
-
-#ifndef NDEBUG
-# define LOG_ASSERT(expr) \
-  (EXPECT_TRUE(static_cast<bool>(expr)) ? ((void)0) \
-    : LOG_FATAL("Assertion failed: {}", #expr))
-#else
-# define LOG_ASSERT(expr) ((void)0)
-#endif
-
-//////////////////////////////////////////////////////////////////////////
-
-namespace exi {
-namespace dbg {
-
-inline constexpr int filenameDepth = 3;
-
-template <bool PrintLoc = true>
-void logInternal(
-  const dbg::Location& loc,
-  const std::string& msg,
-  int debugLevel = INFO
-);
-
-template <> void logInternal<true>(
-  const dbg::Location&, const std::string&, int);
-template <> void logInternal<false>(
-  const dbg::Location&, const std::string&, int);
-
-/// Flushes `stdout` then aborts.
-[[noreturn]] void fatalError();
-
-} // namespace dbg
-} // namespace exi
 
 #endif // EXICPP_DEBUG_FORMAT_HPP
