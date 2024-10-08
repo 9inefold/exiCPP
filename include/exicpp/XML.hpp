@@ -22,12 +22,12 @@
 
 #pragma once
 
-#ifndef EXIP_XML_HPP
-#define EXIP_XML_HPP
+#ifndef EXICPP_XML_HPP
+#define EXICPP_XML_HPP
 
 #include "Basic.hpp"
+#include "Filesystem.hpp"
 #include "HeapBuffer.hpp"
-#include <filesystem>
 #include <rapidxml.hpp>
 
 namespace exi {
@@ -46,13 +46,13 @@ public:
   }
   BoundDocument(BoundDocument&&) = default;
 public:
-  static BoundDocument From(std::filesystem::path filename);
+  static BoundDocument From(const fs::path& filename);
 
   template <int Flags =
     rapidxml::parse_no_utf8 |
     rapidxml::parse_no_string_terminators
   >
-  static BoundDocument ParseFrom(std::filesystem::path filename) {
+  static BoundDocument ParseFrom(const fs::path& filename) {
     auto res = BoundDocument::From(filename);
     Char* bufdata = res.buf.data();
     if (bufdata)
@@ -75,4 +75,4 @@ private:
 
 } // namespace exi
 
-#endif // EXIP_XML_HPP
+#endif // EXICPP_XML_HPP

@@ -18,8 +18,8 @@
 
 #pragma once
 
-#ifndef EXIP_STRINGS_HPP
-#define EXIP_STRINGS_HPP
+#ifndef EXICPP_STRINGS_HPP
+#define EXICPP_STRINGS_HPP
 
 #include "Traits.hpp"
 #include <cstring>
@@ -35,9 +35,6 @@ inline exi::StrRef format_as(const String& str) {
 } // namespace exip
 
 namespace exi {
-
-std::string to_multibyte(const std::string& str);
-std::string to_multibyte(const std::wstring& str);
 
 //======================================================================//
 // Objects
@@ -127,4 +124,4 @@ public:
 
 } // namespace exi
 
-#endif // EXIP_STRINGS_HPP
+#endif // EXICPP_STRINGS_HPP

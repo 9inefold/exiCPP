@@ -18,7 +18,7 @@ endif()
 
 option(EXICPP_EXCEPTIONS "If exceptions should be enabled." OFF)
 option(EXICPP_DEBUG  "If debug printing should be enabled." ON)
-option(EXICPP_ANSI   "If ANSI should be enabled." OFF)
+option(EXICPP_ANSI   "If ANSI should be enabled." ON)
 option(EXICPP_FORMAT "If fmtlib should be enabled." ON)
 option(EXIP_FORCE_SCOPE "If the exip namespace should be forced." ON)
 
@@ -32,6 +32,7 @@ add_subdirectory(vendored/fmt)
 include_items(EXICPP_SRC "src"
   BinaryBuffer.cpp
   Errors.cpp
+  Filesystem.cpp
   Writer.cpp
   XML.cpp
   Debug/Format.cpp

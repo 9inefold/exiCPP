@@ -18,17 +18,14 @@
 
 #include <XML.hpp>
 #include <Strings.hpp>
+#include <Filesystem.hpp>
 #include <Debug/Format.hpp>
-#include <cstdlib>
-#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <string>
 
 using namespace exi;
-namespace fs = std::filesystem;
 
-using Str = std::string;
 using BoxedStr = std::unique_ptr<Str>;
 using Traits = std::char_traits<char>;
 
@@ -53,7 +50,7 @@ static BoxedStr read_file(fs::path filepath) {
   return std::make_unique<Str>(std::move(file_data));
 }
 
-BoundDocument BoundDocument::From(fs::path filename) {
+BoundDocument BoundDocument::From(const fs::path& filename) {
   BoundDocument res;
   auto str = read_file(filename);
   if (!str || str->empty()) {
@@ -70,24 +67,3 @@ BoundDocument BoundDocument::From(fs::path filename) {
   Traits::copy(buf.data(), str->data(), len);
   return res;
 }
-
-
-// TODO: MOVE
-namespace exi {
-
-std::string to_multibyte(const std::string& str) {
-  return str;
-}
-
-std::string to_multibyte(const std::wstring& str) {
-  std::string outstr;
-  const std::size_t wsize = str.size() + 1;
-  outstr.resize(wsize * 2);
-  const auto len = std::wcstombs(outstr.data(), str.data(), outstr.size());
-  if (len == static_cast<std::size_t>(-1))
-    return "...";
-  outstr.resize(len);
-  return outstr;
-}
-
-} // namespace exi
