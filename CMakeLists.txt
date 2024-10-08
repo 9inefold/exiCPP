@@ -22,9 +22,14 @@ option(EXICPP_ANSI   "If ANSI should be enabled." ON)
 option(EXICPP_FORMAT "If fmtlib should be enabled." ON)
 option(EXIP_FORCE_SCOPE "If the exip namespace should be forced." ON)
 
+set(EXIP_DEBUG ${EXICPP_DEBUG})
 if(EXICPP_ANSI)
   set(EXIP_ANSI ON)
 endif()
+
+message(STATUS "[exicpp] Debug printing: ${EXICPP_DEBUG}")
+message(STATUS "[exicpp] ANSI printing: ${EXICPP_ANSI}")
+message(STATUS "[exicpp] Exceptions: ${EXICPP_EXCEPTIONS}")
 
 add_subdirectory(vendored/exip)
 add_subdirectory(vendored/fmt)

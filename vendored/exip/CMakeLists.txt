@@ -17,6 +17,10 @@ valued_option(EXIP_DEBUG_LEVEL "The debugging level (INFO, WARNING or ERROR)" "I
 option(EXI_GRAMMAR_GENERATION "" ON)
 option(EXI_SCHEMA_GRAMMAR_GENERATION "" ON)
 
+message(STATUS "[exip] Config type: ${EXIP_CONFIG_TYPE}")
+message(STATUS "[exip] Grammar generation: ${EXI_GRAMMAR_GENERATION}")
+message(STATUS "[exip] Schema grammar generation: ${EXI_SCHEMA_GRAMMAR_GENERATION}")
+
 include_items(PRIVATE_INC "src"
   "common/include"
   "contentIO/include"
