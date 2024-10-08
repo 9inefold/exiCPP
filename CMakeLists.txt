@@ -35,6 +35,7 @@ add_subdirectory(vendored/exip)
 add_subdirectory(vendored/fmt)
 
 include_items(EXICPP_SRC "src"
+  Debug/CheckFlags.cpp
   BinaryBuffer.cpp
   Errors.cpp
   Filesystem.cpp

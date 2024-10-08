@@ -26,6 +26,7 @@
 #define EXIP_BASIC_HPP
 
 #include "Features.hpp"
+#include "Debug/CheckFlags.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <string>
