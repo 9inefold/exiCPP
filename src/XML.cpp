@@ -25,18 +25,16 @@
 #include <string>
 
 using namespace exi;
-
-using BoxedStr = std::unique_ptr<Str>;
 using Traits = std::char_traits<char>;
 
-static BoxedStr read_file(fs::path filepath) {
+static Box<Str> read_file(fs::path filepath) {
   if (filepath.is_relative()) {
     filepath = (fs::current_path() / filepath);
   }
   std::ifstream is (filepath, std::ios::binary);
   is.unsetf(std::ios::skipws);
   if (!is)
-    return BoxedStr();
+    return Box<Str>();
 
   std::streampos size;
   is.seekg(0, std::ios::end);
@@ -52,7 +50,7 @@ static BoxedStr read_file(fs::path filepath) {
 
 BoundDocument BoundDocument::From(const fs::path& filename) {
   BoundDocument res;
-  auto str = read_file(filename);
+  Box<Str> str = read_file(filename);
   if (!str || str->empty()) {
 #if EXICPP_DEBUG
     auto mbstr = to_multibyte(filename.native());
