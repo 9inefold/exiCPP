@@ -28,6 +28,7 @@
 #include "Features.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <exip/procTypes.h>
@@ -37,8 +38,12 @@ namespace exi {
 /// Defined as `char` most of the time.
 using Char = exip::CharType;
 using exip::Index;
+
+/// An owning array of `Char`s.
+using Str = std::basic_string<Char>;
 /// A non-owning span over an array of `Char`s.
 using StrRef = std::basic_string_view<Char>;
+
 /// A non-owning span over an array of `char`s, may be the same as `StrRef`.
 using AsciiStrRef = std::basic_string_view<char>;
 using BinarySpan  = AsciiStrRef;
