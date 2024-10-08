@@ -11,6 +11,7 @@ project(
 include(ListUtils)
 include(SetFlags)
 include(SetOptions)
+cmake_policy(SET CMP0077 NEW)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")

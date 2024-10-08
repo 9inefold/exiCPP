@@ -18,6 +18,11 @@ option(EXI_GRAMMAR_GENERATION "" ON)
 option(EXI_SCHEMA_GRAMMAR_GENERATION "" ON)
 
 message(STATUS "[exip] Config type: ${EXIP_CONFIG_TYPE}")
+if(EXIP_DEBUG)
+  message(STATUS "[exip] Debug level: ${EXIP_DEBUG_LEVEL}")
+else()
+  message(STATUS "[exip] Debug level: FATAL")
+endif()
 message(STATUS "[exip] Grammar generation: ${EXI_GRAMMAR_GENERATION}")
 message(STATUS "[exip] Schema grammar generation: ${EXI_SCHEMA_GRAMMAR_GENERATION}")
 
