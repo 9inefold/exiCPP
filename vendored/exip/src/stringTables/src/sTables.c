@@ -435,18 +435,40 @@ boolean lookupVx(ValueTable* valueTable, VxTable* vxTable, String valueStr, Inde
 	if(vxTable == NULL || vxTable->vx == NULL)
 		return FALSE;
 
-	for(i = 0; i < vxTable->count; i++)
+#if HASH_TABLE_USE
+	if(valueTable->hashTbl != NULL)
 	{
-		vxEntry = vxTable->vx + i;
-		if(vxEntry->globalId == INDEX_MAX) // The value was removed from the local value partition
-			continue;
-		valueEntry = valueTable->value + vxEntry->globalId;
-		if(stringEqual(valueEntry->valueStr, valueStr))
-		{
-			*vxEntryId = i;
-			return TRUE;
+		// Use hash table search
+		const Index vi = hashtable_search(valueTable->hashTbl, valueStr);
+		if(vi == INDEX_MAX)
+			return FALSE;
+		// Reverse the value table index
+		for(i = 0; i < vxTable->count; ++i) {
+			vxEntry = vxTable->vx + i;
+			if(vxEntry->globalId == vi) {
+				*vxEntryId = i;
+				return TRUE;
+			}
 		}
 	}
+	else
+#endif
+	{
+		// No hash table - linear search
+		for(i = 0; i < vxTable->count; i++)
+		{
+			vxEntry = vxTable->vx + i;
+			if(vxEntry->globalId == INDEX_MAX) // The value was removed from the local value partition
+				continue;
+			valueEntry = valueTable->value + vxEntry->globalId;
+			if(stringEqual(valueEntry->valueStr, valueStr))
+			{
+				*vxEntryId = i;
+				return TRUE;
+			}
+		}
+	}
+
 	return FALSE;
 }
 #endif

@@ -23,6 +23,18 @@
 # include <intrin.h>
 #endif
 
+#ifdef __has_builtin
+# define HAS_BUILTIN(x) (__has_builtin(x))
+#else
+# define HAS_BUILTIN(x) (0)
+#endif
+
+#if HAS_BUILTIN(__builtin_strncmp)
+# define STRNCMP(s1, s2, len) __builtin_strncmp((s1), (s2), (len))
+#else
+# define STRNCMP(s1, s2, len) strncmp((s1), (s2), (len))
+#endif
+
 #define PARSING_STRING_MAX_LENGTH 100
 
 errorCode allocateStringMemory(CharType** str, Index UCSchars)
@@ -98,35 +110,43 @@ errorCode asciiToString(const char* inStr, String* outStr, AllocList* memList, b
 
 boolean stringEqual(const String str1, const String str2)
 {
-	if(str1.length != str2.length)
+	const Index len = str1.length;
+	if (len != str2.length) {
 		return 0;
-	else if(str1.length == 0)
+	} else if (len == 0) {
 		return 1;
-	else // The strings have the same length
+	} else // The strings have the same length
 	{
-		Index i;
-		for(i = 0; i < str1.length; i++)
+#if 1
+		return STRNCMP(str1.str, str2.str, len) == 0;
+#else
+		for(Index i = 0; i < len; ++i)
 		{
 			if(str1.str[i] != str2.str[i])
 				return 0;
 		}
 		return 1;
+#endif
 	}
 }
 
 boolean stringEqualToAscii(const String str1, const char* str2)
 {
-	if(str1.length != strlen(str2))
+	const Index len = str1.length;
+	if (len != strlen(str2)) {
 		return 0;
-	else // The strings have the same length
+	} else // The strings have the same length
 	{
-		Index i;
-		for(i = 0; i < str1.length; i++)
+#if 1
+		return STRNCMP(str1.str, str2, len) == 0;
+#else
+		for(Index i = 0; i < str1.length; ++i)
 		{
 			if(str1.str[i] != str2[i])
 				return 0;
 		}
 		return 1;
+#endif
 	}
 }
 
@@ -139,10 +159,14 @@ int stringCompare(const String str1, const String str2)
 			return 0;
 		return -1;
 	}
-	else if(str2.str == NULL)
+	else if(str2.str == NULL) {
 		return 1;
-	else // None of the strings is NULL
+	} else // None of the strings are NULL
 	{
+#if 1
+		const Index len = (str1.length < str2.length) ? str1.length : str2.length;
+		return STRNCMP(str1.str, str2.str, len);
+#else
 		int diff;
 		Index i;
 		for(i = 0; i < str1.length && i < str2.length; i++)
@@ -153,6 +177,7 @@ int stringCompare(const String str1, const String str2)
 		}
 		/* Up to index i the strings have the same characters and might differ only in length*/
 		return str1.length - str2.length;
+#endif
 	}
 }
 
@@ -256,11 +281,9 @@ errorCode stringToInt64(const String* src, int64_t* number)
 #if EXIP_IMPLICIT_DATA_TYPE_CONVERSION
 
 #ifndef _MSC_VER
-# ifdef __has_builtin
-# if __has_builtin(__builtin_clzll)
+# if HAS_BUILTIN(__builtin_clzll)
 #  define EXIP_CLZLL(x) __builtin_clzll(x)
 # endif
-# endif // __has_builtin
 #else // _MSC_VER
 
 # ifndef __clang__
