@@ -823,6 +823,7 @@ void encodeDecode(bool doPrint) {
   outpath.emplace(exi);
   encodeXML(false);
 
+  fmt::println("Reading from intermediate file '{}'", exi);
   BufferType buf {};
   if (Error E = buf.readFile(exi)) {
     COLOR_PRINTLN(fmt::color::red,

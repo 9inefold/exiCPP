@@ -875,7 +875,10 @@ errorCode decodeStringValue(EXIStream* strm, QNameID qnameID, String* value)
 		vxBits = getBitsNumber(vxTable->count - 1);
 		TRY(decodeNBitUnsignedInteger(strm, vxBits, &vxEntryId));
 
-		*value = strm->valueTable.value[vxTable->vx[vxEntryId].globalId].valueStr;
+		// TODO: When using compression this can sometimes be invalid.
+		// Check on that later with `large-examples/orders.xml`.
+		const Index gid = vxTable->vx[vxEntryId].globalId;
+		*value = strm->valueTable.value[gid].valueStr;
 #else
 		DEBUG_MSG(ERROR, DEBUG_CONTENT_IO, ("> Local-value partition table hit but VALUE_CROSSTABLE_USE disabled \n"));
 		return EXIP_INCONSISTENT_PROC_STATE;
