@@ -51,12 +51,25 @@ static Box<Str> read_file(fs::path filepath) {
 BoundDocument BoundDocument::From(const fs::path& filename) {
   BoundDocument res;
   Box<Str> str = read_file(filename);
-  if (!str || str->empty()) {
+  if (!str) {
 #if EXICPP_DEBUG
     auto mbstr = to_multibyte(filename.native());
     LOG_ERROR("Could not read file '{}'", mbstr);
 #endif
     return res;
+  } else if (str->empty()) {
+#if EXICPP_DEBUG
+    auto mbstr = to_multibyte(filename.native());
+    LOG_ERROR("'{}' is empty", mbstr);
+#endif
+    return res;
+  } else if (str->size() >= 4) {
+    StrRef maybeMarker{str->data(), 4};
+    if (maybeMarker == "$EXI") {
+      auto mbstr = to_multibyte(filename.native());
+      LOG_ERROR("'{}' is an exi file", mbstr);
+      return res;
+    }
   }
 
   auto& buf = res.buf;

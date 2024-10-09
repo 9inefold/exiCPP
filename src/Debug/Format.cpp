@@ -97,11 +97,13 @@ template <> void logInternal<true>(
   const std::string& msg,
   int debugLevel)
 {
-  fmt::println("In {} {}: {}",
-    STYLED(formatFunc(loc), FG(aquamarine)),
-    STYLED(formatFileLoc(loc), FG(aqua)),
-    STYLED(msg, getFgColor(debugLevel))
-  );
+  if (DEBUG_GET_MODE() || debugLevel == FATAL) {
+    fmt::println("In {} {}: {}",
+      STYLED(formatFunc(loc), FG(aquamarine)),
+      STYLED(formatFileLoc(loc), FG(aqua)),
+      STYLED(msg, getFgColor(debugLevel))
+    );
+  }
   handleFatal(debugLevel);
 }
 
@@ -110,10 +112,12 @@ template <> void logInternal<false>(
   const std::string& msg,
   int debugLevel)
 {
-  fmt::println("In {}: {}",
-    STYLED(formatFunc(loc), FG(aquamarine)),
-    STYLED(msg, getFgColor(debugLevel))
-  );
+  if (DEBUG_GET_MODE() || debugLevel == FATAL) {
+    fmt::println("In {}: {}",
+      STYLED(formatFunc(loc), FG(aquamarine)),
+      STYLED(msg, getFgColor(debugLevel))
+    );
+  }
   handleFatal(debugLevel);
 }
 

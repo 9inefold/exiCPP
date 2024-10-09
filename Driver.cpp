@@ -81,6 +81,9 @@ struct XMLBuilder {
     return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
   }
 
+  XMLDocument* document() { return doc.get(); }
+  const XMLDocument* document() const { return doc.get(); }
+
   void dump() {
     // std::cout << GetXMLHead() << '\n';
     // std::cout << *doc << std::endl;
@@ -242,19 +245,25 @@ private:
 //////////////////////////////////////////////////////////////////////////
 
 static Mode progMode = Mode::Default;
+static bool verbose = false;
 
 static Option<fs::path> inpath;
 static Option<fs::path> outpath;
 
-static bool verbose = false;
+static bool comparexml = false;
+// TODO: Change settings to defaults
 static bool includeOptions = true;
 static bool includeCookie = true;
+// ...
+static bool preserveComments = false;
+static bool preservePIs = false;
+static bool preserveDTs = false;
 static bool preservePrefixes = true;
 
 static void printHelp();
-static void encodeXML();
-static void decodeEXI();
-static void encodeDecode();
+static void encodeXML(bool doPrint = true);
+static void decodeEXI(bool doPrint = true);
+static void encodeDecode(bool doPrint = true);
 
 static Str normalizeCommand(StrRef S) {
   auto lower = +[](char c) -> char { return std::tolower(c); };
@@ -287,6 +296,9 @@ static void checkVerbose(ArgProcessor& P) {
       break;
     }
   }
+
+  if (!verbose)
+    return;
 
   fmt::print("Command line:");
   for (StrRef cmd : P) {
@@ -324,6 +336,8 @@ static void processCommand(ArgProcessor& P) {
     progMode = Mode::Decode;
   } else if (str == "ed" || str == "-encodedecode") {
     progMode = Mode::EncodeDecode;
+  } else if (str == "comparexml") {
+    comparexml = true;
   } else if (str == "includeoptions") {
     includeOptions = true;
   } else if (str == "includecookie") {
@@ -415,20 +429,20 @@ void printHelp() {
     "  -preservePrefixes\n"
     "  \n"
     "\n MISC:\n"
-    "  -compareXML:           Check if output XML is the same\n"
+    "  -compareXML:           Check if output XML instead of writing out\n"
   );
 }
 
 static fs::path outpathOr(fs::path reppath, const Str& ext) {
   if (outpath.has_value())
-    return *outpath;
+    return fs::absolute(*outpath);
   reppath = reppath.replace_extension(ext);
   if (verbose)
     PRINT_INFO("Output path not specified, set to '{}'", reppath);
   return reppath;
 }
 
-void encodeXML() {
+void encodeXML(bool doPrint) {
   fs::path xmlIn = fs::absolute(*inpath);
   fs::path exi = outpathOr(xmlIn, "exi");
   fmt::println("Reading from '{}'", xmlIn);
@@ -436,8 +450,7 @@ void encodeXML() {
   auto xmldoc = BoundDocument::ParseFrom(xmlIn);
   if (!xmldoc) {
 #if !EXICPP_DEBUG
-    COLOR_PRINTLN(fmt::color::red,
-      "Unable to locate file '{}'!", xmlIn);
+    PRINT_ERR("Error encoding '{}'!", xmlIn);
 #endif
     std::exit(1);
   }
@@ -455,11 +468,13 @@ void encodeXML() {
     std::exit(1);
   }
 
-  COLOR_PRINTLN(fmt::color::light_green,
-    "Wrote to '{}'", exi);
+  if (doPrint) {
+    COLOR_PRINTLN(fmt::color::light_green,
+      "Wrote to '{}'", exi);
+  }
 }
 
-void decodeEXI() {
+void decodeEXI(bool doPrint) {
   fs::path exiIn = fs::absolute(*inpath);
   fs::path xml = outpathOr(exiIn, "xml");
   fmt::println("Reading from '{}'", exiIn);
@@ -467,7 +482,7 @@ void decodeEXI() {
   BufferType buf {};
   if (Error E = buf.readFile(exiIn)) {
     COLOR_PRINTLN(fmt::color::red,
-      "Error in '{}': {}", exiIn, E.message());
+      "Error opening '{}': {}", exiIn, E.message());
     std::exit(1);
   }
 
@@ -487,14 +502,358 @@ void decodeEXI() {
   }
 
   builder.dump(xml);
-  COLOR_PRINTLN(fmt::color::light_green,
-    "Wrote to '{}'", xml);
+  if (doPrint) {
+    COLOR_PRINTLN(fmt::color::light_green,
+      "Wrote to '{}'", xml);
+  }
 }
 
-void encodeDecode() {
-  fs::path xmlIn = fs::absolute(*inpath);
-  fs::path exi = outpathOr(xmlIn, "exi");
+//////////////////////////////////////////////////////////////////////////
 
-  PRINT_WARN("encodeDecode is currently unimplemented!");
-  std::exit(0);
+static StrRef getName(const XMLBase* node) {
+  if EXICPP_UNLIKELY(!node) return "";
+  if (node->name_size() == 0) return "";
+  return {node->name(), node->name_size()};
+}
+static StrRef getValue(const XMLBase* node) {
+  if EXICPP_UNLIKELY(!node) return "";
+  if (node->value_size() == 0) return "";
+  return {node->value(), node->value_size()};
+}
+
+struct XMLNodeIt {
+  XMLNodeIt(XMLNode* node) : node(node) {}
+  XMLNode* operator->() { return this->node; }
+  const XMLNode* operator->() const { return this->node; }
+  std::uint64_t currDepth() const { return this->depth; }
+public:
+  bool next() {
+    // This works only because we always begin at the document level.
+    if (node->first_node()) {
+      node = node->first_node();
+      ++this->depth;
+      return true;
+    }
+
+    auto* parent = node->parent();
+    if (!parent)
+      return false;
+
+    if (node->next_sibling()) {
+      node = node->next_sibling();
+      return true;
+    }
+
+    node = parent;
+    parent = node->parent();
+    --this->depth;
+
+    while (parent) {
+      if (node->next_sibling()) {
+        node = node->next_sibling();
+        return true;
+      }
+
+      node = parent;
+      parent = node->parent();
+      --this->depth;
+    }
+
+    return false;
+  }
+
+  StrRef name() const { return getName(this->node); }
+  StrRef value() const { return getValue(this->node); }
+
+  StrRef typeName() const {
+    if EXICPP_UNLIKELY(!node)
+      return "unknown";
+    switch (node->type()) {
+     case XMLType::node_document:
+      return "document";
+     case XMLType::node_element:
+      return "element";
+     case XMLType::node_data:
+      return "data";
+     case XMLType::node_cdata:
+      return "cdata";
+     case XMLType::node_comment:
+      return "comment";
+     case XMLType::node_declaration:
+      return "declaration";
+     case XMLType::node_doctype:
+      return "doctype";
+     case XMLType::node_pi:
+      return "pi";
+     default:
+      return "unknown";
+    }
+  }
+
+private:
+  XMLNode* node = nullptr;
+  std::uint64_t depth = 0;
+};
+
+static fs::path addExtension(fs::path path, const Str& ext) {
+  if (!path.has_extension()) {
+    return path.replace_extension(ext);
+  }
+  return path.replace_extension(
+    fmt::format("{}.{}", path.extension(), ext));
+}
+
+static bool nextNode(XMLNodeIt& node) {
+  // This works only because we always begin at the document level.
+  if (node->first_node()) {
+    node = node->first_node();
+    return true;
+  }
+
+  auto* parent = node->parent();
+  if (!parent)
+    return false;
+
+  if (node->next_sibling()) {
+    node = node->next_sibling();
+    return true;
+  }
+
+  node = parent;
+  parent = node->parent();
+
+  while (parent) {
+    if (node->next_sibling()) {
+      node = node->next_sibling();
+      return true;
+    }
+
+    node = parent;
+    parent = node->parent();
+  }
+
+  return false;
+}
+
+static bool skipIgnoredData(XMLNodeIt& oldNode) {
+  while (oldNode.next()) {
+    switch (oldNode->type()) {
+    // Only skip if comments disabled
+     case XMLType::node_comment:
+      if (!preserveComments)
+        continue;
+      return true;
+    // Only skip if processing instructions disabled
+     case XMLType::node_pi:
+      if (!preservePIs)
+        continue;
+      return true;
+    // Only skip if DOCTYPEs disabled
+     case XMLType::node_doctype:
+      if (!preserveDTs)
+        continue;
+      return true;
+    // Otherwise, don't skip
+     default:
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static bool compareAttributes(
+  XMLNodeIt& oldNode,
+  XMLNodeIt& newNode,
+  const std::size_t nodeCount)
+{
+  auto* rawOldAttr = oldNode->first_attribute();
+  auto* rawNewAttr = newNode->first_attribute();
+  const auto depth = oldNode.currDepth();
+
+  if (!rawOldAttr || !rawNewAttr) {
+    if (rawOldAttr || rawNewAttr) {
+      PRINT_ERR("[#{}:{}] Attributes do not match.", nodeCount, depth);
+      return false;
+    }
+    return true;
+  }
+
+  const auto collectAttrs = [](XMLAttribute* attrs) {
+    Map<StrRef, StrRef> map;
+    while (attrs) {
+      map[getName(attrs)] = getValue(attrs);
+      attrs = attrs->next_attribute();
+    }
+    return map;
+  };
+
+  auto oldAttrs = collectAttrs(rawOldAttr);
+  auto newAttrs = collectAttrs(rawNewAttr);
+  bool result = true;
+
+  for (auto [key, val] : oldAttrs) {
+    if (newAttrs.count(key) < 1) {
+      result = false;
+      PRINT_ERR("[#{}:{}] Attribute {} not found in new attributes.", 
+        nodeCount, depth, key);
+      continue;
+    }
+
+    auto newVal = newAttrs.extract(key);
+    if (val != newVal.mapped()) {
+      result = false;
+      PRINT_ERR("[#{}:{}] Attribute {} values do not match: {} != {}.", 
+        nodeCount, depth, key, val, newVal.mapped());
+    }
+  }
+
+  if (newAttrs.size() != 0) {
+    for (auto [key, val] : oldAttrs) {
+      result = false;
+      PRINT_ERR("[#{}:{}] Attribute {} not found in old attributes.", 
+        nodeCount, depth, key);
+    }
+  }
+  
+  return result;
+}
+
+static bool compareXML(XMLNodeIt& oldNode, XMLNodeIt& newNode) {
+  int errorCount = 0;
+  std::size_t nodeCount = 0;
+
+  while (newNode.next()) {
+    if (errorCount > 10) {
+      PRINT_INFO("Exiting early, error count too high.");
+      return false;
+    }
+
+    ++nodeCount;
+    if (!skipIgnoredData(oldNode)) {
+      PRINT_ERR("[#{}] Old XML ended prematurely! (New XML at <{}> as {})",
+        nodeCount, newNode.name(), newNode.typeName());
+      return false;
+    } else if (verbose) {
+      PRINT_INFO("Comparing <{}> and <{}>",
+        oldNode.name(), newNode.name());
+    }
+
+    const auto depth = oldNode.currDepth();
+    if (depth != newNode.currDepth()) {
+      PRINT_ERR("[#{}] Inconsistent depths: {} != {}",
+        nodeCount,
+        depth, newNode.currDepth());
+      return false;
+    }
+
+    if (oldNode->type() != newNode->type()) {
+      PRINT_ERR("[#{}:{}] Inconsistent types: {} != {}",
+        nodeCount, depth,
+        oldNode.typeName(), newNode.typeName());
+      ++errorCount;
+    }
+    if (oldNode.name() != newNode.name()) {
+      PRINT_ERR("[#{}:{}] Inconsistent names: {} != {}",
+        nodeCount, depth,
+        oldNode.name(), newNode.name());
+      ++errorCount;
+    }
+    if (oldNode.value() != newNode.value()) {
+      PRINT_ERR("[#{}:{}] Inconsistent values: {} != {}",
+        nodeCount, depth,
+        oldNode.value(), newNode.value());
+      ++errorCount;
+    }
+
+    if (!compareAttributes(oldNode, newNode, nodeCount))
+      ++errorCount;
+  }
+
+  if (!skipIgnoredData(oldNode)) {
+    return errorCount == 0;
+  }
+
+  if (oldNode->type() != XMLType::node_document) {
+    PRINT_ERR("New XML ended prematurely! (Old XML at <{}> as {})",
+      oldNode.name(), oldNode.typeName());
+    return false;
+  }
+
+  if (const auto depth = oldNode.currDepth(); depth != 0) {
+    PRINT_ERR("Old XML ended with a depth of {}", depth);
+  }
+  if (const auto depth = newNode.currDepth(); depth != 0) {
+    PRINT_ERR("New XML ended with a depth of {}", depth);
+  }
+
+  return errorCount == 0;
+}
+
+static bool compareXML(XMLDocument* oldDoc, XMLDocument* newDoc) {
+  LOG_ASSERT(oldDoc != nullptr);
+  if (!newDoc) {
+    PRINT_ERR("New XML document could not be parsed!");
+    return false;
+  }
+
+  XMLNodeIt oldNode {oldDoc};
+  XMLNodeIt newNode {newDoc};
+  return compareXML(oldNode, newNode);
+}
+
+void encodeDecode(bool doPrint) {
+  fs::path xmlIn = fs::absolute(*inpath);
+  fs::path exi = addExtension(xmlIn, "exi");
+  Option<fs::path> xmlOut = outpath;
+
+  if (!xmlOut) {
+    // We will properly initialize xmlOut, even if it is not used.
+    xmlOut.emplace(addExtension(exi, "xml"));
+    if (!comparexml && verbose)
+      PRINT_INFO("Output path not specified, set to '{}'", *xmlOut);
+  }
+
+  // Set the global output path.
+  outpath.emplace(exi);
+  encodeXML(false);
+
+  BufferType buf {};
+  if (Error E = buf.readFile(exi)) {
+    COLOR_PRINTLN(fmt::color::red,
+      "Error opening '{}': {}", exi, E.message());
+    std::exit(1);
+  }
+
+  XMLBuilder builder {};
+  auto parser = Parser::New(builder, buf);
+
+  if (Error E = parser.parseHeader()) {
+    COLOR_PRINTLN(fmt::color::red,
+      "\nError in '{}'\n", exi);
+    std::exit(1);
+  }
+
+  if (Error E = parser.parseAll()) {
+    COLOR_PRINTLN(fmt::color::red,
+      "\nError in '{}'\n", exi);
+    std::exit(1);
+  }
+
+  if (comparexml) {
+    // Load the original document and compare it to the new one.
+    auto xmldoc = BoundDocument::ParseFrom<rapidxml::parse_no_element_values>(xmlIn);
+    const bool res = compareXML(xmldoc.document(), builder.document());
+    if (res) {
+      COLOR_PRINTLN(fmt::color::light_green,
+        "Input XML was equivalent to output!");
+    }
+    return;
+  }
+
+  builder.dump(*xmlOut);
+  if (doPrint) {
+    COLOR_PRINTLN(fmt::color::light_green,
+      "Wrote to '{}'", *xmlOut);
+  }
 }
