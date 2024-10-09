@@ -207,9 +207,9 @@ errorCode initStream(EXIStream* strm, BinaryBuffer buffer, EXIPSchema* schema)
 		strm->valueTable.hashTbl = create_hashtable(INITIAL_HASH_TABLE_SIZE, djbHash, stringEqual);
 		if(strm->valueTable.hashTbl == NULL)
 			return EXIP_HASH_TABLE_ERROR;
-	}
-	else
+	} else {
 		strm->valueTable.hashTbl = NULL;
+	}
 #endif
 	return EXIP_OK;
 }
@@ -896,7 +896,8 @@ errorCode decimalData(EXIStream* strm, Decimal dec_val)
 
 errorCode listData(EXIStream* strm, unsigned int itemCount)
 {
-	Index typeId;
+	// TODO: Check if `SIMPLE_TYPE_QNAME` is valid
+	Index typeId = SIMPLE_TYPE_QNAME;
 	DEBUG_MSG(INFO, DEBUG_CONTENT_IO, ("\n>Start list data serialization\n"));
 
 	if(strm->gStack->grammar == NULL)
