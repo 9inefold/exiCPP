@@ -19,17 +19,51 @@
 #include <BinaryBuffer.hpp>
 #include <cstdio>
 
+#define PRINT_STATS 0
+
 using namespace exi;
+
+#if PRINT_STATS
+
+#include <Debug/Format.hpp>
+#include <fmt/chrono.h>
+
+static std::size_t totalCount = 0;
+static std::size_t totalRead  = 0;
+static std::size_t totalWrote = 0;
+
+static void printStats() {
+  ++totalCount;
+  fmt::print("\r"
+  "Read  {} bytes, "
+  "Wrote {} bytes.",
+    totalRead, totalWrote);
+  
+  if (totalCount % 8 == 0) {
+    fmt::println("  [{:%H:%M:%S}]", std::chrono::system_clock::now());
+    totalCount = 0;
+  }
+}
+
+#endif
 
 static std::size_t readFromFP(void* buf, std::size_t count, void* stream) {
   auto* const fp = static_cast<std::FILE*>(stream);
   const auto ret = std::fread(buf, sizeof(Char), count, fp);
+#if PRINT_STATS
+  totalRead += count;
+  printStats();
+#endif
   return ret;
 }
 
 static std::size_t writeToFP(void* buf, std::size_t count, void* stream) {
   auto* const fp = static_cast<std::FILE*>(stream);
   const auto ret = std::fwrite(buf, sizeof(Char), count, fp);
+#if PRINT_STATS
+  totalWrote += count;
+  printStats();
+#endif
   return ret;
 }
 

@@ -12,4 +12,7 @@ _deps
 build
 .vscode
 **/*.inc
+
 examples/*.exi
+gmon.out
+large-examples/
