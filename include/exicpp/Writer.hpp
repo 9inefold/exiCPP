@@ -31,7 +31,7 @@
 
 namespace exi {
 
-Error write_xml(XMLDocument* doc, const StackBuffer& buf);
+Error write_xml(XMLDocument* doc, const IBinaryBuffer& buf);
 
 } // namespace exi
 

@@ -45,10 +45,18 @@ enum class BinaryBufferType : int {
 template <BinaryBufferType Ty = BinaryBufferType::Unknown>
 struct BinaryBuffer;
 
-struct IBinaryBuffer : public CBinaryBuffer {
+struct IBinaryBuffer : protected CBinaryBuffer {
   template <BinaryBufferType>
   friend struct exi::BinaryBuffer;
 
+  constexpr IBinaryBuffer() : CBinaryBuffer{} {}
+  constexpr IBinaryBuffer(Char* data, std::size_t len) :
+   CBinaryBuffer{data, len, 0} {
+  }
+  
+  ~IBinaryBuffer() { this->destroyStream(); }
+
+public:
   /// @brief Creates a handle to the file at `name`.
   /// @return `true` on failure.
   Error readFile(const fs::path& name);
@@ -56,8 +64,6 @@ struct IBinaryBuffer : public CBinaryBuffer {
   /// @brief Creates a handle to the file at `name`.
   /// @return `true` on failure.
   Error writeFile(const fs::path& name);
-
-  ~IBinaryBuffer() { this->destroyStream(); }
 
 protected:
   /// Directly sets the values in the base object.
@@ -77,7 +83,7 @@ public:
 //////////////////////////////////////////////////////////////////////////
 
 template <BinaryBufferType Ty>
-struct BinaryBuffer : IBinaryBuffer {
+struct BinaryBuffer : public IBinaryBuffer {
   static_assert(int(Ty),
     "Unknown/unimplemented BinaryBuffer type!");
 };
@@ -91,17 +97,15 @@ using VecBuffer    = BinaryBuffer<BinaryBufferType::Vector>;
 //======================================================================//
 
 template <>
-struct BinaryBuffer<BinaryBufferType::Stack> : protected IBinaryBuffer {
+struct BinaryBuffer<BinaryBufferType::Stack> : public IBinaryBuffer {
   friend class IBinaryBuffer;
   friend class Parser;
-  using IBinaryBuffer::readFile;
-  using IBinaryBuffer::writeFile;
 public:
-  constexpr BinaryBuffer() : IBinaryBuffer{} {}
+  constexpr BinaryBuffer() : IBinaryBuffer() {}
 
   template <std::size_t N>
   ALWAYS_INLINE BinaryBuffer(Char(&data)[N]) :
-   IBinaryBuffer{data, N, 0} {
+   IBinaryBuffer(data, N) {
   }
 
   template <std::size_t N>
@@ -112,7 +116,7 @@ public:
 private:
   /// Internal function, used in `IBinaryBuffer::New`.
   constexpr BinaryBuffer(Char* data, std::size_t len) :
-   IBinaryBuffer{data, len, 0} {
+   IBinaryBuffer(data, len) {
     if EXICPP_UNLIKELY(!data && len) {
       CBinaryBuffer::bufLen = 0;
     }
@@ -135,15 +139,15 @@ BinaryBuffer(Char*, std::size_t) -> StackBuffer;
 //======================================================================//
 
 template <>
-struct BinaryBuffer<BinaryBufferType::Unique> : protected IBinaryBuffer {
+struct BinaryBuffer<BinaryBufferType::Unique> : public IBinaryBuffer {
   friend class IBinaryBuffer;
   friend class Parser;
 public:
-  constexpr BinaryBuffer() : IBinaryBuffer{} {}
+  constexpr BinaryBuffer() : IBinaryBuffer() {}
   ~BinaryBuffer() = default;
 
   BinaryBuffer(HeapBuffer& buf) :
-   IBinaryBuffer{buf.data(), buf.size(), 0} {
+   IBinaryBuffer(buf.data(), buf.size()) {
   }
 
   void set(HeapBuffer& buf) {

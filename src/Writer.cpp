@@ -275,7 +275,7 @@ struct WriterImpl {
   static constexpr CString EMPTY_STR { nullptr, 0 };
 public:
   WriterImpl() = default;
-  Error init(XMLDocument* doc, const StackBuffer& buf);
+  Error init(XMLDocument* doc, const IBinaryBuffer& buf);
   Error parse();
 private:
   void begElem(XMLNode* node);
@@ -313,7 +313,7 @@ private:
   NsStack namespaces;
 };
 
-Error WriterImpl::init(XMLDocument* doc, const StackBuffer& buf) {
+Error WriterImpl::init(XMLDocument* doc, const IBinaryBuffer& buf) {
   this->doc  = doc;
   this->node = doc;
   serialize.initHeader(&stream);
@@ -323,6 +323,7 @@ Error WriterImpl::init(XMLDocument* doc, const StackBuffer& buf) {
   header.has_options = exip::TRUE;
   header.opts.valueMaxLength = INDEX_MAX;
   header.opts.valuePartitionCapacity = INDEX_MAX;
+  SET_COMPRESSION(header.opts.enumOpt);
   SET_PRESERVED(header.opts.preserve, PRESERVE_PREFIXES);
 
   HANDLE_FN(initStream,
@@ -637,7 +638,7 @@ bool WriterImpl::hasValue() const {
 } // namespace `anonymous`
 
 namespace exi {
-Error write_xml(XMLDocument* doc, const StackBuffer& buf) {
+Error write_xml(XMLDocument* doc, const IBinaryBuffer& buf) {
   WriterImpl writer {};
   if (Error E = writer.init(doc, buf)) {
     return E;

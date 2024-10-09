@@ -292,6 +292,9 @@ static void checkVerbose(ArgProcessor& P) {
     const auto str = normalizeCommand(cmd);
     if (str == "-v" || str == "--verbose") {
       PRINT_INFO("Enabled verbose output.");
+#if !EXICPP_DEBUG
+      PRINT_WARN("Debug printing has been disabled.");
+#endif
       verbose = true;
       break;
     }
@@ -408,7 +411,7 @@ int main(int argc, char* argv[]) {
   }
 }
 
-using BufferType = InlineStackBuffer<512>;
+using BufferType = InlineStackBuffer<4096>;
 
 void printHelp() {
   fmt::println(
@@ -455,7 +458,9 @@ void encodeXML(bool doPrint) {
     std::exit(1);
   }
 
-  BufferType buf {};
+  // BufferType buf {};
+  HeapBuffer bufBase {(2048 * 32) - 1};
+  BinaryBuffer buf {bufBase};
   if (Error E = buf.writeFile(exi)) {
     COLOR_PRINTLN(fmt::color::red,
       "Error opening '{}': {}", exi, E.message());
