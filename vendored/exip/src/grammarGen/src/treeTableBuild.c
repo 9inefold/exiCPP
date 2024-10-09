@@ -741,7 +741,8 @@ static errorCode xsd_intData(Integer int_val, void* app_data)
 	if(ttpd->ignoredElement != FALSE)
 		return EXIP_OK;
 
-	sprintf(tmp_str, "%ld", (long) int_val);
+	// sprintf(tmp_str, "%ld", (long) int_val);
+	writeIntToBuffer(int_val, tmp_str, 15);
 
 	DEBUG_MSG(INFO, DEBUG_GRAMMAR_GEN, (">Integer data: %s\n", tmp_str));
 

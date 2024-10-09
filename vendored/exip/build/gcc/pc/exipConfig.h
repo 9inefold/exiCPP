@@ -37,7 +37,11 @@
 # define EXIP_ANSI OFF
 #endif
 
-#define DEBUG_DEFAULT ON
+#if EXIP_DEBUG
+# define DEBUG_DEFAULT ON
+#else
+# define DEBUG_DEFAULT OFF
+#endif
 
 /// Turns the debugging ON/OFF for the STREAM_IO module
 #define DEBUG_STREAM_IO   DEBUG_DEFAULT
@@ -53,7 +57,9 @@
 #define DEBUG_STRING_TBLS DEBUG_DEFAULT
 
 #if EXIP_DEBUG != ON
-# define NDEBUG
+# ifndef NDEBUG
+#  define NDEBUG
+# endif
 #endif
 
 #include <assert.h>

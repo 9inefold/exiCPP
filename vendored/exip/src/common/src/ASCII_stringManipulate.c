@@ -19,6 +19,10 @@
 #include "memManagement.h"
 #include "errorHandle.h"
 
+#ifdef _MSC_VER
+# include <intrin.h>
+#endif
+
 #define PARSING_STRING_MAX_LENGTH 100
 
 errorCode allocateStringMemory(CharType** str, Index UCSchars)
@@ -245,30 +249,224 @@ errorCode stringToInt64(const String* src, int64_t* number)
 	return EXIP_OK;
 }
 
+//======================================================================//
+// Data -> String
+//======================================================================//
+
 #if EXIP_IMPLICIT_DATA_TYPE_CONVERSION
+
+#ifndef _MSC_VER
+# ifdef __has_builtin
+# if __has_builtin(__builtin_clzll)
+#  define EXIP_CLZLL(x) __builtin_clzll(x)
+# endif
+# endif // __has_builtin
+#else // _MSC_VER
+
+# ifndef __clang__
+#  pragma intrinsic(_BitScanForward)
+#  pragma intrinsic(_BitScanReverse)
+#  ifdef _WIN64
+#   pragma intrinsic(_BitScanForward64)
+#   pragma intrinsic(_BitScanReverse64)
+#  endif // _Win64
+# endif // __clang__
+
+static inline int msc_clzll(Integer V) {
+  assert(V != 0 && "Invalid clzll input!");
+  unsigned long Out = 0;
+#ifdef _WIN64
+  _BitScanReverse64(&Out, V);
+#else // _WIN64
+  if (_BitScanReverse(&Out, uint32_t(V >> 32)))
+    return 63 - int(Out + 32);
+  _BitScanReverse(&Out, uint32_t(V));
+#endif // _WIN64
+  return 63 - int(Out);
+}
+
+# define EXIP_CLZLL(x) ::msc_clzll(x)
+
+#endif // _MSC_VER
+
+#ifdef EXIP_CLZLL
+static const Integer LogTable10[] = {
+  1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4,
+  5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 9, 
+  10, 10, 10, 10, 11, 11, 11, 12, 12, 12,
+  13, 13, 13, 13, 14, 14, 14, 15, 15, 15, 16, 16, 16, 16, 
+  17, 17, 17, 18, 18, 18, 19, 19, 19, 19, 20
+};
+static const Integer ZeroOrPow10[] = {
+  0, 0, 10, 
+  100, 1000,
+  10000, 100000, 
+  1000000, 10000000, 
+  100000000, 1000000000, 
+  10000000000, 100000000000, 
+  1000000000000, 10000000000000, 
+  100000000000000, 1000000000000000, 
+  10000000000000000, 100000000000000000, 
+  1000000000000000000, 10000000000000000000ULL
+};
+
+static inline int clzll(Index V) {
+  const int Sub = (sizeof(unsigned long long) * 8) - 64;
+  return EXIP_CLZLL(V) - Sub;
+}
+
+static inline int intLog2(Index V) {
+  return 63 - clzll(V | 1);
+}
+#endif
+
+static inline int countBase10(Index V) {
+#ifdef EXIP_CLZLL
+  const int Out = LogTable10[intLog2(V)];
+  return Out - (V < ZeroOrPow10[Out]);
+#else
+  int Total = 1;
+  while (true) {
+    if (V < 10) 	 return Total;
+    if (V < 100) 	 return Total + 1;
+    if (V < 1000)  return Total + 2;
+    if (V < 10000) return Total + 3;
+    V /= 10000;
+    Total += 4;
+  }
+#endif
+}
+
+static inline const char* digitsGroup(Index Value) {
+  return 
+    &"0001020304050607080910111213141516171819"
+     "2021222324252627282930313233343536373839"
+     "4041424344454647484950515253545556575859"
+     "6061626364656667686970717273747576777879"
+     "8081828384858687888990919293949596979899"[Value * 2];
+}
+
+static inline void writeDigitsGroup(CharType** Out, Index* V) {
+  const char* const Str = digitsGroup(*V % 100);
+  *Out -= 2;
+	CharType* writeStr = *Out;
+  writeStr[0] = Str[0];
+  writeStr[1] = Str[1];
+  *V /= 100;
+}
+
+static inline errorCode integerToStringImpl(
+	Index number, CharType* outStr, const Index lengthToLast, boolean isNegative)
+{
+	CharType *outPtr = NULL;
+
+	CharType *Out = outPtr + lengthToLast;
+	// Loop in groups of 100.
+	while (number >= 100)
+		writeDigitsGroup(&Out, &number);
+	// If only one digit remains, write that and return.
+  if (number < 10) {
+		*(--Out) = (CharType)('0' + number);
+	} else {
+		writeDigitsGroup(&Out, &number);
+	}
+
+	if (isNegative)
+		*(--Out) = '-';
+	
+	if EXIP_UNLIKELY(outPtr != Out)
+		return EXIP_UNEXPECTED_ERROR;
+	
+	return EXIP_OK;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+errorCode writeIntToBuffer(Integer number, CharType* dst, Index bufLen) {
+	boolean isNegative = FALSE;
+
+	if EXIP_UNLIKELY(dst == NULL)
+		return EXIP_NULL_POINTER_REF;
+	
+	if (number < 0) {
+		number = -number;
+		isNegative = TRUE;
+	}
+	
+	const Index length = countBase10(number) + isNegative;
+	if (bufLen < length)
+		return EXIP_OUT_OF_BOUND_BUFFER;
+
+	dst[length] = '\0';
+	return integerToStringImpl(
+		(Index)number, dst, (length - 1), isNegative);
+}
 
 errorCode integerToString(Integer number, String* outStr)
 {
-	return EXIP_NOT_IMPLEMENTED_YET;
+	errorCode tmp_err_code;
+	CharType *outPtr = NULL;
+	boolean isNegative = FALSE;
+
+	if (outStr == NULL)
+		return EXIP_NULL_POINTER_REF;
+	
+	if (number < 0) {
+		number = -number;
+		isNegative = TRUE;
+	}
+	
+	const Index length = countBase10(number) + isNegative;
+	TRY(allocateStringMemory(&outPtr, length + 1));
+
+	outPtr[length] = '\0';
+	tmp_err_code = integerToStringImpl(
+		(Index)number, outPtr, (length - 1), isNegative);
+	
+	if EXIP_UNLIKELY(tmp_err_code != EXIP_OK) {
+		EXIP_MFREE(outPtr);
+		return tmp_err_code;
+	}
+
+	outStr->str = outPtr;
+	outStr->length = length;
+
+	return EXIP_OK;
 }
 
 errorCode booleanToString(boolean b, String* outStr)
 {
-	return EXIP_NOT_IMPLEMENTED_YET;
+	errorCode tmp_err_code;
+	CharType *outPtr;
+
+	if (outStr == NULL)
+		return EXIP_NULL_POINTER_REF;
+	
+	const Index length = 4 + (!b); 
+	TRY(allocateStringMemory(&outPtr, length + 1));
+	memcpy(outPtr, b ? "TRUE" : "FALSE", length + 1);
+
+	outStr->str = outPtr;
+	outStr->length = length;
+
+	return EXIP_OK;
 }
 
 errorCode floatToString(Float f, String* outStr)
 {
+	(void)f;
 	return EXIP_NOT_IMPLEMENTED_YET;
 }
 
 errorCode decimalToString(Decimal d, String* outStr)
 {
+	(void)d;
 	return EXIP_NOT_IMPLEMENTED_YET;
 }
 
 errorCode dateTimeToString(EXIPDateTime dt, String* outStr)
 {
+	(void)dt;
 	return EXIP_NOT_IMPLEMENTED_YET;
 }
 

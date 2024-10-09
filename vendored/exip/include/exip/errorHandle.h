@@ -243,13 +243,13 @@ typedef enum errorCode errorCode;
 #endif
 
 # define TRY_CATCH(func, cblock) do { tmp_err_code = func;\
-						if (tmp_err_code != EXIP_OK) { \
+						if EXIP_UNLIKELY(tmp_err_code != EXIP_OK) { \
 							DEBUG_TRACE_PRINT(tmp_err_code, #func); \
 							cblock;\
 							return tmp_err_code; } } while(0)
 
 # define TRY(func) do { tmp_err_code = func;\
-						if (tmp_err_code != EXIP_OK) { \
+						if EXIP_UNLIKELY(tmp_err_code != EXIP_OK) { \
 							DEBUG_TRACE_PRINT(tmp_err_code, #func); \
 							return tmp_err_code; } } while(0)
 

@@ -185,7 +185,7 @@
 # define EXICPP_EXPECT(v, expr) \
  (__builtin_expect(static_cast<bool>(expr), v))
 #else
-# define EXICPP_EXPECT(v, expr) (expr)
+# define EXICPP_EXPECT(v, expr) (!!(expr))
 #endif
 
 #define EXPECT_TRUE(...)  EXICPP_EXPECT(1, (__VA_ARGS__))

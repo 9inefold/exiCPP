@@ -48,4 +48,13 @@
 # define EXIP_FUNC_NONE 1
 #endif
 
+#ifdef __GNUC__
+# define EXIP_EXPECT(v, expr) (__builtin_expect(!!(expr), v))
+#else
+# define EXIP_EXPECT(v, expr) (!!(expr))
+#endif
+
+#define EXIP_LIKELY(...)   EXIP_EXPECT(1, (__VA_ARGS__))
+#define EXIP_UNLIKELY(...) EXIP_EXPECT(0, (__VA_ARGS__))
+
 #endif // EXIPCONFIG2_H_

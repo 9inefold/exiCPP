@@ -161,6 +161,15 @@ errorCode stringToInteger(const String* src, int* number);
  */
 errorCode stringToInt64(const String* src, int64_t* number);
 
+/**
+ * @brief Writes an integer to a character buffer. Only 10-base representation
+ * @param[in] number the source integer
+ * @param[out] dst the destination buffer
+ * @param[in] bufLen the size of the destination buffer
+ * @return Error handling code
+ */
+errorCode writeIntToBuffer(Integer number, CharType* dst, Index bufLen);
+
 #if EXIP_IMPLICIT_DATA_TYPE_CONVERSION
 
 /**

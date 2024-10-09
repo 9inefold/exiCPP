@@ -18,6 +18,10 @@
 #include "errorHandle.h"
 #include "procTypes.h"
 
+#ifndef DEBUG_OUTPUT
+# define DEBUG_OUTPUT(...) ((void)(0))
+#endif
+
 #define COPY_LITERAL(pdst, src) copyStringData(pdst, src, (sizeof(src) - 1))
 #define FUNC_TEXT_HEAD "'"
 #define FUNC_TEXT_TAIL "' "
@@ -51,6 +55,7 @@ static void debugPrintAnsi(
   const char* filename, const char* funcData, int line)
 {
   const char* nextline = getNextline(&text);
+  (void)nextline;
   DEBUG_OUTPUT((
     RED   "\n>Error %s"
     RESET " in "
@@ -71,6 +76,7 @@ static void debugPrintNorm(
   const char* filename, const char* funcData, int line)
 {
   const char* nextline = getNextline(&text);
+  (void)nextline;
   DEBUG_OUTPUT((
     "\n>Error %s in %s"
     "[\"%s\":%d]"
