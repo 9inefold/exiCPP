@@ -11,8 +11,8 @@ So... I made my own.
 
 ## Improvements
 
-With some changes to the lookup and allocation methods,
-large files can be encoded ***3600 times faster*** than the standalone library.
+With some changes to the lookup and allocation methods, as well as the new HashTable,
+large files can be encoded up to ***14400 times faster*** than the standalone library.
 
 ## Todo
 
