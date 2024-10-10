@@ -46,6 +46,7 @@
  * Define the memory allocation and freeing functions
  */
 #define EXIP_MALLOC d_malloc
+#define EXIP_CALLOC d_calloc
 #define EXIP_REALLOC d_realloc
 #define EXIP_MFREE d_free
 

@@ -40,6 +40,7 @@ typedef uint16_t bndrt_t;
 
 void d_malloc_init();
 void* d_malloc(uint16_t sz);
+void* d_calloc(uint16_t num, uint16_t sz);
 void d_free(void *ptr);
 uint16_t d_malloc_freespace();
 

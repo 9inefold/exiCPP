@@ -72,6 +72,8 @@
  *
  * @def EXIP_MALLOC
  * 		malloc function
+ * @def EXIP_CALLOC
+ * 		calloc function
  * @def EXIP_REALLOC
  * 		realloc function
  * @def EXIP_MFREE
@@ -79,10 +81,12 @@
  */
 #if EXIP_USE_MIMALLOC
 # define EXIP_MALLOC mi_malloc
+# define EXIP_CALLOC mi_calloc
 # define EXIP_REALLOC mi_realloc
 # define EXIP_MFREE mi_free
 #else
 # define EXIP_MALLOC malloc
+# define EXIP_CALLOC calloc
 # define EXIP_REALLOC realloc
 # define EXIP_MFREE free
 #endif

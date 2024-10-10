@@ -68,6 +68,10 @@ void* d_malloc(uint16_t sz) {
   } else return NULL;
 }
 
+void* d_calloc(uint16_t num, uint16_t sz) {
+  return d_malloc(num * sz);
+}
+
 void d_free(void *ptr) {
   bndrt_t *prev = NULL, *cur, *next = NULL;
   cur = (bndrt_t *)heap;
