@@ -84,7 +84,7 @@ static inline void hashentry_destroy(HashEntry* thiz) {
 // HashTable
 //======================================================================//
 
-#define create_hashtable(initSize, _1, _2) hashtable_create((initSize))
+#define create_hashtable(initSize, ...) hashtable_create((initSize))
 
 /// @brief Allocates and initialized a `HashTable`.
 /// @param initSize The minimum number of buckets

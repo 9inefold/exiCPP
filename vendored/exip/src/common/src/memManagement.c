@@ -146,10 +146,6 @@ void freeAllMem(EXIStream* strm)
 		hashtable_destroy(strm->valueTable.hashTbl);
 #endif
 
-#if VALUE_CROSSTABLE_USE
-
-#endif
-
 	// Freeing the value table if present
 	if(strm->valueTable.value != NULL)
 	{
