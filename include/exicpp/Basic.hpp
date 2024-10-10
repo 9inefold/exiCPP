@@ -40,8 +40,17 @@ namespace exi {
 using Char = exip::CharType;
 using exip::Index;
 
+#if EXIP_USE_MIMALLOC
+/// An owning array of `Char`s.
+using Str = std::basic_string<
+  Char, std::char_traits<Char>,
+  mi_stl_allocator<Char>
+>;
+#else
 /// An owning array of `Char`s.
 using Str = std::basic_string<Char>;
+#endif
+
 /// A non-owning span over an array of `Char`s.
 using StrRef = std::basic_string_view<Char>;
 

@@ -30,6 +30,7 @@
 # define EXICPP_STR_(s) #s
 # define EXICPP_STR(s)  EXICPP_STR_(EXICPP_STR)
 # pragma detect_mismatch("EXICPP_DEBUG", LLVM_XSTR(EXICPP_DEBUG))
+# pragma detect_mismatch("EXIP_USE_MIMALLOC", LLVM_XSTR(EXIP_USE_MIMALLOC))
 # undef EXICPP_STR
 # undef EXICPP_STR_
 #else
@@ -44,6 +45,7 @@
 #  define EXICPP_WEAK __attribute__((weak))
 # endif
 namespace exi {
+// Check if debugging enabled
 # if EXICPP_DEBUG
 extern char debugModeEnabled;
 EXICPP_HIDDEN EXICPP_WEAK
@@ -53,6 +55,16 @@ extern char debugModeDisabled;
 EXICPP_HIDDEN EXICPP_WEAK
   char* VerifyDebugModeOnLink = &debugModeDisabled;
 # endif // EXICPP_DEBUG
+// Check if mimalloc allocator enabled
+# if EXIP_USE_MIMALLOC
+extern char mimallocEnabled;
+EXICPP_HIDDEN EXICPP_WEAK
+  char* VerifyMimallocOnLink = &mimallocEnabled;
+# else
+extern char mimallocDisabled;
+EXICPP_HIDDEN EXICPP_WEAK
+  char* VerifyMimallocOnLink = &mimallocDisabled;
+# endif // EXIP_USE_MIMALLOC
 } // namespace exi
 # undef EXICPP_WEAK
 # undef EXICPP_HIDDEN

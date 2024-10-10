@@ -26,4 +26,10 @@ char debugModeEnabled;
 #else
 char debugModeDisabled;
 #endif // EXICPP_DEBUG
+
+#if EXIP_USE_MIMALLOC
+char mimallocEnabled;
+#else
+char mimallocDisabled;
+#endif // EXIP_USE_MIMALLOC
 } // namespace exi

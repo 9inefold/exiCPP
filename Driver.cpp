@@ -267,7 +267,7 @@ static void encodeDecode(bool doPrint = true);
 
 static Str normalizeCommand(StrRef S) {
   auto lower = +[](char c) -> char { return std::tolower(c); };
-  std::string outstr(S.size(), '\0');
+  Str outstr(S.size(), '\0');
   std::transform(S.begin(), S.end(), outstr.begin(), lower);
   return outstr;
 }
@@ -852,6 +852,7 @@ void encodeDecode(bool doPrint) {
   if (comparexml) {
     // Load the original document and compare it to the new one.
     auto xmldoc = BoundDocument::ParseFrom<rapidxml::parse_no_element_values>(xmlIn);
+    fmt::println("Comparing XML...");
     const bool res = compareXML(xmldoc.document(), builder.document());
     if (res) {
       COLOR_PRINTLN(fmt::color::light_green,
