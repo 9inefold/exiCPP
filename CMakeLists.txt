@@ -4,7 +4,7 @@ include(Setup.cmake)
 
 project(
   exi-cpp
-  VERSION 0.2.0
+  VERSION 0.2.1
   LANGUAGES CXX C
 )
 
@@ -20,7 +20,9 @@ endif()
 option(EXICPP_EXCEPTIONS "If exceptions should be enabled." OFF)
 option(EXICPP_DEBUG  "If debug printing should be enabled." ON)
 option(EXICPP_ANSI   "If ANSI should be enabled." ON)
+
 option(EXIP_FORCE_SCOPE "If the exip namespace should be forced." ON)
+option(EXIP_USE_MIMALLOC "If allocation should be done through mimalloc" ON)
 
 set(EXIP_DEBUG ${EXICPP_DEBUG})
 if(EXICPP_ANSI)
@@ -43,7 +45,9 @@ if(CMAKE_BUILD_TYPE EQUAL "DEBUG")
   set(MI_TRACK_ETW ON)
 endif()
 
-add_subdirectory(vendored/mimalloc)
+if(EXIP_USE_MIMALLOC)
+  add_subdirectory(vendored/mimalloc)
+endif()
 add_subdirectory(vendored/exip)
 add_subdirectory(vendored/fmt)
 
