@@ -51,10 +51,14 @@ template <typename T>
 using Option = std::optional<T>;
 
 template <typename K, typename V>
-using Map = std::unordered_map<K, V>;
+using Map = std::unordered_map<K, V,
+  std::hash<K>, std::equal_to<K>,
+  mi_stl_allocator<std::pair<const K, V>>>;
 
 template <typename K>
-using Set = std::unordered_set<K>;
+using Set = std::unordered_set<K,
+  std::hash<K>, std::equal_to<K>,
+  mi_stl_allocator<K>>;
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -470,6 +474,7 @@ void encodeXML(bool doPrint) {
     std::exit(1);
   }
 
+  fmt::println("Writing to '{}'", exi);
   if (Error E = write_xml(xmldoc.document(), buf)) {
     COLOR_PRINTLN(fmt::color::red,
       "Error with '{}': {}", xmlIn, E.message());
@@ -503,6 +508,7 @@ void decodeEXI(bool doPrint) {
     std::exit(1);
   }
 
+  fmt::println("Parsing to XML...");
   if (Error E = parser.parseAll()) {
     COLOR_PRINTLN(fmt::color::red,
       "\nError in '{}'\n", exiIn);
