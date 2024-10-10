@@ -17,6 +17,7 @@
  */
 
 #include <stdlib.h>
+#include <mimalloc.h>
 
 #ifndef EXIPCONFIG_H_
 #define EXIPCONFIG_H_
@@ -74,9 +75,9 @@
  * @def EXIP_MFREE
  * 		free function
  */
-#define EXIP_MALLOC malloc
-#define EXIP_REALLOC realloc
-#define EXIP_MFREE free
+#define EXIP_MALLOC mi_malloc
+#define EXIP_REALLOC mi_realloc
+#define EXIP_MFREE mi_free
 
 /** @def HASH_TABLE_USE
  * 		Whether to use hash table for value partition table when in encoding mode

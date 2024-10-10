@@ -30,15 +30,17 @@
  */
 typedef struct
 {
-    DynArray dynArray;
-    void* base;
-    Index count;
+  DynArray dynArray;
+  void* base;
+  Index count;
 } OuterDynamicArray;
+
+#define OUTER(ex) ((OuterDynamicArray *)(ex))
 
 errorCode createDynArray(DynArray* dynArray, size_t entrySize, uint16_t chunkEntries)
 {
-	void** base = &((OuterDynamicArray *)dynArray)->base;
-	Index* count = &((OuterDynamicArray *)dynArray)->count;
+	void** base = &OUTER(dynArray)->base;
+	Index* count = &OUTER(dynArray)->count;
 
 	*base = EXIP_MALLOC(entrySize*chunkEntries);
 	if(*base == NULL)
@@ -60,13 +62,14 @@ errorCode addEmptyDynEntry(DynArray* dynArray, void** entry, Index* entryID)
 	if(dynArray == NULL)
 		return EXIP_NULL_POINTER_REF;
 
-	base = &((OuterDynamicArray *)dynArray)->base;
-	count = &((OuterDynamicArray *)dynArray)->count;
+	base = &OUTER(dynArray)->base;
+	count = &OUTER(dynArray)->count;
 	if(dynArray->arrayEntries == *count)   // The dynamic array must be extended first
 	{
 		size_t addedEntries;
 
-		addedEntries = (dynArray->chunkEntries == 0)?DEFAULT_NUMBER_CHUNK_ENTRIES:dynArray->chunkEntries;
+		addedEntries = (dynArray->chunkEntries == 0) ?
+			DEFAULT_NUMBER_CHUNK_ENTRIES : dynArray->chunkEntries;
 
 		if(*base == NULL)
 		{
@@ -111,8 +114,8 @@ errorCode delDynEntry(DynArray* dynArray, Index entryID)
 	if(dynArray == NULL)
 		return EXIP_NULL_POINTER_REF;
 
-	base = &((OuterDynamicArray *)dynArray)->base;
-	count = &((OuterDynamicArray *)dynArray)->count;
+	base = &OUTER(dynArray)->base;
+	count = &OUTER(dynArray)->count;
 
 	if(entryID == *count - 1)
 	{
@@ -134,6 +137,6 @@ errorCode delDynEntry(DynArray* dynArray, Index entryID)
 
 void destroyDynArray(DynArray* dynArray)
 {
-	void** base = &((OuterDynamicArray *)dynArray)->base;
+	void** base = &OUTER(dynArray)->base;
 	EXIP_MFREE(*base);
 }

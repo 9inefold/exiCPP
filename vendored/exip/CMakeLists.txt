@@ -50,6 +50,7 @@ target_include_directories(exip
 
 target_compile_features(exip PRIVATE c_std_99)
 target_forward_options(exip PUBLIC EXIP_DEBUG EXIP_DEBUG_LEVEL EXIP_ANSI)
+target_link_libraries(exip PUBLIC mimalloc-static)
 
 if(EXI_GRAMMAR_GENERATION AND NOT EXI_CONFIG_TYPE STREQUAL "contiki")
   # target_include_directories(exip PRIVATE "src/grammarGen/include")

@@ -31,6 +31,19 @@ message(STATUS "[exicpp] Debug printing: ${EXICPP_DEBUG}")
 message(STATUS "[exicpp] ANSI printing: ${EXICPP_ANSI}")
 message(STATUS "[exicpp] Exceptions: ${EXICPP_EXCEPTIONS}")
 
+set(MI_OVERRIDE ON)
+set(MI_BUILD_TESTS OFF)
+set(MI_BUILD_SHARED ON)
+set(MI_BUILD_STATIC ON)
+# Currently doesn't work on windows.
+set(MI_WIN_REDIRECT OFF)
+
+if(CMAKE_BUILD_TYPE EQUAL "DEBUG")
+  set(MI_PADDING ON)
+  set(MI_TRACK_ETW ON)
+endif()
+
+add_subdirectory(vendored/mimalloc)
 add_subdirectory(vendored/exip)
 add_subdirectory(vendored/fmt)
 

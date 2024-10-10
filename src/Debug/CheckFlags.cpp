@@ -17,6 +17,8 @@
 //===----------------------------------------------------------------===//
 
 #include <Debug/CheckFlags.hpp>
+// TODO: Get this working
+// #include <mimalloc-new-delete.h>
 
 namespace exi {
 #if EXICPP_DEBUG
