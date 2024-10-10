@@ -113,41 +113,18 @@ boolean stringEqual(const String str1, const String str2)
 	const Index len = str1.length;
 	if (len != str2.length) {
 		return 0;
-	} else if (len == 0) {
-		return 1;
-	} else // The strings have the same length
-	{
-#if 1
+	} else if (len != 0) {
 		return STRNCMP(str1.str, str2.str, len) == 0;
-#else
-		for(Index i = 0; i < len; ++i)
-		{
-			if(str1.str[i] != str2.str[i])
-				return 0;
-		}
-		return 1;
-#endif
 	}
+	return 1;
 }
 
 boolean stringEqualToAscii(const String str1, const char* str2)
 {
 	const Index len = str1.length;
-	if (len != strlen(str2)) {
+	if (len != strlen(str2))
 		return 0;
-	} else // The strings have the same length
-	{
-#if 1
-		return STRNCMP(str1.str, str2, len) == 0;
-#else
-		for(Index i = 0; i < str1.length; ++i)
-		{
-			if(str1.str[i] != str2[i])
-				return 0;
-		}
-		return 1;
-#endif
-	}
+	return STRNCMP(str1.str, str2, len) == 0;
 }
 
 int stringCompare(const String str1, const String str2)
