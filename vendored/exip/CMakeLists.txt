@@ -3,7 +3,7 @@ add_subdirectory(src)
 
 project(
   exip
-  VERSION 0.5.4
+  VERSION 0.5.5
   LANGUAGES C
 )
 

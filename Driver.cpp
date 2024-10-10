@@ -386,6 +386,9 @@ static int driverMain(int argc, char* argv[]) {
     return 1;
   }
 
+  if (verbose)
+    fmt::println("");
+
   DEBUG_SET_MODE(verbose);
   switch (progMode) {
    case Encode:
