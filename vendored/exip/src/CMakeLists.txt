@@ -1,10 +1,16 @@
+if(EXIP_NEW_HASHTABLE)
+  set(HASHTABLE_SRC "new_hashtable.c")
+else()
+  set(HASHTABLE_SRC "hashtable.c")
+endif()
+
 # Source files for the common module
 include_items(COMMON_SRC "common/src"
   "ASCII_stringManipulate.c"
   "contentHandler.c"
   "dynamicArray.c"
   "errorHandle.c"
-  "hashtable.c"
+  ${HASHTABLE_SRC}
   "memManagement.c"
   "procTypes.c"
 )

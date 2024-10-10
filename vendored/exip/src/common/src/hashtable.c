@@ -2,8 +2,8 @@
 /* @par[Revision] $Id$
  **/
 
-#include "hashtable.h"
-#include "hashtable_private.h"
+#include "old/hashtable.h"
+#include "old/hashtable_private.h"
 #include "procTypes.h"
 
 #define CEIL(VARIABLE) ( ((VARIABLE) - (unsigned int)(VARIABLE))==0 ? (unsigned int)(VARIABLE) : (unsigned int) (VARIABLE)+1 )

@@ -1,5 +1,4 @@
 include_guard(DIRECTORY)
-add_subdirectory(src)
 
 project(
   exip
@@ -13,6 +12,7 @@ set(CONFIG_FOLDER "build/gcc/${EXIP_CONFIG_TYPE}")
 option(EXIP_DEBUG "Enable debug printing." ON)
 option(EXIP_ANSI "Enable ANSI codes." OFF)
 valued_option(EXIP_DEBUG_LEVEL "The debugging level (INFO, WARNING or ERROR)" "INFO")
+option(EXIP_NEW_HASHTABLE "If new hashtable should be used." ON)
 
 option(EXI_GRAMMAR_GENERATION "" ON)
 option(EXI_SCHEMA_GRAMMAR_GENERATION "" ON)
@@ -23,8 +23,11 @@ if(EXIP_DEBUG)
 else()
   message(STATUS "[exip] Debug level: FATAL")
 endif()
+message(STATUS "[exip] New hashtable: ${EXIP_NEW_HASHTABLE}")
 message(STATUS "[exip] Grammar generation: ${EXI_GRAMMAR_GENERATION}")
 message(STATUS "[exip] Schema grammar generation: ${EXI_SCHEMA_GRAMMAR_GENERATION}")
+
+add_subdirectory(src)
 
 include_items(PRIVATE_INC "src"
   "common/include"
@@ -49,9 +52,11 @@ target_include_directories(exip
 )
 
 target_compile_features(exip PRIVATE c_std_99)
-target_forward_options(exip PUBLIC
-  EXIP_DEBUG EXIP_DEBUG_LEVEL 
-  EXIP_ANSI
+target_forward_options(exip
+  PUBLIC
+    EXIP_DEBUG EXIP_DEBUG_LEVEL EXIP_ANSI
+  PRIVATE
+    EXIP_NEW_HASHTABLE
 )
 
 if(EXIP_USE_MIMALLOC)
