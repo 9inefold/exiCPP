@@ -1283,7 +1283,11 @@ errorCode decodeNSEvent(EXIStream* strm, ContentHandler* handler, SmallIndex* no
 
 	if(handler->namespaceDeclaration != NULL)  // Invoke handler method
 	{
-		TRY(handler->namespaceDeclaration(strm->schema->uriTable.uri[ns_uriId].uriStr, strm->schema->uriTable.uri[ns_uriId].pfxTable.pfx[pfxId], b, app_data));
+		TRY(handler->namespaceDeclaration(
+			strm->schema->uriTable.uri[ns_uriId].uriStr,
+			strm->schema->uriTable.uri[ns_uriId].pfxTable.pfx[pfxId],
+			b, app_data)
+		);
 	}
 	return EXIP_OK;
 }
