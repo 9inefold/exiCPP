@@ -60,6 +60,9 @@ using Set = std::unordered_set<K,
   std::hash<K>, std::equal_to<K>,
   mi_stl_allocator<K>>;
 
+template <typename T>
+using Vec = std::vector<T, mi_stl_allocator<T>>;
+
 //////////////////////////////////////////////////////////////////////////
 
 struct InternRef : public StrRef {
@@ -73,12 +76,70 @@ public:
   Char* data() const { return const_cast<Char*>(BaseType::data()); }
 };
 
+struct FilestreamBuf {
+  using StreamType = std::basic_ofstream<Char>;
+
+  struct iterator {
+    iterator(FilestreamBuf& buf) : pbuf(&buf) {}
+    ALWAYS_INLINE Char& operator*() { return curr; }
+    iterator& operator++() {
+      pbuf->pushChar(curr);
+      return *this;
+    }
+    iterator operator++(int) {
+      iterator cpy = *this;
+      ++*this;
+      return cpy;
+    }
+  private:
+    FilestreamBuf* pbuf;
+    Char curr = Char('\0');
+  };
+
+public:
+  FilestreamBuf(StreamType& os, std::size_t n) : buffer(), os(os) {
+    buffer.reserve(n);
+  }
+
+  ~FilestreamBuf() {
+    this->flush();
+  }
+
+public:
+  inline void pushChar(Char c) {
+    buffer.push_back(c);
+    if EXICPP_UNLIKELY(this->atCapacity())
+      this->flush();
+  }
+
+  inline iterator getIter() {
+    return iterator{*this};
+  }
+
+private:
+  bool atCapacity() const {
+    return (buffer.size() == buffer.capacity());
+  }
+
+  void flush() {
+    os.write(buffer.data(), buffer.capacity());
+    buffer.resize(0);
+  }
+
+private:
+  Vec<Char> buffer;
+  StreamType& os;
+};
+
+#define NOINTERN 1
+
 struct XMLBuilder {
   using Ty = XMLType;
 
   XMLBuilder() :
-    doc(std::make_unique<XMLDocument>()),
-    node(doc->document()) {
+   doc(std::make_unique<XMLDocument>()),
+   node(doc->document()) {
+    doc->set_allocator(&mi_malloc, &mi_free);
   }
 
   static StrRef GetXMLHead() {
@@ -94,7 +155,7 @@ struct XMLBuilder {
   }
 
   void dump(const fs::path& outpath) {
-    std::ofstream os(outpath, std::ios::binary);
+    std::basic_ofstream<Char> os(outpath, std::ios::binary);
     os.unsetf(std::ios::skipws);
 
     if (!os) {
@@ -104,8 +165,8 @@ struct XMLBuilder {
     }
 
     os << GetXMLHead() << '\n';
-    rapidxml::print(
-      std::ostream_iterator<Char>(os), *this->doc);
+    FilestreamBuf fstr(os, 2048);
+    rapidxml::print(fstr.getIter(), *this->doc);
   }
 
 public:
@@ -200,22 +261,28 @@ private:
       auto* raw = const_cast<Char*>(str.data());
       return {raw, str.size()};
     }
+#if NOINTERN
+    return this->makePooledStr(str);
+#else
     auto it = intern_table.find(str);
     if (it != intern_table.end())
       return it->second;
     return this->makePooledStr(str);
+#endif
   }
 
   InternRef makePooledStr(StrRef str) {
-    if (str.empty())
+    if EXICPP_UNLIKELY(str.empty())
       return {nullptr, 0};
     const std::size_t len = str.size();
     Char* rawStr = doc->allocate_string(nullptr, len);
     std::char_traits<Char>::copy(rawStr, str.data(), len);
 
     InternRef is {rawStr, len};
+#if !NOINTERN
     LOG_ASSERT(intern_table.count(str) == 0);
     intern_table[str] = is;
+#endif
     return is;
   }
 
@@ -243,7 +310,9 @@ private:
   Box<XMLDocument> doc;
   XMLNode* node = nullptr;
   XMLAttribute* attr = nullptr;
+#if !NOINTERN
   Map<StrRef, InternRef> intern_table;
+#endif
 };
 
 //////////////////////////////////////////////////////////////////////////
