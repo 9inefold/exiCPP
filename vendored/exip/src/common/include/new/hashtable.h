@@ -37,9 +37,10 @@
 typedef struct hashentry HashEntry;
 typedef struct hashtable HashTable;
 
+typedef uint32_t HashValue;
 typedef Index HashEntryValue;
 
-uint32_t hashtable_hash(String key);
+HashValue hashtable_hash(String key);
 
 //======================================================================//
 // HashEntry

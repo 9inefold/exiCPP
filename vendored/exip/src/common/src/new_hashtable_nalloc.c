@@ -1,4 +1,4 @@
-//===- new_hashtable.c ----------------------------------------------===//
+//===- new_hashtable_nalloc.c ---------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -17,7 +17,7 @@
 //===----------------------------------------------------------------===//
 
 #include "new/hashtable.h"
-#include "new/hashtable_private.h"
+#include "new/hashtable_private_nalloc.h"
 #include "procTypes.h"
 #include "stringManipulate.h"
 #include "rapidhash.h"
@@ -26,11 +26,7 @@
 # error exipConfig.h must be included!
 #endif
 
-#if defined(__GNUC__)
-# define getEntryBuffer(entry) ((entry)->key)
-#else
-# define getEntryBuffer(entry) ((CharType*)((entry) + 1))
-#endif
+#define getEntryBuffer(entry) ((entry)->key)
 
 static inline void* internalMalloc(size_t len) {
 #if EXIP_USE_MIMALLOC
@@ -79,7 +75,7 @@ static inline HashEntry** createEntryTable(unsigned bucketCount) {
 static inline String getEntryKey(HashEntry* entry) {
   HASHMAP_ASSERT(entry != NULL);
   const String key = {
-    getEntryBuffer(entry),
+    (CharType*)entry->key,
     entry->keyLength
   };
   return key;
@@ -96,19 +92,10 @@ static inline HashEntry* getTombstonePtr(void) {
 //////////////////////////////////////////////////////////////////////////
 
 HashEntry* hashentry_allocateWithKey(String key) {
-  const size_t keyLength = key.length;
-  const size_t keyLengthBytes = keyLength * sizeof(CharType);
-
-  // Allocate storage for [entry][keystring][\0].
-  const size_t allocSize = hashentry_size + keyLengthBytes + 1;
-  HashEntry* allocation = internalMalloc(allocSize);
+  HashEntry* allocation = internalMalloc(hashentry_size);
   assert(allocation != NULL && "Out of memory!");
-
-  allocation->keyLength = keyLength;
-  CharType* buf = getEntryBuffer(allocation);
-  if (keyLength > 0)
-    memcpy(buf, key.str, keyLengthBytes);
-  buf[keyLength] = 0;
+  allocation->keyLength = key.length;
+  allocation->key = key.str;
   return allocation;
 }
 
@@ -118,7 +105,7 @@ HashValue hashtable_hash(String key) {
 }
 
 void hashtable_init(HashTable* thiz, unsigned initSize) {
-  assert(thiz != NULL);
+  HASHMAP_ASSERT(thiz != NULL);
   assert((InitSize & (InitSize - 1)) == 0 &&
     "initSize must be 2^N or zero!");
   
@@ -291,13 +278,14 @@ void hashentry_setValue(HashEntry* thiz, HashEntryValue val) {
 
 HashEntry* hashentry_create(String key, HashEntryValue val) {
   HashEntry* entry = hashentry_allocateWithKey(key);
+  entry->keyLength = key.length;
   entry->value = val;
   return entry;
 }
 
 HashEntry* hashentry_getFromKeyData(const CharType* keyData) {
-  char* const rawEntry = (char*)(keyData) - hashentry_size;
-  return (HashEntry*)(rawEntry);
+  assert(false && "Cannot reverse entries in no allocation mode!");
+  return NULL;
 }
 
 //////////////////////////////////////////////////////////////////////////

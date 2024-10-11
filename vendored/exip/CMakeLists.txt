@@ -12,7 +12,9 @@ set(CONFIG_FOLDER "build/gcc/${EXIP_CONFIG_TYPE}")
 option(EXIP_DEBUG "Enable debug printing." ON)
 option(EXIP_ANSI "Enable ANSI codes." OFF)
 valued_option(EXIP_DEBUG_LEVEL "The debugging level (INFO, WARNING or ERROR)" "INFO")
+
 option(EXIP_NEW_HASHTABLE "If new hashtable should be used." ON)
+option(EXIP_INLINE_HASHKEY "If keys should be inlined for better cache utilization." ON)
 
 option(EXI_GRAMMAR_GENERATION "" ON)
 option(EXI_SCHEMA_GRAMMAR_GENERATION "" ON)

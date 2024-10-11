@@ -1,5 +1,7 @@
-if(EXIP_NEW_HASHTABLE)
+if(EXIP_NEW_HASHTABLE AND EXIP_INLINE_HASHKEY)
   set(HASHTABLE_SRC "new_hashtable.c")
+elseif(EXIP_NEW_HASHTABLE)
+  set(HASHTABLE_SRC "new_hashtable_nalloc.c")
 else()
   set(HASHTABLE_SRC "hashtable.c")
 endif()

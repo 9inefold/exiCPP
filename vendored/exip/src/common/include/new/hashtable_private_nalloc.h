@@ -1,4 +1,4 @@
-//===- new/hashtable_private.h --------------------------------------===//
+//===- new/hashtable_private2.h -------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -25,10 +25,7 @@
 struct hashentry /* HashEntry */ {
   size_t keyLength;
   HashEntryValue value;
-#ifdef __GNUC__
-  // TODO: Add test
-  CharType key[];
-#endif
+  const CharType* key;
 };
 
 struct hashtable /* HashTable */ {
