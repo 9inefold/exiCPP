@@ -20,6 +20,7 @@
 #include "streamEncode.h"
 #include "ioUtil.h"
 #include "stringManipulate.h"
+#include "hashtable.h"
 #include "grammars.h"
 #include "memManagement.h"
 #include "dynamicArray.h"
@@ -105,12 +106,27 @@ errorCode encodeStringData(EXIStream* strm, String strng, QNameID qnameID, Index
 	return EXIP_OK;
 }
 
+static EXIP_ALWAYS_INLINE boolean checkTmpProd(EXIStream* strm, Production* prod, QName* qname) {
+	if (prod->qnameId.uriId == URI_MAX)
+		return TRUE;
+	
+	UriEntry* const entry = &strm->schema->uriTable.uri[prod->qnameId.uriId];
+	if (stringEqual(entry->uriStr, *(qname->uri))) {
+		if (prod->qnameId.lnId == LN_MAX)
+			return TRUE;
+		return stringEqual(
+			entry->lnTable.ln[prod->qnameId.lnId].lnStr,
+			*(qname->localName));
+	}
+	return FALSE;
+}
+
 errorCode encodeProduction(EXIStream* strm, EventTypeClass eventClass, boolean isSchemaType, QName* qname, EXITypeClass chTypeClass, Production* prodHit)
 {
 	GrammarRule* currentRule;
 	EventCode ec;
-	Index j = 0;
 	Production* tmpProd = NULL;
+	Index j = 0;
 	Index prodCount;
 	unsigned int bitCount;
 	boolean matchFound = FALSE;
@@ -178,18 +194,17 @@ errorCode encodeProduction(EXIStream* strm, EventTypeClass eventClass, boolean i
 
 	if(isSchemaType == TRUE)
 	{
+		const Index ruleOffset = currentRule->pCount - 1;
 		for(j = 0; j < prodCount; j++)
 		{
-			tmpProd = &currentRule->production[currentRule->pCount - 1 - j];
+			tmpProd = &currentRule->production[ruleOffset - j];
 
 			if(GET_EVENT_CLASS(GET_PROD_EXI_EVENT(tmpProd->content)) == eventClass)
 			{
 				if(eventClass == EVENT_AT_CLASS || eventClass == EVENT_SE_CLASS)
 				{
 					assert(qname);
-					if(tmpProd->qnameId.uriId == URI_MAX || (stringEqual(strm->schema->uriTable.uri[tmpProd->qnameId.uriId].uriStr, *(qname->uri)) &&
-					   (tmpProd->qnameId.lnId == LN_MAX || stringEqual(GET_LN_URI_QNAME(strm->schema->uriTable, tmpProd->qnameId).lnStr, *(qname->localName)))))
-					{
+					if (checkTmpProd(strm, tmpProd, qname)) {
 						matchFound = TRUE;
 						break;
 					}

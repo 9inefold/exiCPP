@@ -57,4 +57,10 @@
 #define EXIP_LIKELY(...)   EXIP_EXPECT(1, (__VA_ARGS__))
 #define EXIP_UNLIKELY(...) EXIP_EXPECT(0, (__VA_ARGS__))
 
+#ifdef __GNUC__
+# define EXIP_ALWAYS_INLINE __attribute__((always_inline)) inline
+#else
+# define EXIP_ALWAYS_INLINE inline
+#endif
+
 #endif // EXIPCONFIG2_H_
