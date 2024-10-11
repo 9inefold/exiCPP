@@ -37,9 +37,13 @@
 typedef struct hashentry HashEntry;
 typedef struct hashtable HashTable;
 
+/// The type of the stored hashes.
 typedef uint32_t HashValue;
+
+/// The type of hashentry values.
 typedef Index HashEntryValue;
 
+/// Uses rapidhash (successor to wyhash) to hash strings.
 HashValue hashtable_hash(String key);
 
 //======================================================================//

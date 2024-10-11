@@ -25,7 +25,7 @@ static const uint32_t primes[] = {
 const unsigned int prime_table_length = sizeof(primes)/sizeof(primes[0]);
 const float max_load_factor = 0.65F;
 
-uint32_t djbHash(String str)
+HashValue djbHash(String str)
 {
 	char* tmp = (char*) str.str;
 	uint32_t hash = 5381;

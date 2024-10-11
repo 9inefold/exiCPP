@@ -8,6 +8,12 @@
 #include "config.h"
 #include "procTypes.h"
 
+typedef struct hashentry HashEntry;
+typedef struct hashtable HashTable;
+
+typedef uint32_t HashValue;
+typedef Index HashEntryValue;
+
 /**
  * DJB Hash Function
  * An algorithm produced by Professor Daniel J. Bernstein and shown first to the world
@@ -19,7 +25,7 @@
  * the magic of number 33 (why it works better than many other constants, prime or not) has never
  * been adequately explained.
  **/
-uint32_t djbHash(String str);
+HashValue djbHash(String str);
 
 struct hashtable;
 
@@ -91,7 +97,7 @@ struct hashtable;
 
 struct hashtable *
 create_hashtable(unsigned int minsize,
-				 uint32_t (*hashfn) (String key),
+				 HashValue (*hashfn) (String key),
 				 boolean (*eqfn) (const String str1, const String str2));
 
 /*****************************************************************************
