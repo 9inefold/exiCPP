@@ -68,9 +68,11 @@ errorCode writeNBits(EXIStream* strm, unsigned char nbits, unsigned long bits_va
 			bits_in_byte = 8 - strm->context.bitPointer;
 
 		tmp = (bits_val >> (nbits - numBitsWrite - bits_in_byte)) & BIT_MASK[bits_in_byte];
-		tmp = tmp << (8 - strm->context.bitPointer - bits_in_byte);
-		strm->buffer.buf[strm->context.bufferIndx] = strm->buffer.buf[strm->context.bufferIndx] & (~BIT_MASK[8 - strm->context.bitPointer]); // Initialize the unused bits with 0s
-		strm->buffer.buf[strm->context.bufferIndx] = strm->buffer.buf[strm->context.bufferIndx] | tmp;
+		tmp <<= (8 - strm->context.bitPointer - bits_in_byte);
+
+		const Index bufIndx = strm->context.bufferIndx;
+		strm->buffer.buf[bufIndx] &= ~BIT_MASK[8 - strm->context.bitPointer]; // Initialize the unused bits with 0s
+		strm->buffer.buf[bufIndx] |= tmp;
 
 		numBitsWrite += bits_in_byte;
 		moveBitPointer(strm, bits_in_byte);

@@ -139,7 +139,7 @@ errorCode encodeProduction(EXIStream* strm, EventTypeClass eventClass, boolean i
 	if(currNonTermID == GR_CONTENT_2)
 		currNonTermID = GET_CONTENT_INDEX(strm->gStack->grammar->props);
 
-	if(currNonTermID >=  strm->gStack->grammar->count)
+	if(currNonTermID >= strm->gStack->grammar->count)
 		return EXIP_INCONSISTENT_PROC_STATE;
 
 #if BUILD_IN_GRAMMARS_USE
@@ -194,40 +194,41 @@ errorCode encodeProduction(EXIStream* strm, EventTypeClass eventClass, boolean i
 
 	if(isSchemaType == TRUE)
 	{
+		// TODO: Make this more efficient?
 		const Index ruleOffset = currentRule->pCount - 1;
 		for(j = 0; j < prodCount; j++)
 		{
 			tmpProd = &currentRule->production[ruleOffset - j];
+			if(GET_EVENT_CLASS(GET_PROD_EXI_EVENT(tmpProd->content)) != eventClass) {
+				continue;
+			}
 
-			if(GET_EVENT_CLASS(GET_PROD_EXI_EVENT(tmpProd->content)) == eventClass)
+			if(eventClass == EVENT_AT_CLASS || eventClass == EVENT_SE_CLASS)
 			{
-				if(eventClass == EVENT_AT_CLASS || eventClass == EVENT_SE_CLASS)
-				{
-					assert(qname);
-					if (checkTmpProd(strm, tmpProd, qname)) {
-						matchFound = TRUE;
-						break;
-					}
-				}
-				else if(eventClass == EVENT_CH_CLASS)
-				{
-					EXIType exiType;
-					if(tmpProd->typeId != INDEX_MAX)
-						exiType = GET_EXI_TYPE(strm->schema->simpleTypeTable.sType[tmpProd->typeId].content);
-					else
-						exiType = VALUE_TYPE_NONE;
-
-					if(exiType == VALUE_TYPE_NONE || exiType == VALUE_TYPE_UNTYPED)
-						matchFound = TRUE;
-					else if(chTypeClass == GET_VALUE_TYPE_CLASS(exiType))
-						matchFound = TRUE;
-					break;
-				}
-				else
-				{
+				assert(qname);
+				if (checkTmpProd(strm, tmpProd, qname)) {
 					matchFound = TRUE;
 					break;
 				}
+			}
+			else if(eventClass == EVENT_CH_CLASS)
+			{
+				EXIType exiType;
+				if(tmpProd->typeId != INDEX_MAX)
+					exiType = GET_EXI_TYPE(strm->schema->simpleTypeTable.sType[tmpProd->typeId].content);
+				else
+					exiType = VALUE_TYPE_NONE;
+
+				if(exiType == VALUE_TYPE_NONE || exiType == VALUE_TYPE_UNTYPED)
+					matchFound = TRUE;
+				else if(chTypeClass == GET_VALUE_TYPE_CLASS(exiType))
+					matchFound = TRUE;
+				break;
+			}
+			else
+			{
+				matchFound = TRUE;
+				break;
 			}
 		}
 	}
