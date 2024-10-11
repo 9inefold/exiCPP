@@ -43,7 +43,7 @@ errorCode createDynArray(DynArray* dynArray, size_t entrySize, uint16_t chunkEnt
 	Index* count = &OUTER(dynArray)->count;
 
 	*base = EXIP_MALLOC(entrySize*chunkEntries);
-	if(*base == NULL)
+	if EXIP_UNLIKELY(*base == NULL)
 		return EXIP_MEMORY_ALLOCATION_ERROR;
 
 	dynArray->entrySize = entrySize;
@@ -56,42 +56,35 @@ errorCode createDynArray(DynArray* dynArray, size_t entrySize, uint16_t chunkEnt
 
 errorCode addEmptyDynEntry(DynArray* dynArray, void** entry, Index* entryID)
 {
-	void** base;
-	Index* count;
-
 	if(dynArray == NULL)
 		return EXIP_NULL_POINTER_REF;
 
-	base = &OUTER(dynArray)->base;
-	count = &OUTER(dynArray)->count;
-	if(dynArray->arrayEntries == *count)   // The dynamic array must be extended first
+	void** base = &OUTER(dynArray)->base;
+	Index* count = &OUTER(dynArray)->count;
+	const Index vcount = *count;
+
+	if EXIP_UNLIKELY(dynArray->arrayEntries == vcount)   // The dynamic array must be extended first
 	{
-		size_t addedEntries;
+		const size_t addedEntries = (dynArray->chunkEntries == 0) ?
+			DEFAULT_NUMBER_CHUNK_ENTRIES : (dynArray->chunkEntries * 3) / 2;
 
-		addedEntries = (dynArray->chunkEntries == 0) ?
-			DEFAULT_NUMBER_CHUNK_ENTRIES : dynArray->chunkEntries;
-
-		if(*base == NULL)
-		{
+		if (*base == NULL) {
 			*base = EXIP_MALLOC(dynArray->entrySize * addedEntries);
-			if(*base == NULL)
+			if EXIP_UNLIKELY(*base == NULL)
 				return EXIP_MEMORY_ALLOCATION_ERROR;
-		}
-		else
-		{
-			*base = EXIP_REALLOC(*base, dynArray->entrySize * (*count + addedEntries));
-			if(*base == NULL)
+		} else {
+			*base = EXIP_REALLOC(*base, dynArray->entrySize * (vcount + addedEntries));
+			if EXIP_UNLIKELY(*base == NULL)
 				return EXIP_MEMORY_ALLOCATION_ERROR;
 		}
 
 		dynArray->arrayEntries = dynArray->arrayEntries + addedEntries;
 	}
 
-	*entry = (void*)((unsigned char *)(*base) + (*count * dynArray->entrySize));
-
-	*entryID = *count;
-
+	*entry = (unsigned char *)(*base) + (vcount * dynArray->entrySize);
+	*entryID = vcount;
 	*count += 1;
+
 	return EXIP_OK;
 }
 
@@ -123,9 +116,10 @@ errorCode delDynEntry(DynArray* dynArray, Index entryID)
 	}
 	else if(*count - 1 - entryID >= 0)
 	{
+		unsigned char* const rawBase = (unsigned char *)(*base);
+		unsigned char* const offset = rawBase + (entryID * dynArray->entrySize);
 		/* Shuffle the array down to fill the removed entry */
-		memcpy(((unsigned char *)*base) + entryID * dynArray->entrySize,
-			   ((unsigned char *)*base) + entryID * dynArray->entrySize + dynArray->entrySize,
+		memcpy(offset, offset + dynArray->entrySize,
 			   (*count - 1 - entryID) * dynArray->entrySize);
 		*count -= 1;
 	}

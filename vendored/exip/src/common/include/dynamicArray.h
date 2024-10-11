@@ -37,7 +37,7 @@
 /**
  * When the chunkEntries == 0 this will be used to create the new array and later extend it
  */
-#define DEFAULT_NUMBER_CHUNK_ENTRIES 6
+#define DEFAULT_NUMBER_CHUNK_ENTRIES 5
 
 /**
  * @brief Creates fresh empty Untyped Dynamic Array
