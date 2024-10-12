@@ -230,13 +230,23 @@ public:
       return ErrCode::Ok;
     }
 
-    LOG_ASSERT(node->type() == Ty::node_data);
+    // LOG_ASSERT(node->type() == Ty::node_data);
+    if EXICPP_UNLIKELY(node->type() != Ty::node_data) {
+#if EXICPP_DEBUG
+      LOG_WARN("Expected 'node_data', got '{}'",
+        unsigned(node->type()));
+      SetVerbose(true);
+#endif
+      return ErrCode::Ok;
+    }
     InternRef istr = this->intern(str);
     node->value(istr.data(), istr.size());
     return ErrCode::Ok;
   }
 
 private:
+  static void SetVerbose(bool V);
+
   static std::string FormatNs(StrRef prefix) {
     if (prefix.empty())
       return "xmlns";
@@ -358,6 +368,10 @@ static bool setPath(Option<fs::path>& toSet, const fs::path& path) {
     return false;
   toSet.emplace(path);
   return true;
+}
+
+void XMLBuilder::SetVerbose(bool V) {
+  verbose = V;
 }
 
 static void checkVerbose(ArgProcessor& P) {
@@ -573,14 +587,15 @@ void decodeEXI(bool doPrint) {
 
   if (Error E = parser.parseHeader()) {
     COLOR_PRINTLN(fmt::color::red,
-      "\nError in '{}'\n", exiIn);
+      "\nError in '{}': {}\n",
+      exiIn, E.message());
     std::exit(1);
   }
 
   fmt::println("Parsing to XML...");
   if (Error E = parser.parseAll()) {
     COLOR_PRINTLN(fmt::color::red,
-      "\nError in '{}'\n", exiIn);
+      "\nError in '{}': {}\n", exiIn, E.message());
     std::exit(1);
   }
 
@@ -914,7 +929,7 @@ void encodeDecode(bool doPrint) {
 
   if (Error E = parser.parseHeader()) {
     COLOR_PRINTLN(fmt::color::red,
-      "\nError in '{}'\n", exi);
+      "\nError parsing header in '{}'\n", exi);
     std::exit(1);
   }
 
