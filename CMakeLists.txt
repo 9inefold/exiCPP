@@ -46,6 +46,7 @@ if(CMAKE_BUILD_TYPE EQUAL "DEBUG")
 endif()
 
 if(EXIP_USE_MIMALLOC)
+  # TODO: Debug speedups?
   add_subdirectory(vendored/mimalloc)
 endif()
 add_subdirectory(vendored/exip)
