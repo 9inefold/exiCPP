@@ -19,7 +19,7 @@
 #include <BinaryBuffer.hpp>
 #include <cstdio>
 
-#define PRINT_STATS 0
+#define PRINT_STATS 1
 
 using namespace exi;
 

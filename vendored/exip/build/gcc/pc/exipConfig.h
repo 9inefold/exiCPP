@@ -49,15 +49,15 @@
 /// Turns the debugging ON/OFF for the STREAM_IO module
 #define DEBUG_STREAM_IO   DEBUG_DEFAULT
 /// Turns the debugging ON/OFF for the COMMON module
-#define DEBUG_COMMON      DEBUG_DEFAULT
+#define DEBUG_COMMON      OFF
 /// Turns the debugging ON/OFF for the CONTENT_IO module
-#define DEBUG_CONTENT_IO  DEBUG_DEFAULT
+#define DEBUG_CONTENT_IO  OFF
 /// Turns the debugging ON/OFF for the GRAMMAR module
-#define DEBUG_GRAMMAR     DEBUG_DEFAULT
+#define DEBUG_GRAMMAR     OFF
 /// Turns the debugging ON/OFF for the GRAMMAR_GEN module
 #define DEBUG_GRAMMAR_GEN OFF
 /// Turns the debugging ON/OFF for the STRING_TBLS module
-#define DEBUG_STRING_TBLS DEBUG_DEFAULT
+#define DEBUG_STRING_TBLS OFF
 
 #if EXIP_DEBUG != ON
 # ifndef NDEBUG

@@ -323,7 +323,7 @@ Error WriterImpl::init(XMLDocument* doc, const IBinaryBuffer& buf) {
   header.has_options = exip::TRUE;
   header.opts.valueMaxLength = INDEX_MAX;
   header.opts.valuePartitionCapacity = INDEX_MAX;
-  // SET_COMPRESSION(header.opts.enumOpt);
+  SET_COMPRESSION(header.opts.enumOpt);
   SET_PRESERVED(header.opts.preserve, PRESERVE_PREFIXES);
 
   HANDLE_FN(initStream,
