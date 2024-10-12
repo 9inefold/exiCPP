@@ -875,7 +875,7 @@ errorCode decodeStringValue(EXIStream* strm, QNameID qnameID, String* value)
 		vxBits = getBitsNumber(vxTable->count - 1);
 		TRY(decodeNBitUnsignedInteger(strm, vxBits, &vxEntryId));
 
-#if 1
+#if EXIP_DEBUG
 		if EXIP_UNLIKELY(vxEntryId >= vxTable->count)
 			return EXIP_INVALID_EXI_INPUT;
 #endif

@@ -38,7 +38,6 @@ errorCode decodeNBitUnsignedInteger(EXIStream* strm, unsigned char n, unsigned l
 	{
 		unsigned int byte_number = ((unsigned int) n) / 8 + (n % 8 != 0);
 		unsigned long tmp_byte_buf = 0;
-		unsigned int i = 0;
 
 		if(strm->buffer.bufContent < strm->context.bufferIndx + byte_number)
 		{
@@ -49,9 +48,11 @@ errorCode decodeNBitUnsignedInteger(EXIStream* strm, unsigned char n, unsigned l
 		}
 
 		*int_val = 0;
-		for(i = 0; i < byte_number * 8; i += 8)
+		for(unsigned int i = 0; i < byte_number * 8; i += 8)
 		{
-			tmp_byte_buf = strm->buffer.buf[strm->context.bufferIndx] << i;
+			// TODO: Push this... I hate whoever let the god damn implicit conversion by
+			const unsigned char val = strm->buffer.buf[strm->context.bufferIndx];
+			tmp_byte_buf = (unsigned long)(val) << i;
 			*int_val |= tmp_byte_buf;
 			strm->context.bufferIndx++;
 		}
