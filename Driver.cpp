@@ -917,7 +917,9 @@ void encodeDecode(bool doPrint) {
   encodeXML(false);
 
   fmt::println("Reading from intermediate file '{}'", exi);
-  BufferType buf {};
+  // BufferType buf {};
+  HeapBuffer bufBase {(2048 * 32) - 1};
+  BinaryBuffer buf {bufBase};
   if (Error E = buf.readFile(exi)) {
     COLOR_PRINTLN(fmt::color::red,
       "Error opening '{}': {}", exi, E.message());

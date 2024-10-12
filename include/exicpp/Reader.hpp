@@ -40,15 +40,22 @@ public:
   template <class Source>
   [[nodiscard]]
   static Parser New(Source& appData, const StackBuffer& buf) {
+    return Parser::NewCommon(appData, buf);
+  }
+
+  template <class Source>
+  [[nodiscard]]
+  static Parser New(Source& appData, const UniqueBuffer& buf) {
+    return Parser::NewCommon(appData, buf);
+  }
+
+private:
+  template <class Source>
+  [[nodiscard]]
+  static Parser NewCommon(Source& appData, const IBinaryBuffer& buf) {
     Parser parser {};
     if (Error E = parser.init(&buf, &appData)) {
       // TODO: Return Result<Parser, Error>
-#if EXICPP_DEBUG && 0
-      std::printf("\u001b[31;1m");
-      std::printf("Error initializing: %s\n", E.message().data());
-      std::printf("\u001b[0m");
-      std::fflush(stdout);
-#endif
     }
     ContentHandler::SetContent(parser.handler, &appData);
     return parser;
