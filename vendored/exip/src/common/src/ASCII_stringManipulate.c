@@ -323,7 +323,7 @@ static inline int intLog2(Index V) {
 static inline int countBase10(Index V) {
 #ifdef EXIP_CLZLL
   const int Out = LogTable10[intLog2(V)];
-  return Out - (V < ZeroOrPow10[Out]);
+  return Out - (V < (Index)ZeroOrPow10[Out]);
 #else
   int Total = 1;
   while (true) {

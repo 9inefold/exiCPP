@@ -15549,7 +15549,7 @@ static CONST EnumDefinition xmlscm_enumTable[12] = {
 
 CONST EXIPSchema xmlscm_schema =
 {
-    {NULL, NULL},
+    {NULL, NULL, 0},
     {{sizeof(UriEntry), 4, 14}, xmlscm_uriEntry, 4},
     {xmlscm_docGrammarRule, 100663296, 2},
     {{sizeof(SimpleType), 62, 62}, xmlscm_simpleTypes, 62},
@@ -15557,4 +15557,3 @@ CONST EXIPSchema xmlscm_schema =
     112,
     {{sizeof(EnumDefinition), 12, 12}, xmlscm_enumTable, 12}
 };
-
