@@ -2797,7 +2797,7 @@ static CONST SimpleType ops_simpleTypes[67] =
 
 CONST EXIPSchema ops_schema =
 {
-    {NULL, NULL},
+    {NULL, NULL, 0},
     {{sizeof(UriEntry), 5, 5}, ops_uriEntry, 5},
     {ops_docGrammarRule, 100663296, 2},
     {{sizeof(SimpleType), 67, 67}, ops_simpleTypes, 67},
@@ -2805,4 +2805,3 @@ CONST EXIPSchema ops_schema =
     75,
     {{sizeof(EnumDefinition), 0, 0}, NULL, 0}
 };
-
