@@ -119,7 +119,7 @@ HashValue hashtable_hash(String key) {
 
 void hashtable_init(HashTable* thiz, unsigned initSize) {
   assert(thiz != NULL);
-  assert((InitSize & (InitSize - 1)) == 0 &&
+  assert((initSize & (initSize - 1)) == 0 &&
     "initSize must be 2^N or zero!");
   
   unsigned bucketCount = initSize ? initSize : 16;

@@ -49,10 +49,10 @@ errorCode decodeNBitUnsignedInteger(EXIStream* strm, unsigned char n, unsigned l
 		}
 
 		*int_val = 0;
-		for(i = 0; i < byte_number*8; i += 8)
+		for(i = 0; i < byte_number * 8; i += 8)
 		{
 			tmp_byte_buf = strm->buffer.buf[strm->context.bufferIndx] << i;
-			*int_val = *int_val | tmp_byte_buf;
+			*int_val |= tmp_byte_buf;
 			strm->context.bufferIndx++;
 		}
 	}
