@@ -17,6 +17,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")
 endif()
 
+option(EXICPP_DRIVER "If the driver should be built." OFF)
+
 option(EXICPP_EXCEPTIONS "If exceptions should be enabled." OFF)
 option(EXICPP_DEBUG  "If debug printing should be enabled." ON)
 option(EXICPP_ANSI   "If ANSI should be enabled." ON)
@@ -88,7 +90,7 @@ else()
   target_compile_options(exip PRIVATE -Wall -Wpedantic)
 endif()
 
-if(PROJECT_IS_TOP_LEVEL)
+if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
   add_executable(exi-driver Driver.cpp)
   target_link_libraries(exi-driver exicpp)
 endif()
