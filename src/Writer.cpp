@@ -275,7 +275,11 @@ struct WriterImpl {
   static constexpr CString EMPTY_STR { nullptr, 0 };
 public:
   WriterImpl() = default;
-  Error init(XMLDocument* doc, const IBinaryBuffer& buf);
+  Error init(
+    XMLDocument* doc,
+    const IBinaryBuffer& buf,
+    Option<Options> opts,
+    bool cookie);
   Error parse();
 private:
   void begElem(XMLNode* node);
@@ -313,18 +317,25 @@ private:
   NsStack namespaces;
 };
 
-Error WriterImpl::init(XMLDocument* doc, const IBinaryBuffer& buf) {
+Error WriterImpl::init(
+  XMLDocument* doc,
+  const IBinaryBuffer& buf,
+  Option<Options> opts,
+  bool cookie)
+{
   this->doc  = doc;
   this->node = doc;
-  serialize.initHeader(&stream);
 
+  serialize.initHeader(&stream);
   auto& header = stream.header;
-  header.has_cookie = exip::TRUE;
+  header.has_cookie = exip::boolean(cookie);
   header.has_options = exip::TRUE;
-  header.opts.valueMaxLength = INDEX_MAX;
-  header.opts.valuePartitionCapacity = INDEX_MAX;
-  SET_COMPRESSION(header.opts.enumOpt);
-  SET_PRESERVED(header.opts.preserve, PRESERVE_PREFIXES);
+  
+  if (opts.has_value()) {
+    header.opts = opts->getBase();
+    header.opts.valueMaxLength = INDEX_MAX;
+    header.opts.valuePartitionCapacity = INDEX_MAX;
+  }
 
   HANDLE_FN(initStream,
     &stream, 
@@ -637,12 +648,16 @@ bool WriterImpl::hasValue() const {
 
 } // namespace `anonymous`
 
-namespace exi {
-Error write_xml(XMLDocument* doc, const IBinaryBuffer& buf) {
+Error exi::write_xml(
+  XMLDocument* doc,
+  const IBinaryBuffer& buf,
+  Option<Options> opts,
+  bool cookie)
+{
   WriterImpl writer {};
-  if (Error E = writer.init(doc, buf)) {
+  // TODO: Add opts
+  if (Error E = writer.init(doc, buf, opts, cookie)) {
     return E;
   }
   return writer.parse();
 }
-} // namespace exi;

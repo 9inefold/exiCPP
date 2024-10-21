@@ -29,6 +29,7 @@
 #include "Debug/CheckFlags.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -54,6 +55,10 @@ using Str = std::basic_string<Char>;
 /// A non-owning span over an array of `Char`s.
 using StrRef = std::basic_string_view<Char>;
 
+/// Alias for `std::optional`.
+template <typename T>
+using Option = std::optional<T>;
+
 /// A non-owning span over an array of `char`s, may be the same as `StrRef`.
 using AsciiStrRef = std::basic_string_view<char>;
 using BinarySpan  = AsciiStrRef;
@@ -61,6 +66,7 @@ using BinarySpan  = AsciiStrRef;
 using CBinaryBuffer = exip::BinaryBuffer;
 using CQName  = exip::QName;
 using CString = exip::String;
+using COptions = exip::EXIOptions;
 
 } // namespace exi
 

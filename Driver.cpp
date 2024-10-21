@@ -47,9 +47,6 @@
 
 using namespace exi;
 
-template <typename T>
-using Option = std::optional<T>;
-
 template <typename K, typename V>
 using Map = std::unordered_map<K, V,
   std::hash<K>, std::equal_to<K>,
@@ -334,14 +331,14 @@ static Option<fs::path> inpath;
 static Option<fs::path> outpath;
 
 static bool comparexml = false;
-// TODO: Change settings to defaults
-static bool includeOptions = true;
-static bool includeCookie = true;
+static bool includeCookie = false;
 // ...
 static bool preserveComments = false;
 static bool preservePIs = false;
 static bool preserveDTs = false;
 static bool preservePrefixes = true;
+
+static Option<Options> opts = std::nullopt;
 
 static void printHelp();
 static void encodeXML(bool doPrint = true);
@@ -398,15 +395,149 @@ static void checkVerbose(ArgProcessor& P) {
   fmt::println("");
 }
 
+static void initOptions() {
+  if EXICPP_LIKELY(opts) return;
+  opts.emplace();
+}
+
+static void setPreserved(ArgProcessor& P, StrRef cmd) {
+  LOG_ASSERT(cmd.empty() == false);
+  initOptions();
+
+  if (cmd == "preserveprefixes") {
+    // Legacy support.
+    opts->set(Preserve::Prefixes);
+    preservePrefixes = true;
+    return;
+  }
+
+  cmd.remove_prefix(1);
+  if (cmd.empty()) {
+    LOG_INFO("Preserving all values.");
+    opts->set(Preserve::All);
+    return;
+  } else if (cmd.size() > 1) {
+    PRINT_WARN("Unknown command '{}', ignoring.", P.curr());
+    return;
+  }
+
+  switch (cmd.front()) {
+  case 'c':
+    opts->set(Preserve::Comments);
+    break;
+  case 'i':
+    opts->set(Preserve::PIs);
+    break;
+  case 'd':
+    opts->set(Preserve::DTD);
+    break;
+  case 'p':
+    opts->set(Preserve::Prefixes);
+    break;
+  case 'l':
+    opts->set(Preserve::LexicalValues);
+    break;
+  case 'a':
+    opts->set(Preserve::All);
+    break;
+  default:
+    PRINT_WARN("Unknown command '{}', ignoring.", P.curr());
+  };
+}
+
+static void setEnumOpt(ArgProcessor& P, StrRef cmd) {
+  LOG_ASSERT(cmd.empty() == false);
+  initOptions();
+
+  auto warnUnknown = [&P] () {
+    PRINT_WARN("Unknown command '{}', ignoring.", P.curr());
+  };
+
+  cmd.remove_prefix(1);
+  if (cmd.empty()) {
+    warnUnknown();
+    return;
+  }
+
+  switch (cmd.front()) {
+  case 'c':
+    opts->set(EnumOpt::Compression);
+    break;
+  case 'f':
+    opts->set(EnumOpt::Fragment);
+    break;
+  case 's': {
+    if (cmd.size() == 2) {
+      if (cmd[1] == 't')
+        opts->set(EnumOpt::Strict);
+      else if (cmd[1] == 'c')
+        opts->set(EnumOpt::SelfContained);
+      else
+        warnUnknown();
+      return;
+    }
+    // Long names...
+    if (cmd == "strict")
+      opts->set(EnumOpt::Strict);
+    else if (cmd == "self" || cmd == "selfcontained")
+      opts->set(EnumOpt::SelfContained);
+    else
+      warnUnknown();
+    break;
+  }
+  case 'a': {
+    cmd.remove_prefix(1);
+    if (cmd.empty()) {
+      warnUnknown();
+      return;
+    }
+    // Compression types
+    if (cmd.front() == 'b') {
+      if (cmd == "bit" || cmd == "bitpacked")
+        opts->set(Align::BitPacked);
+      else if (cmd == "byte" || cmd == "bytealigned")
+        opts->set(Align::ByteAlignment);
+      else
+        warnUnknown();
+      return;
+    } else if (cmd.front() == 'p') {
+      if (cmd == "packed")
+        opts->set(Align::BitPacked);
+      else if (cmd == "pre" || cmd == "precompression")
+        opts->set(Align::PreCompression);
+      else
+        warnUnknown();
+      return;
+    }
+    [[fallthrough]];
+  }
+  default:
+    warnUnknown();
+  };
+}
+
 static void processCommand(ArgProcessor& P) {
   auto cmd = P.curr();
   cmd.remove_prefix(1);
   const auto str = normalizeCommand(cmd);
 
+  if (str.empty()) {
+    PRINT_WARN("Empty command!");
+    return;
+  }
+
   if (str == "h" || str == "help") {
     printHelp();
     std::exit(0);
   } else if (str == "v" || str == "-verbose") {
+    return;
+  }
+
+  if (str.front() == 'p') {
+    setPreserved(P, str);
+    return;
+  } else if (str.front() == 'o') {
+    setEnumOpt(P, str);
     return;
   }
   
@@ -428,12 +559,10 @@ static void processCommand(ArgProcessor& P) {
     progMode = Mode::EncodeDecode;
   } else if (str == "comparexml") {
     comparexml = true;
-  } else if (str == "includeoptions") {
-    includeOptions = true;
-  } else if (str == "includecookie") {
+  } else if (str == "includecookie" || str == "cookie") {
     includeCookie = true;
-  } else if (str == "preserveprefixes") {
-    preservePrefixes = true;
+  } else if (str == "includeoptions") {
+    initOptions();
   } else {
     PRINT_WARN("Unknown command '{}', ignoring.", P.curr());
   }
@@ -473,18 +602,25 @@ static int driverMain(int argc, char* argv[]) {
     return 1;
   }
 
+  if (opts.has_value()) {
+    preserveComments = opts->isSet(Preserve::Comments);
+    preservePrefixes = opts->isSet(Preserve::Prefixes);
+    preserveDTs = opts->isSet(Preserve::DTD);
+    preservePIs = opts->isSet(Preserve::PIs);
+  }
+
   if (verbose)
     fmt::println("");
 
   DEBUG_SET_MODE(verbose);
   switch (progMode) {
-   case Encode:
+  case Encode:
     encodeXML();
     break;
-   case Decode:
+  case Decode:
     decodeEXI();
     break;
-   case EncodeDecode:
+  case EncodeDecode:
     encodeDecode();
     break;
   }
@@ -520,6 +656,10 @@ void printHelp() {
     "  -includeOptions\n"
     "  -includeCookie\n"
     "  -preservePrefixes\n"
+    "  \n"
+    // TODO: Add these
+    "  -P\n"
+    "  -O\n"
     "  \n"
     "\n MISC:\n"
     "  -compareXML:           Check if output XML instead of writing out\n"
@@ -558,7 +698,7 @@ void encodeXML(bool doPrint) {
   }
 
   fmt::println("Writing to '{}'", exi);
-  if (Error E = write_xml(xmldoc.document(), buf)) {
+  if (Error E = write_xml(xmldoc.document(), buf, opts)) {
     COLOR_PRINTLN(fmt::color::red,
       "Error with '{}': {}", xmlIn, E.message());
     std::exit(1);

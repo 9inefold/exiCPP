@@ -25,13 +25,19 @@
 #include "BinaryBuffer.hpp"
 #include "Content.hpp"
 #include "Errors.hpp"
+#include "Options.hpp"
 #include "XML.hpp"
 #include <exip/EXISerializer.h>
 // #include <exip/grammarGenerator.h>
 
 namespace exi {
 
-Error write_xml(XMLDocument* doc, const IBinaryBuffer& buf);
+Error write_xml(
+  XMLDocument* doc,
+  const IBinaryBuffer& buf,
+  Option<Options> opts = std::nullopt,
+  bool cookie = false
+);
 
 } // namespace exi
 
