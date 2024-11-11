@@ -16,6 +16,8 @@
 //
 //===----------------------------------------------------------------===//
 
+
+
 #include "Testing.hpp"
 
 #include <exicpp/Filesystem.hpp>
@@ -28,11 +30,18 @@
 
 using namespace exi;
 
+#ifdef WIN32
+static constexpr std::string_view shell_eat = "nul";
+#else
+static constexpr std::string_view shell_eat = "/dev/null";
+#endif
+
 static int call_system(const std::string& S, bool do_flush = true) {
-  fmt::println(stderr, "Exec: '{}'", S);
   if (do_flush)
     std::cout << std::flush;
-  return std::system(S.c_str());
+  std::string cmd = fmt::format("{0} >{1} 2>{1}", S, shell_eat);
+  fmt::println(stderr, "Exec: '{}'", cmd);
+  return std::system(cmd.c_str());
 }
 
 static int call_exificent(const std::vector<Str>& args, bool do_flush = true) {
@@ -48,6 +57,15 @@ static int call_exificent(const Str& arg = "", bool do_flush = true) {
 }
 
 namespace {
+
+struct Opts {
+
+
+};
+
+//======================================================================//
+// Testing
+//======================================================================//
 
 class Conformance : public testing::Test {
 protected:
