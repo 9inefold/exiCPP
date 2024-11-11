@@ -15,6 +15,7 @@ FMT.build
 Makefile
 bin/
 build/
+support/.gradle
 cmake_install.cmake
 fmt-*.cmake
 fmt.pc
