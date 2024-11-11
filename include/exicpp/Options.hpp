@@ -73,7 +73,7 @@ public:
   }
 
   Options& set(EnumOpt O) {
-    if EXPECT_FALSE(O == EnumOpt::Alignment) {
+    if EXICPP_UNLIKELY(O == EnumOpt::Alignment) {
       LOG_WARN("Invalid enumOpt 'Alignment'.");
       return *this;
     }

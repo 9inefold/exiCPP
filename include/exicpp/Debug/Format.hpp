@@ -29,7 +29,7 @@
 #undef LOG_ASSERT
 #ifndef NDEBUG
 # define LOG_ASSERT(expr) \
-  (EXPECT_TRUE(static_cast<bool>(expr)) ? ((void)0) \
+  (EXICPP_EXPECT_TRUE(static_cast<bool>(expr)) ? ((void)0) \
     : LOG_FATAL("Assertion failed: {}", #expr))
 #else
 # define LOG_ASSERT(expr) ((void)0)

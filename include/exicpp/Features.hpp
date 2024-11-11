@@ -188,15 +188,15 @@
 # define EXICPP_EXPECT(v, expr) (!!(expr))
 #endif
 
-#define EXPECT_TRUE(...)  EXICPP_EXPECT(1, (__VA_ARGS__))
-#define EXPECT_FALSE(...) EXICPP_EXPECT(0, (__VA_ARGS__))
+#define EXICPP_EXPECT_TRUE(...)  EXICPP_EXPECT(1, (__VA_ARGS__))
+#define EXICPP_EXPECT_FALSE(...) EXICPP_EXPECT(0, (__VA_ARGS__))
 
 #if EXICPP_HAS_CPPATTR(likely)
 # define EXICPP_LIKELY(...)   (__VA_ARGS__) [[likely]]
 # define EXICPP_UNLIKELY(...) (__VA_ARGS__) [[unlikely]]
 #elif EXICPP_HAS_BUILTIN(__builtin_expect)
-# define EXICPP_LIKELY(...)   EXPECT_TRUE(__VA_ARGS__)
-# define EXICPP_UNLIKELY(...) EXPECT_FALSE(__VA_ARGS__)
+# define EXICPP_LIKELY(...)   EXICPP_EXPECT_TRUE(__VA_ARGS__)
+# define EXICPP_UNLIKELY(...) EXICPP_EXPECT_FALSE(__VA_ARGS__)
 #else
 # define EXICPP_LIKELY(...)   (__VA_ARGS__)
 # define EXICPP_UNLIKELY(...) (__VA_ARGS__)
