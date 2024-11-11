@@ -110,17 +110,15 @@ errorCode delDynEntry(DynArray* dynArray, Index entryID)
 	base = &OUTER(dynArray)->base;
 	count = &OUTER(dynArray)->count;
 
-	if(entryID == *count - 1)
-	{
+	const Index arrCount = *count - 1;
+	if(entryID == arrCount) {
 		*count -= 1;
-	}
-	else if(*count - 1 - entryID >= 0)
-	{
+	} else if((int64_t)(arrCount - entryID) >= 0) {
 		unsigned char* const rawBase = (unsigned char *)(*base);
 		unsigned char* const offset = rawBase + (entryID * dynArray->entrySize);
 		/* Shuffle the array down to fill the removed entry */
 		memcpy(offset, offset + dynArray->entrySize,
-			   (*count - 1 - entryID) * dynArray->entrySize);
+			   (arrCount - entryID) * dynArray->entrySize);
 		*count -= 1;
 	}
 	else
