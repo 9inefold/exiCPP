@@ -118,6 +118,8 @@ void IBinaryBuffer::destroyStream() {
     std::fclose(fp);
     break;
    }
+   default:
+    break;
   }
   stream = exip::IOStream{};
   this->stream_type = StreamType::None;

@@ -18,6 +18,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 endif()
 
 option(EXICPP_DRIVER "If the driver should be built." OFF)
+option(EXICPP_TESTS "If tests should be run." OFF)
 
 option(EXICPP_EXCEPTIONS "If exceptions should be enabled." OFF)
 option(EXICPP_DEBUG  "If debug printing should be enabled." ON)
@@ -26,31 +27,32 @@ option(EXICPP_ANSI   "If ANSI should be enabled." ON)
 option(EXIP_FORCE_SCOPE "If the exip namespace should be forced." ON)
 option(EXIP_USE_MIMALLOC "If allocation should be done through mimalloc" ON)
 
+message(STATUS "[exicpp] Tests: ${EXICPP_TESTS}")
+message(STATUS "[exicpp] Debug printing: ${EXICPP_DEBUG}")
+message(STATUS "[exicpp] ANSI printing: ${EXICPP_ANSI}")
+message(STATUS "[exicpp] Exceptions: ${EXICPP_EXCEPTIONS}")
+
 set(EXIP_DEBUG ${EXICPP_DEBUG})
 if(EXICPP_ANSI)
   set(EXIP_ANSI ON)
 endif()
 
-message(STATUS "[exicpp] Debug printing: ${EXICPP_DEBUG}")
-message(STATUS "[exicpp] ANSI printing: ${EXICPP_ANSI}")
-message(STATUS "[exicpp] Exceptions: ${EXICPP_EXCEPTIONS}")
-
-set(MI_OVERRIDE ON)
-set(MI_BUILD_TESTS OFF)
-set(MI_BUILD_SHARED ON)
-set(MI_BUILD_STATIC ON)
-# Currently doesn't work on windows.
-set(MI_WIN_REDIRECT OFF)
-
-if(CMAKE_BUILD_TYPE EQUAL "DEBUG")
-  set(MI_PADDING ON)
-  set(MI_TRACK_ETW ON)
-endif()
-
 if(EXIP_USE_MIMALLOC)
+  set(MI_OVERRIDE ON)
+  set(MI_BUILD_TESTS OFF)
+  set(MI_BUILD_SHARED ON)
+  set(MI_BUILD_STATIC ON)
+  # Currently doesn't work on windows.
+  set(MI_WIN_REDIRECT OFF)
+
+  if(CMAKE_BUILD_TYPE EQUAL "DEBUG")
+    set(MI_PADDING ON)
+    set(MI_TRACK_ETW ON)
+  endif()
   # TODO: Debug speedups?
   add_subdirectory(vendored/mimalloc)
 endif()
+
 add_subdirectory(vendored/exip)
 add_subdirectory(vendored/fmt)
 
@@ -87,7 +89,14 @@ endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # ...
 else()
-  target_compile_options(exip PRIVATE -Wall -Wpedantic)
+  target_compile_options(exicpp PRIVATE
+    -Wall -Wpedantic -Wno-unused-variable -Wno-unused-function
+  )
+endif()
+
+if(EXICPP_TESTS)
+  include(CTest)
+  add_subdirectory(test)
 endif()
 
 if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
