@@ -68,6 +68,7 @@ include_items(EXICPP_SRC "src"
 )
 
 add_library(exicpp STATIC ${EXICPP_SRC})
+add_library(exicpp::exicpp ALIAS exicpp)
 target_include_directories(exicpp
   PUBLIC include vendored/rapidxml
   PRIVATE include/exicpp 
@@ -94,6 +95,15 @@ else()
   )
 endif()
 
+if(EXICPP_TESTS OR (PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER))
+  add_library(exicpp-util STATIC
+    utils/CompareXml.cpp
+  )
+  add_library(exicpp::util ALIAS exicpp-util)
+  target_include_directories(exicpp-util PUBLIC utils)
+  target_link_libraries(exicpp-util PUBLIC exicpp)
+endif()
+
 if(EXICPP_TESTS)
   include(CTest)
   add_subdirectory(test)
@@ -101,5 +111,5 @@ endif()
 
 if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
   add_executable(exi-driver Driver.cpp)
-  target_link_libraries(exi-driver exicpp)
+  target_link_libraries(exi-driver exicpp::exicpp exicpp::util)
 endif()

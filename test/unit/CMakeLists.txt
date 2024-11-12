@@ -20,7 +20,7 @@ endif(CCACHE_FOUND)
 add_executable(unittests #Driver.cpp 
   ${UNITTEST_SRC}
 )
-target_link_libraries(unittests ${TEST_LIBS} exicpp)
+target_link_libraries(unittests ${TEST_LIBS} exicpp::util)
 
 target_compile_definitions(unittests PUBLIC
   EXICPP_EXIFICIENT_DIR="${EXICPP_EXIFICIENT_DIR}"

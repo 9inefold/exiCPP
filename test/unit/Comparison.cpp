@@ -30,33 +30,78 @@
 
 using namespace exi;
 
+namespace {
+
 #ifdef WIN32
 static constexpr std::string_view shell_eat = "nul";
 #else
 static constexpr std::string_view shell_eat = "/dev/null";
 #endif
 
-static int call_system(const std::string& S, bool do_flush = true) {
+struct System {
+  std::string formatCall(const std::string& S) const;
+  int call(const std::string& S, bool do_flush = true) const;
+  int callExificent(const std::vector<Str>& args, bool do_flush = true) const;
+  int callExificent(const Str& arg = "", bool do_flush = true) const;
+
+  int operator()(const std::string& S, bool do_flush = true) const {
+    return this->call(S, do_flush);
+  }
+
+public:
+  std::string_view out = "";
+  std::string_view err = "";
+};
+
+std::string System::formatCall(const std::string& S) const {
+  if (out.empty()) {
+    if (err.empty())
+      return S;
+    else
+      return fmt::format("{} 2>{}", S, err);
+  } else {
+    if (err.empty())
+      return fmt::format("{} >{}", S, out);
+    else
+      return fmt::format("{} >{} 2>{}", S, out, err);
+  }
+}
+
+int System::call(const std::string& S, bool do_flush) const {
   if (do_flush)
-    std::cout << std::flush;
-  std::string cmd = fmt::format("{0} >{1} 2>{1}", S, shell_eat);
-  fmt::println(stderr, "Exec: '{}'", cmd);
+    std::flush(std::cout);
+  std::string cmd = this->formatCall(S);
+  // fmt::println(stderr, "Exec: '{}'", cmd);
   return std::system(cmd.c_str());
 }
 
-static int call_exificent(const std::vector<Str>& args, bool do_flush = true) {
+int System::callExificent(const std::vector<Str>& args, bool do_flush) const {
   auto cmd = fmt::format("java -jar {} {}",
     exificent,
     fmt::join(args, " ")
   );
-  return call_system(cmd, do_flush);
+  return this->call(cmd, do_flush);
 }
 
-static int call_exificent(const Str& arg = "", bool do_flush = true) {
-  return call_exificent(std::vector{arg}, do_flush);
+int System::callExificent(const Str& arg, bool do_flush) const {
+  return this->callExificent(std::vector{arg}, do_flush);
 }
 
-namespace {
+//////////////////////////////////////////////////////////////////////////
+// Predefined
+
+namespace shell {
+  /// Eat both `stdout` and `stderr`.
+  static constexpr System None {shell_eat, shell_eat};
+  /// Eat only `stdout`, let `stderr` print.
+  static constexpr System Err  {"", shell_eat};
+  /// Allow both `stdout` and `stderr` to print.
+  static constexpr System All  {"", ""};
+} // namespace shell
+
+//======================================================================//
+// Options
+//======================================================================//
 
 struct Opts {
 
@@ -67,7 +112,7 @@ struct Opts {
 // Testing
 //======================================================================//
 
-class Conformance : public testing::Test {
+class ConformanceBase : public testing::Test {
 protected:
   void SetUp() override {
     static bool dir_exists = fs::exists(exificent_dir);
@@ -78,11 +123,13 @@ protected:
     if (!file_exists)
       GTEST_SKIP() << "Exificent could not be found. Skipping.";
     
-    static bool java_exists = (call_exificent("--version") == 0);
+    static bool java_exists = (shell::None("--version") == 0);
     if (!java_exists)
       GTEST_SKIP() << "Java could not be found. Skipping.";
   }
 };
+
+class Conformance : public ConformanceBase {};
 
 TEST_F(Conformance, Encoding) {
   

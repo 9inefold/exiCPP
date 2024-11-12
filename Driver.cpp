@@ -25,42 +25,13 @@
 #include <algorithm>
 #include <fstream>
 #include <iterator>
-#include <optional>
-#include <unordered_map>
-#include <unordered_set>
 #include <rapidxml_print.hpp>
-#include <fmt/color.h>
 
-#define COLOR_PRINT_(col, fstr, ...) \
-  fmt::print(fstr, fmt::styled( \
-    fmt::format(__VA_ARGS__), fmt::fg(col)))
-
-#define COLOR_PRINT(col, ...) COLOR_PRINT_(col, "{}", __VA_ARGS__)
-#define COLOR_PRINTLN(col, ...) COLOR_PRINT_(col, "{}\n", __VA_ARGS__)
-
-#define PRINT_INFO(...) COLOR_PRINT_( \
-  fmt::color::light_blue, "{}\n", __VA_ARGS__)
-#define PRINT_WARN(...) COLOR_PRINT_( \
-  fmt::color::yellow, "{}\n", "WARNING: " __VA_ARGS__)
-#define PRINT_ERR(...)  COLOR_PRINT_( \
-  fmt::terminal_color::bright_red, "{}\n", "ERROR: " __VA_ARGS__)
+#include "CompareXML.hpp"
+#include "Print.hpp"
+#include "STL.hpp"
 
 using namespace exi;
-
-template <typename K, typename V>
-using Map = std::unordered_map<K, V,
-  std::hash<K>, std::equal_to<K>,
-  mi_stl_allocator<std::pair<const K, V>>>;
-
-template <typename K>
-using Set = std::unordered_set<K,
-  std::hash<K>, std::equal_to<K>,
-  mi_stl_allocator<K>>;
-
-template <typename T>
-using Vec = std::vector<T, mi_stl_allocator<T>>;
-
-//////////////////////////////////////////////////////////////////////////
 
 struct InternRef : public StrRef {
   using BaseType = StrRef;
@@ -748,91 +719,6 @@ void decodeEXI(bool doPrint) {
 
 //////////////////////////////////////////////////////////////////////////
 
-static StrRef getName(const XMLBase* node) {
-  if EXICPP_UNLIKELY(!node) return "";
-  if (node->name_size() == 0) return "";
-  return {node->name(), node->name_size()};
-}
-static StrRef getValue(const XMLBase* node) {
-  if EXICPP_UNLIKELY(!node) return "";
-  if (node->value_size() == 0) return "";
-  return {node->value(), node->value_size()};
-}
-
-struct XMLNodeIt {
-  XMLNodeIt(XMLNode* node) : node(node) {}
-  XMLNode* operator->() { return this->node; }
-  const XMLNode* operator->() const { return this->node; }
-  std::uint64_t currDepth() const { return this->depth; }
-public:
-  bool next() {
-    // This works only because we always begin at the document level.
-    if (node->first_node()) {
-      node = node->first_node();
-      ++this->depth;
-      return true;
-    }
-
-    auto* parent = node->parent();
-    if (!parent)
-      return false;
-
-    if (node->next_sibling()) {
-      node = node->next_sibling();
-      return true;
-    }
-
-    node = parent;
-    parent = node->parent();
-    --this->depth;
-
-    while (parent) {
-      if (node->next_sibling()) {
-        node = node->next_sibling();
-        return true;
-      }
-
-      node = parent;
-      parent = node->parent();
-      --this->depth;
-    }
-
-    return false;
-  }
-
-  StrRef name() const { return getName(this->node); }
-  StrRef value() const { return getValue(this->node); }
-
-  StrRef typeName() const {
-    if EXICPP_UNLIKELY(!node)
-      return "unknown";
-    switch (node->type()) {
-     case XMLType::node_document:
-      return "document";
-     case XMLType::node_element:
-      return "element";
-     case XMLType::node_data:
-      return "data";
-     case XMLType::node_cdata:
-      return "cdata";
-     case XMLType::node_comment:
-      return "comment";
-     case XMLType::node_declaration:
-      return "declaration";
-     case XMLType::node_doctype:
-      return "doctype";
-     case XMLType::node_pi:
-      return "pi";
-     default:
-      return "unknown";
-    }
-  }
-
-private:
-  XMLNode* node = nullptr;
-  std::uint64_t depth = 0;
-};
-
 static fs::path addExtension(fs::path path, const Str& ext) {
   if (!path.has_extension()) {
     return path.replace_extension(ext);
@@ -841,203 +727,13 @@ static fs::path addExtension(fs::path path, const Str& ext) {
     fmt::format("{}.{}", path.extension(), ext));
 }
 
-static bool nextNode(XMLNodeIt& node) {
-  // This works only because we always begin at the document level.
-  if (node->first_node()) {
-    node = node->first_node();
-    return true;
-  }
-
-  auto* parent = node->parent();
-  if (!parent)
-    return false;
-
-  if (node->next_sibling()) {
-    node = node->next_sibling();
-    return true;
-  }
-
-  node = parent;
-  parent = node->parent();
-
-  while (parent) {
-    if (node->next_sibling()) {
-      node = node->next_sibling();
-      return true;
-    }
-
-    node = parent;
-    parent = node->parent();
-  }
-
-  return false;
-}
-
-static bool skipIgnoredData(XMLNodeIt& oldNode) {
-  while (oldNode.next()) {
-    switch (oldNode->type()) {
-    // Only skip if comments disabled
-     case XMLType::node_comment:
-      if (!preserveComments)
-        continue;
-      return true;
-    // Only skip if processing instructions disabled
-     case XMLType::node_pi:
-      if (!preservePIs)
-        continue;
-      return true;
-    // Only skip if DOCTYPEs disabled
-     case XMLType::node_doctype:
-      if (!preserveDTs)
-        continue;
-      return true;
-    // Otherwise, don't skip
-     default:
-      return true;
-    }
-  }
-
-  return false;
-}
-
-static bool compareAttributes(
-  XMLNodeIt& oldNode,
-  XMLNodeIt& newNode,
-  const std::size_t nodeCount)
-{
-  auto* rawOldAttr = oldNode->first_attribute();
-  auto* rawNewAttr = newNode->first_attribute();
-  const auto depth = oldNode.currDepth();
-
-  if (!rawOldAttr || !rawNewAttr) {
-    if (rawOldAttr || rawNewAttr) {
-      PRINT_ERR("[#{}:{}] Attributes do not match.", nodeCount, depth);
-      return false;
-    }
-    return true;
-  }
-
-  const auto collectAttrs = [](XMLAttribute* attrs) {
-    Map<StrRef, StrRef> map;
-    while (attrs) {
-      map[getName(attrs)] = getValue(attrs);
-      attrs = attrs->next_attribute();
-    }
-    return map;
-  };
-
-  auto oldAttrs = collectAttrs(rawOldAttr);
-  auto newAttrs = collectAttrs(rawNewAttr);
-  bool result = true;
-
-  for (auto [key, val] : oldAttrs) {
-    if (newAttrs.count(key) < 1) {
-      result = false;
-      PRINT_ERR("[#{}:{}] Attribute {} not found in new attributes.", 
-        nodeCount, depth, key);
-      continue;
-    }
-
-    auto newVal = newAttrs.extract(key);
-    if (val != newVal.mapped()) {
-      result = false;
-      PRINT_ERR("[#{}:{}] Attribute {} values do not match: {} != {}.", 
-        nodeCount, depth, key, val, newVal.mapped());
-    }
-  }
-
-  if (newAttrs.size() != 0) {
-    for (auto [key, val] : oldAttrs) {
-      result = false;
-      PRINT_ERR("[#{}:{}] Attribute {} not found in old attributes.", 
-        nodeCount, depth, key);
-    }
-  }
-  
-  return result;
-}
-
-static bool compareXML(XMLNodeIt& oldNode, XMLNodeIt& newNode) {
-  int errorCount = 0;
-  std::size_t nodeCount = 0;
-
-  while (newNode.next()) {
-    if (errorCount > 10) {
-      PRINT_INFO("Exiting early, error count too high.");
-      return false;
-    }
-
-    ++nodeCount;
-    if (!skipIgnoredData(oldNode)) {
-      PRINT_ERR("[#{}] Old XML ended prematurely! (New XML at <{}> as {})",
-        nodeCount, newNode.name(), newNode.typeName());
-      return false;
-    } else if (verbose) {
-      PRINT_INFO("Comparing <{}> and <{}>",
-        oldNode.name(), newNode.name());
-    }
-
-    const auto depth = oldNode.currDepth();
-    if (depth != newNode.currDepth()) {
-      PRINT_ERR("[#{}] Inconsistent depths: {} != {}",
-        nodeCount,
-        depth, newNode.currDepth());
-      return false;
-    }
-
-    if (oldNode->type() != newNode->type()) {
-      PRINT_ERR("[#{}:{}] Inconsistent types: {} != {}",
-        nodeCount, depth,
-        oldNode.typeName(), newNode.typeName());
-      ++errorCount;
-    }
-    if (oldNode.name() != newNode.name()) {
-      PRINT_ERR("[#{}:{}] Inconsistent names: {} != {}",
-        nodeCount, depth,
-        oldNode.name(), newNode.name());
-      ++errorCount;
-    }
-    if (oldNode.value() != newNode.value()) {
-      PRINT_ERR("[#{}:{}] Inconsistent values: {} != {}",
-        nodeCount, depth,
-        oldNode.value(), newNode.value());
-      ++errorCount;
-    }
-
-    if (!compareAttributes(oldNode, newNode, nodeCount))
-      ++errorCount;
-  }
-
-  if (!skipIgnoredData(oldNode)) {
-    return errorCount == 0;
-  }
-
-  if (oldNode->type() != XMLType::node_document) {
-    PRINT_ERR("New XML ended prematurely! (Old XML at <{}> as {})",
-      oldNode.name(), oldNode.typeName());
-    return false;
-  }
-
-  if (const auto depth = oldNode.currDepth(); depth != 0) {
-    PRINT_ERR("Old XML ended with a depth of {}", depth);
-  }
-  if (const auto depth = newNode.currDepth(); depth != 0) {
-    PRINT_ERR("New XML ended with a depth of {}", depth);
-  }
-
-  return errorCount == 0;
-}
-
 static bool compareXML(XMLDocument* oldDoc, XMLDocument* newDoc) {
-  LOG_ASSERT(oldDoc != nullptr);
-  if (!newDoc) {
-    PRINT_ERR("New XML document could not be parsed!");
-    return false;
-  }
-
-  XMLNodeIt oldNode {oldDoc};
-  XMLNodeIt newNode {newDoc};
-  return compareXML(oldNode, newNode);
+  CompareOpts O {
+    preserveComments,
+    preservePIs, preserveDTs,
+    verbose
+  };
+  return compare_xml(oldDoc, newDoc, O);
 }
 
 void encodeDecode(bool doPrint) {
