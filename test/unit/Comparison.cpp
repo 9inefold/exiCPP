@@ -21,39 +21,40 @@
 #include "Testing.hpp"
 
 #include <exicpp/Filesystem.hpp>
+#include <exicpp/Options.hpp>
 #include <exicpp/XML.hpp>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 
 #include <cstdlib>
-#include <vector>
+#include <STL.hpp>
 
 using namespace exi;
 
 namespace {
 
 #ifdef WIN32
-static constexpr std::string_view shell_eat = "nul";
+static constexpr StrRef shell_eat = "nul";
 #else
-static constexpr std::string_view shell_eat = "/dev/null";
+static constexpr StrRef shell_eat = "/dev/null";
 #endif
 
 struct System {
-  std::string formatCall(const std::string& S) const;
-  int call(const std::string& S, bool do_flush = true) const;
-  int callExificent(const std::vector<Str>& args, bool do_flush = true) const;
+  Str formatCall(const Str& S) const;
+  int call(const Str& S, bool do_flush = true) const;
+  int callExificent(const Vec<Str>& args, bool do_flush = true) const;
   int callExificent(const Str& arg = "", bool do_flush = true) const;
 
-  int operator()(const std::string& S, bool do_flush = true) const {
+  int operator()(const Str& S, bool do_flush = true) const {
     return this->call(S, do_flush);
   }
 
 public:
-  std::string_view out = "";
-  std::string_view err = "";
+  StrRef out = "";
+  StrRef err = "";
 };
 
-std::string System::formatCall(const std::string& S) const {
+Str System::formatCall(const Str& S) const {
   if (out.empty()) {
     if (err.empty())
       return S;
@@ -67,15 +68,15 @@ std::string System::formatCall(const std::string& S) const {
   }
 }
 
-int System::call(const std::string& S, bool do_flush) const {
+int System::call(const Str& S, bool do_flush) const {
   if (do_flush)
     std::flush(std::cout);
-  std::string cmd = this->formatCall(S);
+  Str cmd = this->formatCall(S);
   // fmt::println(stderr, "Exec: '{}'", cmd);
   return std::system(cmd.c_str());
 }
 
-int System::callExificent(const std::vector<Str>& args, bool do_flush) const {
+int System::callExificent(const Vec<Str>& args, bool do_flush) const {
   auto cmd = fmt::format("java -jar {} {}",
     exificent,
     fmt::join(args, " ")
@@ -84,7 +85,7 @@ int System::callExificent(const std::vector<Str>& args, bool do_flush) const {
 }
 
 int System::callExificent(const Str& arg, bool do_flush) const {
-  return this->callExificent(std::vector{arg}, do_flush);
+  return this->callExificent(Vec{arg}, do_flush);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -104,9 +105,80 @@ namespace shell {
 //======================================================================//
 
 struct Opts {
+  exi::Options forExip() const;
+  Vec<Str> forExificent() const;
+public:
+  unsigned Compression:           1; 
+  unsigned Strict:                1; 
+  unsigned Fragment:              1; 
+  unsigned SelfContained:         1;
 
+  unsigned BitPacked:             1;
+  unsigned ByteAligned:           1;
+  unsigned PreCompression:        1;
 
+  unsigned PreserveComments:      1;     
+  unsigned PreservePIs:           1;          
+  unsigned PreserveDTD:           1;          
+  unsigned PreservePrefixes:      1;     
+  unsigned PreserveLexicalValues: 1;
 };
+
+#define SET_OPT(flag, val) do { \
+  if (!!this->flag) O.set(val); \
+} while(0)
+
+exi::Options Opts::forExip() const {
+  exi::Options O {};
+
+  SET_OPT(Compression,            EnumOpt::Compression);
+  SET_OPT(Strict,                 EnumOpt::Strict);
+  SET_OPT(Fragment,               EnumOpt::Fragment);
+  SET_OPT(SelfContained,          EnumOpt::SelfContained);
+
+  SET_OPT(ByteAligned,            Align::ByteAlignment);
+  SET_OPT(PreCompression,         Align::PreCompression);
+  SET_OPT(BitPacked,              Align::BitPacked);
+
+  SET_OPT(PreserveComments,       Preserve::Comments);
+  SET_OPT(PreservePIs,            Preserve::PIs);
+  SET_OPT(PreserveDTD,            Preserve::DTD);
+  SET_OPT(PreservePrefixes,       Preserve::Prefixes);
+  SET_OPT(PreserveLexicalValues,  Preserve::LexicalValues);
+
+#undef SET_OPT
+  return O;
+}
+
+#define SET_OPT(flag, val) do { \
+  if (!!this->flag) O.emplace_back(val); \
+} while(0)
+
+Vec<Str> Opts::forExificent() const {
+  Vec<Str> O;
+
+  SET_OPT(Compression,            "compression");
+  SET_OPT(Strict,                 "strict");
+  SET_OPT(Fragment,               "fragment");
+  // SET_OPT(SelfContained,          "selfContained");
+
+  if (!this->BitPacked)
+    SET_OPT(ByteAligned,          "bytePacked");
+  SET_OPT(PreCompression,         "preCompression");
+
+  SET_OPT(PreserveComments,       "preserveComments");
+  SET_OPT(PreservePIs,            "preservePIs");
+  SET_OPT(PreserveDTD,            "preserveDTDs");
+  SET_OPT(PreservePrefixes,       "preservePrefixes");
+  SET_OPT(PreserveLexicalValues,  "preserveLexicalValues");
+
+#undef SET_OPT
+  return O;
+}
+
+//======================================================================//
+// Suite
+//======================================================================//
 
 class ConformanceBase : public testing::Test {
 protected:
@@ -148,7 +220,7 @@ class Conformance : public ConformanceBase {};
 //======================================================================//
 
 TEST_F(Conformance, Encoding) {
-  
+  ASSERT_EQ(1,1);
 }
 
 } // namespace `anonymous`
