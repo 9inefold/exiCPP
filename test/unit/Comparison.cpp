@@ -94,7 +94,7 @@ namespace shell {
   /// Eat both `stdout` and `stderr`.
   static constexpr System None {shell_eat, shell_eat};
   /// Eat only `stdout`, let `stderr` print.
-  static constexpr System Err  {"", shell_eat};
+  static constexpr System Err  {shell_eat, ""};
   /// Allow both `stdout` and `stderr` to print.
   static constexpr System All  {"", ""};
 } // namespace shell
@@ -108,10 +108,6 @@ struct Opts {
 
 };
 
-//======================================================================//
-// Testing
-//======================================================================//
-
 class ConformanceBase : public testing::Test {
 protected:
   void SetUp() override {
@@ -123,13 +119,33 @@ protected:
     if (!file_exists)
       GTEST_SKIP() << "Exificent could not be found. Skipping.";
     
-    static bool java_exists = (shell::None("--version") == 0);
-    if (!java_exists)
+    static bool java_exists = CheckJavaInstall();
+    if (!java_exists) {
+      fmt::println(stderr, "Ensure Java has been installed!");
       GTEST_SKIP() << "Java could not be found. Skipping.";
+    }
   }
+
+  static bool CheckJavaInstall();
 };
 
+bool ConformanceBase::CheckJavaInstall() {
+  // These are on both UNIX and modern Windows.
+  int ret = shell::Err.call("which java", false);
+#ifdef _WIN32
+  if (ret != 0) {
+    // If invalid for any reason, check where.
+    ret = shell::Err.call("where /q java", false);
+  }
+#endif
+  return (ret == 0);
+}
+
 class Conformance : public ConformanceBase {};
+
+//======================================================================//
+// Testing
+//======================================================================//
 
 TEST_F(Conformance, Encoding) {
   
