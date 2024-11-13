@@ -21,17 +21,17 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <mimalloc.h>
+#include <exicpp/Basic.hpp>
 
 template <typename K, typename V>
 using Map = std::unordered_map<K, V,
   std::hash<K>, std::equal_to<K>,
-  mi_stl_allocator<std::pair<const K, V>>>;
+  exi::Allocator<std::pair<const K, V>>>;
 
 template <typename K>
 using Set = std::unordered_set<K,
   std::hash<K>, std::equal_to<K>,
-  mi_stl_allocator<K>>;
+  exi::Allocator<K>>;
 
 template <typename T>
-using Vec = std::vector<T, mi_stl_allocator<T>>;
+using Vec = std::vector<T, exi::Allocator<T>>;
