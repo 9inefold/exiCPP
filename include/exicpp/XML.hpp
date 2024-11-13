@@ -39,10 +39,13 @@ using XMLBase = rapidxml::xml_base<Char>;
 using XMLNode = rapidxml::xml_node<Char>;
 using XMLType = rapidxml::node_type;
 
+bool set_xml_allocators(XMLDocument* doc);
+
 class BoundDocument {
 public:
   BoundDocument() : buf() {
     this->doc = std::make_unique<XMLDocument>();
+    this->setAllocators();
   }
   BoundDocument(BoundDocument&&) = default;
 public:
@@ -54,9 +57,10 @@ public:
   >
   static BoundDocument ParseFrom(const fs::path& filename) {
     auto res = BoundDocument::From(filename);
-    Char* bufdata = res.buf.data();
-    if (bufdata)
+    if (res) {
+      Char* bufdata = res.buf.data();
       res.doc->parse<Flags>(bufdata);
+    }
     return res;
   }
 
@@ -67,6 +71,9 @@ public:
   explicit operator bool() const {
     return doc.get() && buf.data();
   }
+
+private:
+  void setAllocators();
 
 private:
   Box<XMLDocument> doc;

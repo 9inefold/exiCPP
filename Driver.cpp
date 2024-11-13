@@ -107,7 +107,7 @@ struct XMLBuilder {
   XMLBuilder() :
    doc(std::make_unique<XMLDocument>()),
    node(doc->document()) {
-    doc->set_allocator(&mi_malloc, &mi_free);
+    set_xml_allocators(doc.get());
   }
 
   static StrRef GetXMLHead() {

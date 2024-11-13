@@ -78,3 +78,18 @@ BoundDocument BoundDocument::From(const fs::path& filename) {
   Traits::copy(buf.data(), str->data(), len);
   return res;
 }
+
+bool exi::set_xml_allocators(XMLDocument* doc) {
+  if (!doc)
+    return false;
+  doc->set_allocator(&mi_malloc, &mi_free);
+  return true;
+}
+
+void BoundDocument::setAllocators() {
+#if EXIP_USE_MIMALLOC
+  const bool did_set_allocators
+    = set_xml_allocators(this->document());
+  LOG_ASSERT(did_set_allocators);
+#endif
+}
