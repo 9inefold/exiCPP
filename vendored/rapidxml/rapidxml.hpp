@@ -273,11 +273,17 @@ namespace rapidxml
     //! See xml_document::parse() function.
     const int parse_fastest = parse_non_destructive | parse_no_data_nodes;
     
+    //! A combination of parse flags resulting in most nodes being extracted, without validation. 
+    //! This usually results in slower parsing.
+    //! <br><br>
+    //! See xml_document::parse() function.
+    const int parse_all = parse_comment_nodes | parse_doctype_node | parse_pi_nodes;
+
     //! A combination of parse flags resulting in largest amount of data being extracted. 
     //! This usually results in slowest parsing.
     //! <br><br>
     //! See xml_document::parse() function.
-    const int parse_full = parse_declaration_node | parse_comment_nodes | parse_doctype_node | parse_pi_nodes | parse_validate_closing_tags;
+    const int parse_full = parse_declaration_node | parse_all | parse_validate_closing_tags;
 
     ///////////////////////////////////////////////////////////////////////
     // Internals

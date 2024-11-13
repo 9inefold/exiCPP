@@ -51,15 +51,15 @@ public:
 public:
   static BoundDocument From(const fs::path& filename);
 
-  template <int Flags =
-    rapidxml::parse_no_utf8 |
-    rapidxml::parse_no_string_terminators
-  >
+  template <int Flags = 0>
   static BoundDocument ParseFrom(const fs::path& filename) {
+    constexpr int DefaultFlags =
+        rapidxml::parse_no_string_terminators
+      | rapidxml::parse_trim_whitespace;
     auto res = BoundDocument::From(filename);
     if (res) {
       Char* bufdata = res.buf.data();
-      res.doc->parse<Flags>(bufdata);
+      res.doc->parse<Flags | DefaultFlags>(bufdata);
     }
     return res;
   }
