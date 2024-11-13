@@ -17,10 +17,9 @@ large files can be encoded up to ***14400 times faster*** than the standalone li
 ## Todo
 
 - Add full options support
-- Implement compression
 - Add full utf8 support
 - Finish wrapping the serializer
 - Schema support
 - Improve error generality
-- JSON support
+- JSON support?
 - Generic character encoding?
