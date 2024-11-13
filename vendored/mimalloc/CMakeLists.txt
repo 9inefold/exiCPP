@@ -70,6 +70,12 @@ set(mi_libraries "")
 # -----------------------------------------------------------------------------
 
 message(STATUS "")
+if (DEFINED EXICPP_FAST_DEBUG AND EXICPP_FAST_DEBUG)
+  if (NOT MI_TRACK_ETW)
+    message(STATUS "Fast debug mode selected, default to: RelWithDebInfo")
+    set(CMAKE_BUILD_TYPE "RelWithDebInfo")
+  endif()
+endif()
 if (NOT CMAKE_BUILD_TYPE)
   if ("${CMAKE_BINARY_DIR}" MATCHES ".*(D|d)ebug$" OR  MI_DEBUG_FULL)
     message(STATUS "No build type selected, default to: Debug")

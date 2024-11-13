@@ -83,6 +83,12 @@ else()
     PRIVATE -Wno-unused-parameter -Wall -Wextra -pedantic
   )
   target_include_directories(exip PUBLIC ${CONFIG_FOLDER})
+
+  if(EXICPP_FAST_DEBUG)
+    target_compile_options(exip PRIVATE 
+      -Og -foptimize-strlen
+    )
+  endif()
   if(EXI_CONFIG_TYPE STREQUAL "contiki")
     target_sources(exip PRIVATE ${CONFIG_FOLDER}/d_mem.c)
   endif()

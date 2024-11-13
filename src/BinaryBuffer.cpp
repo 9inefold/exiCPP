@@ -32,6 +32,12 @@ static std::size_t totalCount = 0;
 static std::size_t totalRead  = 0;
 static std::size_t totalWrote = 0;
 
+static auto getStartTime() {
+  static auto start_time
+    = std::chrono::system_clock::now();
+  return start_time;
+}
+
 static void printStats() {
   ++totalCount;
   fmt::print("\r"
@@ -40,9 +46,22 @@ static void printStats() {
     totalRead, totalWrote);
   
   if (totalCount % 8 == 0) {
-    fmt::println("  [{:%H:%M:%S}]", std::chrono::system_clock::now());
+    auto start = getStartTime();
+    auto now = std::chrono::system_clock::now();
+    fmt::println("  [{:%H:%M:%S}]", now - start);
     totalCount = 0;
   }
+}
+
+static int closeFile(std::FILE* fp) {
+  fmt::print("\n");
+  return std::fclose(fp);
+}
+
+#else
+
+ALWAYS_INLINE static int closeFile(std::FILE* fp) {
+  return std::fclose(fp);
 }
 
 #endif
