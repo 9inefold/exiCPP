@@ -156,7 +156,6 @@ using OptsTuple     = FillTuple<OptsType, 12>;
 using OptsTupleSlim = FillTuple<OptsType, 7>;
 
 struct Opts {
-  static Opts FromFlags(EnumOpt O, Align A, Preserve P);
   String getName() const;
   exi::Options forExip() const;
   Vec<String> forExificent() const;
@@ -197,42 +196,6 @@ struct OptsProxy : public Opts {
     this->PreserveLexicalValues = lv;
   }
 };
-
-#define IF_FLAG(...) if (static_cast<bool>(__VA_ARGS__))
-
-// TODO: Remove?
-Opts Opts::FromFlags(EnumOpt O, Align A, Preserve P) {
-  Opts out {};
-  
-  IF_FLAG (O & EnumOpt::Compression)
-    out.Compression = true;
-  IF_FLAG (O & EnumOpt::Strict)
-    out.Strict = true;
-  IF_FLAG (O & EnumOpt::Fragment)
-    out.Fragment = true;
-  IF_FLAG (O & EnumOpt::SelfContained)
-    out.Fragment = true;
-  
-  IF_FLAG (A & Align::BitPacked)
-    out.BitPacked = true;
-  IF_FLAG (A & Align::ByteAlignment)
-    out.ByteAligned = true;
-  IF_FLAG (A & Align::PreCompression)
-    out.PreCompression = true;
-
-  IF_FLAG (P & Preserve::Comments)
-    out.PreserveComments = true;
-  IF_FLAG (P & Preserve::PIs)
-    out.PreservePIs = true;
-  IF_FLAG (P & Preserve::DTD)
-    out.PreserveDTD = true;
-  IF_FLAG (P & Preserve::Prefixes)
-    out.PreservePrefixes = true;
-  IF_FLAG (P & Preserve::LexicalValues)
-    out.PreserveLexicalValues = true;
-
-  return out;
-}
 
 #define SET_OPT(flag, bl, val) do { \
   if (!!this->flag) { \
