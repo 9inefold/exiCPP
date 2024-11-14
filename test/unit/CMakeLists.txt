@@ -23,6 +23,7 @@ add_executable(unittests #Driver.cpp
 target_link_libraries(unittests ${TEST_LIBS} exicpp::util)
 
 target_compile_definitions(unittests PUBLIC
+  EXICPP_TEST_DIR="${CMAKE_SOURCE_DIR}/test"
   EXICPP_EXIFICIENT_DIR="${EXICPP_EXIFICIENT_DIR}"
   EXICPP_EXIFICIENT="${EXICPP_EXIFICIENT_DIR}/exificient-jar-with-dependencies.jar"
 )

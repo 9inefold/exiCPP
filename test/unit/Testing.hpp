@@ -19,7 +19,13 @@
 #pragma once
 
 #include <gtest/gtest.h>
+#include <filesystem>
 #include <string_view>
 
+inline constexpr std::string_view test_dir = EXICPP_TEST_DIR;
 inline constexpr std::string_view exificent_dir = EXICPP_EXIFICIENT_DIR;
 inline constexpr std::string_view exificent = EXICPP_EXIFICIENT;
+
+inline std::filesystem::path get_test_dir() {
+  return std::filesystem::path(test_dir);
+}
