@@ -28,14 +28,55 @@
 
 #include <STL.hpp>
 
+#include <concepts>
 #include <cstdlib>
 #include <utility>
 
 using namespace exi;
 
+namespace {
+
+template <typename...TT>
+using TestWithParams = testing::TestWithParam<std::tuple<TT...>>;
+
 using String = std::string;
 
-namespace {
+//////////////////////////////////////////////////////////////////////////
+// Tuple Generator
+
+template <typename T, std::size_t = 0>
+using NType = T;
+
+template <typename, class>
+struct TTupleGenerator;
+
+template <typename T, std::size_t...NN>
+struct TTupleGenerator<T, std::index_sequence<NN...>> {
+  using type = std::tuple<NType<T, NN>...>;
+};
+
+template <typename T, std::size_t N>
+using FillTuple = typename
+  TTupleGenerator<T, std::make_index_sequence<N>>::type;
+
+//////////////////////////////////////////////////////////////////////////
+// is_tuple
+
+template <typename...TT>
+std::true_type iis_tuple(const std::tuple<TT...>&);
+
+template <typename T>
+std::false_type iis_tuple(T&&);
+
+template <typename T>
+using IIsTuple = decltype(iis_tuple(std::declval<T>()));
+
+template <typename T>
+concept is_tuple = IIsTuple<T>::value;
+
+//======================================================================//
+// Test Utils
+//======================================================================//
 
 #ifdef WIN32
 static constexpr StrRef shell_eat = "nul";
@@ -110,26 +151,88 @@ namespace shell {
 // Options
 //======================================================================//
 
+using OptsType      = bool;
+using OptsTuple     = FillTuple<OptsType, 12>;
+using OptsTupleSlim = FillTuple<OptsType, 7>;
+
 struct Opts {
+  static Opts FromFlags(EnumOpt O, Align A, Preserve P);
   String getName() const;
   exi::Options forExip() const;
   Vec<String> forExificent() const;
 public:
-  unsigned Compression:           1 = false;
-  unsigned Strict:                1 = false;
-  unsigned Fragment:              1 = false;
-  unsigned SelfContained:         1 = false;
+  OptsType Compression:           1 = false;
+  OptsType Strict:                1 = false;
+  OptsType Fragment:              1 = false;
+  OptsType SelfContained:         1 = false;
 
-  unsigned BitPacked:             1 = true;
-  unsigned ByteAligned:           1 = false;
-  unsigned PreCompression:        1 = false;
+  OptsType BitPacked:             1 = true;
+  OptsType ByteAligned:           1 = false;
+  OptsType PreCompression:        1 = false;
 
-  unsigned PreserveComments:      1 = false;
-  unsigned PreservePIs:           1 = false;
-  unsigned PreserveDTD:           1 = false;
-  unsigned PreservePrefixes:      1 = false;
-  unsigned PreserveLexicalValues: 1 = false;
+  OptsType PreserveComments:      1 = false;
+  OptsType PreservePIs:           1 = false;
+  OptsType PreserveDTD:           1 = false;
+  OptsType PreservePrefixes:      1 = false;
+  OptsType PreserveLexicalValues: 1 = false;
 };
+
+struct OptsProxy : public Opts {
+  OptsProxy() = default;
+  OptsProxy(const OptsProxy&) = default;
+  OptsProxy(OptsProxy&&) = default;
+
+  constexpr OptsProxy(const OptsTuple& tup) :
+   Opts{std::make_from_tuple<Opts>(tup)} {
+  }
+
+  constexpr OptsProxy(const OptsTupleSlim& tup) : OptsProxy() {
+    auto [c, bit, byte, pc, com, pre, lv] = tup;
+    this->Compression           = c;
+    this->BitPacked             = bit;
+    this->ByteAligned           = byte;
+    this->PreCompression        = pc;
+    this->PreserveComments      = com;
+    this->PreservePrefixes      = pre;
+    this->PreserveLexicalValues = lv;
+  }
+};
+
+#define IF_FLAG(...) if (static_cast<bool>(__VA_ARGS__))
+
+// TODO: Remove?
+Opts Opts::FromFlags(EnumOpt O, Align A, Preserve P) {
+  Opts out {};
+  
+  IF_FLAG (O & EnumOpt::Compression)
+    out.Compression = true;
+  IF_FLAG (O & EnumOpt::Strict)
+    out.Strict = true;
+  IF_FLAG (O & EnumOpt::Fragment)
+    out.Fragment = true;
+  IF_FLAG (O & EnumOpt::SelfContained)
+    out.Fragment = true;
+  
+  IF_FLAG (A & Align::BitPacked)
+    out.BitPacked = true;
+  IF_FLAG (A & Align::ByteAlignment)
+    out.ByteAligned = true;
+  IF_FLAG (A & Align::PreCompression)
+    out.PreCompression = true;
+
+  IF_FLAG (P & Preserve::Comments)
+    out.PreserveComments = true;
+  IF_FLAG (P & Preserve::PIs)
+    out.PreservePIs = true;
+  IF_FLAG (P & Preserve::DTD)
+    out.PreserveDTD = true;
+  IF_FLAG (P & Preserve::Prefixes)
+    out.PreservePrefixes = true;
+  IF_FLAG (P & Preserve::LexicalValues)
+    out.PreserveLexicalValues = true;
+
+  return out;
+}
 
 #define SET_OPT(flag, bl, val) do { \
   if (!!this->flag) { \
@@ -152,11 +255,8 @@ String Opts::getName() const {
 
   bool align = false;
   O.append("Al");
-  if (!this->BitPacked && this->ByteAligned) {
-    SET_OPT(ByteAligned,          align, "Byte");
-  } else {        
-    SET_OPT(BitPacked,            align, "Bit");
-  }       
+  SET_OPT(ByteAligned,            align, "Byte");
+  SET_OPT(BitPacked,              align, "Bit");  
   SET_OPT(PreCompression,         align, "Pre");
   O.push_back('_');
 
@@ -167,7 +267,7 @@ String Opts::getName() const {
   SET_OPT(PreserveDTD,            preserve, "D");
   SET_OPT(PreservePrefixes,       preserve, "P");
   SET_OPT(PreserveLexicalValues,  preserve, "L");
-  if (!opt) O.append("None");
+  if (!preserve) O.append("None");
 
 #undef SET_OPT
   return O;
@@ -229,7 +329,7 @@ Vec<String> Opts::forExificent() const {
 // Suite
 //======================================================================//
 
-class Suite : public testing::Test {
+class CompareExi : public testing::TestWithParam<OptsProxy> {
 protected:
   void SetUp() override {
     static bool dir_exists = fs::exists(exificent_dir);
@@ -250,7 +350,7 @@ protected:
   static bool CheckJavaInstall();
 };
 
-bool Suite::CheckJavaInstall() {
+bool CompareExi::CheckJavaInstall() {
   // These are on both UNIX and modern Windows.
   int ret = shell::Err.call("which java", false);
 #ifdef _WIN32
@@ -262,14 +362,11 @@ bool Suite::CheckJavaInstall() {
   return (ret == 0);
 }
 
-//======================================================================//
+//////////////////////////////////////////////////////////////////////////
 // Testing
-//======================================================================//
-
-class Encoding : public Suite {};
 
 std::pair<fs::path, fs::path> getValidXMLPaths() {
-  fs::path curr = fs::current_path();
+  fs::path curr = get_test_dir();
   assert(curr.stem() == "test");
   fs::path dir = curr / "xmltest/valid/sa";
   assert(fs::exists(dir));
@@ -285,14 +382,39 @@ Option<fs::path> checkXMLTest(const fs::directory_entry& entry) {
   return {std::move(file)};
 }
 
-TEST_F(Encoding, PsNone_BytePk) {
+TEST_P(CompareExi, Encode) {
+  Opts O = GetParam();
+  auto tmp = get_test_dir() / "tmp" / O.getName();
   auto [in, out] = getValidXMLPaths();
   for (const auto& entry : fs::directory_iterator{in}) {
-    auto file = checkXMLTest(entry);
+    Option<fs::path> file = checkXMLTest(entry);
     if (!file)
       continue;
-
+    
   }
 }
+
+//////////////////////////////////////////////////////////////////////////
+// Instance
+
+using ::testing::Bool;
+using TestTuple = OptsTupleSlim; 
+using TestType  = testing::TestParamInfo<CompareExi::ParamType>;
+
+auto getName(const TestType& I) -> std::string {
+  const Opts& O = I.param;
+  return O.getName();
+};
+
+INSTANTIATE_TEST_SUITE_P(Conformance, CompareExi,
+  testing::ConvertGenerator<TestTuple>(
+    testing::Combine(
+      Bool(), Bool(), Bool(), Bool(),
+      Bool(), Bool(), Bool()
+      // , Bool(), Bool(), Bool(), Bool(), Bool()
+    )
+  ),
+  &getName
+);
 
 } // namespace `anonymous`
