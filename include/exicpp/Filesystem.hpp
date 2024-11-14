@@ -31,6 +31,10 @@ namespace fs = std::filesystem;
 inline Str to_multibyte(const Str& str) { return str; }
 Str to_multibyte(const std::wstring& str);
 
+inline Str to_multibyte(const fs::path& path) {
+  return to_multibyte(path.native());
+}
+
 } // namespace exi
 
 #endif // EXICPP_FILESYSTEM_HPP
