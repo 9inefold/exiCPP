@@ -26,10 +26,14 @@
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 
-#include <cstdlib>
 #include <STL.hpp>
 
+#include <cstdlib>
+#include <utility>
+
 using namespace exi;
+
+using String = std::string;
 
 namespace {
 
@@ -40,12 +44,12 @@ static constexpr StrRef shell_eat = "/dev/null";
 #endif
 
 struct System {
-  Str formatCall(const Str& S) const;
-  int call(const Str& S, bool do_flush = true) const;
-  int callExificent(const Vec<Str>& args, bool do_flush = true) const;
-  int callExificent(const Str& arg = "", bool do_flush = true) const;
+  String formatCall(const String& S) const;
+  int call(const String& S, bool do_flush = true) const;
+  int callExificent(const Vec<String>& args, bool do_flush = true) const;
+  int callExificent(const String& arg = "", bool do_flush = true) const;
 
-  int operator()(const Str& S, bool do_flush = true) const {
+  int operator()(const String& S, bool do_flush = true) const {
     return this->call(S, do_flush);
   }
 
@@ -54,7 +58,7 @@ public:
   StrRef err = "";
 };
 
-Str System::formatCall(const Str& S) const {
+String System::formatCall(const String& S) const {
   if (out.empty()) {
     if (err.empty())
       return S;
@@ -68,15 +72,15 @@ Str System::formatCall(const Str& S) const {
   }
 }
 
-int System::call(const Str& S, bool do_flush) const {
+int System::call(const String& S, bool do_flush) const {
   if (do_flush)
     std::flush(std::cout);
-  Str cmd = this->formatCall(S);
+  String cmd = this->formatCall(S);
   // fmt::println(stderr, "Exec: '{}'", cmd);
   return std::system(cmd.c_str());
 }
 
-int System::callExificent(const Vec<Str>& args, bool do_flush) const {
+int System::callExificent(const Vec<String>& args, bool do_flush) const {
   auto cmd = fmt::format("java -jar {} {}",
     exificent,
     fmt::join(args, " ")
@@ -84,8 +88,10 @@ int System::callExificent(const Vec<Str>& args, bool do_flush) const {
   return this->call(cmd, do_flush);
 }
 
-int System::callExificent(const Str& arg, bool do_flush) const {
-  return this->callExificent(Vec{arg}, do_flush);
+int System::callExificent(const String& arg, bool do_flush) const {
+  // Explicitly passing the allocator to avoid an ICE pre gcc 12.0
+  using A = typename Vec<String>::allocator_type;
+  return this->callExificent(Vec({arg}, A{}), do_flush);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -105,24 +111,67 @@ namespace shell {
 //======================================================================//
 
 struct Opts {
+  String getName() const;
   exi::Options forExip() const;
-  Vec<Str> forExificent() const;
+  Vec<String> forExificent() const;
 public:
-  unsigned Compression:           1; 
-  unsigned Strict:                1; 
-  unsigned Fragment:              1; 
-  unsigned SelfContained:         1;
+  unsigned Compression:           1 = false;
+  unsigned Strict:                1 = false;
+  unsigned Fragment:              1 = false;
+  unsigned SelfContained:         1 = false;
 
-  unsigned BitPacked:             1;
-  unsigned ByteAligned:           1;
-  unsigned PreCompression:        1;
+  unsigned BitPacked:             1 = true;
+  unsigned ByteAligned:           1 = false;
+  unsigned PreCompression:        1 = false;
 
-  unsigned PreserveComments:      1;     
-  unsigned PreservePIs:           1;          
-  unsigned PreserveDTD:           1;          
-  unsigned PreservePrefixes:      1;     
-  unsigned PreserveLexicalValues: 1;
+  unsigned PreserveComments:      1 = false;
+  unsigned PreservePIs:           1 = false;
+  unsigned PreserveDTD:           1 = false;
+  unsigned PreservePrefixes:      1 = false;
+  unsigned PreserveLexicalValues: 1 = false;
 };
+
+#define SET_OPT(flag, bl, val) do { \
+  if (!!this->flag) { \
+    O.append(val); \
+    bl = true; \
+  } \
+} while(0)
+
+String Opts::getName() const {
+  String O;
+  
+  bool opt = false;
+  O.append("Opt");
+  SET_OPT(Compression,            opt, "C");
+  SET_OPT(Strict,                 opt, "S");
+  SET_OPT(Fragment,               opt, "F");
+  SET_OPT(SelfContained,          opt, "I");
+  if (!opt) O.append("None");
+  O.push_back('_');
+
+  bool align = false;
+  O.append("Al");
+  if (!this->BitPacked && this->ByteAligned) {
+    SET_OPT(ByteAligned,          align, "Byte");
+  } else {        
+    SET_OPT(BitPacked,            align, "Bit");
+  }       
+  SET_OPT(PreCompression,         align, "Pre");
+  O.push_back('_');
+
+  bool preserve = false;
+  O.append("Ps");
+  SET_OPT(PreserveComments,       preserve, "C");
+  SET_OPT(PreservePIs,            preserve, "I");
+  SET_OPT(PreserveDTD,            preserve, "D");
+  SET_OPT(PreservePrefixes,       preserve, "P");
+  SET_OPT(PreserveLexicalValues,  preserve, "L");
+  if (!opt) O.append("None");
+
+#undef SET_OPT
+  return O;
+}
 
 #define SET_OPT(flag, val) do { \
   if (!!this->flag) O.set(val); \
@@ -154,8 +203,8 @@ exi::Options Opts::forExip() const {
   if (!!this->flag) O.emplace_back(val); \
 } while(0)
 
-Vec<Str> Opts::forExificent() const {
-  Vec<Str> O;
+Vec<String> Opts::forExificent() const {
+  Vec<String> O;
 
   SET_OPT(Compression,            "compression");
   SET_OPT(Strict,                 "strict");
@@ -180,7 +229,7 @@ Vec<Str> Opts::forExificent() const {
 // Suite
 //======================================================================//
 
-class ConformanceBase : public testing::Test {
+class Suite : public testing::Test {
 protected:
   void SetUp() override {
     static bool dir_exists = fs::exists(exificent_dir);
@@ -201,7 +250,7 @@ protected:
   static bool CheckJavaInstall();
 };
 
-bool ConformanceBase::CheckJavaInstall() {
+bool Suite::CheckJavaInstall() {
   // These are on both UNIX and modern Windows.
   int ret = shell::Err.call("which java", false);
 #ifdef _WIN32
@@ -213,14 +262,37 @@ bool ConformanceBase::CheckJavaInstall() {
   return (ret == 0);
 }
 
-class Conformance : public ConformanceBase {};
-
 //======================================================================//
 // Testing
 //======================================================================//
 
-TEST_F(Conformance, Encoding) {
-  ASSERT_EQ(1,1);
+class Encoding : public Suite {};
+
+std::pair<fs::path, fs::path> getValidXMLPaths() {
+  fs::path curr = fs::current_path();
+  assert(curr.stem() == "test");
+  fs::path dir = curr / "xmltest/valid/sa";
+  assert(fs::exists(dir));
+  return {dir, dir / "out"};
+}
+
+Option<fs::path> checkXMLTest(const fs::directory_entry& entry) {
+  if (!entry.is_regular_file())
+    return std::nullopt;
+  fs::path file = entry.path();
+  if (file.extension() != ".xml");
+    return std::nullopt;
+  return {std::move(file)};
+}
+
+TEST_F(Encoding, PsNone_BytePk) {
+  auto [in, out] = getValidXMLPaths();
+  for (const auto& entry : fs::directory_iterator{in}) {
+    auto file = checkXMLTest(entry);
+    if (!file)
+      continue;
+
+  }
 }
 
 } // namespace `anonymous`
