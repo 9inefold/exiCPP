@@ -66,4 +66,63 @@
   LOG_INTERNAL(EXICPP_FMT_LOC(), \
     GET_ERR_STRING(CErrCode(err_code)), ERROR)
 
+#if EXICPP_ANSI
+# define EXICPP_STYLED(...) (::exi::dbg::styled(__VA_ARGS__))
+#else
+# define EXICPP_STYLED(...) (__VA_ARGS__)
+#endif
+
+namespace exi {
+namespace dbg {
+
+ALWAYS_INLINE bool has_ansi() {
+#if EXICPP_ANSI
+  return can_use_ansi();
+#else
+  return false;
+#endif
+}
+
+#if EXICPP_ANSI
+template <typename T>
+struct Styled : public fmt::detail::styled_arg<T> {
+  using Base = fmt::detail::styled_arg<T>;
+  using Base::Base;
+};
+
+template <typename T>
+FMT_CONSTEXPR auto styled(const T& V, fmt::text_style ts)
+ -> Styled<fmt::remove_cvref_t<T>> {
+  return Styled<fmt::remove_cvref_t<T>>{V, ts};
+}
+#else // !EXICPP_ANSI
+template <typename T>
+FMT_CONSTEXPR FMT_INLINE auto styled(
+ const T& V, fmt::text_style) -> const T& {
+  return V;
+}
+#endif // EXICPP_ANSI
+
+} // namespace dbg
+} // namespace exi
+
+#if EXICPP_ANSI
+template <typename T, typename Char>
+struct fmt::formatter<exi::dbg::Styled<T>, Char> :
+ fmt::formatter<fmt::detail::styled_arg<T>, Char>
+{
+  using BaseFormatter = fmt::formatter<T, Char>;
+  using AnsiFormatter = fmt::formatter<fmt::detail::styled_arg<T>, Char>;
+
+  template <typename FormatContext>
+  auto format(exi::dbg::Styled<T>& arg, FormatContext& ctx) const
+   -> decltype(ctx.out()) {
+    if (exi::dbg::has_ansi())
+      return AnsiFormatter::format(arg, ctx);
+    else
+      return BaseFormatter::format(arg.value, ctx);
+  }
+};
+#endif // EXICPP_ANSI
+
 #endif // EXICPP_DEBUG_FORMAT_HPP

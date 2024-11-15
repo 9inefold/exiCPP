@@ -23,6 +23,9 @@
 
 #include "Location.hpp"
 #include <fmt/format.h>
+#if EXICPP_ANSI
+# include <fmt/color.h>
+#endif
 
 #define EXICPP_FMT_LOC() EXICPP_LOCATION(FUNC)
 

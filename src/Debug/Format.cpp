@@ -25,7 +25,7 @@
 #define BG(col) fmt::bg(fmt::color::col)
 
 #if EXICPP_ANSI
-# define STYLED(msg, col) fmt::styled(msg, col)
+# define STYLED(msg, col) EXICPP_STYLED(msg, col)
 #else
 # define STYLED(msg, col) (msg)
 #endif
