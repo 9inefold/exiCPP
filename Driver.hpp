@@ -119,8 +119,8 @@ enum Mode {
 };
 
 template <>
-class fmt::formatter<fs::path, char> : public fmt::formatter<std::string> {
-  using BaseType = fmt::formatter<std::string>;
+class fmt::formatter<fs::path, exi::Char> : public fmt::formatter<exi::Str> {
+  using BaseType = fmt::formatter<exi::Str>;
 public:
   template <typename FormatContext>
   FMT_CONSTEXPR auto format(const fs::path& value, FormatContext& ctx) const
