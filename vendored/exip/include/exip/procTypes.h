@@ -27,14 +27,6 @@
 
 EXIP_BEGIN_DEFS
 
-enum boolean
-{
-	FALSE = 0,
-	TRUE  = 1
-};
-
-typedef enum boolean boolean;
-
 #ifndef NULL
 #define NULL ((void *)0)
 #endif

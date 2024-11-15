@@ -22,6 +22,8 @@
 # include <io.h>
 # define WIN32_LEAN_AND_MEAN
 # include <windows.h>
+# undef TRUE
+# undef FALSE
 #else
 # include <sys/stat.h>
 # include <unistd.h>
@@ -50,7 +52,7 @@ bool can_use_ansi(bool refresh) {
   static bool B = !!exip::exipCanUseAnsi();
   if EXICPP_UNLIKELY(refresh) {
     // Run everything again. Useful if attaching new consoles.
-    B = !!exip::exipCanUseAnsi();
+    B = !!exip::exipCanUseAnsi(exip::TRUE);
   }
   return B;
 }

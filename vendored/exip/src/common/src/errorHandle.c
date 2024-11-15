@@ -65,7 +65,7 @@ static boolean exip_isatty(int fd) {
   return (boolean)(!!res);
 }
 
-static int exip_fileno(std::FILE* stream) {
+static int exip_fileno(FILE* stream) {
 #ifdef _WIN32
   return _fileno(stream);
 #else
@@ -174,7 +174,7 @@ void exipDebugPrint(
   const char* outFuncData = (function && *function) ? funcData : NULL;
 
 #if EXIP_ANSI
-  if (ansiMode == ON && exipCanUseAnsi() == TRUE) {
+  if (ansiMode == ON && exipCanUseAnsi(FALSE) == TRUE) {
     debugPrintAnsi(err, text, shortFilename, outFuncData, line);
     return;
   }

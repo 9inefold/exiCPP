@@ -138,6 +138,14 @@
 
 EXIP_BEGIN_DEFS
 
+enum boolean
+{
+	FALSE = 0,
+	TRUE  = 1
+};
+
+typedef enum boolean boolean;
+
 // IMPORTANT: remember to keep in sync with "errorCodeStrings[]" in procTypes.c!
 /* Definitions for error constants. */
 enum errorCode
@@ -232,7 +240,11 @@ typedef enum errorCode errorCode;
 # define DEBUG_TRACE_PRINT(err, text) ((void)(0))
 #endif
 
+#ifdef __cplusplus
+boolean exipCanUseAnsi(boolean refresh = FALSE);
+#else
 boolean exipCanUseAnsi(boolean refresh);
+#endif
 
 #if (EXIP_DEBUG == ON) && (EXIP_ANSI == ON)
 	extern int ansiMode;
