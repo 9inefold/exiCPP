@@ -21,7 +21,9 @@
 #include <exicpp/XML.hpp>
 #include "Driver.hpp"
 
-#define RAPIDXML_NO_STREAMS
+// #define RAPIDXML_NO_STREAMS
+#include <iostream>
+
 #include <algorithm>
 #include <fstream>
 #include <iterator>
@@ -90,7 +92,7 @@ private:
   }
 
   void flush() {
-    os.write(buffer.data(), buffer.capacity());
+    os.write(buffer.data(), buffer.size());
     buffer.resize(0);
   }
 
@@ -118,8 +120,8 @@ struct XMLBuilder {
   const XMLDocument* document() const { return doc.get(); }
 
   void dump() {
-    // std::cout << GetXMLHead() << '\n';
-    // std::cout << *doc << std::endl;
+    std::cout << GetXMLHead() << '\n';
+    std::cout << *doc << std::endl;
   }
 
   void dump(const fs::path& outpath) {
@@ -133,8 +135,10 @@ struct XMLBuilder {
     }
 
     os << GetXMLHead() << '\n';
-    FilestreamBuf fstr(os, 2048);
-    rapidxml::print(fstr.getIter(), *this->doc);
+    // TODO: fix?
+    // FilestreamBuf fstr(os, 2048);
+    // rapidxml::print(fstr.getIter(), *this->doc);
+    rapidxml::print(std::ostream_iterator<Char>(os), *this->doc);
   }
 
 public:
@@ -297,6 +301,7 @@ private:
 
 static Mode progMode = Mode::Default;
 static bool verbose = false;
+static bool doDump = false;
 
 static Option<fs::path> inpath;
 static Option<fs::path> outpath;
@@ -522,6 +527,9 @@ static void processCommand(ArgProcessor& P) {
     if (!setPath(outpath, path))
       PRINT_WARN("Output path has already been set.");
     P.next();
+  } else if (str == "-dump") {
+    PRINT_INFO("Dumping for decode.");
+    doDump = true;
   } else if (str == "e" || str == "-encode") {
     progMode = Mode::Encode;
   } else if (str == "d" || str == "-decode") {
@@ -711,8 +719,12 @@ void decodeEXI(bool doPrint) {
     std::exit(1);
   }
 
-  builder.dump(xml);
-  if (doPrint) {
+  if (doDump)
+    builder.dump();
+  else
+    builder.dump(xml);
+
+  if (!doDump && doPrint) {
     COLOR_PRINTLN(fmt::color::light_green,
       "Wrote to '{}'", xml);
   }
@@ -790,8 +802,13 @@ void encodeDecode(bool doPrint) {
     return;
   }
 
-  builder.dump(*xmlOut);
-  if (doPrint) {
+  if (doDump)
+    // Dump to output stream.
+    builder.dump();
+  else
+    builder.dump(*xmlOut);
+  
+  if (!doDump && doPrint) {
     COLOR_PRINTLN(fmt::color::light_green,
       "Wrote to '{}'", *xmlOut);
   }

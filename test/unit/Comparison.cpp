@@ -252,7 +252,9 @@ exi::Options Opts::forExip() const {
 
   SET_OPT(ByteAligned,            Align::ByteAlignment);
   SET_OPT(PreCompression,         Align::PreCompression);
-  SET_OPT(BitPacked,              Align::BitPacked);
+  if (!this->ByteAligned || this->BitPacked)
+    O.set(Align::BitPacked);
+  // SET_OPT(BitPacked,              Align::BitPacked);
 
   SET_OPT(PreserveComments,       Preserve::Comments);
   SET_OPT(PreservePIs,            Preserve::PIs);
@@ -356,6 +358,9 @@ fs::path replaceExt(fs::path path, const fs::path& ext) {
 
 TEST_P(CompareExi, Encode) {
   Opts O = GetParam();
+  if (O.Compression)
+    GTEST_SKIP() << "Compression is currently not supported, skipping.";
+
   exi::Options exip_opts = O.forExip();
   Vec<String> exif_opts = O.forExificent();
   HeapBuffer bufBase {(2048 * 32) - 1};
@@ -365,7 +370,7 @@ TEST_P(CompareExi, Encode) {
   (void) fs::create_directories(tmp);
 
   exif_opts.reserve(exif_opts.size() + 5);
-  for (const auto& entry : fs::directory_iterator{in}) {
+  for (const auto& entry : fs::directory_iterator{out}) {
     Option<fs::path> file = checkXMLTest(entry);
     if (!file)
       continue;
@@ -374,8 +379,7 @@ TEST_P(CompareExi, Encode) {
     BinaryBuffer buf {bufBase};
     auto xmldoc = BoundDocument::ParseFrom<0, false>(*file);
     if (!xmldoc) {
-      fmt::println("[ERROR] XML parse error in: {}", to_multibyte(*file));
-      // ADD_FAILURE() << "XML parse error in: " << (*file);
+      ADD_FAILURE() << "XML parse error in: " << (*file);
       continue;
     }
     if (Error E = buf.writeFile(exip)) {

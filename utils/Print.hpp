@@ -18,11 +18,11 @@
 
 #pragma once
 
-#include <fmt/format.h>
+#include <exicpp/Debug/Format.hpp>
 #include <fmt/color.h>
 
 #define COLOR_PRINT_(col, fstr, ...) \
-  fmt::print(fstr, fmt::styled( \
+  fmt::print(fstr, exi::dbg::styled( \
     fmt::format(__VA_ARGS__), fmt::fg(col)))
 
 #define COLOR_PRINT(col, ...)   COLOR_PRINT_(col, "{}", __VA_ARGS__)
