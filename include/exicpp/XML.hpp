@@ -51,7 +51,7 @@ public:
 public:
   static BoundDocument From(const fs::path& filename);
 
-  template <int Flags = 0, bool CaptureExceptions = true>
+  template <int Flags = 0, bool DoTrim = true>
   static BoundDocument ParseFrom(const fs::path& filename) {
     constexpr int DefaultFlags =
         rapidxml::parse_no_string_terminators
@@ -59,15 +59,12 @@ public:
     auto res = BoundDocument::From(filename);
     if (res) {
       Char* bufdata = res.buf.data();
-      if constexpr (CaptureExceptions) {
-        try {
-          res.doc->parse<Flags | DefaultFlags>(bufdata);
-        } catch (const std::exception& e) {
-          BoundDocument::LogException(e);
-          res.buf.reset();
-        }
-      } else {
-        res.doc->parse<Flags | DefaultFlags>(bufdata);
+      try {
+        constexpr int DFlags = (DoTrim ? DefaultFlags : 0);
+        res.doc->parse<Flags | DFlags>(bufdata);
+      } catch (const std::exception& e) {
+        BoundDocument::LogException(e);
+        res.buf.reset();
       }
     }
     return res;

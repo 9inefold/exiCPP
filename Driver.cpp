@@ -507,7 +507,7 @@ static void processCommand(ArgProcessor& P) {
   if (str.front() == 'p') {
     setPreserved(P, str);
     return;
-  } else if (str.front() == 'o') {
+  } else if (str.front() == 'o' && str.size() > 1) {
     setEnumOpt(P, str);
     return;
   }
@@ -556,6 +556,7 @@ static int driverMain(int argc, char* argv[]) {
 
     if (str.front() != '-') {
       PRINT_WARN("Unknown input '{}', ignoring.", str);
+      P.next();
       continue;
     }
 
