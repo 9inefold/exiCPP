@@ -17,9 +17,7 @@ if(CCACHE_FOUND)
 	endif()
 endif(CCACHE_FOUND)
 
-add_executable(unittests #Driver.cpp 
-  ${UNITTEST_SRC}
-)
+add_executable(unittests Driver.cpp ${UNITTEST_SRC})
 target_link_libraries(unittests ${TEST_LIBS} exicpp::util)
 
 target_compile_definitions(unittests PUBLIC
@@ -27,6 +25,14 @@ target_compile_definitions(unittests PUBLIC
   EXICPP_EXIFICIENT_DIR="${EXICPP_EXIFICIENT_DIR}"
   EXICPP_EXIFICIENT="${EXICPP_EXIFICIENT_DIR}/exificient-jar-with-dependencies.jar"
 )
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+  # ...
+else()
+  target_compile_options(unittests PRIVATE
+    -Wall -Wpedantic -Wno-unused-variable -Wno-unused-function
+  )
+endif()
 
 add_dependencies(${EXICPP_TESTS} unittests)
 

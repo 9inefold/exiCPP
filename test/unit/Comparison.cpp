@@ -20,12 +20,14 @@
 
 #include "Testing.hpp"
 
+#include <exicpp/BinaryBuffer.hpp>
 #include <exicpp/Filesystem.hpp>
 #include <exicpp/Options.hpp>
+#include <exicpp/Writer.hpp>
 #include <exicpp/XML.hpp>
+
 #include <fmt/format.h>
 #include <fmt/ranges.h>
-
 #include <STL.hpp>
 
 #include <concepts>
@@ -216,7 +218,7 @@ String Opts::getName() const {
   if (!opt) O.append("None");
   O.push_back('_');
 
-  bool align = false;
+  [[maybe_unused]] bool align = false;
   O.append("Al");
   SET_OPT(ByteAligned,            align, "Byte");
   SET_OPT(BitPacked,              align, "Bit");  
@@ -268,21 +270,23 @@ exi::Options Opts::forExip() const {
 
 Vec<String> Opts::forExificent() const {
   Vec<String> O;
+  O.reserve(4);
+  O.emplace_back("-includeOptions");
 
-  SET_OPT(Compression,            "compression");
-  SET_OPT(Strict,                 "strict");
-  SET_OPT(Fragment,               "fragment");
-  // SET_OPT(SelfContained,          "selfContained");
+  SET_OPT(Compression,            "-compression");
+  SET_OPT(Strict,                 "-strict");
+  SET_OPT(Fragment,               "-fragment");
+  // SET_OPT(SelfContained,          "-selfContained");
 
   if (!this->BitPacked)
-    SET_OPT(ByteAligned,          "bytePacked");
-  SET_OPT(PreCompression,         "preCompression");
+    SET_OPT(ByteAligned,          "-bytePacked");
+  SET_OPT(PreCompression,         "-preCompression");
 
-  SET_OPT(PreserveComments,       "preserveComments");
-  SET_OPT(PreservePIs,            "preservePIs");
-  SET_OPT(PreserveDTD,            "preserveDTDs");
-  SET_OPT(PreservePrefixes,       "preservePrefixes");
-  SET_OPT(PreserveLexicalValues,  "preserveLexicalValues");
+  SET_OPT(PreserveComments,       "-preserveComments");
+  SET_OPT(PreservePIs,            "-preservePIs");
+  SET_OPT(PreserveDTD,            "-preserveDTDs");
+  SET_OPT(PreservePrefixes,       "-preservePrefixes");
+  SET_OPT(PreserveLexicalValues,  "-preserveLexicalValues");
 
 #undef SET_OPT
   return O;
@@ -340,20 +344,59 @@ Option<fs::path> checkXMLTest(const fs::directory_entry& entry) {
   if (!entry.is_regular_file())
     return std::nullopt;
   fs::path file = entry.path();
-  if (file.extension() != ".xml");
+  if (file.extension() != ".xml")
     return std::nullopt;
   return {std::move(file)};
+  // return {fs::absolute(file)};
+}
+
+fs::path replaceExt(fs::path path, const fs::path& ext) {
+  return path.replace_extension(ext);
 }
 
 TEST_P(CompareExi, Encode) {
   Opts O = GetParam();
+  exi::Options exip_opts = O.forExip();
+  Vec<String> exif_opts = O.forExificent();
+  HeapBuffer bufBase {(2048 * 32) - 1};
+
   auto tmp = get_test_dir() / "tmp" / O.getName();
   auto [in, out] = getValidXMLPaths();
+  (void) fs::create_directories(tmp);
+
+  exif_opts.reserve(exif_opts.size() + 5);
   for (const auto& entry : fs::directory_iterator{in}) {
     Option<fs::path> file = checkXMLTest(entry);
     if (!file)
       continue;
+
+    auto exip = replaceExt(tmp / file->filename(), ".exip.exi");
+    BinaryBuffer buf {bufBase};
+    auto xmldoc = BoundDocument::ParseFrom(*file);
+    if (!xmldoc) {
+      ADD_FAILURE() << "XML parse error in: " << (*file);
+      continue;
+    }
+    if (Error E = buf.writeFile(exip)) {
+      ADD_FAILURE()
+        << "exip error in: " << (*file)
+        << "; " << E.message();
+      continue;
+    }
+    if (Error E = write_xml(xmldoc.document(), buf, exip_opts)) {
+      ADD_FAILURE() << "Invalid exip input: " << (*file);
+      continue;
+    }
     
+    auto exif = replaceExt(tmp / file->filename(), ".exif.exi");
+    ResizeAdaptor O(exif_opts);
+    O->emplace_back("-encode");
+    O->emplace_back("-i");
+    O->emplace_back(to_multibyte(*file).c_str());
+    O->emplace_back("-o");
+    O->emplace_back(to_multibyte(exif).c_str());
+    int ret = shell::All.callExificent(O.get());
+    EXPECT_EQ(ret, 0) << "Invalid exif input: " << (*file);
   }
 }
 

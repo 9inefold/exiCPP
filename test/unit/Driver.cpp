@@ -18,6 +18,9 @@
 
 #include "Testing.hpp"
 #include <exicpp/Filesystem.hpp>
+#include <exip/errorHandle.h>
+#include <rapidxml.hpp>
+#include <fmt/format.h>
 
 using namespace exi;
 
@@ -27,6 +30,9 @@ TEST(Exificent, CheckExists) {
 }
 
 int main(int argc, char** argv) {
+  rapidxml::use_exceptions_anyway = true;
+  DEBUG_SET_MODE(false);
+  DEBUG_SET_ANSI(false);
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

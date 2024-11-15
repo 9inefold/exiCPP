@@ -21,10 +21,39 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 #include <string_view>
+#include <vector>
 
 inline constexpr std::string_view test_dir = EXICPP_TEST_DIR;
 inline constexpr std::string_view exificent_dir = EXICPP_EXIFICIENT_DIR;
 inline constexpr std::string_view exificent = EXICPP_EXIFICIENT;
+
+template <typename T, class A>
+class ResizeAdaptor {
+  using VecType = std::vector<T, A>;
+public:
+  ResizeAdaptor(VecType& V) :
+   Vec(&V), OldSize(V.size()) {
+  }
+
+  ~ResizeAdaptor() {
+    Vec->resize(this->OldSize);
+  }
+
+  VecType& get() const& {
+    return *this->Vec;
+  }
+  
+  VecType* operator->() const& {
+    return this->Vec;
+  }
+
+private:
+  VecType* Vec;
+  std::size_t OldSize = 0;
+};
+
+template <typename T, class A>
+ResizeAdaptor(std::vector<T, A>&) -> ResizeAdaptor<T, A>;
 
 inline std::filesystem::path get_test_dir() {
   return std::filesystem::path(test_dir);
