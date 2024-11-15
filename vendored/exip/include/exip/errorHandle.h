@@ -232,6 +232,8 @@ typedef enum errorCode errorCode;
 # define DEBUG_TRACE_PRINT(err, text) ((void)(0))
 #endif
 
+boolean exipCanUseAnsi(boolean refresh);
+
 #if (EXIP_DEBUG == ON) && (EXIP_ANSI == ON)
 	extern int ansiMode;
 /// Set ANSI printing ON/OFF.

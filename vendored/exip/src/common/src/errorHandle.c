@@ -18,6 +18,17 @@
 #include "errorHandle.h"
 #include "procTypes.h"
 
+#if EXIP_ANSI
+# ifdef _WIN32
+#  include <io.h>
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+# else
+#  include <sys/stat.h>
+#  include <unistd.h>
+# endif
+#endif
+
 #ifndef DEBUG_OUTPUT
 # define DEBUG_OUTPUT(...) ((void)(0))
 #endif
@@ -43,6 +54,69 @@ enum ErrorExtra_ {
 
 int debugMode = ON;
 int ansiMode  = ON;
+
+#if EXIP_ANSI
+static boolean exip_isatty(int fd) {
+#ifdef _WIN32
+  const int res = _isatty(fd);
+#else
+  const int res = isatty(fd);
+#endif
+  return (boolean)(!!res);
+}
+
+static int exip_fileno(std::FILE* stream) {
+#ifdef _WIN32
+  return _fileno(stream);
+#else
+  return fileno(stream);
+#endif
+}
+
+static boolean enableAnsiIfNeeded() {
+  // enable colors / ansi processing if necessary
+#ifdef _WIN32
+  // https://docs.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences#example-of-enabling-virtual-terminal-processing
+# ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#  define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x4
+# endif
+  HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+  DWORD dwMode = 0;
+  if (hOut == INVALID_HANDLE_VALUE)
+    return FALSE;
+  if (!GetConsoleMode(hOut, &dwMode))
+    return FALSE;
+  if (dwMode != (dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
+    if (!SetConsoleMode(hOut, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING))
+      return FALSE;
+  }
+#endif
+  return TRUE;
+}
+
+static boolean checkAndEnableAnsi() {
+  int fd = exip_fileno(stdout);
+  if (exip_isatty(fd) == FALSE)
+    return FALSE;
+  return enableAnsiIfNeeded();
+}
+
+boolean exipCanUseAnsi(boolean refresh) {
+  static boolean last_result = FALSE;
+  static boolean needs_running = TRUE;
+  needs_running = refresh;
+  if (needs_running == TRUE) {
+    last_result = checkAndEnableAnsi();
+    needs_running = FALSE;
+  }
+  return last_result;
+}
+#else
+boolean exipCanUseAnsi(boolean refresh) {
+  (void) refresh;
+  return FALSE;
+}
+#endif
 
 static void copyStringData(char** pdst, const char* src, size_t len);
 static const char* getFileName(const char* name);
@@ -100,7 +174,7 @@ void exipDebugPrint(
   const char* outFuncData = (function && *function) ? funcData : NULL;
 
 #if EXIP_ANSI
-  if (ansiMode == ON) {
+  if (ansiMode == ON && exipCanUseAnsi() == TRUE) {
     debugPrintAnsi(err, text, shortFilename, outFuncData, line);
     return;
   }

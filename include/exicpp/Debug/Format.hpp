@@ -17,6 +17,7 @@
 //===----------------------------------------------------------------===//
 
 #include "_Format.hpp"
+#include "Terminal.hpp"
 
 #undef EXICPP_LOG_FUNC
 #if !NFORMAT
