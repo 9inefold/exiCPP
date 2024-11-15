@@ -46,6 +46,9 @@ namespace rapidxml
     //! \param what Human readable description of the error.
     //! \param where Pointer to character data where error was detected.
     void parse_error_handler(const char *what, void *where);
+
+    //! Forces the use of exceptions. Useful for testing.
+    extern bool use_exceptions_anyway;
 }
 
 #else
@@ -102,6 +105,9 @@ namespace rapidxml
         void *m_where;
 
     };
+
+    //! Does nothing in this mode.
+    extern bool use_exceptions_anyway;
 }
 
 #endif

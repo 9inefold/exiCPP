@@ -19,17 +19,24 @@
 #include <XML.hpp>
 #include <Debug/Format.hpp>
 #include <cstdio>
+#include <stdexcept>
 #include <fmt/color.h>
 
 using namespace exi;
 
 namespace rapidxml {
 
+bool use_exceptions_anyway = false;
+
 [[noreturn]] static void printFinal(const std::string& str) {
-  fmt::println(stderr, "{}", fmt::styled(
-    str, fmt::fg(fmt::color::red))
-  );
-  dbg::fatalError();
+  if (!use_exceptions_anyway) {
+    fmt::println(stderr, "{}", dbg::styled(
+      str, fmt::fg(fmt::color::red))
+    );
+    dbg::fatalError();
+  } else {
+    throw std::runtime_error(str);
+  }
 }
 
 void parse_error_handler(const char* what, void* where) {
@@ -41,7 +48,6 @@ void parse_error_handler(const char* what, void* where) {
     auto out = fmt::format("Rapidxml parse error: {}", what);
     printFinal(out);
   }
-  
 }
 
 } // namespace rapidxml

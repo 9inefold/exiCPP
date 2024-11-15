@@ -51,7 +51,7 @@ public:
 public:
   static BoundDocument From(const fs::path& filename);
 
-  template <int Flags = 0>
+  template <int Flags = 0, bool CaptureExceptions = true>
   static BoundDocument ParseFrom(const fs::path& filename) {
     constexpr int DefaultFlags =
         rapidxml::parse_no_string_terminators
@@ -59,7 +59,16 @@ public:
     auto res = BoundDocument::From(filename);
     if (res) {
       Char* bufdata = res.buf.data();
-      res.doc->parse<Flags | DefaultFlags>(bufdata);
+      if constexpr (CaptureExceptions) {
+        try {
+          res.doc->parse<Flags | DefaultFlags>(bufdata);
+        } catch (const std::exception& e) {
+          BoundDocument::LogException(e);
+          res.buf.reset();
+        }
+      } else {
+        res.doc->parse<Flags | DefaultFlags>(bufdata);
+      }
     }
     return res;
   }
@@ -73,6 +82,7 @@ public:
   }
 
 private:
+  static void LogException(const std::exception& e);
   void setAllocators();
 
 private:

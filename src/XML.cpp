@@ -93,3 +93,13 @@ void BoundDocument::setAllocators() {
   LOG_ASSERT(did_set_allocators);
 #endif
 }
+
+void BoundDocument::LogException(const std::exception& e) {
+#if EXICPP_DEBUG
+  fmt::println("[ERROR] {}",
+    dbg::styled(e.what(),
+      fmt::fg(fmt::terminal_color::red)
+    )
+  );
+#endif
+}
