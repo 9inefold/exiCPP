@@ -38,7 +38,8 @@ enum class EnumOpt : unsigned char {
 
 enum class Align : unsigned char {
   BitPacked       = 0b00000000,
-  ByteAlignment   = 0b01000000,
+  BytePacked      = 0b01000000,
+  ByteAlignment   = BytePacked,
   PreCompression  = 0b10000000,
 };
 
