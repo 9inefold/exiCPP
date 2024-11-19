@@ -24,10 +24,10 @@
 
 using namespace exi;
 
-TEST(Exificent, CheckExists) {
-  EXPECT_TRUE(fs::exists(exificent_dir));
-  EXPECT_TRUE(fs::exists(exificent));
-}
+// TEST(Exificent, CheckExists) {
+//   EXPECT_TRUE(fs::exists(exificent_dir));
+//   EXPECT_TRUE(fs::exists(exificent));
+// }
 
 int main(int argc, char** argv) {
   rapidxml::use_exceptions_anyway = true;

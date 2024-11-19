@@ -30,6 +30,7 @@
 #include <fmt/ranges.h>
 #include <STL.hpp>
 
+#include <array>
 #include <concepts>
 #include <cstdlib>
 #include <utility>
@@ -153,23 +154,46 @@ namespace shell {
 // Options
 //======================================================================//
 
-using OptsType      = bool;
-using OptsTuple     = FillTuple<OptsType, 12>;
-using OptsTupleSlim = FillTuple<OptsType, 7>;
+using OptsType = std::uint8_t;
 
+enum AlignType : std::uint8_t {
+  AL_BitPacked,
+  AL_BytePacked,
+  AL_PreCompression,
+  AL_Compression,
+};
+
+using OptsTuple = std::tuple<
+  bool, // Strict
+  bool, // Fragment
+  bool, // SelfContained
+  AlignType,
+  bool, // PreserveComments
+  bool, // PreservePIs
+  bool, // PreserveDTD
+  bool, // PreservePrefixes
+  bool  // PreserveLexicalValues
+>;
+
+/// Has the values `[AlignType, PComments, PPrefixes, PLexVals]`.
+using OptsTupleSlim = std::tuple<
+  AlignType,
+  bool, // PreserveComments
+  bool, // PreservePrefixes
+  bool  // PreserveLexicalValues
+>;
+
+/// A helper type, generates options from a generic interface.
 struct Opts {
   String getName() const;
   exi::Options forExip() const;
   Vec<String> forExificent() const;
 public:
-  OptsType Compression:           1 = false;
   OptsType Strict:                1 = false;
   OptsType Fragment:              1 = false;
   OptsType SelfContained:         1 = false;
 
-  OptsType BitPacked:             1 = true;
-  OptsType ByteAligned:           1 = false;
-  OptsType PreCompression:        1 = false;
+  OptsType Alignment:             3 = AL_BitPacked;
 
   OptsType PreserveComments:      1 = false;
   OptsType PreservePIs:           1 = false;
@@ -178,6 +202,7 @@ public:
   OptsType PreserveLexicalValues: 1 = false;
 };
 
+/// Used to construct `Opts` from tuples.
 struct OptsProxy : public Opts {
   OptsProxy() = default;
   OptsProxy(const OptsProxy&) = default;
@@ -188,11 +213,8 @@ struct OptsProxy : public Opts {
   }
 
   constexpr OptsProxy(const OptsTupleSlim& tup) : OptsProxy() {
-    auto [c, bit, byte, pc, com, pre, lv] = tup;
-    this->Compression           = c;
-    this->BitPacked             = bit;
-    this->ByteAligned           = byte;
-    this->PreCompression        = pc;
+    auto [al, com, pre, lv] = tup;
+    this->Alignment             = al;
     this->PreserveComments      = com;
     this->PreservePrefixes      = pre;
     this->PreserveLexicalValues = lv;
@@ -210,19 +232,22 @@ String Opts::getName() const {
   String O;
   
   bool opt = false;
-  O.append("Opt");
-  SET_OPT(Compression,            opt, "C");
   SET_OPT(Strict,                 opt, "S");
   SET_OPT(Fragment,               opt, "F");
-  SET_OPT(SelfContained,          opt, "I");
-  if (!opt) O.append("None");
+  SET_OPT(SelfContained,          opt, "C");
+  if (!opt) O.append("N");
   O.push_back('_');
 
-  [[maybe_unused]] bool align = false;
   O.append("Al");
-  SET_OPT(ByteAligned,            align, "Byte");
-  SET_OPT(BitPacked,              align, "Bit");  
-  SET_OPT(PreCompression,         align, "Pre");
+  if (this->Alignment == AL_BitPacked) {
+    O.append("Bit");
+  } else if (this->Alignment == AL_BytePacked) {
+    O.append("Byte");
+  } else if (this->Alignment == AL_Compression) {
+    O.append("Com");
+  } else {
+    O.append("Pre");
+  }
   O.push_back('_');
 
   bool preserve = false;
@@ -245,16 +270,19 @@ String Opts::getName() const {
 exi::Options Opts::forExip() const {
   exi::Options O {};
 
-  SET_OPT(Compression,            EnumOpt::Compression);
   SET_OPT(Strict,                 EnumOpt::Strict);
   SET_OPT(Fragment,               EnumOpt::Fragment);
   SET_OPT(SelfContained,          EnumOpt::SelfContained);
 
-  SET_OPT(ByteAligned,            Align::ByteAlignment);
-  SET_OPT(PreCompression,         Align::PreCompression);
-  if (!this->ByteAligned || this->BitPacked)
+  if (this->Alignment == AL_BitPacked) {
     O.set(Align::BitPacked);
-  // SET_OPT(BitPacked,              Align::BitPacked);
+  } else if (this->Alignment == AL_BytePacked) {
+    O.set(Align::BytePacked);
+  } else if (this->Alignment == AL_Compression) {
+    O.set(EnumOpt::Compression);
+  } else {
+    O.set(Align::PreCompression);
+  }
 
   SET_OPT(PreserveComments,       Preserve::Comments);
   SET_OPT(PreservePIs,            Preserve::PIs);
@@ -272,17 +300,24 @@ exi::Options Opts::forExip() const {
 
 Vec<String> Opts::forExificent() const {
   Vec<String> O;
-  O.reserve(4);
+  O.reserve(8);
   O.emplace_back("-includeOptions");
+  O.emplace_back("-includeCookie");
 
-  SET_OPT(Compression,            "-compression");
   SET_OPT(Strict,                 "-strict");
   SET_OPT(Fragment,               "-fragment");
-  // SET_OPT(SelfContained,          "-selfContained");
+  SET_OPT(SelfContained,          "-selfContained");
 
-  if (!this->BitPacked)
-    SET_OPT(ByteAligned,          "-bytePacked");
-  SET_OPT(PreCompression,         "-preCompression");
+  if (this->Alignment == AL_BitPacked) {
+    // Implicit:
+    // O.emplace_back("-bitPacked");
+  } else if (this->Alignment == AL_BytePacked) {
+    O.emplace_back("-bytePacked");
+  } else if (this->Alignment == AL_Compression) {
+    O.emplace_back("-compression");
+  } else {
+    O.emplace_back("-preCompression");
+  }
 
   SET_OPT(PreserveComments,       "-preserveComments");
   SET_OPT(PreservePIs,            "-preservePIs");
@@ -358,7 +393,7 @@ fs::path replaceExt(fs::path path, const fs::path& ext) {
 
 TEST_P(CompareExi, Encode) {
   Opts O = GetParam();
-  if (O.Compression)
+  if (O.Alignment == AL_Compression)
     GTEST_SKIP() << "Compression is currently not supported, skipping.";
 
   exi::Options exip_opts = O.forExip();
@@ -375,6 +410,9 @@ TEST_P(CompareExi, Encode) {
     if (!file)
       continue;
 
+    //////////////////////////////////////////////////////////////////////
+    // EXIP Encode
+
     auto exip = replaceExt(tmp / file->filename(), ".exip.exi");
     BinaryBuffer buf {bufBase};
     auto xmldoc = BoundDocument::ParseFrom<0, false>(*file);
@@ -388,11 +426,14 @@ TEST_P(CompareExi, Encode) {
         << "; " << E.message();
       continue;
     }
-    if (Error E = write_xml(xmldoc.document(), buf, exip_opts)) {
+    if (Error E = write_xml(xmldoc.document(), buf, exip_opts, true)) {
       ADD_FAILURE() << "Invalid exip input: " << (*file);
       continue;
     }
     
+    //////////////////////////////////////////////////////////////////////
+    // Exificent Encode
+
     auto exif = replaceExt(tmp / file->filename(), ".exif.exi");
     ResizeAdaptor O(exif_opts);
     O->emplace_back("-encode");
@@ -402,27 +443,47 @@ TEST_P(CompareExi, Encode) {
     O->emplace_back(to_multibyte(exif).c_str());
     int ret = shell::All.callExificent(O.get());
     EXPECT_EQ(ret, 0) << "Invalid exif input: " << (*file);
+
+    //////////////////////////////////////////////////////////////////////
+    // Compare Files
   }
 }
 
 //////////////////////////////////////////////////////////////////////////
 // Instance
 
+#if EXICPP_FULL_TESTS
+using TestTuple = OptsTuple;
+# define INJECT_OPTS() Bool(), Bool(), Bool(),
+# define INJECT_PRES() Bool(), Bool(),
+#else
+using TestTuple = OptsTupleSlim;
+# define INJECT_OPTS()
+# define INJECT_PRES()
+#endif
+
 using ::testing::Bool;
-using TestTuple = OptsTupleSlim; 
-using TestType  = testing::TestParamInfo<CompareExi::ParamType>;
+using TestType = testing::TestParamInfo<CompareExi::ParamType>;
 
 auto getName(const TestType& I) -> std::string {
   const Opts& O = I.param;
   return O.getName();
 };
 
+constexpr std::array AlignVals {
+  AL_BitPacked, AL_BytePacked,
+  AL_PreCompression, AL_Compression
+};
+
 INSTANTIATE_TEST_SUITE_P(Conformance, CompareExi,
   testing::ConvertGenerator<TestTuple>(
     testing::Combine(
-      Bool(), Bool(), Bool(), Bool(),
+      // Strict, Fragment, SelfContained
+      INJECT_OPTS()
+      testing::ValuesIn(AlignVals),
+      // Preserve[PIs, DTDs]
+      INJECT_PRES()
       Bool(), Bool(), Bool()
-      // , Bool(), Bool(), Bool(), Bool(), Bool()
     )
   ),
   &getName

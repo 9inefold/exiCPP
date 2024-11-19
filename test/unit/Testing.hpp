@@ -23,6 +23,13 @@
 #include <string_view>
 #include <vector>
 
+#ifdef EXICPP_FULL_TESTS
+# undef  EXICPP_FULL_TESTS
+# define EXICPP_FULL_TESTS 1
+#else
+# define EXICPP_FULL_TESTS 0
+#endif
+
 inline constexpr std::string_view test_dir = EXICPP_TEST_DIR;
 inline constexpr std::string_view exificent_dir = EXICPP_EXIFICIENT_DIR;
 inline constexpr std::string_view exificent = EXICPP_EXIFICIENT;
