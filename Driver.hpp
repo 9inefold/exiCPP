@@ -106,7 +106,7 @@ public:
   explicit operator bool() const {
     if EXICPP_UNLIKELY(!argv)
       return false;
-    return this->empty();
+    return !this->empty();
   }
 
 public:
