@@ -4,7 +4,7 @@ include(Setup.cmake)
 
 project(
   exi-cpp
-  VERSION 0.4.0
+  VERSION 0.5.0
   LANGUAGES CXX C
 )
 
@@ -17,15 +17,15 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")
 endif()
 
-option(EXICPP_DRIVER "If the driver should be built." OFF)
-option(EXICPP_TESTS "If tests should be run." OFF)
+option(EXICPP_DRIVER     "If the driver should be built (always ON at top level)." OFF)
+option(EXICPP_TESTS      "If tests should be run." OFF)
 
 option(EXICPP_FAST_DEBUG "If parts of debug builds should be optimized." OFF)
 option(EXICPP_EXCEPTIONS "If exceptions should be enabled." OFF)
-option(EXICPP_DEBUG  "If debug printing should be enabled." ON)
-option(EXICPP_ANSI   "If ANSI should be enabled." ON)
+option(EXICPP_DEBUG      "If debug printing should be enabled." ON)
+option(EXICPP_ANSI       "If ANSI should be enabled." ON)
 
-option(EXIP_FORCE_SCOPE "If the exip namespace should be forced." ON)
+option(EXIP_FORCE_SCOPE  "If the exip namespace should be forced." ON)
 option(EXIP_USE_MIMALLOC "If allocation should be done through mimalloc" ON)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -63,7 +63,6 @@ if(EXIP_USE_MIMALLOC)
       set(MI_TRACK_ETW ON)
     endif()
   endif()
-  # TODO: Debug speedups?
   add_subdirectory(vendored/mimalloc)
 endif()
 
