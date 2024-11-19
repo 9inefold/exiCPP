@@ -19,6 +19,7 @@ large files can be encoded up to ***14400 times faster*** than the standalone li
 - Add full options support
 - Add full utf8 support
 - Finish wrapping the serializer
+- Exificent compatible compression
 - DOCTYPE support
 - Schema support
 - Improve error generality
