@@ -104,7 +104,9 @@ static boolean checkAndEnableAnsi() {
 boolean exipCanUseAnsi(boolean refresh) {
   static boolean last_result = FALSE;
   static boolean needs_running = TRUE;
-  needs_running = refresh;
+  if (refresh == TRUE)
+    needs_running = TRUE;
+
   if (needs_running == TRUE) {
     last_result = checkAndEnableAnsi();
     needs_running = FALSE;
