@@ -218,6 +218,7 @@ public:
 
 private:
   static void SetVerbose(bool V);
+  static Str ReplaceNonprintable(StrRef S);
 
   static std::string FormatNs(StrRef prefix) {
     if (prefix.empty())
@@ -271,7 +272,8 @@ private:
   template <bool AssureInterned = false>
   XMLNode* makeNode(Ty type, StrRef name = "", StrRef value = "") {
     auto iname = this->intern<AssureInterned>(name);
-    auto ivalue = this->intern<AssureInterned>(value);
+    auto ivalue = this->intern<AssureInterned>(
+      XMLBuilder::ReplaceNonprintable(value));
     return doc->allocate_node(type,
       iname.data(), ivalue.data(),
       iname.size(), ivalue.size()
@@ -302,6 +304,7 @@ private:
 static Mode progMode = Mode::Default;
 static bool verbose = false;
 static bool doDump = false;
+static bool replaceNonprintable = false;
 
 static Option<fs::path> inpath;
 static Option<fs::path> outpath;
@@ -341,6 +344,33 @@ static bool setPath(Option<fs::path>& toSet, const fs::path& path) {
     return false;
   toSet.emplace(path);
   return true;
+}
+
+[[maybe_unused]] Str XMLBuilder::ReplaceNonprintable(StrRef S) {
+  if (!replaceNonprintable)
+    return Str{S.data(), S.size()};
+
+  std::size_t I = 0, window = 0;
+  const std::size_t E = S.size();
+
+  fmt::basic_memory_buffer<Char, 64> out;
+  out.reserve(S.size());
+  auto push = [&, S] (bool extra = false) {
+    out.append(S.substr(I, window - (I + extra)));
+    I = window;
+  };
+
+  while (window < E) {
+    using UChar = std::make_unsigned_t<Char>;
+    const auto C = UChar(S[window++]);
+    if (C >= UChar(' '))
+      continue;
+    push(true);
+    fmt::format_to(std::back_inserter(out), "&#{};", unsigned(C));
+  }
+
+  push();
+  return Str{out.data(), out.size()};
 }
 
 void XMLBuilder::SetVerbose(bool V) {
@@ -492,6 +522,33 @@ static void setEnumOpt(ArgProcessor& P, StrRef cmd) {
   };
 }
 
+static void setAlignOpt(ArgProcessor& P, StrRef cmd) {
+  LOG_ASSERT(cmd.empty() == false);
+  initOptions();
+
+  auto warnUnknown = [&P] () {
+    PRINT_WARN("Unknown command '{}', ignoring.", P.curr());
+  };
+
+  cmd.remove_prefix(1);
+  if (cmd.empty()) {
+    warnUnknown();
+    return;
+  }
+
+  if (cmd == "bit" || cmd == "bitPacked") {
+    opts->set(Align::BitPacked);
+  } else if (cmd == "byte" || cmd == "bytePacked") {
+    opts->set(Align::BytePacked);
+  } else if (cmd == "pre" || cmd == "preCompression") {
+    opts->set(Align::PreCompression);
+  } else if (cmd == "com" || cmd == "compression") {
+    opts->set(EnumOpt::Compression);
+  } else {
+    warnUnknown();
+  }
+}
+
 static void processCommand(ArgProcessor& P) {
   auto cmd = P.curr();
   cmd.remove_prefix(1);
@@ -514,6 +571,9 @@ static void processCommand(ArgProcessor& P) {
     return;
   } else if (str.front() == 'o' && str.size() > 1) {
     setEnumOpt(P, str);
+    return;
+  } else if (str.front() == 'a') {
+    setAlignOpt(P, str);
     return;
   }
   
@@ -538,6 +598,8 @@ static void processCommand(ArgProcessor& P) {
     progMode = Mode::EncodeDecode;
   } else if (str == "comparexml") {
     comparexml = true;
+  } else if (str == "replacecontrol") {
+    replaceNonprintable = true;
   } else if (str == "includecookie" || str == "cookie") {
     includeCookie = true;
   } else if (str == "includeoptions") {
@@ -638,11 +700,13 @@ void printHelp() {
     "  -preservePrefixes\n"
     "  \n"
     // TODO: Add these
-    "  -P\n"
+    "  -A\n"
     "  -O\n"
+    "  -P\n"
     "  \n"
     "\n MISC:\n"
     "  -compareXML:           Check if output XML instead of writing out\n"
+    "  -replaceControl:       Replace control characters with XML escapes\n"
   );
 }
 
