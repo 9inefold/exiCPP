@@ -391,11 +391,25 @@ fs::path replaceExt(fs::path path, const fs::path& ext) {
   return path.replace_extension(ext);
 }
 
+std::uintmax_t getFileSize(const fs::path& path) {
+  std::error_code ec;
+  const auto ret = fs::file_size(path, ec);
+  if (ec) {
+    fmt::println(stderr, "File error: {}", ec.message());
+    return 0;
+  }
+  return ret;
+}
+
+#define CONTINUE(count) { \
+  if ((count)++ > error_max) { break; } \
+  continue; } (void(0))
+#define CONTINUE_FAIL() CONTINUE(failure_count)
+
+constexpr std::size_t error_max = 10;
+
 TEST_P(CompareExi, Encode) {
   Opts O = GetParam();
-  if (O.Alignment == AL_Compression)
-    GTEST_SKIP() << "Compression is currently not supported, skipping.";
-
   exi::Options exip_opts = O.forExip();
   Vec<String> exif_opts = O.forExificent();
   HeapBuffer bufBase {(2048 * 32) - 1};
@@ -404,6 +418,7 @@ TEST_P(CompareExi, Encode) {
   auto [in, out] = getValidXMLPaths();
   (void) fs::create_directories(tmp);
 
+  std::size_t failure_count = 0;
   exif_opts.reserve(exif_opts.size() + 5);
   for (const auto& entry : fs::directory_iterator{out}) {
     Option<fs::path> file = checkXMLTest(entry);
@@ -418,17 +433,17 @@ TEST_P(CompareExi, Encode) {
     auto xmldoc = BoundDocument::ParseFrom<0, false>(*file);
     if (!xmldoc) {
       ADD_FAILURE() << "XML parse error in: " << (*file);
-      continue;
+      CONTINUE_FAIL();
     }
     if (Error E = buf.writeFile(exip)) {
       ADD_FAILURE()
         << "exip error in: " << (*file)
         << "; " << E.message();
-      continue;
+      CONTINUE_FAIL();
     }
     if (Error E = write_xml(xmldoc.document(), buf, exip_opts, true)) {
       ADD_FAILURE() << "Invalid exip input: " << (*file);
-      continue;
+      CONTINUE_FAIL();
     }
     
     //////////////////////////////////////////////////////////////////////
@@ -445,8 +460,34 @@ TEST_P(CompareExi, Encode) {
     EXPECT_EQ(ret, 0) << "Invalid exif input: " << (*file);
 
     //////////////////////////////////////////////////////////////////////
-    // Compare Files
+    // Compare File Metadata
+
+    if (!fs::exists(exip)) {
+      ADD_FAILURE() << "exicpp file not generated: " << exip;
+      CONTINUE_FAIL();
+    } else if (!fs::exists(exif)) {
+      ADD_FAILURE() << "exificent file not generated: " << exif;
+      CONTINUE_FAIL();
+    }
+
+    std::uintmax_t exip_size = getFileSize(exip);
+    std::uintmax_t exif_size = getFileSize(exif);
+    if (exip_size != exif_size) {
+      EXPECT_EQ(exip_size, exif_size)
+        << "Expected file sizes to be equal.";
+      CONTINUE_FAIL();
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // TODO: Compare Files
   }
+
+  constexpr std::size_t no_errors = 0;
+  ASSERT_EQ(failure_count, no_errors) << "Error decoding files"
+    << (failure_count > error_max
+      ? ", quit early after too many errors."
+      : "."
+    );
 }
 
 //////////////////////////////////////////////////////////////////////////
