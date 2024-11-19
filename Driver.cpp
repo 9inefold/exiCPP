@@ -138,6 +138,7 @@ struct XMLBuilder {
     // TODO: fix?
     // FilestreamBuf fstr(os, 2048);
     // rapidxml::print(fstr.getIter(), *this->doc);
+    // TODO: Implement ReplaceNonprintable
     rapidxml::print(std::ostream_iterator<Char>(os), *this->doc);
   }
 
@@ -331,6 +332,13 @@ static Str normalizeCommand(StrRef S) {
   return outstr;
 }
 
+static bool checkNoPrefix(StrRef S, StrRef cmd) {
+  const auto pos = S.find_first_not_of('-');
+  if (pos == StrRef::npos)
+    return false;
+  return (S.substr(pos) == cmd);
+}
+
 static fs::path validatePath(StrRef path) {
   fs::path outpath(path);
   if (fs::exists(outpath))
@@ -492,6 +500,7 @@ static void setEnumOpt(ArgProcessor& P, StrRef cmd) {
     break;
   }
   case 'a': {
+    PRINT_WARN("'-Oa<opt>' is deprecated, use '-A<opt>' instead.");
     cmd.remove_prefix(1);
     if (cmd.empty()) {
       warnUnknown();
@@ -540,9 +549,9 @@ static void setAlignOpt(ArgProcessor& P, StrRef cmd) {
     opts->set(Align::BitPacked);
   } else if (cmd == "byte" || cmd == "bytePacked") {
     opts->set(Align::BytePacked);
-  } else if (cmd == "pre" || cmd == "preCompression") {
+  } else if (cmd.front() == 'p') {
     opts->set(Align::PreCompression);
-  } else if (cmd == "com" || cmd == "compression") {
+  } else if (cmd.front() == 'c') {
     opts->set(EnumOpt::Compression);
   } else {
     warnUnknown();
@@ -587,7 +596,7 @@ static void processCommand(ArgProcessor& P) {
     if (!setPath(outpath, path))
       PRINT_WARN("Output path has already been set.");
     P.next();
-  } else if (str == "-dump") {
+  } else if (checkNoPrefix(str, "dump")) {
     PRINT_INFO("Dumping for decode.");
     doDump = true;
   } else if (str == "e" || str == "-encode") {
@@ -596,9 +605,9 @@ static void processCommand(ArgProcessor& P) {
     progMode = Mode::Decode;
   } else if (str == "ed" || str == "-encodedecode") {
     progMode = Mode::EncodeDecode;
-  } else if (str == "comparexml") {
+  } else if (checkNoPrefix(str, "comparexml")) {
     comparexml = true;
-  } else if (str == "replacecontrol") {
+  } else if (checkNoPrefix(str, "replacecontrol")) {
     replaceNonprintable = true;
   } else if (str == "includecookie" || str == "cookie") {
     includeCookie = true;
@@ -693,20 +702,38 @@ void printHelp() {
     "\n IO:\n"
     "  -i, --input  <file>:   Input file\n"
     "  -o, --output <file>:   Output file (optional)\n"
-    "  \n"
-    "\n EXI SPECIFIC:\n"
+    "  \n\n"
+    " EXI SPECIFIC:\n"
     "  -includeOptions\n"
     "  -includeCookie\n"
-    "  -preservePrefixes\n"
     "  \n"
-    // TODO: Add these
-    "  -A\n"
-    "  -O\n"
-    "  -P\n"
+    "  -A<opt>:               Alignment options\n"
+    "    bit,  bitPacked:     Content is packed in bits without padding, the default\n"
+    "    byte, bytePacked:    Content is byte aligned\n"
+    "    C, compression:      Full compression using the DEFLATE algorithm\n"
+    "    P, preCompression:   All compression steps other than DEFLATE are applied\n"
     "  \n"
-    "\n MISC:\n"
-    "  -compareXML:           Check if output XML instead of writing out\n"
-    "  -replaceControl:       Replace control characters with XML escapes\n"
+    "  -O<opt>:               \n"
+    "    C:                   Same as '-AC'"
+    "    F:                   Fragments, EXI bodies with zero or more conforming root elements\n"
+    "    Sc, self:            Self-contained elements, can be read independently\n"
+    "    strict:              Strictly follows a schema, allowing for better compression\n"
+    "  -P<opt>:\n"
+    "    C:                   Preserve Comments\n"
+    "    I:                   Preserve Processing Instructions\n"
+    "    D:                   Preserve Document Type Definitions\n"
+    "    P:                   Preserve namespace Prefixes\n"
+    "    L:                   Preserve Lexical Values\n"
+    "    A:                   Preserve All\n"
+    "  \n\n"
+    " MISC:\n"
+    "  --compareXML:          Check XML instead of writing out\n"
+    "  --dump:                Print the decoded XML to stdout\n"
+    "  --replaceControl:      Replace control characters with XML escapes\n"
+    "  \n\n"
+    "EXAMPLES:\n"
+    "  --encode -i in.xml -AC -PL -PP -o out.exi\n"
+    "  --decode -i out.exi --dump"
   );
 }
 
@@ -756,7 +783,10 @@ void encodeXML(bool doPrint) {
 
 void decodeEXI(bool doPrint) {
   fs::path exiIn = fs::absolute(*inpath);
-  fs::path xml = outpathOr(exiIn, "xml");
+  Option<fs::path> xml {};
+  if (!doDump)
+    // Only set if we are writing to a file.
+    xml.emplace(outpathOr(exiIn, "xml"));
   fmt::println("Reading from '{}'", exiIn);
 
   BufferType buf {};
@@ -783,14 +813,24 @@ void decodeEXI(bool doPrint) {
     std::exit(1);
   }
 
-  if (doDump)
-    builder.dump();
-  else
-    builder.dump(xml);
-
-  if (!doDump && doPrint) {
+  if (verbose)
+    fmt::println("\n");
+  
+  if (doDump) {
     COLOR_PRINTLN(fmt::color::light_green,
-      "Wrote to '{}'", xml);
+      "XML from '{}'", exiIn);
+    builder.dump();
+  } else {
+    if (!xml.has_value()) {
+      PRINT_ERR("Could not write to file (output path was not set?)");
+      std::exit(EXIT_FAILURE);
+    }
+
+    builder.dump(*xml);
+    if (doPrint) {
+      COLOR_PRINTLN(fmt::color::light_green,
+        "Wrote to '{}'", *xml);
+    }
   }
 }
 
