@@ -73,7 +73,7 @@ struct ArgProcessor {
 public:
   ArgProcessor(int argc, char* argv[]) :
    argc(argc - 1), argv(argv + 1) {
-    LOG_ASSERT(argc && argv);
+    LOG_ASSERT(argc >= 0 && argv);
   }
 
 public:
@@ -95,10 +95,18 @@ public:
     return true;
   }
 
+  std::size_t size() const {
+    return static_cast<std::size_t>(argc);
+  }
+
+  bool empty() const {
+    return (argc <= 0) || (!*argv);
+  }
+
   explicit operator bool() const {
     if EXICPP_UNLIKELY(!argv)
       return false;
-    return *argv;
+    return this->empty();
   }
 
 public:

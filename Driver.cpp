@@ -610,12 +610,12 @@ static void processCommand(ArgProcessor& P) {
 }
 
 static int driverMain(int argc, char* argv[]) {
-  if (argc < 2) {
+  ArgProcessor P {argc, argv};
+  if (P.empty()) {
     printHelp();
     return 0;
   }
 
-  ArgProcessor P {argc, argv};
   checkVerbose(P);
   while (P) {
     auto str = P.curr();
