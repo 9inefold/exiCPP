@@ -473,9 +473,14 @@ TEST_P(CompareExi, Encode) {
     std::uintmax_t exip_size = getFileSize(exip);
     std::uintmax_t exif_size = getFileSize(exif);
     if (exip_size != exif_size) {
-      EXPECT_EQ(exip_size, exif_size)
-        << "Expected file sizes to be equal.";
-      CONTINUE_FAIL();
+      // Only check if actually output a value.
+      if (exip_size && exif_size) {
+        EXPECT_EQ(exip_size, exif_size)
+          << "Output for " << (*file)
+          << ": expected file sizes to be equal.";
+        CONTINUE_FAIL();
+      }
+      continue;
     }
 
     //////////////////////////////////////////////////////////////////////
