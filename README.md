@@ -13,15 +13,24 @@ So... I made my own.
 
 With some changes to the lookup and allocation methods, as well as the new HashTable,
 large files can be encoded up to ***14400 times faster*** than the standalone library.
+You can read about my changes [here](doc/md/Changes.md#performance).
+
+## Current Work
+
+At the moment I am working to make exiCPP consistent with
+[exificent](https://github.com/EXIficient/exificient).
+Uncompressed bit-packed streams are equivalent,
+but outputs are different under other alignment/compression schemes.
 
 ## Todo
 
-- Add full options support
-- Add full utf8 support
-- Finish wrapping the serializer
+In order:
+
 - Exificent compatible compression
-- DOCTYPE support
+- Add full options support in driver
 - Schema support
+- Finish wrapping the serializer
+- DTD/PI support
 - Improve error generality
-- JSON support?
 - Generic character encoding?
+- JSON support?
