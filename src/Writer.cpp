@@ -410,6 +410,8 @@ static StrRef GetNodeTypeName(XMLType ty) {
 }
 
 void WriterImpl::begElem(XMLNode* node) {
+  if (node->type() == XMLType::node_data)
+    return;
   CQName name = this->makeQName(node, true);
 #if EXICPP_DEBUG
   if (this->hasName()) {
@@ -430,6 +432,8 @@ void WriterImpl::begElem(XMLNode* node) {
 }
 
 void WriterImpl::endElem() {
+  if (this->node->type() == XMLType::node_data)
+    return;
 #if EXICPP_DEBUG
   if (this->hasName())
     LOG_INFO("EE {}", getName(this->node));

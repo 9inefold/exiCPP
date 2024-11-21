@@ -46,61 +46,6 @@ public:
   Char* data() const { return const_cast<Char*>(BaseType::data()); }
 };
 
-struct FilestreamBuf {
-  using StreamType = std::basic_ofstream<Char>;
-
-  struct iterator {
-    iterator(FilestreamBuf& buf) : pbuf(&buf) {}
-    ALWAYS_INLINE Char& operator*() { return curr; }
-    iterator& operator++() {
-      pbuf->pushChar(curr);
-      return *this;
-    }
-    iterator operator++(int) {
-      iterator cpy = *this;
-      ++*this;
-      return cpy;
-    }
-  private:
-    FilestreamBuf* pbuf;
-    Char curr = Char('\0');
-  };
-
-public:
-  FilestreamBuf(StreamType& os, std::size_t n) : buffer(), os(os) {
-    buffer.reserve(n);
-  }
-
-  ~FilestreamBuf() {
-    this->flush();
-  }
-
-public:
-  inline void pushChar(Char c) {
-    buffer.push_back(c);
-    if EXICPP_UNLIKELY(this->atCapacity())
-      this->flush();
-  }
-
-  inline iterator getIter() {
-    return iterator{*this};
-  }
-
-private:
-  bool atCapacity() const {
-    return (buffer.size() == buffer.capacity());
-  }
-
-  void flush() {
-    os.write(buffer.data(), buffer.size());
-    buffer.resize(0);
-  }
-
-private:
-  Vec<Char> buffer;
-  StreamType& os;
-};
-
 #define NOINTERN 1
 
 struct XMLBuilder {
@@ -135,9 +80,6 @@ struct XMLBuilder {
     }
 
     os << GetXMLHead() << '\n';
-    // TODO: fix?
-    // FilestreamBuf fstr(os, 2048);
-    // rapidxml::print(fstr.getIter(), *this->doc);
     // TODO: Implement ReplaceNonprintable
     rapidxml::print(std::ostream_iterator<Char>(os), *this->doc);
   }

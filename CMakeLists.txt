@@ -113,6 +113,7 @@ endif()
 if(EXICPP_TESTS OR (PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER))
   add_library(exicpp-util STATIC
     utils/CompareXml.cpp
+    utils/ExiToXml.cpp
   )
   add_library(exicpp::util ALIAS exicpp-util)
   target_include_directories(exicpp-util PUBLIC utils)

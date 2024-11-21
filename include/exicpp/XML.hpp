@@ -49,14 +49,15 @@ public:
   }
   BoundDocument(BoundDocument&&) = default;
 public:
-  static BoundDocument From(const fs::path& filename);
+  static BoundDocument From(
+   const fs::path& filename, bool norm_lf = false);
 
   template <int Flags = 0, bool DoTrim = true>
-  static BoundDocument ParseFrom(const fs::path& filename) {
-    constexpr int DefaultFlags =
-        rapidxml::parse_no_string_terminators
-      | rapidxml::parse_trim_whitespace;
-    auto res = BoundDocument::From(filename);
+  static BoundDocument ParseFromEx(
+   const fs::path& filename, bool norm_lf = false) {
+    constexpr int DefaultFlags
+      = rapidxml::parse_no_string_terminators;
+    auto res = BoundDocument::From(filename, norm_lf);
     if (res) {
       Char* bufdata = res.buf.data();
       try {
@@ -70,9 +71,18 @@ public:
     return res;
   }
 
+  template <int Flags = 0, bool DoTrim = true>
+  static BoundDocument ParseFrom(
+   const fs::path& filename, bool norm_lf = false) {
+    constexpr int DFlags
+      = Flags | rapidxml::parse_trim_whitespace;
+    return BoundDocument::ParseFromEx<DFlags, DoTrim>(filename, norm_lf);
+  }
+
 public:
   XMLDocument* document() { return doc.get(); }
   const XMLDocument* document() const { return doc.get(); }
+  StrRef data() const { return {buf.data(), buf.size()}; }
 
   explicit operator bool() const {
     return doc.get() && buf.data();

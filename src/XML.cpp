@@ -27,15 +27,7 @@
 using namespace exi;
 using Traits = std::char_traits<char>;
 
-static Box<Str> read_file(fs::path filepath) {
-  if (filepath.is_relative()) {
-    filepath = (fs::current_path() / filepath);
-  }
-  std::ifstream is (filepath, std::ios::binary);
-  is.unsetf(std::ios::skipws);
-  if (!is)
-    return Box<Str>();
-
+static Box<Str> read_file_nolf(std::ifstream& is) {
   std::streampos size;
   is.seekg(0, std::ios::end);
   size = is.tellg();
@@ -48,9 +40,57 @@ static Box<Str> read_file(fs::path filepath) {
   return std::make_unique<Str>(std::move(file_data));
 }
 
-BoundDocument BoundDocument::From(const fs::path& filename) {
+static Box<Str> read_file_lf(std::ifstream& is) {
+  std::streampos size;
+  is.seekg(0, std::ios::end);
+  size = is.tellg();
+  is.seekg(0, std::ios::beg);
+
+  Str file_data;
+  std::ifstream::sentry se(is, true);
+  std::streambuf* sb = is.rdbuf();
+  file_data.reserve(size);
+  
+  while (!is.eof()) {
+    const int C = sb->sbumpc();
+    switch (C) {
+     case '\r': {
+      if(sb->sgetc() == '\n') {
+        sb->sbumpc();
+        file_data.push_back('\n');
+      }
+      break;
+     }
+     case std::streambuf::traits_type::eof(): {
+      is.setstate(std::ios::eofbit);
+      break;
+     }
+     default:
+      file_data.push_back(char(C));
+    }
+  }
+
+  return std::make_unique<Str>(std::move(file_data));
+}
+
+static Box<Str> read_file(fs::path filepath, bool norm_lf) {
+  if (filepath.is_relative()) {
+    filepath = (fs::current_path() / filepath);
+  }
+  std::ifstream is (filepath, std::ios::binary);
+  is.unsetf(std::ios::skipws);
+  if (!is)
+    return Box<Str>();
+  
+  if (!norm_lf)
+    return read_file_nolf(is);
+  else
+    return read_file_lf(is);
+}
+
+BoundDocument BoundDocument::From(const fs::path& filename, bool norm_lf) {
   BoundDocument res;
-  Box<Str> str = read_file(filename);
+  Box<Str> str = read_file(filename, norm_lf);
   if (!str) {
 #if EXICPP_DEBUG
     auto mbstr = to_multibyte(filename.native());

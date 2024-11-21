@@ -27,9 +27,9 @@ but outputs are different under other alignment/compression schemes.
 In order:
 
 - Exificent compatible compression
-- Add full options support in driver
 - Schema support
 - Finish wrapping the serializer
+- Add full options support in driver
 - DTD/PI support
 - Improve error generality
 - Generic character encoding?

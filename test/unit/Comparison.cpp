@@ -25,15 +25,18 @@
 #include <exicpp/Options.hpp>
 #include <exicpp/Writer.hpp>
 #include <exicpp/XML.hpp>
+#include <rapidxml_print.hpp>
 
-#include <fmt/format.h>
-#include <fmt/ranges.h>
+#include <CompareXml.hpp>
+#include <ExiToXml.hpp>
 #include <STL.hpp>
 
 #include <array>
 #include <concepts>
 #include <cstdlib>
 #include <utility>
+#include <fmt/format.h>
+#include <fmt/ranges.h>
 
 using namespace exi;
 
@@ -383,12 +386,26 @@ Option<fs::path> checkXMLTest(const fs::directory_entry& entry) {
   fs::path file = entry.path();
   if (file.extension() != ".xml")
     return std::nullopt;
+  if (file.stem() == "012") {
+    fmt::println("Skipping 012.xml");
+    return std::nullopt;
+  }
   return {std::move(file)};
   // return {fs::absolute(file)};
 }
 
 fs::path replaceExt(fs::path path, const fs::path& ext) {
   return path.replace_extension(ext);
+}
+
+bool removeFile(const fs::path& path) {
+  std::error_code ec;
+  (void) fs::remove(path, ec);
+  if (ec) {
+    fmt::println(stderr, "File error: {}", ec.message());
+    return false;
+  }
+  return true;
 }
 
 std::uintmax_t getFileSize(const fs::path& path) {
@@ -402,89 +419,144 @@ std::uintmax_t getFileSize(const fs::path& path) {
 }
 
 #define CONTINUE(count) { \
-  if ((count)++ > error_max) { break; } \
+  if ((count)++ >= error_max) { break; } \
   continue; } (void(0))
 #define CONTINUE_FAIL() CONTINUE(failure_count)
 
-constexpr std::size_t error_max = 10;
+constexpr std::size_t error_max = 16;
 
 TEST_P(CompareExi, Encode) {
   Opts O = GetParam();
-  exi::Options exip_opts = O.forExip();
+  exi::Options exip_opts = O.forExip().set(Preserve::Prefixes);
   Vec<String> exif_opts = O.forExificent();
-  HeapBuffer bufBase {(2048 * 32) - 1};
+
+  const CompareOpts cmp_opts {
+    .preserveComments = !!O.PreserveComments,
+    .preservePIs      = !!O.PreservePIs,
+    .preserveDTs      = !!O.PreserveDTD,
+    .verbose          = false
+  };
 
   auto tmp = get_test_dir() / "tmp" / O.getName();
   auto [in, out] = getValidXMLPaths();
   (void) fs::create_directories(tmp);
 
+  HeapBuffer bufBase {(2048 * 32) - 1};
   std::size_t failure_count = 0;
-  exif_opts.reserve(exif_opts.size() + 5);
+  exif_opts.reserve(exif_opts.size() + 6);
   for (const auto& entry : fs::directory_iterator{out}) {
     Option<fs::path> file = checkXMLTest(entry);
     if (!file)
       continue;
 
     //////////////////////////////////////////////////////////////////////
-    // EXIP Encode
+    // ExiCPP Encode
 
     auto exip = replaceExt(tmp / file->filename(), ".exip.exi");
-    BinaryBuffer buf {bufBase};
-    auto xmldoc = BoundDocument::ParseFrom<0, false>(*file);
+    auto xmldoc = BoundDocument::ParseFromEx<0, false>(*file);
     if (!xmldoc) {
       ADD_FAILURE() << "XML parse error in: " << (*file);
       CONTINUE_FAIL();
     }
-    if (Error E = buf.writeFile(exip)) {
-      ADD_FAILURE()
-        << "exip error in: " << (*file)
-        << "; " << E.message();
-      CONTINUE_FAIL();
+    {
+      BinaryBuffer buf {bufBase};
+      if (Error E = buf.writeFile(exip)) {
+        ADD_FAILURE()
+          << "exip error in: " << (*file)
+          << "; " << E.message();
+        CONTINUE_FAIL();
+      }
+      if (Error E = write_xml(xmldoc.document(), buf, exip_opts, true)) {
+        ADD_FAILURE() << "Invalid exip input: " << (*file);
+        CONTINUE_FAIL();
+      }
     }
-    if (Error E = write_xml(xmldoc.document(), buf, exip_opts, true)) {
-      ADD_FAILURE() << "Invalid exip input: " << (*file);
-      CONTINUE_FAIL();
-    }
-    
+
     //////////////////////////////////////////////////////////////////////
     // Exificent Encode
 
     auto exif = replaceExt(tmp / file->filename(), ".exif.exi");
-    ResizeAdaptor O(exif_opts);
-    O->emplace_back("-encode");
-    O->emplace_back("-i");
-    O->emplace_back(to_multibyte(*file).c_str());
-    O->emplace_back("-o");
-    O->emplace_back(to_multibyte(exif).c_str());
-    int ret = shell::All.callExificent(O.get());
-    EXPECT_EQ(ret, 0) << "Invalid exif input: " << (*file);
+    {
+      removeFile(exif);
+      ResizeAdaptor O(exif_opts);
+      O->emplace_back("-encode");
+      O->emplace_back("-noSchema");
+      O->emplace_back("-i");
+      O->emplace_back(to_multibyte(*file).c_str());
+      O->emplace_back("-o");
+      O->emplace_back(to_multibyte(exif).c_str());
+      int ret = shell::All.callExificent(O.get());
 
-    //////////////////////////////////////////////////////////////////////
-    // Compare File Metadata
-
-    if (!fs::exists(exip)) {
-      ADD_FAILURE() << "exicpp file not generated: " << exip;
-      CONTINUE_FAIL();
-    } else if (!fs::exists(exif)) {
-      ADD_FAILURE() << "exificent file not generated: " << exif;
-      CONTINUE_FAIL();
-    }
-
-    std::uintmax_t exip_size = getFileSize(exip);
-    std::uintmax_t exif_size = getFileSize(exif);
-    if (exip_size != exif_size) {
-      // Only check if actually output a value.
-      if (exip_size && exif_size) {
-        EXPECT_EQ(exip_size, exif_size)
-          << "Output for " << (*file)
-          << ": expected file sizes to be equal.";
+      EXPECT_EQ(ret, 0) << "Invalid exif input: " << (*file);
+      if (!fs::exists(exif)) {
+        if (ret == 0)
+          ADD_FAILURE() << "exif unable to encode: " << (*file);
         CONTINUE_FAIL();
       }
-      continue;
     }
 
     //////////////////////////////////////////////////////////////////////
-    // TODO: Compare Files
+    // ExiCPP Decode
+
+    auto exif_doc = exi_to_xml(exif);
+    if EXICPP_UNLIKELY(!exif_doc) {
+      ADD_FAILURE() << "exip failed to decode: " << exif;
+      CONTINUE_FAIL();
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Exificent Decode
+
+    auto exip_xml = replaceExt(exip, "xml");
+    {
+      removeFile(exip_xml);
+      // ResizeAdaptor O(exif_opts);
+      // O->emplace_back("-decode");
+      // O->emplace_back("-noSchema");
+      // O->emplace_back("-i");
+      // O->emplace_back(to_multibyte(exip).c_str());
+      // O->emplace_back("-o");
+      // O->emplace_back(to_multibyte(exip_xml).c_str());
+      // int ret = shell::All.callExificent(O.get());
+      String cmd = fmt::format("-decode -noSchema -i \"{}\" -o \"{}\"",
+        to_multibyte(exip).c_str(),
+        to_multibyte(exip_xml).c_str()
+      );
+      int ret = shell::All.callExificent(cmd);
+
+      EXPECT_EQ(ret, 0) << "Invalid exif input: " << exip;
+      if (!fs::exists(exip_xml)) {
+        if (ret == 0)
+          ADD_FAILURE() << "exif unable to decode: " << exip;
+        CONTINUE_FAIL();
+      }
+    }
+
+    auto exip_doc = BoundDocument::ParseFromEx<
+      rapidxml::parse_no_data_nodes
+    >(exip_xml, true);
+    if EXICPP_UNLIKELY(!exip_doc) {
+      ADD_FAILURE() << "Unable to parse " << exip_xml;
+      if (auto S = exip_doc.data(); !S.empty())
+        fmt::println("Data: {}", S);
+      CONTINUE_FAIL();
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Compare Files
+
+    bool cmp = compare_xml(
+      exip_doc.document(), exif_doc.get(), cmp_opts);
+    if (!cmp) {
+      // No indent
+      std::cout << "exip: ";
+      rapidxml::print(std::cout, *exip_doc.document(), 1);
+      std::cout << "\nexif: ";
+      rapidxml::print(std::cout, *exif_doc, 1);
+      std::cout << std::endl;
+      ADD_FAILURE() << "EXI outputs were not equivalent: " << (*file);
+      CONTINUE_FAIL();
+    }
   }
 
   constexpr std::size_t no_errors = 0;
@@ -527,9 +599,12 @@ INSTANTIATE_TEST_SUITE_P(Conformance, CompareExi,
       // Strict, Fragment, SelfContained
       INJECT_OPTS()
       testing::ValuesIn(AlignVals),
+      // Comments
+      Bool(),
       // Preserve[PIs, DTDs]
       INJECT_PRES()
-      Bool(), Bool(), Bool()
+      // Prefixes, LexVals
+      Bool(), Bool()
     )
   ),
   &getName

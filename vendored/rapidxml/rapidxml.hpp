@@ -252,6 +252,14 @@ namespace rapidxml
     //! See xml_document::parse() function.
     const int parse_normalize_whitespace = 0x800;
 
+    //! Parse flag instructing the parser to convert all newline types to a single character.
+    //! By default, newlines are not normalized. 
+    //! If this flag is specified, source text will be modified.
+    //! Can be combined with other flags by use of | operator.
+    //! <br><br>
+    //! See xml_document::parse() function.
+    const int parse_normalize_newlines = 0x1000;
+
     // Compound flags
     
     //! Parse flags which represent default behaviour of the parser. 

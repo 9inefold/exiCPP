@@ -20,6 +20,7 @@
 #include "Print.hpp"
 #include "STL.hpp"
 #include <exicpp/Debug/Format.hpp>
+#include <fmt/format.h>
 
 using namespace exi;
 
@@ -32,6 +33,30 @@ static StrRef getValue(const XMLBase* node) {
   if EXICPP_UNLIKELY(!node) return "";
   if (node->value_size() == 0) return "";
   return {node->value(), node->value_size()};
+}
+
+static Str ReplaceNonprintable(StrRef S) {
+  std::size_t I = 0, window = 0;
+  const std::size_t E = S.size();
+
+  fmt::basic_memory_buffer<Char, 64> out;
+  out.reserve(S.size());
+  auto push = [&, S] (bool extra = false) {
+    out.append(S.substr(I, window - (I + extra)));
+    I = window;
+  };
+
+  while (window < E) {
+    using UChar = std::make_unsigned_t<Char>;
+    const auto C = UChar(S[window++]);
+    if (C >= UChar(' '))
+      continue;
+    push(true);
+    fmt::format_to(std::back_inserter(out), "&#{};", unsigned(C));
+  }
+
+  push();
+  return Str{out.data(), out.size()};
 }
 
 namespace {
@@ -77,8 +102,11 @@ public:
     return false;
   }
 
-  StrRef name() const { return getName(this->node); }
+  StrRef name()  const { return getName(this->node); }
   StrRef value() const { return getValue(this->node); }
+
+  Str nameS()  const { return ReplaceNonprintable(this->name()); }
+  Str valueS() const { return ReplaceNonprintable(this->value()); }
 
   StrRef typeName() const {
     if EXICPP_UNLIKELY(!node)
@@ -174,6 +202,11 @@ bool XMLCompare::skipIgnoredData(XMLNodeIt& oldNode) const {
       if (!preserveDTs)
         continue;
       return true;
+    // Only skip if a single newline.
+     case XMLType::node_data:
+      if (oldNode.value() == "\n")
+        continue;
+      [[fallthrough]];
     // Otherwise, don't skip
      default:
       return true;
@@ -194,7 +227,11 @@ bool XMLCompare::compareAttributes(
 
   if (!rawOldAttr || !rawNewAttr) {
     if (rawOldAttr || rawNewAttr) {
-      PRINT_ERR("[#{}:{}] Attributes do not match.", nodeCount, depth);
+      const bool is_left = !rawOldAttr;
+      StrRef side = is_left ? "right" : "left";
+      StrRef name = is_left ? getName(rawNewAttr) : getName(rawOldAttr);
+      PRINT_ERR("[#{}:{}] Attributes do not match,"
+        " {}-side is not empty ({}).", nodeCount, depth, side, name);
       return false;
     }
     return true;
@@ -281,9 +318,9 @@ bool XMLCompare::compare(XMLNodeIt& oldNode, XMLNodeIt& newNode) const {
       ++errorCount;
     }
     if (oldNode.value() != newNode.value()) {
-      PRINT_ERR("[#{}:{}] Inconsistent values: {} != {}",
+      PRINT_ERR("[#{}:{}] Inconsistent values: '{}' != '{}'",
         nodeCount, depth,
-        oldNode.value(), newNode.value());
+        oldNode.valueS(), newNode.valueS());
       ++errorCount;
     }
 
@@ -316,7 +353,7 @@ bool XMLCompare::compare(XMLNodeIt& oldNode, XMLNodeIt& newNode) const {
 bool compare_xml(XMLDocument* oldDoc, XMLDocument* newDoc, CompareOpts opts) {
   LOG_ASSERT(oldDoc != nullptr);
   if (!newDoc) {
-    PRINT_ERR("New XML document could not be parsed!");
+    PRINT_ERR("Right-side XML document could not be parsed!");
     return false;
   }
 

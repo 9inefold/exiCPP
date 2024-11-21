@@ -21,6 +21,7 @@ namespace rapidxml
     // Printing flags
 
     const int print_no_indenting = 0x1;   //!< Printer flag instructing the printer to suppress indenting of XML. See print() function.
+    const int print_escape_chars = 0x2;
 
     ///////////////////////////////////////////////////////////////////////
     // Internal
@@ -31,7 +32,7 @@ namespace rapidxml
         
         ///////////////////////////////////////////////////////////////////////////
         // Internal character operations
-    
+
         // Copy characters from given range to given output iterator
         template<class OutIt, class Ch>
         inline OutIt copy_chars(const Ch *begin, const Ch *end, OutIt out)
@@ -73,6 +74,19 @@ namespace rapidxml
                         break;
                     default:
                         *out++ = *begin;    // No expansion, copy character
+                    /*
+                        using UCh = std::make_unsigned_t<Ch>;
+                        const UCh C = *begin;
+                        if (C >= UCh(' ')) {
+                            *out++ = Ch(C);    // No expansion, copy character
+                            break;
+                        }
+                        *out++ = Ch('&'); *out++ = Ch('#');
+                        if (C > 9u)
+                            *out++ = Ch(UCh('0') + C / 10);
+                        *out++ = Ch(UCh('0') + C % 10);
+                        *out++ = Ch(';');
+                    */
                     }
                 }
                 ++begin;    // Step to next character
