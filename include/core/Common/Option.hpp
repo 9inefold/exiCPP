@@ -1,4 +1,4 @@
-//===- Driver.cpp ---------------------------------------------------===//
+//===- Common/Option.hpp --------------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -16,27 +16,17 @@
 //
 //===----------------------------------------------------------------===//
 
-#include <Common/Box.hpp>
-#include <Common/Map.hpp>
-#include <Common/String.hpp>
-#include <Common/Vec.hpp>
-#include <fmt/format.h>
+#pragma once
 
-using namespace exi;
+#include "Features.hpp"
+#include <optional>
 
-int main() {
-  auto five = Box<int>::From(5);
-  exi_assert(*five == 5);
+namespace exi {
 
-  Str S = "Hello ";
-  auto wrld = Box<Str>::FromIn("World!", Allocator<Str>());
+using std::nullopt_t;
+using std::nullopt;
 
-  Allocator<Str> A;
-  Str* ptr = A.allocate(1);
-  A.construct(ptr, " This works!");
-  auto wrks = Box<Str>::FromRaw(ptr, std::move(A));
+template <typename T>
+using Option = std::optional<T>;
 
-  fmt::println("{}{}{}",
-    S, *wrld, wrks->c_str()
-  );
-}
+} // namespace exi

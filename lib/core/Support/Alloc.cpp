@@ -1,4 +1,4 @@
-//===- Driver.cpp ---------------------------------------------------===//
+//===- Support/Alloc.cpp --------------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -16,27 +16,7 @@
 //
 //===----------------------------------------------------------------===//
 
-#include <Common/Box.hpp>
-#include <Common/Map.hpp>
-#include <Common/String.hpp>
-#include <Common/Vec.hpp>
-#include <fmt/format.h>
-
-using namespace exi;
-
-int main() {
-  auto five = Box<int>::From(5);
-  exi_assert(*five == 5);
-
-  Str S = "Hello ";
-  auto wrld = Box<Str>::FromIn("World!", Allocator<Str>());
-
-  Allocator<Str> A;
-  Str* ptr = A.allocate(1);
-  A.construct(ptr, " This works!");
-  auto wrks = Box<Str>::FromRaw(ptr, std::move(A));
-
-  fmt::println("{}{}{}",
-    S, *wrld, wrks->c_str()
-  );
-}
+#include <Support/Alloc.hpp>
+#if EXI_USE_MIMALLOC
+# include <mimalloc-new-delete.h>
+#endif

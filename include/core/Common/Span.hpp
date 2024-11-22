@@ -1,4 +1,4 @@
-//===- Driver.cpp ---------------------------------------------------===//
+//===- Common/Span.hpp ----------------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -16,27 +16,20 @@
 //
 //===----------------------------------------------------------------===//
 
-#include <Common/Box.hpp>
-#include <Common/Map.hpp>
-#include <Common/String.hpp>
-#include <Common/Vec.hpp>
-#include <fmt/format.h>
+#include "Fundamental.hpp"
+#include <span>
 
-using namespace exi;
+namespace exi {
 
-int main() {
-  auto five = Box<int>::From(5);
-  exi_assert(*five == 5);
+/// @brief Alias for `std::dynamic_extent`.
+EXI_CONST usize dyn_extent = std::dynamic_extent;
 
-  Str S = "Hello ";
-  auto wrld = Box<Str>::FromIn("World!", Allocator<Str>());
+/// @brief Same as `std::span<T, E>`.
+template <typename T, usize Extent = dyn_extent>
+using Span = std::span<T, Extent>;
 
-  Allocator<Str> A;
-  Str* ptr = A.allocate(1);
-  A.construct(ptr, " This works!");
-  auto wrks = Box<Str>::FromRaw(ptr, std::move(A));
+/// @brief Maps `[T, E] -> [const T, E]`.
+template <typename T, usize Extent = dyn_extent>
+using ImmSpan = Span<const T, Extent>;
 
-  fmt::println("{}{}{}",
-    S, *wrld, wrks->c_str()
-  );
-}
+} // namespace exi

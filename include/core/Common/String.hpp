@@ -1,4 +1,4 @@
-//===- Driver.cpp ---------------------------------------------------===//
+//===- Common/String.hpp --------------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -16,27 +16,20 @@
 //
 //===----------------------------------------------------------------===//
 
-#include <Common/Box.hpp>
-#include <Common/Map.hpp>
-#include <Common/String.hpp>
-#include <Common/Vec.hpp>
-#include <fmt/format.h>
+#include <Support/Alloc.hpp>
+#include <string>
+#include <string_view>
 
-using namespace exi;
+namespace exi {
 
-int main() {
-  auto five = Box<int>::From(5);
-  exi_assert(*five == 5);
+using char_t = char;
+using Char   = char_t;
+using CharTraits = std::char_traits<char_t>;
 
-  Str S = "Hello ";
-  auto wrld = Box<Str>::FromIn("World!", Allocator<Str>());
+using Str  = std::basic_string<char_t, CharTraits, Allocator<char_t>>;
+using WStr = std::wstring;
 
-  Allocator<Str> A;
-  Str* ptr = A.allocate(1);
-  A.construct(ptr, " This works!");
-  auto wrks = Box<Str>::FromRaw(ptr, std::move(A));
+using StrRef  = std::basic_string_view<char_t, CharTraits>;
+using WStrRef = std::wstring_view;
 
-  fmt::println("{}{}{}",
-    S, *wrld, wrks->c_str()
-  );
-}
+} // namespace exi
