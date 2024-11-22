@@ -221,8 +221,8 @@ public:
     T* oldPtr = this->get();
     this->Ptr = ptr;
     if (oldPtr) {
-      Traits::destroy(Alloc, Ptr);
-      Traits::deallocate(Alloc, Ptr, 1);
+      Traits::destroy(Alloc, oldPtr);
+      Traits::deallocate(Alloc, oldPtr, 1);
     }
   }
 
