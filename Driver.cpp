@@ -16,7 +16,7 @@
 //
 //===----------------------------------------------------------------===//
 
-#include <Common/Box.hpp>
+#include <Common/BoxR.hpp>
 #include <Common/Map.hpp>
 #include <Common/String.hpp>
 #include <Common/Vec.hpp>
@@ -24,19 +24,75 @@
 
 using namespace exi;
 
+struct Base {
+  constexpr Base() : Base(false) {}
+  bool isDerived() const { return this->IsDerived; }
+protected:
+  constexpr Base(bool V) : IsDerived(V) {}
+  bool IsDerived = false;
+};
+
+struct Derived : public Base {
+  constexpr Derived() : Base(true) {}
+  static bool classof(const Base* B) {
+    return B->isDerived();
+  }
+};
+
+struct BaseV {
+  constexpr BaseV() : BaseV(false) {}
+  virtual ~BaseV() = default;
+  bool isDerived() const { return this->IsDerived; }
+protected:
+  constexpr BaseV(bool V) : IsDerived(V) {}
+  bool IsDerived = false;
+};
+
+struct DerivedV : public BaseV {
+  constexpr DerivedV() : BaseV(true) {}
+  static bool classof(const BaseV* B) {
+    return B->isDerived();
+  }
+};
+
+////////////////////////////////////////////////////////////////////////
+
+bool test_null() {
+  auto ptr = Box<int>::From(0);
+  if (!ptr)
+    return false;
+  if (ptr == nullptr)
+    return false;
+  if (nullptr == ptr)
+    return false;
+  if (ptr != ptr)
+    return false;
+  return true;
+}
+
+bool test_isa() {
+  /*Base*/ {
+    auto ptr = Box<Base>::New();
+    if (isa<Derived>(ptr))
+      return false;
+    if (auto D = dyn_cast<Derived>(ptr))
+      return false;
+    if (auto D = unique_dyn_cast_or_null<Derived>(ptr))
+      return false;
+    assert(!ptr);
+  } /*Derived*/ {
+    Box<BaseV> ptr = Box<DerivedV>::New();
+    if (!isa<DerivedV>(ptr))
+      return false;
+    if (auto D = dyn_cast<DerivedV>(ptr); !D)
+      return false;
+    if (auto D = unique_dyn_cast_or_null<DerivedV>(ptr))
+      return false;
+  }
+
+  return true;
+}
+
 int main() {
-  auto five = Box<int>::From(5);
-  exi_assert(*five == 5);
-
-  Str S = "Hello ";
-  auto wrld = Box<Str>::FromIn("World!", Allocator<Str>());
-
-  Allocator<Str> A;
-  Str* ptr = A.allocate(1);
-  A.construct(ptr, " This works!");
-  auto wrks = Box<Str>::FromRaw(ptr, std::move(A));
-
-  fmt::println("{}{}{}",
-    S, *wrld, wrks->c_str()
-  );
+  
 }

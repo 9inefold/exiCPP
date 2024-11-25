@@ -282,15 +282,3 @@
 
 /// Defines a global constant
 #define EXI_CONST inline constexpr
-
-// TODO: Custom assertion handler
-/// Takes `(condition, "message")`, asserts in debug mode.
-#define exi_assert(expr, ...) assert(expr __VA_OPT__(&&) __VA_ARGS__)
-
-#if EXI_INVARIANTS
-/// Takes `(condition, "message")`, checks when invariants on.
-# define exi_invariant(expr, ...) exi_assert(expr __VA_OPT__(&&) __VA_ARGS__)
-#else
-/// Noop in this mode.
-# define exi_invariant(expr, ...) (void(0))
-#endif

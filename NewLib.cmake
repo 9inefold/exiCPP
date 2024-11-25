@@ -8,6 +8,7 @@ set(EXI_USE_MIMALLOC ${EXICPP_USE_MIMALLOC})
 
 include_items(EXICPP_CORE "lib/core"
   Support/Alloc.cpp
+  Support/ErrorHandle.cpp
 )
 
 include_items(EXICPP_SRC "lib/exi")
