@@ -12,6 +12,7 @@ _deps
 build
 .vscode
 **/*.inc
+**/*.hidden.*
 
 examples/*.exi
 large-examples/
