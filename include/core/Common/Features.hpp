@@ -129,6 +129,55 @@
 
 //////////////////////////////////////////////////////////////////////////
 
+#if EXI_COMPILER(MSVC)
+# define EXI_PRAGMA(...) __pragma(__VA_ARGS__)
+#else
+# define EXI_PRAGMA(...) _Pragma(#__VA_ARGS__)
+#endif
+
+#if EXI_COMPILER(CLANG)
+# define DIAGNOSTIC_PUSH() EXI_PRAGMA(clang diagnostic push)
+# define DIAGNOSTIC_POP()  EXI_PRAGMA(clang diagnostic pop)
+# define CLANG_DIAGNOSTIC(sv, name) EXI_PRAGMA(clang diagnostic sv name)
+#elif EXI_COMPILER(GCC)
+# define DIAGNOSTIC_PUSH() EXI_PRAGMA(GCC diagnostic push)
+# define DIAGNOSTIC_POP()  EXI_PRAGMA(GCC diagnostic pop)
+# define GCC_DIAGNOSTIC(sv, name) EXI_PRAGMA(GCC diagnostic sv name)
+#elif EXI_COMPILER(MSVC)
+# define DIAGNOSTIC_PUSH() EXI_PRAGMA(warning(push))
+# define DIAGNOSTIC_POP()  EXI_PRAGMA(warning(pop))
+# define MSVC_DIAGNOSTIC(sv, code) __pragma(warning(sv:code))
+#else
+# define DIAGNOSTIC_PUSH()
+# define DIAGNOSTIC_POP()
+#endif
+
+#ifndef CLANG_DIAGNOSTIC
+# define CLANG_DIAGNOSTIC(sv, name)
+#endif
+
+#ifndef GCC_DIAGNOSTIC
+# define GCC_DIAGNOSTIC(sv, name)
+#endif
+
+#ifndef MSVC_DIAGNOSTIC
+# define MSVC_DIAGNOSTIC(sv, code)
+#endif
+
+#define CLANG_IGNORED(name) CLANG_DIAGNOSTIC(ignored, name)
+#define CLANG_WARNING(name) CLANG_DIAGNOSTIC(warning, name)
+#define CLANG_ERROR(name)   CLANG_DIAGNOSTIC(error, name)
+
+#define GCC_IGNORED(name)   GCC_DIAGNOSTIC(ignored, name)
+#define GCC_WARNING(name)   GCC_DIAGNOSTIC(warning, name)
+#define GCC_ERROR(name)     GCC_DIAGNOSTIC(error, name)
+
+#define MSVC_IGNORED(code)  MSVC_DIAGNOSTIC(disabled, code)
+#define MSVC_WARNING(code)  MSVC_DIAGNOSTIC(1, code)
+#define MSVC_ERROR(code)    MSVC_DIAGNOSTIC(error, code)
+
+//////////////////////////////////////////////////////////////////////////
+
 #undef ALWAYS_INLINE
 #if EXI_HAS_ATTR(always_inline)
 # define ALWAYS_INLINE __attribute__((always_inline)) inline
@@ -169,6 +218,18 @@
 # define EXI_LIFETIMEBOUND [[clang::lifetimebound]]
 #else
 # define EXI_LIFETIMEBOUND
+#endif
+
+#if EXI_HAS_CPPATTR(gsl::Owner)
+# define EXI_GSL_OWNER [[gsl::Owner]]
+#else
+# define EXI_GSL_OWNER
+#endif
+
+#if EXI_HAS_CPPATTR(gsl::Pointer)
+# define EXI_GSL_POINTER [[gsl::Pointer]]
+#else
+# define EXI_GSL_POINTER
 #endif
 
 #if EXI_HAS_ATTR(__nodebug__)

@@ -26,10 +26,10 @@ EXI_CONST usize dyn_extent = std::dynamic_extent;
 
 /// @brief Same as `std::span<T, E>`.
 template <typename T, usize Extent = dyn_extent>
-using Span = std::span<T, Extent>;
+using MutableSpan = std::span<T, Extent>;
 
 /// @brief Maps `[T, E] -> [const T, E]`.
 template <typename T, usize Extent = dyn_extent>
-using ImmSpan = Span<const T, Extent>;
+using Span = MutableSpan<const T, Extent>;
 
 } // namespace exi
