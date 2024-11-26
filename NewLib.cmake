@@ -7,8 +7,11 @@ set(EXI_ANSI       ${EXICPP_ANSI})
 set(EXI_USE_MIMALLOC ${EXICPP_USE_MIMALLOC})
 
 include_items(EXICPP_CORE "lib/core"
+  Common/SmallVec.cpp
+
   Support/Alloc.cpp
   Support/ErrorHandle.cpp
+  Support/MemoryBuffer.cpp
 )
 
 include_items(EXICPP_SRC "lib/exi")
