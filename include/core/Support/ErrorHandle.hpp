@@ -19,6 +19,7 @@
 #pragma once
 
 #include <Common/Features.hpp>
+#include <Common/String.hpp>
 
 namespace exi {
 namespace H {
@@ -32,6 +33,10 @@ enum AssertionKind : unsigned {
 } // namespace H
 
 /// @brief Reports a fatal error.
+[[noreturn]] void report_fatal_error(
+  StrRef msg, bool genCrashDiag = true);
+
+/// @brief Reports a fatal allocation error.
 /// If exceptions are enabled, throws `std::bad_alloc`, otherwise aborts.
 [[noreturn]] void fatal_alloc_error(const char* msg);
 

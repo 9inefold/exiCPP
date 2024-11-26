@@ -19,9 +19,11 @@
 #include <Support/ErrorHandle.hpp>
 #include <Support/_IO.hpp>
 #include <cstring>
+#include <cstdlib>
 #include <fmt/format.h>
 #if EXI_EXCEPTIONS
 # include <new>
+# include <stdexcept>
 #endif
 
 using namespace exi;
@@ -39,17 +41,27 @@ static const char* getAssertionMessage(H::AssertionKind kind) {
   return "??? failed";
 }
 
+[[noreturn]] void exi::report_fatal_error(StrRef msg, bool genCrashDiag) {
+  std::string fullMsg = fmt::format("EXICPP ERROR: {}\n", msg);
+  (void)::write(2, fullMsg.data(), fullMsg.size());
+
+  if (genCrashDiag)
+    std::abort();
+  else
+    std::exit(1);
+}
+
 [[noreturn]] void exi::fatal_alloc_error([[maybe_unused]] const char* msg) {
 #if EXI_EXCEPTIONS
   throw std::bad_alloc();
 #else
-  if (msg == nullptr)
+  if (msg == nullptr || msg[0] == '\0')
     msg = "Allocation failed.";
   
   const char* oom = "ERROR: Out of memory.\n";
-  ::write(2, oom, std::strlen(oom));
-  ::write(2, msg, std::strlen(msg));
-  ::write(2, "\n", 1);
+  (void)::write(2, oom, std::strlen(oom));
+  (void)::write(2, msg, std::strlen(msg));
+  (void)::write(2, "\n", 1);
 
   std::abort();
 #endif
@@ -60,7 +72,7 @@ static const char* getAssertionMessage(H::AssertionKind kind) {
  const char* file, unsigned line
 ) {
   auto* const pre = getAssertionMessage(kind);
-  if (msg)
+  if (msg && msg[0])
     fmt::println(stderr, "{}: \"{}\"", pre, msg);
   else
     fmt::print(stderr, "{}", pre);
