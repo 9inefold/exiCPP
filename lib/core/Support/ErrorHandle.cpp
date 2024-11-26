@@ -17,18 +17,11 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/ErrorHandle.hpp>
+#include <Support/_IO.hpp>
 #include <cstring>
 #include <fmt/format.h>
 #if EXI_EXCEPTIONS
 # include <new>
-#endif
-
-#if __has_include(<unistd.h>)
-# include <unistd.h>
-#endif
-#if defined(_MSC_VER)
-# include <io.h>
-# include <fcntl.h>
 #endif
 
 using namespace exi;
