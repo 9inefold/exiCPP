@@ -15,9 +15,10 @@
 //     limitations under the License.
 //
 //===----------------------------------------------------------------===//
-//
-//  This file defines the allocators used by the program.
-//
+///
+/// \file
+/// This file defines the allocators used by the program.
+///
 //===----------------------------------------------------------------===//
 
 #pragma once
@@ -70,11 +71,11 @@ EXI_RETURNS_NOALIAS EXI_INLINE
 }
 
 EXI_RETURNS_NOALIAS EXI_INLINE
- void* exi_realloc(void* ptr, usize new_size) noexcept {
+ void* exi_realloc(void* ptr, usize newSize) noexcept {
 #if EXI_USE_MIMALLOC
-  return ::mi_realloc(ptr, new_size);
+  return ::mi_realloc(ptr, newSize);
 #else
-  return std::realloc(ptr, new_size);
+  return std::realloc(ptr, newSize);
 #endif
 }
 
