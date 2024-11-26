@@ -17,7 +17,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")
 else()
   # TODO: Add function for this?
-  set(EXICPP_WARNING_FLAGS -Wall -Wpedantic -Wno-unused-variable -Wno-unused-function)
+  set(EXICPP_WARNING_FLAGS -Wall -Wextra -Wno-unused-variable -Wno-unused-function)
 endif()
 
 option(EXICPP_USE_EXIP   "Enables the old version of exicpp." OFF)
