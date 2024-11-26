@@ -18,8 +18,9 @@
 
 #pragma once
 
-#include <Support/ErrorHandle.hpp>
+#include <Common/Features.hpp>
 #include <climits>
+#include <cstddef>
 #include <cstdint>
 #include <type_traits>
 

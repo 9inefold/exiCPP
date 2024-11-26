@@ -15,15 +15,19 @@
 //     limitations under the License.
 //
 //===----------------------------------------------------------------===//
-//
-//  This file acts as a source for in-language configuration.
-//
+///
+/// \file
+/// This file acts as a source for in-language configuration.
+///
 //===----------------------------------------------------------------===//
 
 #pragma once
 
 #include <cassert>
 #include <cstddef>
+#ifdef _MSC_VER
+# include <sal.h>
+#endif
 
 #define ON 1
 #define OFF 0
@@ -250,6 +254,15 @@
 # define EXI_RETURNS_NOALIAS __declspec(restrict)
 #else
 # define EXI_RETURNS_NOALIAS
+#endif
+
+
+#if EXI_HAS_ATTR(returns_nonnull)
+# define EXI_RETURNS_NONNULL __attribute__((returns_nonnull))
+#elif defined(_MSC_VER)
+# define EXI_RETURNS_NONNULL _Ret_notnull_
+#else
+# define EXI_RETURNS_NONNULL
 #endif
 
 //////////////////////////////////////////////////////////////////////////

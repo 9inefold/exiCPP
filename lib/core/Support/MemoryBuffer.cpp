@@ -16,8 +16,6 @@
 //
 //===----------------------------------------------------------------===//
 
-#pragma once
-
 #include <Support/MemoryBuffer.hpp>
 #include <Support/_IO.hpp>
 
