@@ -19,11 +19,20 @@
 #include <Common/Box.hpp>
 #include <Common/Map.hpp>
 #include <Common/String.hpp>
-#include <Common/Vec.hpp>
+#include <Common/SmallVec.hpp>
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 
 using namespace exi;
 
 int main() {
-  
+  SmallVec<usize, 3> V;
+  usize N = 7;
+  for (usize Ix = 0; Ix < std::numeric_limits<usize>::digits10; ++Ix) {
+    V.push_back(N);
+    N *= 10;
+    N += 7;
+  }
+
+  fmt::println("V: {}", fmt::join(V, ", "));
 }
