@@ -20,6 +20,7 @@
 #include <Common/Map.hpp>
 #include <Common/String.hpp>
 #include <Common/SmallVec.hpp>
+#include <Support/MemoryBuffer.hpp>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 

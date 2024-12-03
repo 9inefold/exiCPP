@@ -102,6 +102,7 @@ public:
 
   /// @}
   /// @name String Comparison
+  /// TODO
   /// @{
 
   /// Check for string equality.  This is more efficient than compare() when

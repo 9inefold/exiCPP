@@ -18,7 +18,11 @@
 
 #pragma once
 
-#include <Common/Features.hpp>
+#include <Common/ArrayRef.hpp>
+#include <Common/Box.hpp>
+#include <Common/Option.hpp>
+#include <Common/String.hpp>
+#include <Support/Alignment.hpp>
 
 namespace exi {
 
