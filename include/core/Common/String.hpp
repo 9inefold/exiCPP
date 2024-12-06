@@ -20,6 +20,8 @@
 #include <string>
 #include <string_view>
 
+#define EXI_CUSTOM_STRREF 0
+
 namespace exi {
 
 using char_t = char;

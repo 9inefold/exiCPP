@@ -109,16 +109,19 @@ public:
   /// the relative ordering of inequal strings isn't needed.
   [[nodiscard]] bool equals(StrRef RHS) const { return str() == RHS; }
 
+#if EXI_CUSTOM_STRREF
   /// Check for string equality, ignoring case.
   [[nodiscard]] bool equals_insensitive(StrRef RHS) const {
     return str().equals_insensitive(RHS);
   }
+#endif
 
   /// compare - Compare two strings; the result is negative, zero, or positive
   /// if this string is lexicographically less than, equal to, or greater than
   /// the \p RHS.
   [[nodiscard]] int compare(StrRef RHS) const { return str().compare(RHS); }
 
+#if EXI_CUSTOM_STRREF
   /// compare_insensitive - Compare two strings, ignoring case.
   [[nodiscard]] int compare_insensitive(StrRef RHS) const {
     return str().compare_insensitive(RHS);
@@ -129,6 +132,7 @@ public:
   [[nodiscard]] int compare_numeric(StrRef RHS) const {
     return str().compare_numeric(RHS);
   }
+#endif
 
   /// @}
   /// @name String Predicates

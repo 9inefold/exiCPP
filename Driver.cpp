@@ -19,6 +19,7 @@
 #include <Common/Box.hpp>
 #include <Common/Map.hpp>
 #include <Common/String.hpp>
+#include <Common/SmallStr.hpp>
 #include <Common/SmallVec.hpp>
 #include <Support/MemoryBuffer.hpp>
 #include <fmt/format.h>
@@ -36,4 +37,6 @@ int main() {
   }
 
   fmt::println("V: {}", fmt::join(V, ", "));
+
+  SmallStr<256> Inl {};
 }
