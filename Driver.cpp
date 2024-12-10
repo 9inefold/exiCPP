@@ -25,6 +25,8 @@
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 
+#include <tuple>
+
 using namespace exi;
 
 int main() {
@@ -35,8 +37,14 @@ int main() {
     N *= 10;
     N += 7;
   }
-
   fmt::println("V: {}", fmt::join(V, ", "));
 
+  std::allocator<char> CA {};
+  char* P = CA.allocate(128);
+  if (mi_is_in_heap_region(P))
+    fmt::println("In heap!");
+  CA.deallocate(P, 128);
+
   SmallStr<256> Inl {};
+  exi_assert(55 == 77, "Invalid comparison!");
 }

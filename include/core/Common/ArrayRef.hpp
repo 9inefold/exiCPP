@@ -39,7 +39,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace prong {
+namespace exi {
 template <typename T> class [[nodiscard]] MutableArrayRef;
 
 /// ArrayRef - Represent a constant reference to an array (0 or more elements
@@ -542,4 +542,4 @@ inline bool operator!=(ArrayRef<T> LHS, ArrayRef<T> RHS) {
 
 /// @}
 
-} // namespace prong
+} // namespace exi

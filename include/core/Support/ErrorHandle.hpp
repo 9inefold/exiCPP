@@ -32,6 +32,8 @@ enum AssertionKind : unsigned {
 
 } // namespace H
 
+class Twine;
+
 /// @brief Reports a fatal error.
 [[noreturn]] void report_fatal_error(
   StrRef msg, bool genCrashDiag = true);
@@ -49,7 +51,7 @@ enum AssertionKind : unsigned {
 
 #ifndef NDEBUG
 # define exi_unreachable(msg) \
-  ::exi::exi_unreachable_impl(::exi::H::ASK_Unreachable, msg, __FILE__, __LINE__)
+  ::exi::exi_assert_impl(::exi::H::ASK_Unreachable, msg, __FILE__, __LINE__)
 #elif !defined(EXI_UNREACHABLE)
 # define exi_unreachable(msg) \
   ::exi::exi_unreachable_impl(::exi::H::ASK_Unreachable)
@@ -64,9 +66,11 @@ enum AssertionKind : unsigned {
 
 #define exi_assert_(k, expr, ...) void(EXI_LIKELY((expr))                     \
   ? (void(0))                                                                 \
-  : (::exi::exi_assert_impl(::exi::H::k, #__VA_ARGS__, __FILE__, __LINE__)))
+  : (::exi::exi_assert_impl(::exi::H::k,                                      \
+      ("Assertion `" #expr "` failed. " __VA_OPT__("Reason: ") #__VA_ARGS__),  \
+      __FILE__, __LINE__)))
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) || EXI_INVARIANTS
 /// Takes `(condition, "message")`, asserts in debug mode.
 # define exi_assert(expr, ...) \
  exi_assert_(ASK_Assert, expr __VA_OPT__(,) __VA_ARGS__)

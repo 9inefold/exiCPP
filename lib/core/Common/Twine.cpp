@@ -26,6 +26,7 @@
 
 #include <Common/Twine.hpp>
 #include <Common/SmallStr.hpp>
+#include <Support/raw_ostream.hpp>
 
 using namespace exi;
 
@@ -36,7 +37,11 @@ Str Twine::str() const {
 
   // Otherwise, flatten and copy the contents first.
   SmallStr<256> Vec;
+#if EXI_CUSTOM_STRREF
   return toStrRef(Vec).str();
+#else
+  return Str(toStrRef(Vec));
+#endif
 }
 
 void Twine::toVector(SmallVecImpl<char> &Out) const {
@@ -82,7 +87,7 @@ void Twine::printOneChild(raw_ostream &OS, Child Ptr,
     break;
   case Twine::PtrAndLengthKind:
   case Twine::StringLiteralKind:
-    OS << StringRef(Ptr.ptrAndLength.ptr, Ptr.ptrAndLength.length);
+    OS << StrRef(Ptr.ptrAndLength.ptr, Ptr.ptrAndLength.length);
     break;
   case Twine::CharKind:
     OS << Ptr.character;
@@ -132,11 +137,11 @@ void Twine::printOneChildRepr(raw_ostream &OS, Child Ptr,
     break;
   case Twine::PtrAndLengthKind:
     OS << "ptrAndLength:\""
-       << StringRef(Ptr.ptrAndLength.ptr, Ptr.ptrAndLength.length) << "\"";
+       << StrRef(Ptr.ptrAndLength.ptr, Ptr.ptrAndLength.length) << "\"";
     break;
   case Twine::StringLiteralKind:
     OS << "constexprPtrAndLength:\""
-       << StringRef(Ptr.ptrAndLength.ptr, Ptr.ptrAndLength.length) << "\"";
+       << StrRef(Ptr.ptrAndLength.ptr, Ptr.ptrAndLength.length) << "\"";
     break;
   case Twine::CharKind:
     OS << "char:\"" << Ptr.character << "\"";

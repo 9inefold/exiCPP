@@ -29,6 +29,7 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/raw_ostream.hpp>
+#include <Common/Twine.hpp>
 // #include "llvm/ADT/StringExtras.h"
 // #include "llvm/Config/config.h"
 // #include "llvm/Support/AutoConvert.h"
@@ -38,13 +39,14 @@
 // #include "llvm/Support/FileSystem.h"
 // #include "llvm/Support/Format.h"
 // #include "llvm/Support/FormatVariadic.h"
-// #include "llvm/Support/MathExtras.h"
-// #include "llvm/Support/NativeFormatting.h"
+#include <Support/MathExtras.hpp>
+#include <Support/NativeFormatting.hpp>
 // #include "llvm/Support/Process.h"
 // #include "llvm/Support/Program.h"
 #include <algorithm>
 #include <cerrno>
 #include <cstdio>
+#include <fmt/format.h>
 #include <sys/stat.h>
 
 // <fcntl.h> may provide O_BINARY.
@@ -74,23 +76,13 @@
 #endif
 
 #ifdef _WIN32
-#include "llvm/Support/ConvertUTF.h"
-#include "llvm/Support/Signals.h"
-#include "llvm/Support/Windows/WindowsSupport.h"
+// #include "llvm/Support/ConvertUTF.h"
+// #include "llvm/Support/Signals.h"
+// #include "llvm/Support/Windows/WindowsSupport.h"
 #endif
 
 using namespace exi;
-
-constexpr raw_ostream::Colors raw_ostream::BLACK;
-constexpr raw_ostream::Colors raw_ostream::RED;
-constexpr raw_ostream::Colors raw_ostream::GREEN;
-constexpr raw_ostream::Colors raw_ostream::YELLOW;
-constexpr raw_ostream::Colors raw_ostream::BLUE;
-constexpr raw_ostream::Colors raw_ostream::MAGENTA;
-constexpr raw_ostream::Colors raw_ostream::CYAN;
-constexpr raw_ostream::Colors raw_ostream::WHITE;
-constexpr raw_ostream::Colors raw_ostream::SAVEDCOLOR;
-constexpr raw_ostream::Colors raw_ostream::RESET;
+using enum raw_ostream::Colors;
 
 raw_ostream::~raw_ostream() {
   // raw_ostream's subclasses should take care to flush the buffer
@@ -102,7 +94,7 @@ raw_ostream::~raw_ostream() {
     delete [] OutBufStart;
 }
 
-size_t raw_ostream::preferred_buffer_size() const {
+usize raw_ostream::preferred_buffer_size() const {
 #ifdef _WIN32
   // On Windows BUFSIZ is only 512 which results in more calls to write. This
   // overhead can cause significant performance degradation. Therefore use a
@@ -116,18 +108,18 @@ size_t raw_ostream::preferred_buffer_size() const {
 
 void raw_ostream::SetBuffered() {
   // Ask the subclass to determine an appropriate buffer size.
-  if (size_t Size = preferred_buffer_size())
+  if (usize Size = preferred_buffer_size())
     SetBufferSize(Size);
   else
     // It may return 0, meaning this stream should be unbuffered.
     SetUnbuffered();
 }
 
-void raw_ostream::SetBufferAndMode(char *BufferStart, size_t Size,
+void raw_ostream::SetBufferAndMode(char *BufferStart, usize Size,
                                    BufferKind Mode) {
-  assert(((Mode == BufferKind::Unbuffered && !BufferStart && Size == 0) ||
-          (Mode != BufferKind::Unbuffered && BufferStart && Size != 0)) &&
-         "stream must be unbuffered or have at least one byte");
+  exi_assert(((Mode == BufferKind::Unbuffered && !BufferStart && Size == 0) ||
+              (Mode != BufferKind::Unbuffered && BufferStart && Size != 0)),
+              "stream must be unbuffered or have at least one byte");
   // Make sure the current buffer is free of content (we can't flush here; the
   // child buffer management logic will be in write_impl).
   exi_assert(GetNumBytesInBuffer() == 0, "Current buffer is non-empty!");
@@ -143,27 +135,27 @@ void raw_ostream::SetBufferAndMode(char *BufferStart, size_t Size,
 }
 
 raw_ostream &raw_ostream::operator<<(unsigned long N) {
-  write_integer(*this, static_cast<uint64_t>(N), 0, IntegerStyle::Integer);
+  exi::write_integer(*this, static_cast<u64>(N), 0, IntStyle::Integer);
   return *this;
 }
 
 raw_ostream &raw_ostream::operator<<(long N) {
-  write_integer(*this, static_cast<int64_t>(N), 0, IntegerStyle::Integer);
+  exi::write_integer(*this, static_cast<i64>(N), 0, IntStyle::Integer);
   return *this;
 }
 
 raw_ostream &raw_ostream::operator<<(unsigned long long N) {
-  write_integer(*this, static_cast<uint64_t>(N), 0, IntegerStyle::Integer);
+  exi::write_integer(*this, static_cast<u64>(N), 0, IntStyle::Integer);
   return *this;
 }
 
 raw_ostream &raw_ostream::operator<<(long long N) {
-  write_integer(*this, static_cast<int64_t>(N), 0, IntegerStyle::Integer);
+  exi::write_integer(*this, static_cast<i64>(N), 0, IntStyle::Integer);
   return *this;
 }
 
 raw_ostream &raw_ostream::write_hex(unsigned long long N) {
-  llvm::write_hex(*this, N, HexPrintStyle::Lower);
+  exi::write_hex(*this, N, HexPrintStyle::Lower);
   return *this;
 }
 
@@ -177,7 +169,7 @@ raw_ostream &raw_ostream::operator<<(Colors C) {
 
 raw_ostream &raw_ostream::write_uuid(const uuid_t UUID) {
   for (int Idx = 0; Idx < 16; ++Idx) {
-    *this << format("%02" PRIX32, UUID[Idx]);
+    *this << fmt::format("{:2X}", UUID[Idx]);
     if (Idx == 3 || Idx == 5 || Idx == 7 || Idx == 9)
       *this << "-";
   }
@@ -185,9 +177,9 @@ raw_ostream &raw_ostream::write_uuid(const uuid_t UUID) {
 }
 
 
-raw_ostream &raw_ostream::write_escaped(StringRef Str,
+raw_ostream &raw_ostream::write_escaped(StrRef S,
                                         bool UseHexEscapes) {
-  for (unsigned char c : Str) {
+  for (unsigned char c : S) {
     switch (c) {
     case '\\':
       *this << '\\' << '\\';
@@ -226,26 +218,26 @@ raw_ostream &raw_ostream::write_escaped(StringRef Str,
 }
 
 raw_ostream &raw_ostream::operator<<(const void *P) {
-  llvm::write_hex(*this, (uintptr_t)P, HexPrintStyle::PrefixLower);
+  exi::write_hex(*this, (uintptr_t)P, HexPrintStyle::PrefixLower);
   return *this;
 }
 
 raw_ostream &raw_ostream::operator<<(double N) {
-  llvm::write_double(*this, N, FloatStyle::Exponent);
+  exi::write_double(*this, N, FloatStyle::Exponent);
   return *this;
 }
 
 void raw_ostream::flush_nonempty() {
-  assert(OutBufCur > OutBufStart && "Invalid call to flush_nonempty.");
-  size_t Length = OutBufCur - OutBufStart;
+  exi_assert(OutBufCur > OutBufStart, "Invalid call to flush_nonempty.");
+  usize Length = OutBufCur - OutBufStart;
   OutBufCur = OutBufStart;
   write_impl(OutBufStart, Length);
 }
 
 raw_ostream &raw_ostream::write(unsigned char C) {
   // Group exceptional cases into a single branch.
-  if (LLVM_UNLIKELY(OutBufCur >= OutBufEnd)) {
-    if (LLVM_UNLIKELY(!OutBufStart)) {
+  if (EXI_UNLIKELY(OutBufCur >= OutBufEnd)) {
+    if (EXI_UNLIKELY(!OutBufStart)) {
       if (BufferMode == BufferKind::Unbuffered) {
         write_impl(reinterpret_cast<char *>(&C), 1);
         return *this;
@@ -262,10 +254,10 @@ raw_ostream &raw_ostream::write(unsigned char C) {
   return *this;
 }
 
-raw_ostream &raw_ostream::write(const char *Ptr, size_t Size) {
+raw_ostream &raw_ostream::write(const char *Ptr, usize Size) {
   // Group exceptional cases into a single branch.
-  if (LLVM_UNLIKELY(size_t(OutBufEnd - OutBufCur) < Size)) {
-    if (LLVM_UNLIKELY(!OutBufStart)) {
+  if EXI_UNLIKELY(usize(OutBufEnd - OutBufCur) < Size) {
+    if EXI_UNLIKELY(!OutBufStart) {
       if (BufferMode == BufferKind::Unbuffered) {
         write_impl(Ptr, Size);
         return *this;
@@ -275,17 +267,17 @@ raw_ostream &raw_ostream::write(const char *Ptr, size_t Size) {
       return write(Ptr, Size);
     }
 
-    size_t NumBytes = OutBufEnd - OutBufCur;
+    usize NumBytes = OutBufEnd - OutBufCur;
 
     // If the buffer is empty at this point we have a string that is larger
     // than the buffer. Directly write the chunk that is a multiple of the
     // preferred buffer size and put the remainder in the buffer.
-    if (LLVM_UNLIKELY(OutBufCur == OutBufStart)) {
-      assert(NumBytes != 0 && "undefined behavior");
-      size_t BytesToWrite = Size - (Size % NumBytes);
+    if EXI_UNLIKELY(OutBufCur == OutBufStart) {
+      exi_assert(NumBytes != 0, "undefined behavior");
+      usize BytesToWrite = Size - (Size % NumBytes);
       write_impl(Ptr, BytesToWrite);
-      size_t BytesRemaining = Size - BytesToWrite;
-      if (BytesRemaining > size_t(OutBufEnd - OutBufCur)) {
+      usize BytesRemaining = Size - BytesToWrite;
+      if (BytesRemaining > usize(OutBufEnd - OutBufCur)) {
         // Too much left over to copy into our buffer.
         return write(Ptr + BytesToWrite, BytesRemaining);
       }
@@ -305,8 +297,8 @@ raw_ostream &raw_ostream::write(const char *Ptr, size_t Size) {
   return *this;
 }
 
-void raw_ostream::copy_to_buffer(const char *Ptr, size_t Size) {
-  assert(Size <= size_t(OutBufEnd - OutBufCur) && "Buffer overrun!");
+void raw_ostream::copy_to_buffer(const char *Ptr, usize Size) {
+  exi_assert(Size <= usize(OutBufEnd - OutBufCur), "Buffer overrun!");
 
   // Handle short strings specially, memcpy isn't very good at very short
   // strings.
@@ -317,21 +309,22 @@ void raw_ostream::copy_to_buffer(const char *Ptr, size_t Size) {
   case 1: OutBufCur[0] = Ptr[0]; [[fallthrough]];
   case 0: break;
   default:
-    memcpy(OutBufCur, Ptr, Size);
+    std::memcpy(OutBufCur, Ptr, Size);
     break;
   }
 
   OutBufCur += Size;
 }
 
+#if 0
 // Formatted output.
 raw_ostream &raw_ostream::operator<<(const format_object_base &Fmt) {
   // If we have more than a few bytes left in our output buffer, try
   // formatting directly onto its end.
-  size_t NextBufferSize = 127;
-  size_t BufferBytesLeft = OutBufEnd - OutBufCur;
+  usize NextBufferSize = 127;
+  usize BufferBytesLeft = OutBufEnd - OutBufCur;
   if (BufferBytesLeft > 3) {
-    size_t BytesUsed = Fmt.print(OutBufCur, BufferBytesLeft);
+    usize BytesUsed = Fmt.print(OutBufCur, BufferBytesLeft);
 
     // Common case is that we have plenty of space.
     if (BytesUsed <= BufferBytesLeft) {
@@ -345,15 +338,15 @@ raw_ostream &raw_ostream::operator<<(const format_object_base &Fmt) {
   }
 
   // If we got here, we didn't have enough space in the output buffer for the
-  // string.  Try printing into a SmallVector that is resized to have enough
+  // string.  Try printing into a SmallVec that is resized to have enough
   // space.  Iterate until we win.
-  SmallVector<char, 128> V;
+  SmallVec<char, 128> V;
 
   while (true) {
     V.resize(NextBufferSize);
 
-    // Try formatting into the SmallVector.
-    size_t BytesUsed = Fmt.print(V.data(), NextBufferSize);
+    // Try formatting into the SmallVec.
+    usize BytesUsed = Fmt.print(V.data(), NextBufferSize);
 
     // If BytesUsed fit into the vector, we win.
     if (BytesUsed <= NextBufferSize)
@@ -373,7 +366,7 @@ raw_ostream &raw_ostream::operator<<(const formatv_object_base &Obj) {
 raw_ostream &raw_ostream::operator<<(const FormattedString &FS) {
   unsigned LeftIndent = 0;
   unsigned RightIndent = 0;
-  const ssize_t Difference = FS.Width - FS.Str.size();
+  const ssize_t Difference = FS.Width - FS.S.size();
   if (Difference > 0) {
     switch (FS.Justify) {
     case FormattedString::JustifyNone:
@@ -391,7 +384,7 @@ raw_ostream &raw_ostream::operator<<(const FormattedString &FS) {
     }
   }
   indent(LeftIndent);
-  (*this) << FS.Str;
+  (*this) << FS.S;
   indent(RightIndent);
   return *this;
 }
@@ -411,7 +404,7 @@ raw_ostream &raw_ostream::operator<<(const FormattedNumber &FN) {
   } else {
     llvm::SmallString<16> Buffer;
     llvm::raw_svector_ostream Stream(Buffer);
-    llvm::write_integer(Stream, FN.DecValue, 0, IntegerStyle::Integer);
+    llvm::exi::write_integer(Stream, FN.DecValue, 0, IntStyle::Integer);
     if (Buffer.size() < FN.Width)
       indent(FN.Width - Buffer.size());
     (*this) << Buffer;
@@ -423,21 +416,21 @@ raw_ostream &raw_ostream::operator<<(const FormattedBytes &FB) {
   if (FB.Bytes.empty())
     return *this;
 
-  size_t LineIndex = 0;
+  usize LineIndex = 0;
   auto Bytes = FB.Bytes;
-  const size_t Size = Bytes.size();
+  const usize Size = Bytes.size();
   HexPrintStyle HPS = FB.Upper ? HexPrintStyle::Upper : HexPrintStyle::Lower;
-  uint64_t OffsetWidth = 0;
+  u64 OffsetWidth = 0;
   if (FB.FirstByteOffset) {
     // Figure out how many nibbles are needed to print the largest offset
     // represented by this data set, so that we can align the offset field
     // to the right width.
-    size_t Lines = Size / FB.NumPerLine;
-    uint64_t MaxOffset = *FB.FirstByteOffset + Lines * FB.NumPerLine;
+    usize Lines = Size / FB.NumPerLine;
+    u64 MaxOffset = *FB.FirstByteOffset + Lines * FB.NumPerLine;
     unsigned Power = 0;
     if (MaxOffset > 0)
       Power = llvm::Log2_64_Ceil(MaxOffset);
-    OffsetWidth = std::max<uint64_t>(4, llvm::alignTo(Power, 4) / 4);
+    OffsetWidth = std::max<u64>(4, llvm::alignTo(Power, 4) / 4);
   }
 
   // The width of a block of data including all spaces for group separators.
@@ -449,16 +442,16 @@ raw_ostream &raw_ostream::operator<<(const FormattedBytes &FB) {
     indent(FB.IndentLevel);
 
     if (FB.FirstByteOffset) {
-      uint64_t Offset = *FB.FirstByteOffset;
+      u64 Offset = *FB.FirstByteOffset;
       llvm::write_hex(*this, Offset + LineIndex, HPS, OffsetWidth);
       *this << ": ";
     }
 
     auto Line = Bytes.take_front(FB.NumPerLine);
 
-    size_t CharsPrinted = 0;
+    usize CharsPrinted = 0;
     // Print the hex bytes for this line in groups
-    for (size_t I = 0; I < Line.size(); ++I, CharsPrinted += 2) {
+    for (usize I = 0; I < Line.size(); ++I, CharsPrinted += 2) {
       if (I && (I % FB.ByteGroupSize) == 0) {
         ++CharsPrinted;
         *this << " ";
@@ -490,6 +483,7 @@ raw_ostream &raw_ostream::operator<<(const FormattedBytes &FB) {
   }
   return *this;
 }
+#endif
 
 template <char C>
 static raw_ostream &write_padding(raw_ostream &OS, unsigned NumChars) {
@@ -574,18 +568,22 @@ void raw_ostream::anchor() {}
 //  Formatted Output
 //===----------------------------------------------------------------------===//
 
+#if 0
 // Out of line virtual method.
 void format_object_base::home() {
 }
+#endif
 
 //===----------------------------------------------------------------------===//
 //  raw_fd_ostream
 //===----------------------------------------------------------------------===//
 
-static int getFD(StringRef Filename, std::error_code &EC,
+#if EXI_HAS_RAW_FILE_STREAMS
+
+static int getFD(StrRef Filename, std::error_code &EC,
                  sys::fs::CreationDisposition Disp, sys::fs::FileAccess Access,
                  sys::fs::OpenFlags Flags) {
-  assert((Access & sys::fs::FA_Write) &&
+  exi_assert((Access & sys::fs::FA_Write),
          "Cannot make a raw_ostream from a read-only descriptor!");
 
   // Handle "-" as stdout. Note that when we do this, we consider ourself
@@ -608,25 +606,25 @@ static int getFD(StringRef Filename, std::error_code &EC,
   return FD;
 }
 
-raw_fd_ostream::raw_fd_ostream(StringRef Filename, std::error_code &EC)
+raw_fd_ostream::raw_fd_ostream(StrRef Filename, std::error_code &EC)
     : raw_fd_ostream(Filename, EC, sys::fs::CD_CreateAlways, sys::fs::FA_Write,
                      sys::fs::OF_None) {}
 
-raw_fd_ostream::raw_fd_ostream(StringRef Filename, std::error_code &EC,
+raw_fd_ostream::raw_fd_ostream(StrRef Filename, std::error_code &EC,
                                sys::fs::CreationDisposition Disp)
     : raw_fd_ostream(Filename, EC, Disp, sys::fs::FA_Write, sys::fs::OF_None) {}
 
-raw_fd_ostream::raw_fd_ostream(StringRef Filename, std::error_code &EC,
+raw_fd_ostream::raw_fd_ostream(StrRef Filename, std::error_code &EC,
                                sys::fs::FileAccess Access)
     : raw_fd_ostream(Filename, EC, sys::fs::CD_CreateAlways, Access,
                      sys::fs::OF_None) {}
 
-raw_fd_ostream::raw_fd_ostream(StringRef Filename, std::error_code &EC,
+raw_fd_ostream::raw_fd_ostream(StrRef Filename, std::error_code &EC,
                                sys::fs::OpenFlags Flags)
     : raw_fd_ostream(Filename, EC, sys::fs::CD_CreateAlways, sys::fs::FA_Write,
                      Flags) {}
 
-raw_fd_ostream::raw_fd_ostream(StringRef Filename, std::error_code &EC,
+raw_fd_ostream::raw_fd_ostream(StrRef Filename, std::error_code &EC,
                                sys::fs::CreationDisposition Disp,
                                sys::fs::FileAccess Access,
                                sys::fs::OpenFlags Flags)
@@ -673,7 +671,7 @@ raw_fd_ostream::raw_fd_ostream(int fd, bool shouldClose, bool unbuffered,
   if (!SupportsSeeking)
     pos = 0;
   else
-    pos = static_cast<uint64_t>(loc);
+    pos = static_cast<u64>(loc);
 }
 
 raw_fd_ostream::~raw_fd_ostream() {
@@ -718,8 +716,8 @@ raw_fd_ostream::~raw_fd_ostream() {
 // the input is UTF-8 or transcode from the local codepage to UTF-8 before
 // quoting it. If they don't, this may mess up the encoding, but this is still
 // probably the best compromise we can make.
-static bool write_console_impl(int FD, StringRef Data) {
-  SmallVector<wchar_t, 256> WideText;
+static bool write_console_impl(int FD, StrRef Data) {
+  SmallVec<wchar_t, 256> WideText;
 
   // Fall back to ::write if it wasn't valid UTF-8.
   if (auto EC = sys::windows::UTF8ToUTF16(Data, WideText))
@@ -727,13 +725,13 @@ static bool write_console_impl(int FD, StringRef Data) {
 
   // On Windows 7 and earlier, WriteConsoleW has a low maximum amount of data
   // that can be written to the console at a time.
-  size_t MaxWriteSize = WideText.size();
+  usize MaxWriteSize = WideText.size();
   if (!RunningWindows8OrGreater())
     MaxWriteSize = 32767;
 
-  size_t WCharsWritten = 0;
+  usize WCharsWritten = 0;
   do {
-    size_t WCharsToWrite =
+    usize WCharsToWrite =
         std::min(MaxWriteSize, WideText.size() - WCharsWritten);
     DWORD ActuallyWritten;
     bool Success =
@@ -753,25 +751,26 @@ static bool write_console_impl(int FD, StringRef Data) {
 }
 #endif
 
-void raw_fd_ostream::write_impl(const char *Ptr, size_t Size) {
+void raw_fd_ostream::write_impl(const char *Ptr, usize Size) {
   if (TiedStream)
     TiedStream->flush();
 
-  assert(FD >= 0 && "File already closed.");
+  exi_assert(FD >= 0, "File already closed.");
   pos += Size;
 
 #if defined(_WIN32)
   // If this is a Windows console device, try re-encoding from UTF-8 to UTF-16
   // and using WriteConsoleW. If that fails, fall back to plain write().
-  if (IsWindowsConsole)
-    if (write_console_impl(FD, StringRef(Ptr, Size)))
+  if (IsWindowsConsole) {
+    if (write_console_impl(FD, StrRef(Ptr, Size)))
       return;
+  }
 #endif
 
   // The maximum write size is limited to INT32_MAX. A write
   // greater than SSIZE_MAX is implementation-defined in POSIX,
   // and Windows _write requires 32 bit input.
-  size_t MaxWriteSize = INT32_MAX;
+  usize MaxWriteSize = INT32_MAX;
 
 #if defined(__linux__)
   // It is observed that Linux returns EINVAL for a very large write (>2G).
@@ -780,7 +779,7 @@ void raw_fd_ostream::write_impl(const char *Ptr, size_t Size) {
 #endif
 
   do {
-    size_t ChunkSize = std::min(Size, MaxWriteSize);
+    usize ChunkSize = std::min(Size, MaxWriteSize);
     ssize_t ret = ::write(FD, Ptr, ChunkSize);
 
     if (ret < 0) {
@@ -830,28 +829,28 @@ void raw_fd_ostream::close() {
   FD = -1;
 }
 
-uint64_t raw_fd_ostream::seek(uint64_t off) {
-  assert(SupportsSeeking && "Stream does not support seeking!");
+u64 raw_fd_ostream::seek(u64 off) {
+  exi_assert(SupportsSeeking, "Stream does not support seeking!");
   flush();
 #ifdef _WIN32
   pos = ::_lseeki64(FD, off, SEEK_SET);
 #else
   pos = ::lseek(FD, off, SEEK_SET);
 #endif
-  if (pos == (uint64_t)-1)
+  if (pos == (u64)-1)
     error_detected(errnoAsErrorCode());
   return pos;
 }
 
-void raw_fd_ostream::pwrite_impl(const char *Ptr, size_t Size,
-                                 uint64_t Offset) {
-  uint64_t Pos = tell();
+void raw_fd_ostream::pwrite_impl(const char *Ptr, usize Size,
+                                 u64 Offset) {
+  u64 Pos = tell();
   seek(Offset);
   write(Ptr, Size);
   seek(Pos);
 }
 
-size_t raw_fd_ostream::preferred_buffer_size() const {
+usize raw_fd_ostream::preferred_buffer_size() const {
 #if defined(_WIN32)
   // Disable buffering for console devices. Console output is re-encoded from
   // UTF-8 to UTF-16 on Windows, and buffering it would require us to split the
@@ -866,7 +865,7 @@ size_t raw_fd_ostream::preferred_buffer_size() const {
   // retrieved by invoking function raw_ostream::preferred_buffer_size().
   return raw_ostream::preferred_buffer_size();
 #else
-  assert(FD >= 0 && "File not yet open!");
+  exi_assert(FD >= 0, "File not yet open!");
   struct stat statbuf;
   if (fstat(FD, &statbuf) != 0)
     return 0;
@@ -891,6 +890,7 @@ bool raw_fd_ostream::has_colors() const {
   return *HasColors;
 }
 
+#if 0
 Expected<sys::fs::FileLocker> raw_fd_ostream::lock() {
   std::error_code EC = sys::fs::lockFile(FD);
   if (!EC)
@@ -905,14 +905,17 @@ raw_fd_ostream::tryLockFor(Duration const& Timeout) {
     return sys::fs::FileLocker(FD);
   return errorCodeToError(EC);
 }
+#endif
 
 void raw_fd_ostream::anchor() {}
+
+
 
 //===----------------------------------------------------------------------===//
 //  outs(), errs(), nulls()
 //===----------------------------------------------------------------------===//
 
-raw_fd_ostream &llvm::outs() {
+raw_fd_ostream &exi::outs() {
   // Set buffer settings to model stdout behavior.
   std::error_code EC;
 #ifdef __MVS__
@@ -924,7 +927,7 @@ raw_fd_ostream &llvm::outs() {
   return S;
 }
 
-raw_fd_ostream &llvm::errs() {
+raw_fd_ostream &exi::errs() {
   // Set standard error to be unbuffered.
 #ifdef __MVS__
   std::error_code EC = enablezOSAutoConversion(STDERR_FILENO);
@@ -934,8 +937,10 @@ raw_fd_ostream &llvm::errs() {
   return S;
 }
 
+#endif // EXI_HAS_RAW_FILE_STREAMS
+
 /// nulls() - This returns a reference to a raw_ostream which discards output.
-raw_ostream &llvm::nulls() {
+raw_ostream &exi::nulls() {
   static raw_null_ostream S;
   return S;
 }
@@ -944,7 +949,9 @@ raw_ostream &llvm::nulls() {
 // File Streams
 //===----------------------------------------------------------------------===//
 
-raw_fd_stream::raw_fd_stream(StringRef Filename, std::error_code &EC)
+#if EXI_HAS_RAW_FILE_STREAMS
+
+raw_fd_stream::raw_fd_stream(StrRef Filename, std::error_code &EC)
     : raw_fd_ostream(getFD(Filename, EC, sys::fs::CD_CreateAlways,
                            sys::fs::FA_Write | sys::fs::FA_Read,
                            sys::fs::OF_None),
@@ -959,8 +966,8 @@ raw_fd_stream::raw_fd_stream(StringRef Filename, std::error_code &EC)
 raw_fd_stream::raw_fd_stream(int fd, bool shouldClose)
     : raw_fd_ostream(fd, shouldClose, false, OStreamKind::OK_FDStream) {}
 
-ssize_t raw_fd_stream::read(char *Ptr, size_t Size) {
-  assert(get_fd() >= 0 && "File already closed.");
+ssize_t raw_fd_stream::read(char *Ptr, usize Size) {
+  exi_assert(get_fd() >= 0, "File already closed.");
   ssize_t Ret = ::read(get_fd(), (void *)Ptr, Size);
   if (Ret >= 0)
     inc_pos(Ret);
@@ -973,11 +980,13 @@ bool raw_fd_stream::classof(const raw_ostream *OS) {
   return OS->get_kind() == OStreamKind::OK_FDStream;
 }
 
+#endif // EXI_HAS_RAW_FILE_STREAMS
+
 //===----------------------------------------------------------------------===//
 //  raw_string_ostream
 //===----------------------------------------------------------------------===//
 
-void raw_string_ostream::write_impl(const char *Ptr, size_t Size) {
+void raw_string_ostream::write_impl(const char *Ptr, usize Size) {
   OS.append(Ptr, Size);
 }
 
@@ -985,15 +994,15 @@ void raw_string_ostream::write_impl(const char *Ptr, size_t Size) {
 //  raw_svector_ostream
 //===----------------------------------------------------------------------===//
 
-uint64_t raw_svector_ostream::current_pos() const { return OS.size(); }
+u64 raw_svector_ostream::current_pos() const { return OS.size(); }
 
-void raw_svector_ostream::write_impl(const char *Ptr, size_t Size) {
+void raw_svector_ostream::write_impl(const char *Ptr, usize Size) {
   OS.append(Ptr, Ptr + Size);
 }
 
-void raw_svector_ostream::pwrite_impl(const char *Ptr, size_t Size,
-                                      uint64_t Offset) {
-  memcpy(OS.data() + Offset, Ptr, Size);
+void raw_svector_ostream::pwrite_impl(const char *Ptr, usize Size,
+                                      u64 Offset) {
+  std::memcpy(OS.data() + Offset, Ptr, Size);
 }
 
 bool raw_svector_ostream::classof(const raw_ostream *OS) {
@@ -1004,6 +1013,8 @@ bool raw_svector_ostream::classof(const raw_ostream *OS) {
 //  raw_null_ostream
 //===----------------------------------------------------------------------===//
 
+GCC_IGNORED("-Wunused-parameter")
+
 raw_null_ostream::~raw_null_ostream() {
 #ifndef NDEBUG
   // ~raw_ostream asserts that the buffer is empty. This isn't necessary
@@ -1013,15 +1024,15 @@ raw_null_ostream::~raw_null_ostream() {
 #endif
 }
 
-void raw_null_ostream::write_impl(const char *Ptr, size_t Size) {
+void raw_null_ostream::write_impl(const char *Ptr, usize Size) {
 }
 
-uint64_t raw_null_ostream::current_pos() const {
+u64 raw_null_ostream::current_pos() const {
   return 0;
 }
 
-void raw_null_ostream::pwrite_impl(const char *Ptr, size_t Size,
-                                   uint64_t Offset) {}
+void raw_null_ostream::pwrite_impl(const char *Ptr, usize Size, u64 Offset) {
+}
 
 void raw_pwrite_stream::anchor() {}
 
@@ -1029,7 +1040,8 @@ void buffer_ostream::anchor() {}
 
 void buffer_unique_ostream::anchor() {}
 
-Error llvm::writeToOutput(StringRef OutputFileName,
+#if 0
+Error llvm::writeToOutput(StrRef OutputFileName,
                           std::function<Error(raw_ostream &)> Write) {
   if (OutputFileName == "-")
     return Write(outs());
@@ -1056,3 +1068,4 @@ Error llvm::writeToOutput(StringRef OutputFileName,
 
   return Temp->keep(OutputFileName);
 }
+#endif

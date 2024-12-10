@@ -34,7 +34,10 @@
 
 namespace exi {
 
-#if EXI_USE_MIMALLOC
+// Only use the default allocator for now.
+// Since we always override new/delete, it should work the same.
+// Helps with compatibility.
+#if EXI_USE_MIMALLOC && 0
 template <typename T>
 using Allocator = mi_stl_allocator<T>;
 #else

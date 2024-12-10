@@ -8,10 +8,14 @@ set(EXI_USE_MIMALLOC ${EXICPP_USE_MIMALLOC})
 
 include_items(EXICPP_CORE "lib/core"
   Common/SmallVec.cpp
+  Common/StringExtras.cpp
+  Common/Twine.cpp
 
   Support/Alloc.cpp
   Support/ErrorHandle.cpp
   Support/MemoryBuffer.cpp
+  Support/NativeFormatting.cpp
+  Support/raw_ostream.cpp
 )
 
 include_items(EXICPP_SRC "lib/exi")

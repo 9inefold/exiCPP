@@ -36,9 +36,12 @@
 #include <Common/Fundamental.hpp>
 #include <Common/SmallVec.hpp>
 #include <Common/String.hpp>
-#include <Support/ErrorHandle.cpp>
+#include <Support/ErrorHandle.hpp>
 
 namespace exi {
+
+class raw_ostream;
+
 /// Twine - A lightweight data structure for efficiently representing the
 /// concatenation of temporary values as strings.
 ///
@@ -155,7 +158,7 @@ class Twine {
   {
     const Twine *twine;
     const char *cString;
-    const S *stdString;
+    const Str *stdString;
     struct {
       const char *ptr;
       size_t length;
@@ -338,12 +341,14 @@ public:
     exi_assert(isValid(), "Invalid twine!");
   }
 
+#if 0
   /// Construct from a formatv_object_base.
   /*implicit*/ Twine(const formatv_object_base &Fmt)
       : LHSKind(FormatvObjectKind) {
     LHS.formatvObject = &Fmt;
     exi_assert(isValid(), "Invalid twine!");
   }
+#endif
 
   /// Construct from a char.
   explicit Twine(char Val) : LHSKind(CharKind) {
