@@ -40,7 +40,7 @@
 #include <vector>
 
 namespace exi {
-template <typename T> class [[nodiscard]] MutableArrayRef;
+template <typename T> class [[nodiscard]] MutArrayRef;
 
 /// ArrayRef - Represent a constant reference to an array (0 or more elements
 /// consecutively in memory), i.e. a start pointer and a length.  It allows
@@ -176,10 +176,10 @@ DIAGNOSTIC_POP()
   }
 
   // copy - Allocate copy in Allocator and return ArrayRef<T> to it.
-  template <typename Allocator> MutableArrayRef<T> copy(Allocator &A) {
+  template <typename Allocator> MutArrayRef<T> copy(Allocator &A) {
     T *Buff = A.template Allocate<T>(Length);
     std::uninitialized_copy(begin(), end(), Buff);
-    return MutableArrayRef<T>(Buff, Length);
+    return MutArrayRef<T>(Buff, Length);
   }
 
   /// equals - Check for element-wise equality.
@@ -290,20 +290,20 @@ DIAGNOSTIC_POP()
   /// @}
 };
 
-/// MutableArrayRef - Represent a mutable reference to an array (0 or more
+/// MutArrayRef - Represent a mutable reference to an array (0 or more
 /// elements consecutively in memory), i.e. a start pointer and a length.  It
 /// allows various APIs to take and modify consecutive elements easily and
 /// conveniently.
 ///
 /// This class does not own the underlying data, it is expected to be used in
 /// situations where the data resides in some other buffer, whose lifetime
-/// extends past that of the MutableArrayRef. For this reason, it is not in
-/// general safe to store a MutableArrayRef.
+/// extends past that of the MutArrayRef. For this reason, it is not in
+/// general safe to store a MutArrayRef.
 ///
 /// This is intended to be trivially copyable, so it should be passed by
 /// value.
 template <typename T>
-class [[nodiscard]] MutableArrayRef : public ArrayRef<T> {
+class [[nodiscard]] MutArrayRef : public ArrayRef<T> {
 public:
   using value_type = T;
   using pointer = value_type *;
@@ -317,39 +317,39 @@ public:
   using size_type = size_t;
   using difference_type = ptrdiff_t;
 
-  /// Construct an empty MutableArrayRef.
-  /*implicit*/ MutableArrayRef() = default;
+  /// Construct an empty MutArrayRef.
+  /*implicit*/ MutArrayRef() = default;
 
-  /// Construct an empty MutableArrayRef from std::nullopt.
-  /*implicit*/ MutableArrayRef(std::nullopt_t) : ArrayRef<T>() {}
+  /// Construct an empty MutArrayRef from std::nullopt.
+  /*implicit*/ MutArrayRef(std::nullopt_t) : ArrayRef<T>() {}
 
-  /// Construct a MutableArrayRef from a single element.
-  /*implicit*/ MutableArrayRef(T &OneElt) : ArrayRef<T>(OneElt) {}
+  /// Construct a MutArrayRef from a single element.
+  /*implicit*/ MutArrayRef(T &OneElt) : ArrayRef<T>(OneElt) {}
 
-  /// Construct a MutableArrayRef from a pointer and length.
-  /*implicit*/ MutableArrayRef(T *data, size_t length)
+  /// Construct a MutArrayRef from a pointer and length.
+  /*implicit*/ MutArrayRef(T *data, size_t length)
     : ArrayRef<T>(data, length) {}
 
-  /// Construct a MutableArrayRef from a range.
-  MutableArrayRef(T *begin, T *end) : ArrayRef<T>(begin, end) {}
+  /// Construct a MutArrayRef from a range.
+  MutArrayRef(T *begin, T *end) : ArrayRef<T>(begin, end) {}
 
-  /// Construct a MutableArrayRef from a std::vector.
-  /*implicit*/ MutableArrayRef(std::vector<T> &Vec)
+  /// Construct a MutArrayRef from a std::vector.
+  /*implicit*/ MutArrayRef(std::vector<T> &Vec)
   : ArrayRef<T>(Vec) {}
 
-  /// Construct a MutableArrayRef from a std::span.
+  /// Construct a MutArrayRef from a std::span.
   template <std::size_t Ext>
-  /*implicit*/ constexpr MutableArrayRef(std::span<T, Ext> Sp)
+  /*implicit*/ constexpr MutArrayRef(std::span<T, Ext> Sp)
     : ArrayRef<T>(Sp) {}
 
-  /// Construct a MutableArrayRef from a std::array
+  /// Construct a MutArrayRef from a std::array
   template <size_t N>
-  /*implicit*/ constexpr MutableArrayRef(std::array<T, N> &Arr)
+  /*implicit*/ constexpr MutArrayRef(std::array<T, N> &Arr)
       : ArrayRef<T>(Arr) {}
 
-  /// Construct a MutableArrayRef from a C array.
+  /// Construct a MutArrayRef from a C array.
   template <size_t N>
-  /*implicit*/ constexpr MutableArrayRef(T (&Arr)[N]) : ArrayRef<T>(Arr) {}
+  /*implicit*/ constexpr MutArrayRef(T (&Arr)[N]) : ArrayRef<T>(Arr) {}
 
   T *data() const { return const_cast<T*>(ArrayRef<T>::data()); }
 
@@ -373,23 +373,23 @@ public:
 
   /// slice(n, m) - Chop off the first N elements of the array, and keep M
   /// elements in the array.
-  MutableArrayRef<T> slice(size_t N, size_t M) const {
+  MutArrayRef<T> slice(size_t N, size_t M) const {
     assert(N + M <= this->size() && "Invalid specifier");
-    return MutableArrayRef<T>(this->data() + N, M);
+    return MutArrayRef<T>(this->data() + N, M);
   }
 
   /// slice(n) - Chop off the first N elements of the array.
-  MutableArrayRef<T> slice(size_t N) const {
+  MutArrayRef<T> slice(size_t N) const {
     return slice(N, this->size() - N);
   }
 
   /// Drop the first \p N elements of the array.
-  MutableArrayRef<T> drop_front(size_t N = 1) const {
+  MutArrayRef<T> drop_front(size_t N = 1) const {
     assert(this->size() >= N && "Dropping more elements than exist");
     return slice(N, this->size() - N);
   }
 
-  MutableArrayRef<T> drop_back(size_t N = 1) const {
+  MutArrayRef<T> drop_back(size_t N = 1) const {
     assert(this->size() >= N && "Dropping more elements than exist");
     return slice(0, this->size() - N);
   }
@@ -397,26 +397,26 @@ public:
   /// Return a copy of *this with the first N elements satisfying the
   /// given predicate removed.
   template <class PredicateT>
-  MutableArrayRef<T> drop_while(PredicateT Pred) const {
-    return MutableArrayRef<T>(find_if_not(*this, Pred), end());
+  MutArrayRef<T> drop_while(PredicateT Pred) const {
+    return MutArrayRef<T>(find_if_not(*this, Pred), end());
   }
 
   /// Return a copy of *this with the first N elements not satisfying
   /// the given predicate removed.
   template <class PredicateT>
-  MutableArrayRef<T> drop_until(PredicateT Pred) const {
-    return MutableArrayRef<T>(find_if(*this, Pred), end());
+  MutArrayRef<T> drop_until(PredicateT Pred) const {
+    return MutArrayRef<T>(find_if(*this, Pred), end());
   }
 
   /// Return a copy of *this with only the first \p N elements.
-  MutableArrayRef<T> take_front(size_t N = 1) const {
+  MutArrayRef<T> take_front(size_t N = 1) const {
     if (N >= this->size())
       return *this;
     return drop_back(this->size() - N);
   }
 
   /// Return a copy of *this with only the last \p N elements.
-  MutableArrayRef<T> take_back(size_t N = 1) const {
+  MutArrayRef<T> take_back(size_t N = 1) const {
     if (N >= this->size())
       return *this;
     return drop_front(this->size() - N);
@@ -425,15 +425,15 @@ public:
   /// Return the first N elements of this Array that satisfy the given
   /// predicate.
   template <class PredicateT>
-  MutableArrayRef<T> take_while(PredicateT Pred) const {
-    return MutableArrayRef<T>(begin(), find_if_not(*this, Pred));
+  MutArrayRef<T> take_while(PredicateT Pred) const {
+    return MutArrayRef<T>(begin(), find_if_not(*this, Pred));
   }
 
   /// Return the first N elements of this Array that don't satisfy the
   /// given predicate.
   template <class PredicateT>
-  MutableArrayRef<T> take_until(PredicateT Pred) const {
-    return MutableArrayRef<T>(begin(), find_if(*this, Pred));
+  MutArrayRef<T> take_until(PredicateT Pred) const {
+    return MutArrayRef<T>(begin(), find_if(*this, Pred));
   }
 
   /// @}
@@ -445,14 +445,14 @@ public:
   }
 };
 
-/// This is a MutableArrayRef that owns its array.
-template <typename T> class OwningArrayRef : public MutableArrayRef<T> {
+/// This is a MutArrayRef that owns its array.
+template <typename T> class OwningArrayRef : public MutArrayRef<T> {
 public:
   OwningArrayRef() = default;
-  OwningArrayRef(size_t Size) : MutableArrayRef<T>(new T[Size], Size) {}
+  OwningArrayRef(size_t Size) : MutArrayRef<T>(new T[Size], Size) {}
 
   OwningArrayRef(ArrayRef<T> Data)
-      : MutableArrayRef<T>(new T[Data.size()], Data.size()) {
+      : MutArrayRef<T>(new T[Data.size()], Data.size()) {
     std::copy(Data.begin(), Data.end(), this->begin());
   }
 
@@ -460,8 +460,8 @@ public:
 
   OwningArrayRef &operator=(OwningArrayRef &&Other) {
     delete[] this->data();
-    this->MutableArrayRef<T>::operator=(Other);
-    Other.MutableArrayRef<T>::operator=(MutableArrayRef<T>());
+    this->MutArrayRef<T>::operator=(Other);
+    Other.MutArrayRef<T>::operator=(MutArrayRef<T>());
     return *this;
   }
 
@@ -501,30 +501,30 @@ template <typename T, size_t N> ArrayRef(const T (&Arr)[N]) -> ArrayRef<T>;
 
 /// @}
 
-/// @name MutableArrayRef Deduction guides
+/// @name MutArrayRef Deduction guides
 /// @{
-/// Deduction guide to construct a `MutableArrayRef` from a single element
-template <class T> MutableArrayRef(T &OneElt) -> MutableArrayRef<T>;
+/// Deduction guide to construct a `MutArrayRef` from a single element
+template <class T> MutArrayRef(T &OneElt) -> MutArrayRef<T>;
 
-/// Deduction guide to construct a `MutableArrayRef` from a pointer and
+/// Deduction guide to construct a `MutArrayRef` from a pointer and
 /// length.
 template <class T>
-MutableArrayRef(T *data, size_t length) -> MutableArrayRef<T>;
+MutArrayRef(T *data, size_t length) -> MutArrayRef<T>;
 
-/// Deduction guide to construct a `MutableArrayRef` from a `std::vector`.
-template <class T> MutableArrayRef(std::vector<T> &Vec) -> MutableArrayRef<T>;
+/// Deduction guide to construct a `MutArrayRef` from a `std::vector`.
+template <class T> MutArrayRef(std::vector<T> &Vec) -> MutArrayRef<T>;
 
-/// Deduction guide to construct a `MutableArrayRef` from a `std::span`.
+/// Deduction guide to construct a `MutArrayRef` from a `std::span`.
 template <typename T, std::size_t Ext>
-MutableArrayRef(std::span<T, Ext> Sp) -> MutableArrayRef<T>;
+MutArrayRef(std::span<T, Ext> Sp) -> MutArrayRef<T>;
 
-/// Deduction guide to construct a `MutableArrayRef` from a `std::array`.
+/// Deduction guide to construct a `MutArrayRef` from a `std::array`.
 template <class T, std::size_t N>
-MutableArrayRef(std::array<T, N> &Vec) -> MutableArrayRef<T>;
+MutArrayRef(std::array<T, N> &Vec) -> MutArrayRef<T>;
 
-/// Deduction guide to construct a `MutableArrayRef` from a C array.
+/// Deduction guide to construct a `MutArrayRef` from a C array.
 template <typename T, size_t N>
-MutableArrayRef(T (&Arr)[N]) -> MutableArrayRef<T>;
+MutArrayRef(T (&Arr)[N]) -> MutArrayRef<T>;
 
 /// @}
 /// @name ArrayRef Comparison Operators
