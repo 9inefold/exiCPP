@@ -33,10 +33,6 @@
 #include <cmath>
 #include <fmt/format.h>
 
-#if defined(_WIN32) && !defined(__MINGW32__)
-#include <float.h> // For _fpclass in exi::write_double.
-#endif
-
 using namespace exi;
 
 template <typename T, usize N>
@@ -201,66 +197,15 @@ void exi::write_double(raw_ostream &S, double N, FloatStyle Style,
 
   SmallStr<8> Spec;
   exi::raw_svector_ostream Out(Spec);
-  Out << "%." << Prec << Letter;
-
-  if (Style == FloatStyle::Exponent || Style == FloatStyle::ExponentUpper) {
-#ifdef _WIN32
-// On MSVCRT and compatible, output of %e is incompatible to Posix
-// by default. Number of exponent digits should be at least 2. "%+03d"
-// FIXME: Implement our formatter to here or Support/Format.h!
-#if defined(__MINGW32__)
-    // FIXME: It should be generic to C++11.
-    if (N == 0.0 && std::signbit(N)) {
-      char NegativeZero[] = "-0.000000e+00";
-      if (Style == FloatStyle::ExponentUpper)
-        NegativeZero[strlen(NegativeZero) - 4] = 'E';
-      S << NegativeZero;
-      return;
-    }
-#else
-    int fpcl = _fpclass(N);
-
-    // negative zero
-    if (fpcl == _FPCLASS_NZ) {
-      char NegativeZero[] = "-0.000000e+00";
-      if (Style == FloatStyle::ExponentUpper)
-        NegativeZero[strlen(NegativeZero) - 4] = 'E';
-      S << NegativeZero;
-      return;
-    }
-#endif
-
-    char buf[32];
-    unsigned len;
-    len = format(Spec.c_str(), N).snprint(buf, sizeof(buf));
-    if (len <= sizeof(buf) - 2) {
-      if (len >= 5 && (buf[len - 5] == 'e' || buf[len - 5] == 'E') &&
-          buf[len - 3] == '0') {
-        int cs = buf[len - 4];
-        if (cs == '+' || cs == '-') {
-          int c1 = buf[len - 2];
-          int c0 = buf[len - 1];
-          if (isdigit(static_cast<unsigned char>(c1)) &&
-              isdigit(static_cast<unsigned char>(c0))) {
-            // Trim leading '0': "...e+012" -> "...e+12\0"
-            buf[len - 3] = c1;
-            buf[len - 2] = c0;
-            buf[--len] = 0;
-          }
-        }
-      }
-      S << buf;
-      return;
-    }
-#endif
-  }
+  Out << "{:." << Prec << Letter << '}';
 
   if (Style == FloatStyle::Percent)
     N *= 100.0;
 
   char Buf[32];
-  format(Spec.c_str(), N).snprint(Buf, sizeof(Buf));
-  S << Buf;
+  auto Result = fmt::format_to_n(
+    Buf, sizeof(Buf), fmt::runtime(Spec.str()), N);
+  S.write(Buf, Result.size);
   if (Style == FloatStyle::Percent)
     S << '%';
 }

@@ -18,22 +18,19 @@
 
 #pragma once
 
-#include <Support/Alloc.hpp>
-#include <string>
-#include <string_view>
-
-#define EXI_CUSTOM_STRREF 0
+#define EXI_CUSTOM_STRREF 1
+#include <Common/_Str.hpp>
+#if EXI_CUSTOM_STRREF
+# include <Common/StrRef.hpp>
+#else
+# include <string_view>
+#endif
 
 namespace exi {
 
-using char_t = char;
-using Char   = char_t;
-using CharTraits = std::char_traits<char_t>;
-
-using Str  = std::basic_string<char_t, CharTraits, Allocator<char_t>>;
-using WStr = std::wstring;
-
+#if !EXI_CUSTOM_STRREF
 using StrRef  = std::basic_string_view<char_t, CharTraits>;
+#endif
 using WStrRef = std::wstring_view;
 
 /// From LLVM.
@@ -46,8 +43,7 @@ using WStrRef = std::wstring_view;
 ///
 class StringLiteral : public StrRef {
 private:
-  constexpr StringLiteral(const char *Str, size_t N) : StrRef(Str, N) {
-  }
+  constexpr StringLiteral(const char *Str, size_t N) : StrRef(Str, N) {}
 
 public:
   template <size_t N>

@@ -29,13 +29,14 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/raw_ostream.hpp>
+#include <Common/Fundamental.hpp>
 #include <Common/Twine.hpp>
-// #include "llvm/ADT/StringExtras.h"
+#include <Common/StringExtras.hpp>
 // #include "llvm/Config/config.h"
 // #include "llvm/Support/AutoConvert.h"
 // #include "llvm/Support/Compiler.h"
 // #include "llvm/Support/Duration.h"
-// #include "llvm/Support/ErrorHandling.h"
+#include <Support/ErrorHandle.hpp>
 // #include "llvm/Support/FileSystem.h"
 // #include "llvm/Support/Format.h"
 // #include "llvm/Support/FormatVariadic.h"

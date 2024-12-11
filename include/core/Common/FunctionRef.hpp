@@ -87,7 +87,8 @@ concept is_func_ptr = IsFuncPtr<std::remove_cvref_t<CB>>::value;
 
 template <class CB, bool = is_func_ptr<CB>>
 struct CallbackType {
-  using value_type = std::remove_reference_t<CB>;
+  using UType = std::remove_reference_t<CB>;
+  using value_type = UType;
   using type = value_type*;
   static uptr GetStorage(value_type& callable) {
     return reinterpret_cast<uptr>(&callable);
@@ -97,9 +98,7 @@ struct CallbackType {
 template <typename CB>
 requires (hasInlineFunctionPtrs)
 struct CallbackType<CB, true> {
-private:
   using UType = std::remove_pointer_t<std::remove_cvref_t<CB>>;
-public:
   using value_type = UType*;
   using type = value_type;
   static uptr GetStorage(value_type callable) {

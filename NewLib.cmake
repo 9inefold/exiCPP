@@ -9,6 +9,7 @@ set(EXI_USE_MIMALLOC ${EXICPP_USE_MIMALLOC})
 include_items(EXICPP_CORE "lib/core"
   Common/SmallVec.cpp
   Common/StringExtras.cpp
+  Common/StrRef.cpp
   Common/Twine.cpp
 
   Support/Alloc.cpp

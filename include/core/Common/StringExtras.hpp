@@ -39,10 +39,10 @@
 #include <Common/String.hpp>
 #include <Common/Twine.hpp>
 #include <Common/Vec.hpp>
+#include <Common/iterator.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <cstdlib>
 #include <cstring>
-#include <iterator>
 #include <utility>
 
 namespace exi {
@@ -312,7 +312,7 @@ namespace detail {
 template <typename N>
 inline bool to_float(const Twine &T, N &Num, N (*StrTo)(const char *, char **)) {
   SmallStr<32> Storage;
-  StrRef S = T.toNullTerminatedStringRef(Storage);
+  StrRef S = T.toNullTerminatedStrRef(Storage);
   char *End;
   N Temp = StrTo(S.data(), &End);
   if (*End != '\0')
@@ -356,7 +356,7 @@ inline Str itostr(i64 X) {
     return utostr(static_cast<u64>(X));
 }
 
-#if 0
+#if EXI_HAS_AP_SCALARS
 inline Str toString(const APInt &I, unsigned Radix, bool Signed,
                             bool formatAsCLiteral = false,
                             bool UpperCase = true,
@@ -369,7 +369,7 @@ inline Str toString(const APInt &I, unsigned Radix, bool Signed,
 inline Str toString(const APSInt &I, unsigned Radix) {
   return toString(I, Radix, I.isSigned());
 }
-#endif
+#endif // EXI_HAS_AP_SCALARS
 
 /// StrInStrNoCase - Portable version of strcasestr.  Locates the first
 /// occurrence of string 's1' in string 's2', ignoring case.  Returns

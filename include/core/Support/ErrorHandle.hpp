@@ -19,7 +19,7 @@
 #pragma once
 
 #include <Common/Features.hpp>
-#include <Common/String.hpp>
+// #include <Common/String.hpp>
 
 namespace exi {
 namespace H {
@@ -33,6 +33,7 @@ enum AssertionKind : unsigned {
 } // namespace H
 
 class Twine;
+class StrRef;
 
 /// @brief Reports a fatal error.
 [[noreturn]] void report_fatal_error(

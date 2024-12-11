@@ -17,6 +17,7 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/ErrorHandle.hpp>
+#include <Common/StrRef.hpp>
 #include <Support/_IO.hpp>
 #include <cstring>
 #include <cstdlib>
