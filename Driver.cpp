@@ -21,6 +21,7 @@
 #include <Common/String.hpp>
 #include <Common/SmallStr.hpp>
 #include <Common/SmallVec.hpp>
+#include <Support/FmtBuffer.hpp>
 #include <Support/MemoryBuffer.hpp>
 #include <fmt/format.h>
 #include <fmt/ranges.h>

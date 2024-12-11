@@ -14,6 +14,7 @@ include_items(EXICPP_CORE "lib/core"
 
   Support/Alloc.cpp
   Support/ErrorHandle.cpp
+  Support/FmtBuffer.cpp
   Support/MemoryBuffer.cpp
   Support/NativeFormatting.cpp
   Support/raw_ostream.cpp
