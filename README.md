@@ -11,7 +11,7 @@ So... I made my own.
 
 ## Current Work
 
-I've decided to completely rewrite exip in C++.
+**I've decided to completely rewrite exip in C++.**
 There were major issues with the library,
 but the tipping point was its complete inability to handle other libs outputs.
 
