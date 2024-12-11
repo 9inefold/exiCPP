@@ -31,7 +31,7 @@ template <>
 EXI_CONST std::size_t sizeof_v<void> = 0ull;
 
 template <typename T>
-EXI_CONST std::size_t bitsizeof_v = (sizeof_v<T> * CHAR_BIT);
+EXI_CONST std::size_t bitsizeof_v = (sizeof_v<T> * std::size_t(CHAR_BIT));
 
 //////////////////////////////////////////////////////////////////////////
 // Integrals
@@ -48,6 +48,8 @@ using u64 = std::uint64_t;
 
 using iptr = std::intptr_t;
 using uptr = std::uintptr_t;
+
+using ptrdiff = std::ptrdiff_t;
 
 using isize = std::make_signed_t<std::size_t>;
 using usize = std::size_t;
