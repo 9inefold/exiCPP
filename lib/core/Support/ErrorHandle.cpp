@@ -18,6 +18,7 @@
 
 #include <Support/ErrorHandle.hpp>
 #include <Common/String.hpp>
+#include <Common/Twine.hpp>
 #include <Support/_IO.hpp>
 #include <Support/FmtBuffer.hpp>
 #include <cstring>
@@ -42,9 +43,30 @@ static const char* getAssertionMessage(H::AssertionKind kind) {
   return "??? failed";
 }
 
-[[noreturn]] void exi::report_fatal_error(StrSpan msg, bool genCrashDiag) {
+static FmtBuffer::WriteState formatFatalError(FmtBuffer& buf, StrRef S) {
+  const auto out = buf.format("EXICPP ERROR: {}\n", S);
+  if (out != FmtBuffer::FullWrite)
+    return buf.setLast('\n');
+  return out;
+}
+
+[[noreturn]] void exi::report_fatal_error(const char* msg, bool genCrashDiag) {
+  exi::report_fatal_error(Twine(msg), genCrashDiag);
+}
+
+[[noreturn]] void exi::report_fatal_error(StrRef msg, bool genCrashDiag) {
+  exi::report_fatal_error(Twine(msg), genCrashDiag);
+}
+
+[[noreturn]] void exi::report_fatal_error(const Twine& msg, bool genCrashDiag) {
   StaticFmtBuffer<512> fullMsg;
-  fullMsg.format("EXICPP ERROR: {}\n", msg);
+  if (msg.isSingleStrRef()) {
+    // Trivial path, just grab the StrRef.
+    formatFatalError(fullMsg, msg.getSingleStrRef());
+  } else {
+    SmallVec<char, 256> tmpVec;
+    formatFatalError(fullMsg, msg.toStrRef(tmpVec));
+  }
   (void)::write(2, fullMsg.data(), fullMsg.size());
 
   if (genCrashDiag)

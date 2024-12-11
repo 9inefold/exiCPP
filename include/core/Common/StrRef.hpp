@@ -39,6 +39,7 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <fmt/core.h>
 
 #define EXI_HAS_AP_SCALARS 0
 
@@ -907,3 +908,9 @@ inline Str &operator+=(Str &buffer, StrRef string) {
 #endif
 
 } // namespace exi
+
+namespace fmt {
+
+FMT_FORMAT_AS(exi::StrRef, std::string_view);
+
+} // namespace fmt

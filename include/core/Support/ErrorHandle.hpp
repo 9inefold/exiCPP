@@ -19,7 +19,6 @@
 #pragma once
 
 #include <Common/Features.hpp>
-#include <Common/_Char.hpp>
 
 namespace exi {
 namespace H {
@@ -32,11 +31,18 @@ enum AssertionKind : unsigned {
 
 } // namespace H
 
+class StrRef;
 class Twine;
 
 /// @brief Reports a fatal error.
 [[noreturn]] void report_fatal_error(
-  StrSpan msg, bool genCrashDiag = true);
+  const char* msg, bool genCrashDiag = true);
+/// @brief Reports a fatal error.
+[[noreturn]] void report_fatal_error(
+  StrRef msg, bool genCrashDiag = true);
+/// @brief Reports a fatal error.
+[[noreturn]] void report_fatal_error(
+  const Twine& msg, bool genCrashDiag = true);
 
 /// @brief Reports a fatal allocation error.
 /// If exceptions are enabled, throws `std::bad_alloc`, otherwise aborts.

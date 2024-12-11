@@ -107,7 +107,11 @@ public:
     return this->formatImpl(S.str, fmt::vargs<Args...>{{args...}});
   }
 
+  /// Writes a simple StrRef.
   WriteState write(StrRef S);
+
+  /// Writes one if not full, otherwise sets the last character.
+  WriteState setLast(char C);
 
   ////////////////////////////////////////////////////////////////////////
   // Buffer Modification
