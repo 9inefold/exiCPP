@@ -57,6 +57,22 @@ WriteState FmtBuffer::formatImpl(fmt::string_view S, fmt::format_args args) {
   return isFullWrite ? FullWrite : PartialWrite;
 }
 
+WriteState FmtBuffer::setLast(char C) {
+  if (!Data || !Cap)
+    return NoWrite;
+  
+  if (!this->isFull()) {
+    this->Data[Size] = C;
+    ++this->Size;
+    return FullWrite;
+  }
+
+  // Full, so just write the last character.
+  exi_invariant(Size > 0, "Invalid index.");
+  this->Data[Size - 1] = C;
+  return PartialWrite;
+}
+
 void FmtBuffer::zeroBuffer() const {
   exi_invariant(Size <= Cap, "size is out of range.");
   if EXI_LIKELY(Data && Size)
