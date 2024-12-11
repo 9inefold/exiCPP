@@ -1,4 +1,4 @@
-//===- Common/Str.hpp -----------------------------------------------===//
+//===- Common/Char.hpp ----------------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -18,15 +18,23 @@
 
 #pragma once
 
-#include <Common/_Char.hpp>
-#include <Support/Alloc.hpp>
-#include <string>
+#include <string_view>
 
 namespace exi {
 
-/// Alias for the `std::string` type with `char_t` and our allocator.
-using Str  = std::basic_string<char_t, CharTraits, Allocator<char_t>>;
-/// Alias for `std::wstring` with our allocator.
-using WStr = std::basic_string<wchar_t, WCharTraits, Allocator<wchar_t>>;
+/// The default character type.
+using char_t = char;
+/// Alias for `char_t`.
+using Char   = char_t;
+
+/// Default traits for `char_t`.
+using CharTraits = std::char_traits<char_t>;
+/// Char traits for `wchar_t`.
+using WCharTraits = std::char_traits<wchar_t>;
+
+/// Alias for the default `std::string_view` type.
+using StrSpan  = std::basic_string_view<char_t, CharTraits>;
+/// Alias for `std::wstring_view`.
+using WStrSpan = std::wstring_view;
 
 } // namespace exi

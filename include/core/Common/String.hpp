@@ -20,18 +20,16 @@
 
 #define EXI_CUSTOM_STRREF 1
 #include <Common/_Str.hpp>
+#include <string_view>
 #if EXI_CUSTOM_STRREF
 # include <Common/StrRef.hpp>
-#else
-# include <string_view>
 #endif
 
 namespace exi {
 
 #if !EXI_CUSTOM_STRREF
-using StrRef  = std::basic_string_view<char_t, CharTraits>;
+using StrRef = StrSpan;
 #endif
-using WStrRef = std::wstring_view;
 
 /// From LLVM.
 /// A wrapper around a string literal that serves as a proxy for constructing
@@ -64,5 +62,7 @@ DIAGNOSTIC_POP()
     return StringLiteral(Str, N - 1);
   }
 };
+
+
 
 } // namespace exi
