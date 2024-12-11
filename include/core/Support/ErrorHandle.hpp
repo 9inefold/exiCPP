@@ -19,7 +19,7 @@
 #pragma once
 
 #include <Common/Features.hpp>
-// #include <Common/String.hpp>
+#include <Common/_Char.hpp>
 
 namespace exi {
 namespace H {
@@ -33,11 +33,10 @@ enum AssertionKind : unsigned {
 } // namespace H
 
 class Twine;
-class StrRef;
 
 /// @brief Reports a fatal error.
 [[noreturn]] void report_fatal_error(
-  StrRef msg, bool genCrashDiag = true);
+  StrSpan msg, bool genCrashDiag = true);
 
 /// @brief Reports a fatal allocation error.
 /// If exceptions are enabled, throws `std::bad_alloc`, otherwise aborts.
@@ -68,7 +67,7 @@ class StrRef;
 #define exi_assert_(k, expr, ...) void(EXI_LIKELY((expr))                     \
   ? (void(0))                                                                 \
   : (::exi::exi_assert_impl(::exi::H::k,                                      \
-      ("Assertion `" #expr "` failed. " __VA_OPT__("Reason: ") #__VA_ARGS__),  \
+      ("`" #expr "`. " __VA_OPT__("Reason: ") #__VA_ARGS__),  \
       __FILE__, __LINE__)))
 
 #if !defined(NDEBUG) || EXI_INVARIANTS
