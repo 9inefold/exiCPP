@@ -28,10 +28,9 @@
 #include <Common/ArrayRef.hpp>
 #include <Common/SmallStr.hpp>
 #include <Common/StringExtras.hpp>
+#include <Support/FmtBuffer.hpp>
 #include <Support/raw_ostream.hpp>
-
 #include <cmath>
-#include <fmt/format.h>
 
 using namespace exi;
 
@@ -202,10 +201,9 @@ void exi::write_double(raw_ostream &S, double N, FloatStyle Style,
   if (Style == FloatStyle::Percent)
     N *= 100.0;
 
-  char Buf[32];
-  auto Result = fmt::format_to_n(
-    Buf, sizeof(Buf), fmt::runtime(Spec.str()), N);
-  S.write(Buf, Result.size);
+  StaticFmtBuffer<32> Buf;
+  Buf.format(fmt::runtime(Spec.str()), N);
+  S << Buf;
   if (Style == FloatStyle::Percent)
     S << '%';
 }

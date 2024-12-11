@@ -17,11 +17,11 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/ErrorHandle.hpp>
-#include <Common/StrRef.hpp>
+#include <Common/String.hpp>
 #include <Support/_IO.hpp>
+#include <Support/FmtBuffer.hpp>
 #include <cstring>
 #include <cstdlib>
-#include <fmt/format.h>
 #if EXI_EXCEPTIONS
 # include <new>
 # include <stdexcept>
@@ -42,8 +42,9 @@ static const char* getAssertionMessage(H::AssertionKind kind) {
   return "??? failed";
 }
 
-[[noreturn]] void exi::report_fatal_error(StrRef msg, bool genCrashDiag) {
-  std::string fullMsg = fmt::format("EXICPP ERROR: {}\n", msg);
+[[noreturn]] void exi::report_fatal_error(StrSpan msg, bool genCrashDiag) {
+  StaticFmtBuffer<512> fullMsg;
+  fullMsg.format("EXICPP ERROR: {}\n", msg);
   (void)::write(2, fullMsg.data(), fullMsg.size());
 
   if (genCrashDiag)
@@ -73,14 +74,15 @@ static const char* getAssertionMessage(H::AssertionKind kind) {
  const char* file, unsigned line
 ) {
   auto* const pre = getAssertionMessage(kind);
+  if (file)
+    fmt::print(stderr, "\nAt \"{}:{}\":\n  ", file, line);
+  
   if (msg && msg[0])
-    fmt::println(stderr, "{}: \"{}\"", pre, msg);
+    fmt::print(stderr, "{}: {}", pre, msg);
   else
     fmt::print(stderr, "{}", pre);
-  
-  if (file)
-    fmt::print(stderr, " at {}:{}", file, line);
-  fmt::println("!");
+    
+  fmt::println(stderr, ".");
   std::abort();
 
 #ifdef EXI_UNREACHABLE
