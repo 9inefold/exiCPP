@@ -33,6 +33,18 @@
 
 using namespace exi;
 
+ArrayRef<char> exi::toCommonStringBuf(StrRef String) {
+  return ArrayRef<char>(String.begin(), String.end());
+}
+
+MutArrayRef<char> exi::toCommonStringBuf(Str& String) {
+  return exi::toCommonStringBuf(String.data(), String.size());
+}
+
+ArrayRef<char> exi::toCommonStringBuf(const Str& String) {
+  return exi::toCommonStringBuf(String.data(), String.size());
+}
+
 /// StrInStrNoCase - Portable version of strcasestr.  Locates the first
 /// occurrence of string 's1' in string 's2', ignoring case.  Returns
 /// the offset of s2 in s1 or npos if s2 cannot be found.

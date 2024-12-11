@@ -41,13 +41,76 @@
 #include <Common/Vec.hpp>
 #include <Common/iterator.hpp>
 #include <Support/ErrorHandle.hpp>
+#include <concepts>
 #include <cstdlib>
 #include <cstring>
 #include <utility>
 
 namespace exi {
+namespace H {
+
+template <typename T>
+concept is_char_kind
+  = std::same_as<T, char>
+#if 0 && defined(__cpp_char8_t)
+  || std::same_as<T, char8_t>
+#endif
+  || std::same_as<T, signed char>
+  || std::same_as<T, unsigned char>;
+
+} // namespace H
 
 class raw_ostream;
+
+/// Convert a `[String, Size]` pair to a mutable buffer.
+template <H::is_char_kind Ch>
+EXI_INLINE MutArrayRef<char>
+ toCommonStringBuf(Ch* String, usize Size) {
+  return MutArrayRef<char>(reinterpret_cast<char*>(String), Size);
+}
+
+/// Convert a `[String, Size]` pair to a buffer.
+template <H::is_char_kind Ch>
+EXI_INLINE ArrayRef<char>
+ toCommonStringBuf(const Ch* String, usize Size) {
+  return ArrayRef<char>(reinterpret_cast<const char*>(String), Size);
+}
+
+/// Convert a `StrRef` to a buffer.
+ArrayRef<char> toCommonStringBuf(StrRef String);
+/// Convert a `Str&` to a mutable buffer.
+MutArrayRef<char> toCommonStringBuf(Str& String);
+/// Convert a `const Str&` to a buffer.
+ArrayRef<char> toCommonStringBuf(const Str& String);
+
+/// Convert a string-like `MutArrayRef` to a mutable buffer.
+template <H::is_char_kind Ch>
+MutArrayRef<char> toCommonStringBuf(MutArrayRef<Ch> Buffer) {
+  return toCommonStringBuf(Buffer.data(), Buffer.size());
+}
+
+/// Convert a string-like `ArrayRef` to a buffer.
+template <H::is_char_kind Ch>
+ArrayRef<char> toCommonStringBuf(ArrayRef<Ch> Buffer) {
+  return toCommonStringBuf(Buffer.data(), Buffer.size());
+}
+
+/// Convert a string-like `SmallVec` to a mutable buffer.
+template <H::is_char_kind Ch>
+MutArrayRef<char> toCommonStringBuf(SmallVecImpl<Ch>& Vec) {
+  return toCommonStringBuf(Vec.data(), Vec.size());
+}
+
+/// Convert a string-like `SmallVec` to a buffer.
+template <H::is_char_kind Ch>
+ArrayRef<char> toCommonStringBuf(const SmallVecImpl<Ch>& Vec) {
+  return toCommonStringBuf(Vec.data(), Vec.size());
+}
+
+ArrayRef<char> toCommonStringBuf(Str&& String) = delete;
+
+template <H::is_char_kind Ch>
+ArrayRef<char> toCommonStringBuf(SmallVecImpl<Ch>&& Vec) = delete;
 
 /// hexdigit - Return the hexadecimal character for the
 /// given number \p X (which should be less than 16).
@@ -82,10 +145,7 @@ inline StrRef toStringRef(ArrayRef<char> Input) {
 /// Construct a string ref from an array ref of unsigned chars.
 template <class CharT = u8>
 inline ArrayRef<CharT> arrayRefFromStringRef(StrRef Input) {
-  static_assert(std::is_same<CharT, char>::value ||
-                    std::is_same<CharT, unsigned char>::value ||
-                    std::is_same<CharT, signed char>::value,
-                "Expected byte type");
+  static_assert(H::is_char_kind<CharT>, "Expected byte type");
   return ArrayRef<CharT>(reinterpret_cast<const CharT *>(Input.data()),
                          Input.size());
 }
