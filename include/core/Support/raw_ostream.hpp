@@ -42,6 +42,8 @@
 
 // TODO: Implement file streams (will be useful later...)
 #define EXI_HAS_RAW_FILE_STREAMS 0
+// TODO: Implement system headers
+#define EXI_HAS_SYS_IMPL 0
 
 namespace exi {
 

@@ -521,6 +521,7 @@ bool raw_ostream::prepare_colors() {
   if (!ColorEnabled)
     return false;
 
+#if EXI_HAS_SYS_IMPL
   // Colors require changing the terminal but this stream is not going to a
   // terminal.
   if (sys::Process::ColorNeedsFlush() && !is_displayed())
@@ -528,6 +529,7 @@ bool raw_ostream::prepare_colors() {
 
   if (sys::Process::ColorNeedsFlush())
     flush();
+#endif // EXI_HAS_SYS_IMPL
 
   return true;
 }
@@ -535,31 +537,37 @@ bool raw_ostream::prepare_colors() {
 raw_ostream &raw_ostream::changeColor(enum Colors colors, bool bold, bool bg) {
   if (!prepare_colors())
     return *this;
-
+#if EXI_HAS_SYS_IMPL
   const char *colorcode =
       (colors == SAVEDCOLOR)
           ? sys::Process::OutputBold(bg)
           : sys::Process::OutputColor(static_cast<char>(colors), bold, bg);
   if (colorcode)
-    write(colorcode, strlen(colorcode));
+    write(colorcode, std::strlen(colorcode));
+#else
+  (void)bold;
+  (void)bg;
+#endif // EXI_HAS_SYS_IMPL
   return *this;
 }
 
 raw_ostream &raw_ostream::resetColor() {
   if (!prepare_colors())
     return *this;
-
+#if EXI_HAS_SYS_IMPL
   if (const char *colorcode = sys::Process::ResetColor())
     write(colorcode, strlen(colorcode));
+#endif // EXI_HAS_SYS_IMPL
   return *this;
 }
 
 raw_ostream &raw_ostream::reverseColor() {
   if (!prepare_colors())
     return *this;
-
+#if EXI_HAS_SYS_IMPL
   if (const char *colorcode = sys::Process::OutputReverse())
     write(colorcode, strlen(colorcode));
+#endif // EXI_HAS_SYS_IMPL
   return *this;
 }
 
