@@ -121,8 +121,8 @@ EXI_INLINE uptr callback_storage(CB &&callable EXI_LIFETIMEBOUND) noexcept {
 
 template <typename Ret, typename...Params>
 class FunctionRef<Ret(Params...)> {
-  Ret (*callback)(uptr callable, Params...params) = nullptr;
-  uptr callable;
+  Ret (*Callback)(uptr callable, Params...params) = nullptr;
+  uptr Callable;
 
   template <class CB>
   static Ret CallbackFn(uptr callable, Params...params) {
@@ -138,18 +138,18 @@ public:
   template <class CB>
   requires H::CB_is_valid_functionref<CB, Ret, Params...>
   FunctionRef(CB &&callable EXI_LIFETIMEBOUND) :
-   callback(&CallbackFn<std::remove_reference_t<CB>>),
-   callable(H::callback_storage(EXI_FWD(callable))) {
+   Callback(&CallbackFn<std::remove_reference_t<CB>>),
+   Callable(H::callback_storage(EXI_FWD(callable))) {
   }
 
   Ret operator()(Params ...params) const {
-    return callback(callable, std::forward<Params>(params)...);
+    return Callback(Callable, std::forward<Params>(params)...);
   }
 
-  explicit operator bool() const { return callback; }
+  explicit operator bool() const { return Callback; }
 
   bool operator==(const FunctionRef<Ret(Params...)> &Other) const {
-    return callable == Other.callable;
+    return this->Callable == Other.Callable;
   }
 };
 
