@@ -368,3 +368,18 @@
 
 /// Defines a global constant
 #define EXI_CONST inline constexpr
+
+namespace exi {
+template <typename T>
+consteval bool exi_compile_failure() {
+  return false;
+}
+
+template <auto V>
+consteval bool exi_compile_failure() {
+  return false;
+}
+} // namespace exi
+
+#define COMPILE_FAILURE(ty, ...) static_assert( \
+  ::exi::exi_compile_failure<ty>() __VA_OPT__(, "In "#ty": ") __VA_ARGS__);
