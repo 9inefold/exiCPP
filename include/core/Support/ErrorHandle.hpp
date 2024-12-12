@@ -19,6 +19,7 @@
 #pragma once
 
 #include <Common/Features.hpp>
+#include <cassert>
 
 namespace exi {
 namespace H {
