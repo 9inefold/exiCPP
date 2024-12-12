@@ -182,33 +182,37 @@
 
 //////////////////////////////////////////////////////////////////////////
 
-#undef ALWAYS_INLINE
 #if EXI_HAS_ATTR(always_inline)
-# define ALWAYS_INLINE __attribute__((always_inline)) inline
+# define EXI_ALWAYS_INLINE __attribute__((always_inline)) inline
 #elif EXI_HAS_ATTR(__always_inline__)
-# define ALWAYS_INLINE __attribute__((__always_inline__)) inline
+# define EXI_ALWAYS_INLINE __attribute__((__always_inline__)) inline
 #elif defined(_MSC_VER)
-# define ALWAYS_INLINE __forceinline
+# define EXI_ALWAYS_INLINE __forceinline
 #else
-# define ALWAYS_INLINE inline
+# define EXI_ALWAYS_INLINE inline
 #endif
+
+#undef ALWAYS_INLINE
+#define ALWAYS_INLINE EXI_ALWAYS_INLINE
 
 #ifdef NDEBUG
 /// Always inlines functions on release builds.
-# define EXI_INLINE ALWAYS_INLINE
+# define EXI_INLINE EXI_ALWAYS_INLINE
 #else
 /// Default inline on debug builds.
 # define EXI_INLINE inline
 #endif
 
-#undef NO_INLINE
 #if EXI_HAS_ATTR(noinline)
-# define NO_INLINE __attribute__((noinline))
+# define EXI_NO_INLINE __attribute__((noinline))
 #elif defined(_MSC_VER)
-# define NO_INLINE __declspec(noinline)
+# define EXI_NO_INLINE __declspec(noinline)
 #else
-# define NO_INLINE
+# define EXI_NO_INLINE
 #endif
+
+#undef NO_INLINE
+#define NO_INLINE EXI_NO_INLINE
 
 #if !EXI_MSVC
 # define EXI_EMPTY_BASES
@@ -216,6 +220,14 @@
 #else
 # define EXI_EMPTY_BASES __declspec(empty_bases)
 # define EXI_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
+#endif
+
+#if EXI_HAS_ATTR(nodebug)
+# define EXI_NODEBUG __attribute__((nodebug))
+#elif EXI_HAS_ATTR(__nodebug__)
+# define EXI_NODEBUG __attribute__((__nodebug__))
+#else
+# define EXI_NODEBUG
 #endif
 
 #if EXI_HAS_CPPATTR(clang::lifetimebound)
