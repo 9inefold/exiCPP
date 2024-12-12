@@ -32,10 +32,8 @@
 
 #pragma once
 
-// TODO
-
-// #include "llvm/ADT/STLExtras.h"
 #include <Common/Option.hpp>
+#include <Common/STLExtras.hpp>
 #include <Support/Casting.hpp>
 
 namespace exi {
