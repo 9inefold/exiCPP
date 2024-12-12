@@ -907,6 +907,36 @@ inline Str &operator+=(Str &buffer, StrRef string) {
 [[nodiscard]] hash_code hash_value(StrRef S);
 #endif
 
+/// A wrapper around a string literal that serves as a proxy for constructing
+/// global tables of StringRefs with the length computed at compile time.
+/// In order to avoid the invocation of a global constructor, StringLiteral
+/// should *only* be used in a constexpr context, as such:
+///
+/// constexpr StringLiteral S("test");
+///
+class StringLiteral : public StrRef {
+private:
+  constexpr StringLiteral(const char* S, usize N) : StrRef(S, N) {}
+public:
+  template <usize N>
+  consteval StringLiteral(const char(&S)[N])
+#if defined(__clang__) && __has_attribute(enable_if)
+DIAGNOSTIC_PUSH()
+CLANG_IGNORED("-Wgcc-compat")
+      __attribute((enable_if(__builtin_strlen(S) == N - 1,
+                             "invalid string literal")))
+DIAGNOSTIC_POP()
+#endif
+      : StrRef(S, N - 1) {
+  }
+
+  // Explicit construction for strings like "foo\0bar".
+  template <usize N>
+  static consteval StringLiteral WithInnerNUL(const char(&S)[N]) {
+    return StringLiteral(S, N - 1);
+  }
+};
+
 } // namespace exi
 
 namespace fmt {

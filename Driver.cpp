@@ -21,8 +21,10 @@
 #include <Common/String.hpp>
 #include <Common/SmallStr.hpp>
 #include <Common/SmallVec.hpp>
+#include <Common/StringSwitch.hpp>
 #include <Support/FmtBuffer.hpp>
 #include <Support/MemoryBuffer.hpp>
+#include <Support/raw_ostream.hpp>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 
@@ -47,5 +49,17 @@ int main() {
   CA.deallocate(P, 128);
 
   SmallStr<256> Inl {};
-  exi_assert(55 == 77, "Invalid comparison!");
+  {
+    raw_svector_ostream V(Inl);
+    V << "hello" << ' ' << "world" << '!';
+  }
+
+  int I = StringSwitch<int>(Inl.str())
+    .Case("Hello",            0)
+    .CaseLower("Hello",       1)
+    .StartsWith("Hello",      2)
+    .StartsWithLower("Hello", 3)
+    .Default(4);
+  exi_assert(I == 3, "StringSwitch failed!");
+  fmt::println("{}", I);
 }
