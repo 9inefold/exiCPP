@@ -91,6 +91,12 @@
 # define EXI_HAS_CPPATTR(x) 0
 #endif
 
+#ifdef __has_feature
+# define EXI_HAS_FEATURE(x) __has_feature(x)
+#else
+# define EXI_HAS_FEATURE(x) 0
+#endif
+
 //======================================================================//
 // Compiler Type
 //======================================================================//
