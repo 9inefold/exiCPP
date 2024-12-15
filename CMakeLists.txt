@@ -24,7 +24,7 @@ option(EXICPP_USE_EXIP   "Enables the old version of exicpp." OFF)
 option(EXICPP_DRIVER     "If the driver should be built (always ON at top level)." OFF)
 option(EXICPP_TESTS      "If tests should be run." OFF)
 
-option(EXICPP_INVARIANTS "Adds extra invariant checking." OFF)
+option(EXICPP_INVARIANTS "Adds extra invariant checking." ON)
 option(EXICPP_FAST_DEBUG "If parts of debug builds should be optimized." OFF)
 option(EXICPP_EXCEPTIONS "If exceptions should be enabled." OFF)
 option(EXICPP_DEBUG      "If debug printing should be enabled." ON)
