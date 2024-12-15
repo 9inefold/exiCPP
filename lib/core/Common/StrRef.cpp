@@ -44,7 +44,7 @@ constexpr usize StrRef::npos;
 
 // strncasecmp() is not available on non-POSIX systems, so define an
 // alternative function here.
-static int ascii_strncasecmp(const char *LHS, const char *RHS, usize Length) {
+static int AsciiStrncasecmp(const char *LHS, const char *RHS, usize Length) {
   for (usize I = 0; I < Length; ++I) {
     unsigned char LHC = toLower(LHS[I]);
     unsigned char RHC = toLower(RHS[I]);
@@ -56,7 +56,7 @@ static int ascii_strncasecmp(const char *LHS, const char *RHS, usize Length) {
 
 int StrRef::compare_insensitive(StrRef RHS) const {
   if (int Res =
-          ascii_strncasecmp(data(), RHS.data(), std::min(size(), RHS.size())))
+          AsciiStrncasecmp(data(), RHS.data(), std::min(size(), RHS.size())))
     return Res;
   if (size() == RHS.size())
     return 0;
@@ -65,12 +65,12 @@ int StrRef::compare_insensitive(StrRef RHS) const {
 
 bool StrRef::starts_with_insensitive(StrRef Prefix) const {
   return size() >= Prefix.size() &&
-         ascii_strncasecmp(data(), Prefix.data(), Prefix.size()) == 0;
+         AsciiStrncasecmp(data(), Prefix.data(), Prefix.size()) == 0;
 }
 
 bool StrRef::ends_with_insensitive(StrRef Suffix) const {
   return size() >= Suffix.size() &&
-         ascii_strncasecmp(end() - Suffix.size(), Suffix.data(),
+         AsciiStrncasecmp(end() - Suffix.size(), Suffix.data(),
                            Suffix.size()) == 0;
 }
 
