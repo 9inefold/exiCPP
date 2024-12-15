@@ -47,7 +47,7 @@ namespace exi {
 /// will be returned from the string-switch expression. For example,
 /// the following code switches on the name of a color in \c argv[i]:
 ///
-/// \code
+/// \code{.cpp}
 /// Color color = StringSwitch<Color>(argv[i])
 ///   .Case("red", Red)
 ///   .Case("orange", Orange)
@@ -58,7 +58,7 @@ namespace exi {
 ///   .Cases("violet", "purple", Violet)
 ///   .Default(UnknownColor);
 /// \endcode
-template <typename T, typename R = T>
+template <typename T, typename Ret = T>
 class StringSwitch {
   /// The string we are matching.
   const StrRef St;
@@ -196,13 +196,13 @@ public:
     return CaseLower(S0, Value).CasesLower(S1, S2, S3, S4, Value);
   }
 
-  [[nodiscard]] R Default(T Value) {
+  [[nodiscard]] Ret Default(T Value) {
     if (Result)
       return std::move(*Result);
     return Value;
   }
 
-  [[nodiscard]] operator R() {
+  [[nodiscard]] operator Ret() {
     exi_assert(Result.has_value(), "Fell off the end of a string-switch");
     return std::move(*Result);
   }
