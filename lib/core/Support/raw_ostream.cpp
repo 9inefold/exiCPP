@@ -237,8 +237,8 @@ void raw_ostream::flush_nonempty() {
 
 raw_ostream &raw_ostream::write(unsigned char C) {
   // Group exceptional cases into a single branch.
-  if (EXI_UNLIKELY(OutBufCur >= OutBufEnd)) {
-    if (EXI_UNLIKELY(!OutBufStart)) {
+  if EXI_UNLIKELY(OutBufCur >= OutBufEnd) {
+    if EXI_UNLIKELY(!OutBufStart) {
       if (BufferMode == BufferKind::Unbuffered) {
         write_impl(reinterpret_cast<char *>(&C), 1);
         return *this;
