@@ -21,10 +21,12 @@
 #include <Common/Features.hpp>
 #include <filesystem>
 
-namespace exi::fs {
+namespace exi::sys {
+namespace fs {
 
 using namespace std::filesystem;
 
 using Path = path;
 
-} // namespace exi::fs
+} // namespace fs
+} // namespace exi::sys
