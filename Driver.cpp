@@ -22,15 +22,25 @@
 #include <Common/SmallStr.hpp>
 #include <Common/SmallVec.hpp>
 #include <Common/StringSwitch.hpp>
+#include <Support/Chrono.hpp>
+#include <Support/Casting.hpp>
 #include <Support/FmtBuffer.hpp>
 #include <Support/MemoryBuffer.hpp>
 #include <Support/raw_ostream.hpp>
 #include <fmt/format.h>
+#include <fmt/chrono.h>
 #include <fmt/ranges.h>
 
 #include <tuple>
 
 using namespace exi;
+using namespace exi::sys;
+
+void test(sys::DynTimePoint TP) {
+  if (auto* V = dyn_cast<TimePoint<>>(TP)) {
+    fmt::println("{}", *V);
+  }
+}
 
 int main() {
   SmallVec<usize, 3> V;
