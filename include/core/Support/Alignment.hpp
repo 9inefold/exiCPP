@@ -107,6 +107,10 @@ public:
   }
 };
 
+inline consteval Align operator""_align(u64 Value) {
+  return Align(Value);
+}
+
 /// Treats the value 0 as a 1, so Align is always at least 1.
 inline Align assumeAligned(u64 Value) {
   return Value ? Align(Value) : Align();
