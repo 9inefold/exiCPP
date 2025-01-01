@@ -13,6 +13,8 @@ include_items(EXICPP_CORE "lib/core"
   Common/Twine.cpp
 
   Support/Alloc.cpp
+  Support/ConvertUTF.cpp
+  Support/ConvertUTFWrappers.cpp
   Support/ErrorHandle.cpp
   Support/FmtBuffer.cpp
   Support/MemoryBuffer.cpp
