@@ -107,6 +107,12 @@ public:
     return this->formatImpl(S.str, fmt::vargs<Args...>{{args...}});
   }
 
+  template <typename...Args>
+  FmtBuffer& operator()(fmt::format_string<Args...> S, Args&&...args) {
+    (void)this->formatImpl(S.str, fmt::vargs<Args...>{{args...}});
+    return *this;
+  }
+
   /// Writes a simple StrRef.
   WriteState write(StrRef S);
 
