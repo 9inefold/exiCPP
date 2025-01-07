@@ -27,6 +27,6 @@ namespace exi {
 /// Alias for the `std::string` type with `char_t` and our allocator.
 using String  = std::basic_string<char_t, CharTraits, Allocator<char_t>>;
 /// Alias for `std::wstring` with our allocator.
-using WStr = std::basic_string<wchar_t, WCharTraits, Allocator<wchar_t>>;
+using WString = std::basic_string<wchar_t, WCharTraits, Allocator<wchar_t>>;
 
 } // namespace exi
