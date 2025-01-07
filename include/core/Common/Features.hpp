@@ -23,14 +23,12 @@
 
 #pragma once
 
+#include <Config.inc>
 #include <cassert>
 #include <cstddef>
 #ifdef _MSC_VER
 # include <sal.h>
 #endif
-
-#define ON 1
-#define OFF 0
 
 #define CAT1_(a) a
 #define CAT2_(a, b) a ## b

@@ -4,14 +4,18 @@ include(Setup.cmake)
 
 project(
   exi-cpp
-  VERSION 0.6.1
+  VERSION 0.6.2
   LANGUAGES CXX C
 )
 
 include(ListUtils)
 include(SetFlags)
 include(SetOptions)
+include(SetVersion)
 cmake_policy(SET CMP0077 NEW)
+
+set_version(EXI PROJECT)
+set(EFL_NAMESPACE exi)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")

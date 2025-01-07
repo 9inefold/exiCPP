@@ -1,9 +1,9 @@
 # Temporary file, when I remove exip I'll move this into the main file.
 
-set(EXI_INVARIANTS ${EXICPP_INVARIANTS})
-set(EXI_EXCEPTIONS ${EXICPP_EXCEPTIONS})
-set(EXI_DEBUG      ${EXICPP_DEBUG})
-set(EXI_ANSI       ${EXICPP_ANSI})
+set(EXI_INVARIANTS   ${EXICPP_INVARIANTS})
+set(EXI_EXCEPTIONS   ${EXICPP_EXCEPTIONS})
+set(EXI_DEBUG        ${EXICPP_DEBUG})
+set(EXI_ANSI         ${EXICPP_ANSI})
 set(EXI_USE_MIMALLOC ${EXICPP_USE_MIMALLOC})
 
 if(WIN32)
@@ -31,6 +31,7 @@ include_items(EXICPP_CORE "lib/core"
   Common/Twine.cpp
 
   Support/Alloc.cpp
+  Support/Chrono.cpp
   Support/ConvertUTF.cpp
   Support/ConvertUTFWrappers.cpp
   Support/ErrorHandle.cpp
@@ -52,6 +53,12 @@ if(EXI_USE_MIMALLOC)
 endif()
 
 target_compile_features(exicpp PUBLIC cxx_std_20)
+configure_file(include/core/Config.inc.in
+  "${CMAKE_SOURCE_DIR}/include/core/Config.inc"
+  @ONLY
+  NEWLINE_STYLE LF
+)
+
 target_forward_options(exicpp PUBLIC
   EXI_ANSI
   EXI_DEBUG
