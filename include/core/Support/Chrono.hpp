@@ -34,7 +34,6 @@
 #include <Support/Ratio.hpp>
 #include <chrono>
 #include <ctime>
-#include <fmt/chrono.h>
 
 namespace exi {
 
@@ -124,12 +123,8 @@ template <> struct unit<std::milli> { static const char value[]; };
 template <> struct unit<std::micro> { static const char value[]; };
 template <> struct unit<std::nano> { static const char value[]; };
 
-//////////////////////////////////////////////////////////////////////////
-// Implementation
-
-/// TODO: See if even useful.
-raw_ostream& print_time(raw_ostream& OS, double D, StrRef Unit);
-raw_ostream& print_time(raw_ostream& OS, intmax_t V, StrRef Unit);
+raw_ostream& print_duration(raw_ostream& OS, intmax_t V, const char* Unit);
+raw_ostream& print_duration(raw_ostream& OS, double D, const char* Unit);
 
 } // namespace H
 
@@ -137,17 +132,17 @@ raw_ostream& print_time(raw_ostream& OS, intmax_t V, StrRef Unit);
 // Helper
 
 template <typename Rep, typename Period>
-struct TimePointUtil<sys::StdTime<Rep, Period>> {
-  using Dur = sys::StdTime<Rep, Period>;
+struct TimePointUtil<std::chrono::duration<Rep, Period>> {
+  using Dur = std::chrono::duration<Rep, Period>;
   using InternalRep = H::TimePointRep<Rep>;
 public:
   template <typename AsPeriod = Period>
   static InternalRep GetAs(const Dur& D) {
     using namespace std::chrono;
-    duration_cast<duration<InternalRep, AsPeriod>>(D).count();
+    return duration_cast<duration<InternalRep, AsPeriod>>(D).count();
   }
 
-  static StrRef GetUnit() {
+  static const char* GetUnitRaw() {
     return {H::unit<Period>::value};
   }
 };
@@ -155,11 +150,15 @@ public:
 //////////////////////////////////////////////////////////////////////////
 // Implementation
 
-template <typename Rep, typename Period>
-raw_ostream& operator<<(raw_ostream& OS, const sys::StdTime<Rep, Period>& D) {
-  using Dur = sys::StdTime<Rep, Period>;
-  constexpr TimePointUtil<Dur> Util {};
-  return H::print_time(OS, Util.GetAs(D), Util.GetUnit());
+raw_ostream& operator<<(raw_ostream& OS, const sys::TimePoint<>& D);
+raw_ostream& operator<<(raw_ostream& OS, const sys::UtcTime<>& D); // TODO
+
+template <typename Rep, typename Dur>
+raw_ostream& operator<<(raw_ostream& OS,
+ const std::chrono::duration<Rep, Dur>& D) {
+  using Ty = std::chrono::duration<Rep, Dur>;
+  constexpr TimePointUtil<Ty> U {};
+  return H::print_duration(OS, Ty.GetAs(D), Ty.GetUnitRaw());
 }
 
 } // namespace exi

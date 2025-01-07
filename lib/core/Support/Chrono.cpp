@@ -26,6 +26,7 @@
 
 #include <Support/Chrono.hpp>
 #include <Common/Features.hpp>
+#include <Support/FmtBuffer.hpp>
 #include <Support/raw_ostream.hpp>
 #include <fmt/format.h>
 #include <fmt/chrono.h>
@@ -45,12 +46,38 @@ const char exi::H::unit<std::nano>::value[] = "ns";
 // Print Implementation
 //======================================================================//
 
-raw_ostream& print_time(raw_ostream& OS, double D, StrRef Unit) {
-  return OS << D << Unit;
+static constexpr usize maxPrintSize = sizeof("YYYY-MM-DD HH:MM:SS.XXXXXXXXX");
+
+static inline struct tm getStructTMUtc(UtcTime<> TP) {
+  struct tm Storage;
+  std::time_t OurTime = toTimeT(TP);
+
+#if EXI_ON_UNIX
+  struct tm *LT = ::gmtime_r(&OurTime, &Storage);
+  assert(LT);
+  (void)LT;
+#elif defined(_WIN32)
+  int Error = ::gmtime_s(&Storage, &OurTime);
+  assert(!Error);
+  (void)Error;
+#endif
+
+  return Storage;
 }
 
-raw_ostream& print_time(raw_ostream& OS, intmax_t V, StrRef Unit) {
+raw_ostream& operator<<(raw_ostream& OS, sys::TimePoint<>& D) {
+  StaticFmtBuffer<maxPrintSize> Buf;
+  return OS << Buf("{}", D);
+}
+
+raw_ostream& exi::H::print_duration(
+ raw_ostream& OS, intmax_t V, const char* Unit) {
   return OS << V << Unit;
+}
+
+raw_ostream& exi::H::print_duration(
+ raw_ostream& OS, double D, const char* Unit) {
+  return OS << D << Unit;
 }
 
 } // namespace exi
