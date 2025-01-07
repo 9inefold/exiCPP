@@ -165,13 +165,13 @@ inline int_mapped_iterator<ItTy, FuncTy> int_map_iterator(ItTy I, FuncTy F) {
 
 } // namespace `anonymous`
 
-Str StrRef::lower() const {
-  return Str(int_map_iterator(begin(), toLower),
+String StrRef::lower() const {
+  return String(int_map_iterator(begin(), toLower),
                      int_map_iterator(end(), toLower));
 }
 
-Str StrRef::upper() const {
-  return Str(int_map_iterator(begin(), toUpper),
+String StrRef::upper() const {
+  return String(int_map_iterator(begin(), toUpper),
                      int_map_iterator(end(), toUpper));
 }
 

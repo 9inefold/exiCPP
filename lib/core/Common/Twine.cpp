@@ -30,8 +30,8 @@
 
 using namespace exi;
 
-Str Twine::str() const {
-  // If we're storing only a Str, just return it.
+String Twine::str() const {
+  // If we're storing only a String, just return it.
   if (LHSKind == StdStringKind && RHSKind == EmptyKind)
     return *LHS.stdString;
 
@@ -40,7 +40,7 @@ Str Twine::str() const {
 #if EXI_CUSTOM_STRREF
   return toStrRef(Vec).str();
 #else
-  return Str(toStrRef(Vec));
+  return String(toStrRef(Vec));
 #endif
 }
 
@@ -56,7 +56,7 @@ StrRef Twine::toNullTerminatedStrRef(SmallVecImpl<char> &Out) const {
       // Already null terminated, yay!
       return StrRef(LHS.cString);
     case StdStringKind: {
-      const Str *str = LHS.stdString;
+      const String *str = LHS.stdString;
       return StrRef(str->c_str(), str->size());
     }
     case StringLiteralKind:

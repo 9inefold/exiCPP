@@ -261,7 +261,7 @@ public:
     return this->operator<<(StrRef(S));
   }
 
-  raw_ostream &operator<<(const Str &S) {
+  raw_ostream &operator<<(const String &S) {
     // Avoid the fast path, it would only increase code size for a marginal win.
     return write(S.data(), S.length());
   }
@@ -671,13 +671,13 @@ public:
 // Output Stream Adaptors
 //===----------------------------------------------------------------------===//
 
-/// A raw_ostream that writes to an Str.  This is a simple adaptor
+/// A raw_ostream that writes to an String.  This is a simple adaptor
 /// class. This class does not encounter output errors.
 /// raw_string_ostream operates without a buffer, delegating all memory
-/// management to the Str. Thus the Str is always up-to-date,
+/// management to the String. Thus the String is always up-to-date,
 /// may be used directly and there is no need to call flush().
 class raw_string_ostream : public raw_ostream {
-  Str &OS;
+  String &OS;
 
   /// See raw_ostream::write_impl.
   void write_impl(const char *Ptr, usize Size) override;
@@ -687,14 +687,14 @@ class raw_string_ostream : public raw_ostream {
   u64 current_pos() const override { return OS.size(); }
 
 public:
-  explicit raw_string_ostream(Str &O) : OS(O) {
+  explicit raw_string_ostream(String &O) : OS(O) {
     SetUnbuffered();
   }
 
   /// Returns the string's reference. In most cases it is better to simply use
-  /// the underlying Str directly.
+  /// the underlying String directly.
   /// TODO: Consider removing this API.
-  Str &str() { return OS; }
+  String &str() { return OS; }
 
   void reserveExtraSpace(u64 ExtraSize) override {
     OS.reserve(tell() + ExtraSize);

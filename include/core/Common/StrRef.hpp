@@ -123,8 +123,8 @@ public:
                                    usize length)
       : Data(data), Length(length) {}
 
-  /// Construct a string ref from a Str.
-  /*implicit*/ StrRef(const Str &S)
+  /// Construct a string ref from a String.
+  /*implicit*/ StrRef(const String &S)
       : Data(S.data()), Length(S.length()) {}
 
   /// Construct a string ref from an std::string_view.
@@ -247,11 +247,11 @@ public:
   edit_distance_insensitive(StrRef Other, bool AllowReplacements = true,
                             unsigned MaxEditDistance = 0) const;
 
-  /// str - Get the contents as an Str.
-  [[nodiscard]] Str str() const {
+  /// str - Get the contents as an String.
+  [[nodiscard]] String str() const {
     if (!data())
-      return Str();
-    return Str(data(), size());
+      return String();
+    return String(data(), size());
   }
 
   /// @}
@@ -263,12 +263,12 @@ public:
     return data()[Index];
   }
 
-  /// Disallow accidental assignment from a temporary Str.
+  /// Disallow accidental assignment from a temporary String.
   ///
   /// The declaration here is extra complicated so that `stringRef = {}`
   /// and `stringRef = "abc"` continue to select the move assignment operator.
   template <typename T>
-  std::enable_if_t<std::is_same<T, Str>::value, StrRef> &
+  std::enable_if_t<std::is_same<T, String>::value, StrRef> &
   operator=(T &&S) = delete;
 
   /// @}
@@ -574,10 +574,10 @@ public:
   /// @{
 
   // Convert the given ASCII string to lowercase.
-  [[nodiscard]] Str lower() const;
+  [[nodiscard]] String lower() const;
 
   /// Convert the given ASCII string to uppercase.
-  [[nodiscard]] Str upper() const;
+  [[nodiscard]] String upper() const;
 
   /// @}
   /// @name Substring Operations
@@ -896,7 +896,7 @@ inline bool operator>=(StrRef LHS, StrRef RHS) {
   return LHS.compare(RHS) >= 0;
 }
 
-inline Str &operator+=(Str &buffer, StrRef string) {
+inline String &operator+=(String &buffer, StrRef string) {
   return buffer.append(string.data(), string.size());
 }
 

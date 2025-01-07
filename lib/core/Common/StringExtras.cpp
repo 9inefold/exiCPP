@@ -37,11 +37,11 @@ ArrayRef<char> exi::toCommonStringBuf(StrRef String) {
   return ArrayRef<char>(String.begin(), String.end());
 }
 
-MutArrayRef<char> exi::toCommonStringBuf(Str& String) {
+MutArrayRef<char> exi::toCommonStringBuf(String& String) {
   return exi::toCommonStringBuf(String.data(), String.size());
 }
 
-ArrayRef<char> exi::toCommonStringBuf(const Str& String) {
+ArrayRef<char> exi::toCommonStringBuf(const String& String) {
   return exi::toCommonStringBuf(String.data(), String.size());
 }
 
@@ -120,11 +120,11 @@ void exi::printLowerCase(StrRef String, raw_ostream &Out) {
     Out << toLower(C);
 }
 
-Str exi::convertToSnakeFromCamelCase(StrRef input) {
+String exi::convertToSnakeFromCamelCase(StrRef input) {
   if (input.empty())
     return "";
 
-  Str snakeCase;
+  String snakeCase;
   snakeCase.reserve(input.size());
   auto check = [&input](size_t j, function_ref<bool(int)> predicate) {
     return j < input.size() && predicate(input[j]);
@@ -140,11 +140,11 @@ Str exi::convertToSnakeFromCamelCase(StrRef input) {
   return snakeCase;
 }
 
-Str exi::convertToCamelFromSnakeCase(StrRef input, bool capitalizeFirst) {
+String exi::convertToCamelFromSnakeCase(StrRef input, bool capitalizeFirst) {
   if (input.empty())
     return "";
 
-  Str output;
+  String output;
   output.reserve(input.size());
 
   // Push the first character, capatilizing if necessary.

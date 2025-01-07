@@ -78,10 +78,10 @@ EXI_INLINE ArrayRef<char>
 
 /// Convert a `StrRef` to a buffer.
 ArrayRef<char> toCommonStringBuf(StrRef String);
-/// Convert a `Str&` to a mutable buffer.
-MutArrayRef<char> toCommonStringBuf(Str& String);
-/// Convert a `const Str&` to a buffer.
-ArrayRef<char> toCommonStringBuf(const Str& String);
+/// Convert a `String&` to a mutable buffer.
+MutArrayRef<char> toCommonStringBuf(String& String);
+/// Convert a `const String&` to a buffer.
+ArrayRef<char> toCommonStringBuf(const String& String);
 
 /// Convert a string-like `MutArrayRef` to a mutable buffer.
 template <H::is_char_kind Ch>
@@ -107,7 +107,7 @@ ArrayRef<char> toCommonStringBuf(const SmallVecImpl<Ch>& Vec) {
   return toCommonStringBuf(Vec.data(), Vec.size());
 }
 
-ArrayRef<char> toCommonStringBuf(Str&& String) = delete;
+ArrayRef<char> toCommonStringBuf(String&& String) = delete;
 
 template <H::is_char_kind Ch>
 ArrayRef<char> toCommonStringBuf(SmallVecImpl<Ch>&& Vec) = delete;
@@ -250,7 +250,7 @@ inline char toUpper(char x) {
   return x;
 }
 
-inline Str utohexstr(u64 X, bool LowerCase = false,
+inline String utohexstr(u64 X, bool LowerCase = false,
                              unsigned Width = 0) {
   char Buffer[17];
   char *BufPtr = std::end(Buffer);
@@ -263,7 +263,7 @@ inline Str utohexstr(u64 X, bool LowerCase = false,
     X >>= 4;
   }
 
-  return Str(BufPtr, std::end(Buffer));
+  return String(BufPtr, std::end(Buffer));
 }
 
 /// Convert buffer \p Input to its hexadecimal representation.
@@ -280,13 +280,13 @@ inline void toHex(ArrayRef<u8> Input, bool LowerCase,
   }
 }
 
-inline Str toHex(ArrayRef<u8> Input, bool LowerCase = false) {
+inline String toHex(ArrayRef<u8> Input, bool LowerCase = false) {
   SmallStr<16> Output;
   toHex(Input, LowerCase, Output);
-  return Str(Output);
+  return String(Output);
 }
 
-inline Str toHex(StrRef Input, bool LowerCase = false) {
+inline String toHex(StrRef Input, bool LowerCase = false) {
   return toHex(arrayRefFromStringRef(Input), LowerCase);
 }
 
@@ -318,7 +318,7 @@ inline u8 hexFromNibbles(char MSB, char LSB) {
 /// the result in \p Output. Returns true if the binary representation could be
 /// converted from the hexadecimal string. Returns false if \p Input contains
 /// non-hexadecimal digits. The output string is half the size of \p Input.
-inline bool tryGetFromHex(StrRef Input, Str &Output) {
+inline bool tryGetFromHex(StrRef Input, String &Output) {
   if (Input.empty())
     return true;
 
@@ -353,8 +353,8 @@ inline bool tryGetFromHex(StrRef Input, Str &Output) {
 
 /// Convert hexadecimal string \p Input to its binary representation.
 /// The return string is half the size of \p Input.
-inline Str fromHex(StrRef Input) {
-  Str Hex;
+inline String fromHex(StrRef Input) {
+  String Hex;
   bool GotHex = tryGetFromHex(Input, Hex);
   (void)GotHex;
   exi_assert(GotHex, "Input contains non hex digits");
@@ -394,7 +394,7 @@ inline bool to_float(const Twine &T, long double &Num) {
   return detail::to_float(T, Num, &strtold);
 }
 
-inline Str utostr(u64 X, bool isNeg = false) {
+inline String utostr(u64 X, bool isNeg = false) {
   char Buffer[21];
   char *BufPtr = std::end(Buffer);
 
@@ -406,10 +406,10 @@ inline Str utostr(u64 X, bool isNeg = false) {
   }
 
   if (isNeg) *--BufPtr = '-';   // Add negative sign...
-  return Str(BufPtr, std::end(Buffer));
+  return String(BufPtr, std::end(Buffer));
 }
 
-inline Str itostr(i64 X) {
+inline String itostr(i64 X) {
   if (X < 0)
     return utostr(static_cast<u64>(1) + ~static_cast<u64>(X), true);
   else
@@ -417,16 +417,16 @@ inline Str itostr(i64 X) {
 }
 
 #if EXI_HAS_AP_SCALARS
-inline Str toString(const APInt &I, unsigned Radix, bool Signed,
+inline String toString(const APInt &I, unsigned Radix, bool Signed,
                             bool formatAsCLiteral = false,
                             bool UpperCase = true,
                             bool InsertSeparators = false) {
   SmallStr<40> S;
   I.toString(S, Radix, Signed, formatAsCLiteral, UpperCase, InsertSeparators);
-  return Str(S);
+  return String(S);
 }
 
-inline Str toString(const APSInt &I, unsigned Radix) {
+inline String toString(const APSInt &I, unsigned Radix) {
   return toString(I, Radix, I.isSigned());
 }
 #endif // EXI_HAS_AP_SCALARS
@@ -484,21 +484,21 @@ void printLowerCase(StrRef String, raw_ostream &Out);
 /// Converts a string from camel-case to snake-case by replacing all uppercase
 /// letters with '_' followed by the letter in lowercase, except if the
 /// uppercase letter is the first character of the string.
-Str convertToSnakeFromCamelCase(StrRef input);
+String convertToSnakeFromCamelCase(StrRef input);
 
 /// Converts a string from snake-case to camel-case by replacing all occurrences
 /// of '_' followed by a lowercase letter with the letter in uppercase.
 /// Optionally allow capitalization of the first letter (if it is a lowercase
 /// letter)
-Str convertToCamelFromSnakeCase(StrRef input,
+String convertToCamelFromSnakeCase(StrRef input,
                                         bool capitalizeFirst = false);
 
 namespace detail {
 
 template <typename IteratorT>
-inline Str join_impl(IteratorT Begin, IteratorT End,
+inline String join_impl(IteratorT Begin, IteratorT End,
                              StrRef Separator, std::input_iterator_tag) {
-  Str S;
+  String S;
   if (Begin == End)
     return S;
 
@@ -511,9 +511,9 @@ inline Str join_impl(IteratorT Begin, IteratorT End,
 }
 
 template <typename IteratorT>
-inline Str join_impl(IteratorT Begin, IteratorT End,
+inline String join_impl(IteratorT Begin, IteratorT End,
                              StrRef Separator, std::forward_iterator_tag) {
-  Str S;
+  String S;
   if (Begin == End)
     return S;
 
@@ -533,16 +533,16 @@ inline Str join_impl(IteratorT Begin, IteratorT End,
 }
 
 template <typename Sep>
-inline void join_items_impl(Str &Result, Sep Separator) {}
+inline void join_items_impl(String &Result, Sep Separator) {}
 
 template <typename Sep, typename Arg>
-inline void join_items_impl(Str &Result, Sep Separator,
+inline void join_items_impl(String &Result, Sep Separator,
                             const Arg &Item) {
   Result += Item;
 }
 
 template <typename Sep, typename Arg1, typename... Args>
-inline void join_items_impl(Str &Result, Sep Separator, const Arg1 &A1,
+inline void join_items_impl(String &Result, Sep Separator, const Arg1 &A1,
                             Args &&... Items) {
   Result += A1;
   Result += Separator;
@@ -565,7 +565,7 @@ template <typename... Args> inline usize join_items_size(Args &&...Items) {
 /// Joins the strings in the range [Begin, End), adding Separator between
 /// the elements.
 template <typename IteratorT>
-inline Str join(IteratorT Begin, IteratorT End, StrRef Separator) {
+inline String join(IteratorT Begin, IteratorT End, StrRef Separator) {
   using tag = typename std::iterator_traits<IteratorT>::iterator_category;
   return detail::join_impl(Begin, End, Separator, tag());
 }
@@ -573,17 +573,17 @@ inline Str join(IteratorT Begin, IteratorT End, StrRef Separator) {
 /// Joins the strings in the range [R.begin(), R.end()), adding Separator
 /// between the elements.
 template <typename Range>
-inline Str join(Range &&R, StrRef Separator) {
+inline String join(Range &&R, StrRef Separator) {
   return join(R.begin(), R.end(), Separator);
 }
 
 /// Joins the strings in the parameter pack \p Items, adding \p Separator
 /// between the elements.  All arguments must be implicitly convertible to
-/// Str, or there should be an overload of Str::operator+=()
+/// String, or there should be an overload of String::operator+=()
 /// that accepts the argument explicitly.
 template <typename Sep, typename... Args>
-inline Str join_items(Sep Separator, Args &&... Items) {
-  Str Result;
+inline String join_items(Sep Separator, Args &&... Items) {
+  String Result;
   if (sizeof...(Items) == 0)
     return Result;
 

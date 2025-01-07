@@ -114,7 +114,7 @@ class Twine {
     /// A pointer to a C string instance.
     CStringKind,
 
-    /// A pointer to an Str instance.
+    /// A pointer to an String instance.
     StdStringKind,
 
     /// A Pointer and Length representation. Used for std::string_view,
@@ -158,7 +158,7 @@ class Twine {
   {
     const Twine *twine;
     const char *cString;
-    const Str *stdString;
+    const String *stdString;
     struct {
       const char *ptr;
       size_t length;
@@ -299,8 +299,8 @@ public:
   /// cannot take nullptr.
   /*implicit*/ Twine(std::nullptr_t) = delete;
 
-  /// Construct from an Str.
-  /*implicit*/ Twine(const Str &S) : LHSKind(StdStringKind) {
+  /// Construct from an String.
+  /*implicit*/ Twine(const String &S) : LHSKind(StdStringKind) {
     LHS.stdString = &S;
     exi_assert(isValid(), "Invalid twine!");
   }
@@ -482,8 +482,8 @@ public:
   /// @name Output & Conversion.
   /// @{
 
-  /// Return the twine contents as a Str.
-  Str str() const;
+  /// Return the twine contents as a String.
+  String str() const;
 
   /// Append the concatenated string into the given SmallStr or SmallVec.
   void toVector(SmallVecImpl<char> &Out) const;

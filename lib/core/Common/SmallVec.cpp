@@ -81,7 +81,7 @@ static_assert(sizeof(SmallVec<char, 0>) ==
 /// std::length_error or calls report_fatal_error.
 [[noreturn]] static void report_size_overflow(usize MinSize, usize MaxSize);
 static void report_size_overflow(usize MinSize, usize MaxSize) {
-  Str Reason = fmt::format(
+  String Reason = fmt::format(
     "SmallVec unable to grow. Requested capacity ({})"
     " is larger than maximum value for size type ({})",
     MinSize, MaxSize

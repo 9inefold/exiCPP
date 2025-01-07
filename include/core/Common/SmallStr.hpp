@@ -287,8 +287,8 @@ public:
   /// Implicit conversion to StrRef.
   operator StrRef() const { return str(); }
 
-  explicit operator Str() const {
-    return Str(this->data(), this->size());
+  explicit operator String() const {
+    return String(this->data(), this->size());
   }
 
   // Extra operators.

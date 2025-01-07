@@ -36,8 +36,8 @@
 
 using namespace exi;
 
-Str VersionTuple::getAsString() const {
-  Str Result;
+String VersionTuple::getAsString() const {
+  String Result;
   {
     exi::raw_string_ostream Out(Result);
     Out << *this;
