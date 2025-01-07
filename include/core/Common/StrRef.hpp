@@ -902,10 +902,8 @@ inline Str &operator+=(Str &buffer, StrRef string) {
 
 /// @}
 
-#if 0
 /// Compute a hash_code for a StrRef.
 [[nodiscard]] hash_code hash_value(StrRef S);
-#endif
 
 /// A wrapper around a string literal that serves as a proxy for constructing
 /// global tables of StringRefs with the length computed at compile time.

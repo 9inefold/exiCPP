@@ -29,7 +29,7 @@
 # include "llvm/ADT/APFloat.h"
 # include "llvm/ADT/APInt.h"
 #endif
-// #include "llvm/ADT/Hashing.h"
+#include <Common/Hashing.hpp>
 #include <Common/StringExtras.hpp>
 #include <Common/edit_distance.hpp>
 // #include "llvm/Support/Error.h"
@@ -671,10 +671,7 @@ bool StrRef::getAsDouble(double &Result, bool AllowInexact) const {
 
 #endif // EXI_HAS_AP_SCALARS
 
-#if 0
-// TODO: Readd with rapidhash
 // Implementation of StrRef hashing.
 hash_code exi::hash_value(StrRef S) {
   return hash_combine_range(S.begin(), S.end());
 }
-#endif
