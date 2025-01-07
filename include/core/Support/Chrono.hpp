@@ -34,15 +34,25 @@
 #include <Support/Ratio.hpp>
 #include <chrono>
 #include <ctime>
+#include <fmt/chrono.h>
 
 namespace exi {
 
 class raw_ostream;
 
-template <typename To, typename From, typename>
-struct CastInfo;
+template <typename> struct TimePointUtil;
+
+namespace H {
+template <typename Rep>
+using TimePointRep = std::conditional_t<
+  std::chrono::treat_as_floating_point_v<Rep>,
+  double, intmax_t>;
+} // namespace H
 
 namespace sys {
+
+template <typename Rep, typename Period>
+using StdTime = std::chrono::time_point<Rep, Period>;
 
 /// A time point on the system clock. This is provided for two reasons:
 /// - to insulate us against subtle differences in behavior to differences in
@@ -53,10 +63,10 @@ namespace sys {
 /// specify it explicitly. If unsure, use the default. If you need a time point
 /// on a clock other than the system_clock, use std::chrono directly.
 template <typename D = std::chrono::nanoseconds>
-using TimePoint = std::chrono::time_point<std::chrono::system_clock, D>;
+using TimePoint = StdTime<std::chrono::system_clock, D>;
 
 template <typename D = std::chrono::nanoseconds>
-using UtcTime = std::chrono::time_point<std::chrono::utc_clock, D>;
+using UtcTime = StdTime<std::chrono::utc_clock, D>;
 
 /// Convert a std::time_t to a UtcTime
 inline auto toUtcTime(std::time_t T) -> UtcTime<std::chrono::seconds> {
@@ -91,96 +101,65 @@ inline TimePoint<> toTimePoint(std::time_t T, uint32_t nsec) {
     + nanoseconds(nsec);
 }
 
-//////////////////////////////////////////////////////////////////////////
-// DynTime
-
-namespace H {
-
-template <class Clock> struct IsSystemClock;
-template <> struct IsSystemClock<std::chrono::system_clock> : std::true_type {};
-template <> struct IsSystemClock<std::chrono::utc_clock> : std::false_type {};
-
-} // namespace H
-
-template <class Clock>
-concept is_system_clock = H::IsSystemClock<Clock>::value;
-
-struct DynTimePoint {
-  template <typename, typename, typename>
-  friend struct CastInfo;
-
-  template <class R>
-  constexpr DynTimePoint(const TimePoint<R>& TP) :
-   Data(&TP), Ratio(toDynRatio(R{})), IsSystem(true) {
-    static_assert(CheckRatio<R>(),
-      "Don't use durations greater than a day!");
-  }
-
-  template <class R>
-  constexpr DynTimePoint(const UtcTime<R>& TP) :
-   Data(&TP), Ratio(toDynRatio(R{})), IsSystem(true) {
-    static_assert(CheckRatio<R>(),
-      "Don't use durations greater than a day!");
-  }
-
-public:
-  template <class R> static constexpr bool CheckRatio() {
-    return std::ratio_less_equal_v<R, std::ratio<3600>>;
-  }
-
-  template <typename T, class R>
-  static constexpr DynRatio ToDynRatio(
-   const std::chrono::duration<T, R>&) {
-    return exi::toDynRatio(R{});
-  }
-
-  bool isSystemTime() const { return IsSystem; }
-
-  bool isSameRatio(const exi::DynRatio& In) const {
-    return In == this->Ratio;
-  }
-
-  template <class R> bool isSameRatio() const {
-    constexpr exi::DynRatio In = ToDynRatio(R{});
-    return this->isSameRatio(In);
-  }
-
-  const void* data() const {
-    return Data;
-  }
-
-private:
-  const void* Data = nullptr;
-  exi::DynRatio Ratio;
-  bool IsSystem;
-};
+/// Get the current time as a `TimePoint<>`.
+inline TimePoint<> now() noexcept {
+  return std::chrono::system_clock::now();
+}
 
 } // namespace sys
 
-template <class Ratio>
-struct CastInfo<sys::TimePoint<Ratio>, sys::DynTimePoint, void> {
-  using To = sys::TimePoint<Ratio>;
-  using From = sys::DynTimePoint;
-  using Self = CastInfo<To, From, void>;
-  using CastReturnType = To;
+//======================================================================//
+// Printing
+//======================================================================//
 
-  static inline bool isPossible(From &f) {
-    return f.isSameRatio<Ratio>() && f.isSystemTime();
+namespace H {
+
+template <typename Period> struct unit { static const char value[]; };
+template <typename Period> const char unit<Period>::value[] = "";
+
+template <> struct unit<std::ratio<3600>> { static const char value[]; };
+template <> struct unit<std::ratio<60>> { static const char value[]; };
+template <> struct unit<std::ratio<1>> { static const char value[]; };
+template <> struct unit<std::milli> { static const char value[]; };
+template <> struct unit<std::micro> { static const char value[]; };
+template <> struct unit<std::nano> { static const char value[]; };
+
+//////////////////////////////////////////////////////////////////////////
+// Implementation
+
+/// TODO: See if even useful.
+raw_ostream& print_time(raw_ostream& OS, double D, StrRef Unit);
+raw_ostream& print_time(raw_ostream& OS, intmax_t V, StrRef Unit);
+
+} // namespace H
+
+//////////////////////////////////////////////////////////////////////////
+// Helper
+
+template <typename Rep, typename Period>
+struct TimePointUtil<sys::StdTime<Rep, Period>> {
+  using Dur = sys::StdTime<Rep, Period>;
+  using InternalRep = H::TimePointRep<Rep>;
+public:
+  template <typename AsPeriod = Period>
+  static InternalRep GetAs(const Dur& D) {
+    using namespace std::chrono;
+    duration_cast<duration<InternalRep, AsPeriod>>(D).count();
   }
 
-  static inline const To& doCast(From &f) {
-    return *static_cast<const To*>(f.data());
-  }
-
-  static inline CastReturnType castFailed() { return To{}; }
-
-  static inline CastReturnType doCastIfPossible(From &f) {
-    if (!Self::isPossible(f))
-      return Self::castFailed();
-    return Self::doCast(f);
+  static StrRef GetUnit() {
+    return {H::unit<Period>::value};
   }
 };
 
-raw_ostream &operator<<(raw_ostream &OS, sys::DynTimePoint TP);
+//////////////////////////////////////////////////////////////////////////
+// Implementation
+
+template <typename Rep, typename Period>
+raw_ostream& operator<<(raw_ostream& OS, const sys::StdTime<Rep, Period>& D) {
+  using Dur = sys::StdTime<Rep, Period>;
+  constexpr TimePointUtil<Dur> Util {};
+  return H::print_time(OS, Util.GetAs(D), Util.GetUnit());
+}
 
 } // namespace exi

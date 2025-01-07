@@ -6,6 +6,24 @@ set(EXI_DEBUG      ${EXICPP_DEBUG})
 set(EXI_ANSI       ${EXICPP_ANSI})
 set(EXI_USE_MIMALLOC ${EXICPP_USE_MIMALLOC})
 
+if(WIN32)
+  if(CYGWIN)
+    set(EXI_ON_WIN32 0)
+    set(EXI_ON_UNIX 1)
+  else()
+    set(EXI_ON_WIN32 1)
+    set(EXI_ON_UNIX 0)
+  endif()
+elseif(FUCHSIA OR UNIX)
+  set(EXI_ON_WIN32 0)
+  set(EXI_ON_UNIX 1)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Generic")
+  set(EXI_ON_WIN32 0)
+  set(EXI_ON_UNIX 0)
+else()
+  message(SEND_ERROR "Unable to determine platform")
+endif()
+
 include_items(EXICPP_CORE "lib/core"
   Common/SmallVec.cpp
   Common/StringExtras.cpp
@@ -39,6 +57,9 @@ target_forward_options(exicpp PUBLIC
   EXI_DEBUG
   EXI_INVARIANTS
   EXI_USE_MIMALLOC
+
+  EXI_ON_WIN32
+  EXI_ON_UNIX
 )
 
 if(NOT EXI_EXCEPTIONS)

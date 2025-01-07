@@ -32,4 +32,25 @@
 
 namespace exi {
 
+using namespace sys;
+
+const char exi::H::unit<std::ratio<3600>>::value[] = "h";
+const char exi::H::unit<std::ratio<60>>::value[] = "m";
+const char exi::H::unit<std::ratio<1>>::value[] = "s";
+const char exi::H::unit<std::milli>::value[] = "ms";
+const char exi::H::unit<std::micro>::value[] = "us";
+const char exi::H::unit<std::nano>::value[] = "ns";
+
+//======================================================================//
+// Print Implementation
+//======================================================================//
+
+raw_ostream& print_time(raw_ostream& OS, double D, StrRef Unit) {
+  return OS << D << Unit;
+}
+
+raw_ostream& print_time(raw_ostream& OS, intmax_t V, StrRef Unit) {
+  return OS << V << Unit;
+}
+
 } // namespace exi

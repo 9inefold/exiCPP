@@ -36,12 +36,6 @@
 using namespace exi;
 using namespace exi::sys;
 
-void test(sys::DynTimePoint TP) {
-  if (auto* V = dyn_cast<TimePoint<>>(TP)) {
-    fmt::println("{}", *V);
-  }
-}
-
 int main() {
   SmallVec<usize, 3> V;
   usize N = 7;
@@ -51,6 +45,11 @@ int main() {
     N += 7;
   }
   fmt::println("V: {}", fmt::join(V, ", "));
+
+  TimePoint<> TP = sys::now();
+  fmt::println("TimePoint<>: {}", TP);
+  TimePoint<> TP2 = sys::now();
+  fmt::println("Duration: {}", (TP2 - TP));
 
   std::allocator<char> CA {};
   char* P = CA.allocate(128);
