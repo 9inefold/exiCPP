@@ -52,6 +52,10 @@ target_link_libraries(exicpp PUBLIC fmt::fmt rapidxml::rapidxml)
 if(EXI_USE_MIMALLOC)
   target_link_libraries(exicpp PUBLIC mimalloc-static)
 endif()
+if(WIN32)
+  target_link_libraries(exicpp PRIVATE
+    psapi shell32 ole32 uuid advapi32 ws2_32 ntdll)
+endif()
 
 target_compile_features(exicpp PUBLIC cxx_std_20)
 configure_file(include/core/Config.inc.in

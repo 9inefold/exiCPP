@@ -4,7 +4,7 @@ include(Setup.cmake)
 
 project(
   exi-cpp
-  VERSION 0.6.4
+  VERSION 0.6.5
   LANGUAGES CXX C
 )
 
