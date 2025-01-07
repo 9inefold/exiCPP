@@ -158,7 +158,7 @@ raw_ostream& operator<<(raw_ostream& OS,
  const std::chrono::duration<Rep, Dur>& D) {
   using Ty = std::chrono::duration<Rep, Dur>;
   constexpr TimePointUtil<Ty> U {};
-  return H::print_duration(OS, Ty.GetAs(D), Ty.GetUnitRaw());
+  return H::print_duration(OS, U.GetAs(D), U.GetUnitRaw());
 }
 
 } // namespace exi
