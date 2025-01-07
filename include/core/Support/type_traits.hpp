@@ -114,7 +114,7 @@ struct is_move_assignable {
 /// integral type or an enumeration type, including enum classes.
 ///
 /// See `is_integral_or_enum` for more info.
-template <typename T
+template <typename T>
 EXI_CONST bool is_integral_or_enum_v
   = is_integral_or_enum<T>::value;
 
