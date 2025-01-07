@@ -54,14 +54,14 @@ template <typename T> class SmallVecImpl;
 class StrRef;
 
 /// Helper functions for StrRef::getAsInteger.
-bool getAsUnsignedInteger(StrRef S, unsigned Radix,
+bool getAsUnsignedInteger(StrRef Str, unsigned Radix,
                           unsigned long long &Result);
 
-bool getAsSignedInteger(StrRef S, unsigned Radix, long long &Result);
+bool getAsSignedInteger(StrRef Str, unsigned Radix, long long &Result);
 
-bool consumeUnsignedInteger(StrRef &S, unsigned Radix,
+bool consumeUnsignedInteger(StrRef &Str, unsigned Radix,
                             unsigned long long &Result);
-bool consumeSignedInteger(StrRef &S, unsigned Radix, long long &Result);
+bool consumeSignedInteger(StrRef &Str, unsigned Radix, long long &Result);
 
 /// StrRef - Represent a constant reference to a string, i.e. a character
 /// array and a length, which need not be null terminated.
@@ -103,17 +103,17 @@ public:
   /*implicit*/ StrRef() = default;
 
   /// Disable conversion from nullptr.  This prevents things like
-  /// if (S == nullptr)
+  /// if (Str == nullptr)
   StrRef(std::nullptr_t) = delete;
 
   /// Construct a string ref from a cstring.
-  /*implicit*/ constexpr StrRef(const char *S EXI_LIFETIMEBOUND)
-      : Data(S), Length(S ?
+  /*implicit*/ constexpr StrRef(const char *Str EXI_LIFETIMEBOUND)
+      : Data(Str), Length(Str ?
   // GCC 7 doesn't have constexpr char_traits. Fall back to __builtin_strlen.
 #if defined(_GLIBCXX_RELEASE) && _GLIBCXX_RELEASE < 8
-                              __builtin_strlen(S)
+                              __builtin_strlen(Str)
 #else
-                              std::char_traits<char>::length(S)
+                              std::char_traits<char>::length(Str)
 #endif
                               : 0) {
   }
@@ -124,12 +124,12 @@ public:
       : Data(data), Length(length) {}
 
   /// Construct a string ref from a String.
-  /*implicit*/ StrRef(const String &S)
-      : Data(S.data()), Length(S.length()) {}
+  /*implicit*/ StrRef(const String &Str)
+      : Data(Str.data()), Length(Str.length()) {}
 
   /// Construct a string ref from an std::string_view.
-  /*implicit*/ constexpr StrRef(std::string_view S)
-      : Data(S.data()), Length(S.size()) {}
+  /*implicit*/ constexpr StrRef(std::string_view Str)
+      : Data(Str.data()), Length(Str.size()) {}
 
   /// @}
   /// @name Iterators
@@ -189,9 +189,9 @@ public:
     // Don't request a length 0 copy from the allocator.
     if (empty())
       return StrRef();
-    char *S = A.template Allocate<char>(size());
-    std::copy(begin(), end(), S);
-    return StrRef(S, size());
+    char *Str = A.template Allocate<char>(size());
+    std::copy(begin(), end(), Str);
+    return StrRef(Str, size());
   }
 
   /// Check for string equality, ignoring case.
@@ -269,7 +269,7 @@ public:
   /// and `stringRef = "abc"` continue to select the move assignment operator.
   template <typename T>
   std::enable_if_t<std::is_same<T, String>::value, StrRef> &
-  operator=(T &&S) = delete;
+  operator=(T &&Str) = delete;
 
   /// @}
   /// @name Type Conversions
@@ -332,11 +332,11 @@ public:
   /// \p From, or npos if not found.
   [[nodiscard]] usize find_if(function_ref<bool(char)> F,
                                usize From = 0) const {
-    StrRef S = drop_front(From);
-    while (!S.empty()) {
-      if (F(S.front()))
-        return size() - S.size();
-      S = S.drop_front();
+    StrRef Str = drop_front(From);
+    while (!Str.empty()) {
+      if (F(Str.front()))
+        return size() - Str.size();
+      Str = Str.drop_front();
     }
     return npos;
   }
@@ -350,17 +350,17 @@ public:
     return find_if([F](char c) { return !F(c); }, From);
   }
 
-  /// Search for the first string \p S in the string.
+  /// Search for the first string \p Str in the string.
   ///
-  /// \returns The index of the first occurrence of \p S, or npos if not
+  /// \returns The index of the first occurrence of \p Str, or npos if not
   /// found.
-  [[nodiscard]] usize find(StrRef S, usize From = 0) const;
+  [[nodiscard]] usize find(StrRef Str, usize From = 0) const;
 
-  /// Search for the first string \p S in the string, ignoring case.
+  /// Search for the first string \p Str in the string, ignoring case.
   ///
-  /// \returns The index of the first occurrence of \p S, or npos if not
+  /// \returns The index of the first occurrence of \p Str, or npos if not
   /// found.
-  [[nodiscard]] usize find_insensitive(StrRef S, usize From = 0) const;
+  [[nodiscard]] usize find_insensitive(StrRef Str, usize From = 0) const;
 
   /// Search for the last character \p C in the string.
   ///
@@ -382,17 +382,17 @@ public:
   /// found.
   [[nodiscard]] usize rfind_insensitive(char C, usize From = npos) const;
 
-  /// Search for the last string \p S in the string.
+  /// Search for the last string \p Str in the string.
   ///
-  /// \returns The index of the last occurrence of \p S, or npos if not
+  /// \returns The index of the last occurrence of \p Str, or npos if not
   /// found.
-  [[nodiscard]] usize rfind(StrRef S) const;
+  [[nodiscard]] usize rfind(StrRef Str) const;
 
-  /// Search for the last string \p S in the string, ignoring case.
+  /// Search for the last string \p Str in the string, ignoring case.
   ///
-  /// \returns The index of the last occurrence of \p S, or npos if not
+  /// \returns The index of the last occurrence of \p Str, or npos if not
   /// found.
-  [[nodiscard]] usize rfind_insensitive(StrRef S) const;
+  [[nodiscard]] usize rfind_insensitive(StrRef Str) const;
 
   /// Find the first character in the string that is \p C, or npos if not
   /// found. Same as find.
@@ -478,9 +478,9 @@ public:
     return Count;
   }
 
-  /// Return the number of non-overlapped occurrences of \p S in
+  /// Return the number of non-overlapped occurrences of \p Str in
   /// the string.
-  usize count(StrRef S) const;
+  usize count(StrRef Str) const;
 
   /// Parse the current string as an integer of the specified radix.  If
   /// \p Radix is specified as zero, this does radix autosensing using
@@ -903,35 +903,35 @@ inline String &operator+=(String &buffer, StrRef string) {
 /// @}
 
 /// Compute a hash_code for a StrRef.
-[[nodiscard]] hash_code hash_value(StrRef S);
+[[nodiscard]] hash_code hash_value(StrRef Str);
 
 /// A wrapper around a string literal that serves as a proxy for constructing
 /// global tables of StringRefs with the length computed at compile time.
 /// In order to avoid the invocation of a global constructor, StringLiteral
 /// should *only* be used in a constexpr context, as such:
 ///
-/// constexpr StringLiteral S("test");
+/// constexpr StringLiteral Str("test");
 ///
 class StringLiteral : public StrRef {
 private:
-  constexpr StringLiteral(const char* S, usize N) : StrRef(S, N) {}
+  constexpr StringLiteral(const char* Str, usize N) : StrRef(Str, N) {}
 public:
   template <usize N>
-  consteval StringLiteral(const char(&S)[N])
+  consteval StringLiteral(const char(&Str)[N])
 #if defined(__clang__) && __has_attribute(enable_if)
 DIAGNOSTIC_PUSH()
 CLANG_IGNORED("-Wgcc-compat")
-      __attribute((enable_if(__builtin_strlen(S) == N - 1,
+      __attribute((enable_if(__builtin_strlen(Str) == N - 1,
                              "invalid string literal")))
 DIAGNOSTIC_POP()
 #endif
-      : StrRef(S, N - 1) {
+      : StrRef(Str, N - 1) {
   }
 
   // Explicit construction for strings like "foo\0bar".
   template <usize N>
-  static consteval StringLiteral WithInnerNUL(const char(&S)[N]) {
-    return StringLiteral(S, N - 1);
+  static consteval StringLiteral WithInnerNUL(const char(&Str)[N]) {
+    return StringLiteral(Str, N - 1);
   }
 };
 

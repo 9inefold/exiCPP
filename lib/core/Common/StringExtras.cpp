@@ -80,10 +80,10 @@ std::pair<StrRef, StrRef> exi::getToken(StrRef Source,
 void exi::SplitString(StrRef Source,
                       SmallVecImpl<StrRef> &OutFragments,
                       StrRef Delimiters) {
-  std::pair<StrRef, StrRef> S = getToken(Source, Delimiters);
-  while (!S.first.empty()) {
-    OutFragments.push_back(S.first);
-    S = getToken(S.second, Delimiters);
+  std::pair<StrRef, StrRef> Str = getToken(Source, Delimiters);
+  while (!Str.first.empty()) {
+    OutFragments.push_back(Str.first);
+    Str = getToken(Str.second, Delimiters);
   }
 }
 

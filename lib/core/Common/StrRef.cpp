@@ -180,19 +180,19 @@ String StrRef::upper() const {
 //===----------------------------------------------------------------------===//
 
 
-/// find - Search for the first string \arg S in the string.
+/// find - Search for the first string \arg Str in the string.
 ///
-/// \return - The index of the first occurrence of \arg S, or npos if not
+/// \return - The index of the first occurrence of \arg Str, or npos if not
 /// found.
-usize StrRef::find(StrRef S, usize From) const {
+usize StrRef::find(StrRef Str, usize From) const {
   if (From > size())
     return npos;
 
   const char *Start = data() + From;
   usize Size = size() - From;
 
-  const char *Needle = S.data();
-  usize N = S.size();
+  const char *Needle = Str.data();
+  usize N = Str.size();
   if (N == 0)
     return From;
   if (Size < N)
@@ -230,7 +230,7 @@ usize StrRef::find(StrRef S, usize From) const {
   uint8_t BadCharSkip[256];
   std::memset(BadCharSkip, N, 256);
   for (unsigned i = 0; i != N-1; ++i)
-    BadCharSkip[(uint8_t)S[i]] = N-1-i;
+    BadCharSkip[(uint8_t)Str[i]] = N-1-i;
 
   do {
     uint8_t Last = Start[N - 1];
@@ -245,10 +245,10 @@ usize StrRef::find(StrRef S, usize From) const {
   return npos;
 }
 
-usize StrRef::find_insensitive(StrRef S, usize From) const {
+usize StrRef::find_insensitive(StrRef Str, usize From) const {
   StrRef This = substr(From);
-  while (This.size() >= S.size()) {
-    if (This.starts_with_insensitive(S))
+  while (This.size() >= Str.size()) {
+    if (This.starts_with_insensitive(Str))
       return From;
     This = This.drop_front();
     ++From;
@@ -267,21 +267,21 @@ usize StrRef::rfind_insensitive(char C, usize From) const {
   return npos;
 }
 
-/// rfind - Search for the last string \arg S in the string.
+/// rfind - Search for the last string \arg Str in the string.
 ///
-/// \return - The index of the last occurrence of \arg S, or npos if not
+/// \return - The index of the last occurrence of \arg Str, or npos if not
 /// found.
-usize StrRef::rfind(StrRef S) const {
-  return std::string_view(*this).rfind(S);
+usize StrRef::rfind(StrRef Str) const {
+  return std::string_view(*this).rfind(Str);
 }
 
-usize StrRef::rfind_insensitive(StrRef S) const {
-  usize N = S.size();
+usize StrRef::rfind_insensitive(StrRef Str) const {
+  usize N = Str.size();
   if (N > size())
     return npos;
   for (usize i = size() - N + 1, e = 0; i != e;) {
     --i;
-    if (substr(i, N).equals_insensitive(S))
+    if (substr(i, N).equals_insensitive(Str))
       return i;
   }
   return npos;
@@ -369,110 +369,110 @@ StrRef::size_type StrRef::find_last_not_of(StrRef Chars,
 void StrRef::split(SmallVecImpl<StrRef> &A,
                       StrRef Separator, int MaxSplit,
                       bool KeepEmpty) const {
-  StrRef S = *this;
+  StrRef Str = *this;
 
   // Count down from MaxSplit. When MaxSplit is -1, this will just split
   // "forever". This doesn't support splitting more than 2^31 times
   // intentionally; if we ever want that we can make MaxSplit a 64-bit integer
   // but that seems unlikely to be useful.
   while (MaxSplit-- != 0) {
-    usize Idx = S.find(Separator);
+    usize Idx = Str.find(Separator);
     if (Idx == npos)
       break;
 
     // Push this split.
     if (KeepEmpty || Idx > 0)
-      A.push_back(S.slice(0, Idx));
+      A.push_back(Str.slice(0, Idx));
 
     // Jump forward.
-    S = S.substr(Idx + Separator.size());
+    Str = Str.substr(Idx + Separator.size());
   }
 
   // Push the tail.
-  if (KeepEmpty || !S.empty())
-    A.push_back(S);
+  if (KeepEmpty || !Str.empty())
+    A.push_back(Str);
 }
 
 void StrRef::split(SmallVecImpl<StrRef> &A, char Separator,
                       int MaxSplit, bool KeepEmpty) const {
-  StrRef S = *this;
+  StrRef Str = *this;
 
   // Count down from MaxSplit. When MaxSplit is -1, this will just split
   // "forever". This doesn't support splitting more than 2^31 times
   // intentionally; if we ever want that we can make MaxSplit a 64-bit integer
   // but that seems unlikely to be useful.
   while (MaxSplit-- != 0) {
-    usize Idx = S.find(Separator);
+    usize Idx = Str.find(Separator);
     if (Idx == npos)
       break;
 
     // Push this split.
     if (KeepEmpty || Idx > 0)
-      A.push_back(S.slice(0, Idx));
+      A.push_back(Str.slice(0, Idx));
 
     // Jump forward.
-    S = S.substr(Idx + 1);
+    Str = Str.substr(Idx + 1);
   }
 
   // Push the tail.
-  if (KeepEmpty || !S.empty())
-    A.push_back(S);
+  if (KeepEmpty || !Str.empty())
+    A.push_back(Str);
 }
 
 //===----------------------------------------------------------------------===//
 // Helpful Algorithms
 //===----------------------------------------------------------------------===//
 
-/// count - Return the number of non-overlapped occurrences of \arg S in
+/// count - Return the number of non-overlapped occurrences of \arg Str in
 /// the string.
-usize StrRef::count(StrRef S) const {
+usize StrRef::count(StrRef Str) const {
   usize Count = 0;
   usize Pos = 0;
-  usize N = S.size();
-  // TODO: For an empty `S` we return 0 for legacy reasons. Consider changing
+  usize N = Str.size();
+  // TODO: For an empty `Str` we return 0 for legacy reasons. Consider changing
   //       this to `Length + 1` which is more in-line with the function
   //       description.
   if (!N)
     return 0;
-  while ((Pos = find(S, Pos)) != npos) {
+  while ((Pos = find(Str, Pos)) != npos) {
     ++Count;
     Pos += N;
   }
   return Count;
 }
 
-static unsigned GetAutoSenseRadix(StrRef &S) {
-  if (S.empty())
+static unsigned GetAutoSenseRadix(StrRef &Str) {
+  if (Str.empty())
     return 10;
 
-  if (S.consume_front_insensitive("0x"))
+  if (Str.consume_front_insensitive("0x"))
     return 16;
 
-  if (S.consume_front_insensitive("0b"))
+  if (Str.consume_front_insensitive("0b"))
     return 2;
 
-  if (S.consume_front("0o"))
+  if (Str.consume_front("0o"))
     return 8;
 
-  if (S[0] == '0' && S.size() > 1 && isDigit(S[1])) {
-    S = S.substr(1);
+  if (Str[0] == '0' && Str.size() > 1 && isDigit(Str[1])) {
+    Str = Str.substr(1);
     return 8;
   }
 
   return 10;
 }
 
-bool exi::consumeUnsignedInteger(StrRef &S, unsigned Radix,
+bool exi::consumeUnsignedInteger(StrRef &Str, unsigned Radix,
                                   unsigned long long &Result) {
   // Autosense radix if not specified.
   if (Radix == 0)
-    Radix = GetAutoSenseRadix(S);
+    Radix = GetAutoSenseRadix(Str);
 
   // Empty strings (after the radix autosense) are invalid.
-  if (S.empty()) return true;
+  if (Str.empty()) return true;
 
   // Parse all the bytes of the string given this radix.  Watch for overflow.
-  StrRef Str2 = S;
+  StrRef Str2 = Str;
   Result = 0;
   while (!Str2.empty()) {
     unsigned CharVal;
@@ -503,20 +503,20 @@ bool exi::consumeUnsignedInteger(StrRef &S, unsigned Radix,
 
   // We consider the operation a failure if no characters were consumed
   // successfully.
-  if (S.size() == Str2.size())
+  if (Str.size() == Str2.size())
     return true;
 
-  S = Str2;
+  Str = Str2;
   return false;
 }
 
-bool exi::consumeSignedInteger(StrRef &S, unsigned Radix,
+bool exi::consumeSignedInteger(StrRef &Str, unsigned Radix,
                                 long long &Result) {
   unsigned long long ULLVal;
 
   // Handle positive strings first.
-  if (!S.starts_with("-")) {
-    if (consumeUnsignedInteger(S, Radix, ULLVal) ||
+  if (!Str.starts_with("-")) {
+    if (consumeUnsignedInteger(Str, Radix, ULLVal) ||
         // Check for value so large it overflows a signed value.
         (long long)ULLVal < 0)
       return true;
@@ -525,7 +525,7 @@ bool exi::consumeSignedInteger(StrRef &S, unsigned Radix,
   }
 
   // Get the positive part of the value.
-  StrRef Str2 = S.drop_front(1);
+  StrRef Str2 = Str.drop_front(1);
   if (consumeUnsignedInteger(Str2, Radix, ULLVal) ||
       // Reject values so large they'd overflow as negative signed, but allow
       // "-0".  This negates the unsigned so that the negative isn't undefined
@@ -533,55 +533,55 @@ bool exi::consumeSignedInteger(StrRef &S, unsigned Radix,
       (long long)-ULLVal > 0)
     return true;
 
-  S = Str2;
+  Str = Str2;
   Result = -ULLVal;
   return false;
 }
 
 /// GetAsUnsignedInteger - Workhorse method that converts a integer character
 /// sequence of radix up to 36 to an unsigned long long value.
-bool exi::getAsUnsignedInteger(StrRef S, unsigned Radix,
+bool exi::getAsUnsignedInteger(StrRef Str, unsigned Radix,
                                 unsigned long long &Result) {
-  if (consumeUnsignedInteger(S, Radix, Result))
+  if (consumeUnsignedInteger(Str, Radix, Result))
     return true;
 
   // For getAsUnsignedInteger, we require the whole string to be consumed or
   // else we consider it a failure.
-  return !S.empty();
+  return !Str.empty();
 }
 
-bool exi::getAsSignedInteger(StrRef S, unsigned Radix,
+bool exi::getAsSignedInteger(StrRef Str, unsigned Radix,
                               long long &Result) {
-  if (consumeSignedInteger(S, Radix, Result))
+  if (consumeSignedInteger(Str, Radix, Result))
     return true;
 
   // For getAsSignedInteger, we require the whole string to be consumed or else
   // we consider it a failure.
-  return !S.empty();
+  return !Str.empty();
 }
 
 #if EXI_HAS_AP_SCALARS
 
 bool StrRef::consumeInteger(unsigned Radix, APInt &Result) {
-  StrRef S = *this;
+  StrRef Str = *this;
 
   // Autosense radix if not specified.
   if (Radix == 0)
-    Radix = GetAutoSenseRadix(S);
+    Radix = GetAutoSenseRadix(Str);
 
   exi_assert(Radix > 1 && Radix <= 36);
 
   // Empty strings (after the radix autosense) are invalid.
-  if (S.empty()) return true;
+  if (Str.empty()) return true;
 
   // Skip leading zeroes.  This can be a significant improvement if
   // it means we don't need > 64 bits.
-  S = S.ltrim('0');
+  Str = Str.ltrim('0');
 
   // If it was nothing but zeroes....
-  if (S.empty()) {
+  if (Str.empty()) {
     Result = APInt(64, 0);
-    *this = S;
+    *this = Str;
     return false;
   }
 
@@ -590,7 +590,7 @@ bool StrRef::consumeInteger(unsigned Radix, APInt &Result) {
   while ((1U << Log2Radix) < Radix) Log2Radix++;
   bool IsPowerOf2Radix = ((1U << Log2Radix) == Radix);
 
-  unsigned BitWidth = Log2Radix * S.size();
+  unsigned BitWidth = Log2Radix * Str.size();
   if (BitWidth < Result.getBitWidth())
     BitWidth = Result.getBitWidth(); // don't shrink the result
   else if (BitWidth > Result.getBitWidth())
@@ -605,14 +605,14 @@ bool StrRef::consumeInteger(unsigned Radix, APInt &Result) {
 
   // Parse all the bytes of the string given this radix.
   Result = 0;
-  while (!S.empty()) {
+  while (!Str.empty()) {
     unsigned CharVal;
-    if (S[0] >= '0' && S[0] <= '9')
-      CharVal = S[0]-'0';
-    else if (S[0] >= 'a' && S[0] <= 'z')
-      CharVal = S[0]-'a'+10;
-    else if (S[0] >= 'A' && S[0] <= 'Z')
-      CharVal = S[0]-'A'+10;
+    if (Str[0] >= '0' && Str[0] <= '9')
+      CharVal = Str[0]-'0';
+    else if (Str[0] >= 'a' && Str[0] <= 'z')
+      CharVal = Str[0]-'a'+10;
+    else if (Str[0] >= 'A' && Str[0] <= 'Z')
+      CharVal = Str[0]-'A'+10;
     else
       break;
 
@@ -631,26 +631,26 @@ bool StrRef::consumeInteger(unsigned Radix, APInt &Result) {
       Result += CharAP;
     }
 
-    S = S.substr(1);
+    Str = Str.substr(1);
   }
 
   // We consider the operation a failure if no characters were consumed
   // successfully.
-  if (size() == S.size())
+  if (size() == Str.size())
     return true;
 
-  *this = S;
+  *this = Str;
   return false;
 }
 
 bool StrRef::getAsInteger(unsigned Radix, APInt &Result) const {
-  StrRef S = *this;
-  if (S.consumeInteger(Radix, Result))
+  StrRef Str = *this;
+  if (Str.consumeInteger(Radix, Result))
     return true;
 
   // For getAsInteger, we require the whole string to be consumed or else we
   // consider it a failure.
-  return !S.empty();
+  return !Str.empty();
 }
 
 bool StrRef::getAsDouble(double &Result, bool AllowInexact) const {
@@ -672,6 +672,6 @@ bool StrRef::getAsDouble(double &Result, bool AllowInexact) const {
 #endif // EXI_HAS_AP_SCALARS
 
 // Implementation of StrRef hashing.
-hash_code exi::hash_value(StrRef S) {
-  return hash_combine_range(S.begin(), S.end());
+hash_code exi::hash_value(StrRef Str) {
+  return hash_combine_range(Str.begin(), Str.end());
 }

@@ -68,7 +68,7 @@ class StringSwitch {
   Option<T> Result;
 
 public:
-  explicit StringSwitch(StrRef S) : St(S), Result() { }
+  explicit StringSwitch(StrRef Str) : St(Str), Result() { }
 
   // StringSwitch is not copyable.
   StringSwitch(const StringSwitch&) = delete;
@@ -83,22 +83,22 @@ public:
   ~StringSwitch() = default;
 
   // Case-sensitive case matchers
-  StringSwitch &Case(StringLiteral S, T Value) {
-    if (!Result && St == S) {
+  StringSwitch &Case(StringLiteral Str, T Value) {
+    if (!Result && St == Str) {
       Result = std::move(Value);
     }
     return *this;
   }
 
-  StringSwitch& EndsWith(StringLiteral S, T Value) {
-    if (!Result && St.ends_with(S)) {
+  StringSwitch& EndsWith(StringLiteral Str, T Value) {
+    if (!Result && St.ends_with(Str)) {
       Result = std::move(Value);
     }
     return *this;
   }
 
-  StringSwitch& StartsWith(StringLiteral S, T Value) {
-    if (!Result && St.starts_with(S)) {
+  StringSwitch& StartsWith(StringLiteral Str, T Value) {
+    if (!Result && St.starts_with(Str)) {
       Result = std::move(Value);
     }
     return *this;
@@ -156,22 +156,22 @@ public:
   }
 
   // Case-insensitive case matchers.
-  StringSwitch &CaseLower(StringLiteral S, T Value) {
-    if (!Result && St.equals_insensitive(S))
+  StringSwitch &CaseLower(StringLiteral Str, T Value) {
+    if (!Result && St.equals_insensitive(Str))
       Result = std::move(Value);
 
     return *this;
   }
 
-  StringSwitch &EndsWithLower(StringLiteral S, T Value) {
-    if (!Result && St.ends_with_insensitive(S))
+  StringSwitch &EndsWithLower(StringLiteral Str, T Value) {
+    if (!Result && St.ends_with_insensitive(Str))
       Result = Value;
 
     return *this;
   }
 
-  StringSwitch &StartsWithLower(StringLiteral S, T Value) {
-    if (!Result && St.starts_with_insensitive(S))
+  StringSwitch &StartsWithLower(StringLiteral Str, T Value) {
+    if (!Result && St.starts_with_insensitive(Str))
       Result = std::move(Value);
 
     return *this;

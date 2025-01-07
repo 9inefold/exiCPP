@@ -200,9 +200,9 @@ inline bool isAlnum(char C) { return isAlpha(C) || isDigit(C); }
 /// Checks whether character \p C is valid ASCII (high bit is zero).
 inline bool isASCII(char C) { return static_cast<unsigned char>(C) <= 127; }
 
-/// Checks whether all characters in S are ASCII.
-inline bool isASCII(StrRef S) {
-  for (char C : S)
+/// Checks whether all characters in Str are ASCII.
+inline bool isASCII(StrRef Str) {
+  for (char C : Str)
     if (EXI_UNLIKELY(!isASCII(C)))
       return false;
   return true;
@@ -361,20 +361,20 @@ inline String fromHex(StrRef Input) {
   return Hex;
 }
 
-/// Convert the string \p S to an integer of the specified type using
+/// Convert the string \p Str to an integer of the specified type using
 /// the radix \p Base.  If \p Base is 0, auto-detects the radix.
 /// Returns true if the number was successfully converted, false otherwise.
-template <typename N> bool to_integer(StrRef S, N &Num, unsigned Base = 0) {
-  return !S.getAsInteger(Base, Num);
+template <typename N> bool to_integer(StrRef Str, N &Num, unsigned Base = 0) {
+  return !Str.getAsInteger(Base, Num);
 }
 
 namespace detail {
 template <typename N>
 inline bool to_float(const Twine &T, N &Num, N (*StrTo)(const char *, char **)) {
   SmallStr<32> Storage;
-  StrRef S = T.toNullTerminatedStrRef(Storage);
+  StrRef Str = T.toNullTerminatedStrRef(Storage);
   char *End;
-  N Temp = StrTo(S.data(), &End);
+  N Temp = StrTo(Str.data(), &End);
   if (*End != '\0')
     return false;
   Num = Temp;
@@ -421,9 +421,9 @@ inline String toString(const APInt &I, unsigned Radix, bool Signed,
                             bool formatAsCLiteral = false,
                             bool UpperCase = true,
                             bool InsertSeparators = false) {
-  SmallStr<40> S;
-  I.toString(S, Radix, Signed, formatAsCLiteral, UpperCase, InsertSeparators);
-  return String(S);
+  SmallStr<40> Str;
+  I.toString(Str, Radix, Signed, formatAsCLiteral, UpperCase, InsertSeparators);
+  return String(Str);
 }
 
 inline String toString(const APSInt &I, unsigned Radix) {
@@ -498,38 +498,38 @@ namespace detail {
 template <typename IteratorT>
 inline String join_impl(IteratorT Begin, IteratorT End,
                              StrRef Separator, std::input_iterator_tag) {
-  String S;
+  String Str;
   if (Begin == End)
-    return S;
+    return Str;
 
-  S += (*Begin);
+  Str += (*Begin);
   while (++Begin != End) {
-    S += Separator;
-    S += (*Begin);
+    Str += Separator;
+    Str += (*Begin);
   }
-  return S;
+  return Str;
 }
 
 template <typename IteratorT>
 inline String join_impl(IteratorT Begin, IteratorT End,
                              StrRef Separator, std::forward_iterator_tag) {
-  String S;
+  String Str;
   if (Begin == End)
-    return S;
+    return Str;
 
   usize Len = (std::distance(Begin, End) - 1) * Separator.size();
   for (IteratorT I = Begin; I != End; ++I)
     Len += StrRef(*I).size();
-  S.reserve(Len);
-  usize PrevCapacity = S.capacity();
+  Str.reserve(Len);
+  usize PrevCapacity = Str.capacity();
   (void)PrevCapacity;
-  S += (*Begin);
+  Str += (*Begin);
   while (++Begin != End) {
-    S += Separator;
-    S += (*Begin);
+    Str += Separator;
+    Str += (*Begin);
   }
-  exi_assert(PrevCapacity == S.capacity(), "String grew during building");
-  return S;
+  exi_assert(PrevCapacity == Str.capacity(), "String grew during building");
+  return Str;
 }
 
 template <typename Sep>
@@ -550,10 +550,10 @@ inline void join_items_impl(String &Result, Sep Separator, const Arg1 &A1,
 }
 
 inline usize join_one_item_size(char) { return 1; }
-inline usize join_one_item_size(const char *S) { return S ? ::strlen(S) : 0; }
+inline usize join_one_item_size(const char *Str) { return Str ? ::strlen(Str) : 0; }
 
-template <typename T> inline usize join_one_item_size(const T &S) {
-  return S.size();
+template <typename T> inline usize join_one_item_size(const T &Str) {
+  return Str.size();
 }
 
 template <typename... Args> inline usize join_items_size(Args &&...Items) {
@@ -628,13 +628,13 @@ class SplittingIterator
   StrRef Separator;
 
 public:
-  SplittingIterator(StrRef S, StrRef Separator)
-      : Next(S), Separator(Separator) {
+  SplittingIterator(StrRef Str, StrRef Separator)
+      : Next(Str), Separator(Separator) {
     ++*this;
   }
 
-  SplittingIterator(StrRef S, char Separator)
-      : SeparatorStorage(Separator), Next(S),
+  SplittingIterator(StrRef Str, char Separator)
+      : SeparatorStorage(Separator), Next(Str),
         Separator(&SeparatorStorage, 1) {
     ++*this;
   }
@@ -685,13 +685,13 @@ public:
 ///
 /// Note that the passed string must remain valid throuhgout lifetime
 /// of the iterators.
-inline iterator_range<SplittingIterator> split(StrRef S, StrRef Separator) {
-  return {SplittingIterator(S, Separator),
+inline iterator_range<SplittingIterator> split(StrRef Str, StrRef Separator) {
+  return {SplittingIterator(Str, Separator),
           SplittingIterator(StrRef(), Separator)};
 }
 
-inline iterator_range<SplittingIterator> split(StrRef S, char Separator) {
-  return {SplittingIterator(S, Separator),
+inline iterator_range<SplittingIterator> split(StrRef Str, char Separator) {
+  return {SplittingIterator(Str, Separator),
           SplittingIterator(StrRef(), Separator)};
 }
 
