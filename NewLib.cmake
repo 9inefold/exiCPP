@@ -40,6 +40,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/ErrorHandle.cpp
   Support/FmtBuffer.cpp
   Support/MemoryBuffer.cpp
+  Support/MD5.cpp
   Support/NativeFormatting.cpp
   Support/VersionTuple.cpp
   Support/raw_ostream.cpp
