@@ -63,6 +63,7 @@
 
 #include <Common/Fundamental.hpp>
 #include <Common/Option.hpp>
+#include <Config/ABIBreak.inc>
 #include <Support/ErrorHandle.hpp>
 #include <Support/SwapByteOrder.hpp>
 #include <Support/type_traits.hpp>
@@ -324,7 +325,7 @@ struct hash_state {
 /// to prevent having users depend on the particular hash values. On platforms
 /// without ASLR, this is still likely non-deterministic per build.
 inline u64 get_execution_seed() {
-#if 1
+#if EXI_INVARIANTS
   return static_cast<u64>(
       reinterpret_cast<uptr>(&fatal_alloc_error));
 #else
