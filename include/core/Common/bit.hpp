@@ -29,6 +29,8 @@
 ///
 //===----------------------------------------------------------------===//
 
+#pragma once
+
 #include <Common/Fundamental.hpp>
 #include <cstdint>
 #include <limits>
