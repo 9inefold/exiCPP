@@ -34,13 +34,13 @@
 #include <Common/Option.hpp>
 #include <Common/StrRef.hpp>
 #include <Support/ErrorOr.hpp>
-// TODO
-// #include "llvm/Support/FileSystem.h"
+#include </Support/Filesystem.hpp>
 #include <chrono>
 #include <system_error>
 
 namespace llvm {
 
+// TODO: BitVector
 class BitVector;
 
 namespace sys {
