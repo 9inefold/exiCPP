@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include <Config.inc>
+#include <Config/Config.inc>
 #include <type_traits>
 
 namespace exi {
