@@ -25,26 +25,26 @@
 using namespace exi;
 using WriteState = FmtBuffer::WriteState;
 
-WriteState FmtBuffer::write(StrRef S) {
+WriteState FmtBuffer::write(StrRef Str) {
   if EXI_UNLIKELY(!Data)
     return NoWrite;
-  else if (S.empty())
+  else if (Str.empty())
     return FullWrite;
   
   auto [ptr, rcap] = this->getPtrAndRCap();
-  const usize writeCount = std::min(rcap, S.size());
-  std::memcpy(ptr, S.data(), writeCount);
+  const usize writeCount = std::min(rcap, Str.size());
+  std::memcpy(ptr, Str.data(), writeCount);
 
   this->Size += IntCast<size_type>(writeCount);
-  return (S.size() <= rcap) ? FullWrite : PartialWrite;
+  return (Str.size() <= rcap) ? FullWrite : PartialWrite;
 }
 
-WriteState FmtBuffer::formatImpl(fmt::string_view S, fmt::format_args args) {
+WriteState FmtBuffer::formatImpl(fmt::string_view Str, fmt::format_args args) {
   if EXI_UNLIKELY(!Data)
     return NoWrite;
 
   auto [ptr, rcap] = this->getPtrAndRCap();
-  const auto result = fmt::vformat_to_n(ptr, rcap, S, args);
+  const auto result = fmt::vformat_to_n(ptr, rcap, Str, args);
   if (rcap == 0) {
     return (result.size == 0)
       ? FullWrite : NoWrite;

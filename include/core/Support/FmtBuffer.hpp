@@ -103,18 +103,18 @@ private:
 
 public:
   template <typename...Args>
-  WriteState format(fmt::format_string<Args...> S, Args&&...args) {
-    return this->formatImpl(S.str, fmt::vargs<Args...>{{args...}});
+  WriteState format(fmt::format_string<Args...> Str, Args&&...args) {
+    return this->formatImpl(Str.str, fmt::vargs<Args...>{{args...}});
   }
 
   template <typename...Args>
-  FmtBuffer& operator()(fmt::format_string<Args...> S, Args&&...args) {
-    (void)this->formatImpl(S.str, fmt::vargs<Args...>{{args...}});
+  FmtBuffer& operator()(fmt::format_string<Args...> Str, Args&&...args) {
+    (void)this->formatImpl(Str.str, fmt::vargs<Args...>{{args...}});
     return *this;
   }
 
   /// Writes a simple StrRef.
-  WriteState write(StrRef S);
+  WriteState write(StrRef Str);
 
   /// Writes one if not full, otherwise sets the last character.
   WriteState setLast(char C);
@@ -195,7 +195,7 @@ public:
 
 protected:
   /// Handles variadic formatting.
-  WriteState formatImpl(fmt::string_view S, fmt::format_args args);
+  WriteState formatImpl(fmt::string_view Str, fmt::format_args args);
 
   /// Returns a pair of `[Buffer Offset, Remaining Capacity]`.
   std::pair<char*, usize> getPtrAndRCap() const {
