@@ -317,6 +317,16 @@
 # define EXI_UNREACHABLE __assume(0)
 #endif
 
+/// Returns a pointer with an assumed alignment.
+#if EXI_HAS_BUILTIN(__builtin_assume_aligned) || defined(__GNUC__)
+# define EXI_ASSUME_ALIGNED(p, a) __builtin_assume_aligned(p, a)
+#elif defined(EXI_UNREACHABLE)
+# define EXI_ASSUME_ALIGNED(p, a) \
+           (((uintptr_t(p) % (a)) == 0) ? (p) : (EXI_UNREACHABLE, (p)))
+#else
+# define EXI_ASSUME_ALIGNED(p, a) (p)
+#endif
+
 #if EXI_HAS_BUILTIN(__builtin_trap) || defined(__GNUC__)
 # define EXI_TRAP __builtin_trap()
 #elif defined(_MSC_VER)
