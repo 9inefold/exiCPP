@@ -946,6 +946,16 @@ raw_fd_ostream &exi::errs() {
   return S;
 }
 
+#else
+
+raw_ostream &exi::outs() {
+  return exi::nulls();
+}
+
+raw_ostream &exi::errs() {
+  return exi::nulls();
+}
+
 #endif // EXI_HAS_RAW_FILE_STREAMS
 
 /// nulls() - This returns a reference to a raw_ostream which discards output.
