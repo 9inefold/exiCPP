@@ -36,6 +36,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/Chrono.cpp
   Support/ConvertUTF.cpp
   Support/ConvertUTFWrappers.cpp
+  Support/Error.cpp
   Support/ErrorHandle.cpp
   Support/FmtBuffer.cpp
   Support/MemoryBuffer.cpp
