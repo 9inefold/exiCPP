@@ -45,8 +45,8 @@
 #include <Common/Option.hpp>
 #include <Common/_Str.hpp>
 #include <Support/Chrono.hpp>
+#include <Support/Error.hpp>
 // TODO:
-// #include "llvm/Support/Error.h"
 // #include "llvm/Support/Program.h"
 #include <system_error>
 
@@ -125,12 +125,12 @@ public:
   /// the PATH like environment variable but is also in IgnoreList is not
   /// considered.
   static Option<String>
-  FindInEnvPath(StrRef EnvName, StrRef FileName,
+   FindInEnvPath(StrRef EnvName, StrRef FileName,
                 ArrayRef<String> IgnoreList,
                 char Separator = EnvPathSeparator);
 
   static Option<String>
-  FindInEnvPath(StrRef EnvName, StrRef FileName,
+   FindInEnvPath(StrRef EnvName, StrRef FileName,
                 char Separator = EnvPathSeparator);
 
   // This functions ensures that the standard file descriptors (input, output,

@@ -24,6 +24,7 @@
 #include <Common/StringSwitch.hpp>
 #include <Support/Chrono.hpp>
 #include <Support/Casting.hpp>
+#include <Support/Error.hpp>
 #include <Support/FmtBuffer.hpp>
 #include <Support/MemoryBuffer.hpp>
 #include <Support/raw_ostream.hpp>
@@ -57,6 +58,13 @@ int main() {
   if (mi_is_in_heap_region(P))
     fmt::println("In heap!");
   CA.deallocate(P, 128);
+
+  if (Error E = createStringError(
+   exi::inconvertibleErrorCode(), "X: {}", 1)) {
+    handleAllErrors(std::move(E), [](StringError& SE) {
+      fmt::println("Error: `{}`", SE.getMessage());
+    });
+  }
 
   SmallStr<256> Inl {};
   {

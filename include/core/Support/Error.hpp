@@ -44,7 +44,6 @@
 #endif
 #include <Support/ErrorHandle.hpp>
 #include <Support/ErrorOr.hpp>
-// #include "llvm/Support/Format.h"
 #include <Support/raw_ostream.hpp>
 #include <cstdlib>
 #include <functional>
@@ -53,6 +52,7 @@
 #include <system_error>
 #include <type_traits>
 #include <utility>
+#include <fmt/format.h>
 
 namespace exi {
 
@@ -1307,11 +1307,11 @@ private:
 };
 
 /// Create formatted StringError object.
-template <typename... Ts>
-inline Error createStringError(std::error_code EC, char const *Fmt,
-                               const Ts &... Vals) {
-  String Buffer;
-  raw_string_ostream(Buffer) << format(Fmt, Vals...);
+template <typename...TT>
+inline Error createStringError(
+ std::error_code EC, fmt::format_string<const TT&...> Fmt, const TT&... Vals) {
+  String Buffer = fmt::vformat(
+    Fmt.str, fmt::vargs<const TT&...>{{Vals...}});
   return make_error<StringError>(Buffer, EC);
 }
 
