@@ -583,12 +583,10 @@ inline Twine operator+(const StrRef &LHS, const char *RHS) {
   return Twine(LHS, RHS);
 }
 
-#if 0
 inline raw_ostream &operator<<(raw_ostream &OS, const Twine &RHS) {
   RHS.print(OS);
   return OS;
 }
-#endif
 
 /// @}
 
