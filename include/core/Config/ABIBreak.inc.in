@@ -1,4 +1,4 @@
-//===- exicpp/Debug/CheckFlags.hpp ----------------------------------===//
+//===- Config/ABIBreak.inc ------------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -21,53 +21,50 @@
 //
 //===----------------------------------------------------------------===//
 
-#ifndef EXICPP_DEBUG_CHECKFLAGS_HPP
-#define EXICPP_DEBUG_CHECKFLAGS_HPP
+#pragma once
 
-#include <exicpp/Features.hpp>
+#include <Config/Config.inc>
 
-#if EXICPP_MSVC
-# define EXICPP_STR_(s) #s
-# define EXICPP_STR(s)  EXICPP_STR_(EXICPP_STR)
-# pragma detect_mismatch("EXICPP_DEBUG", EXICPP_STR(EXICPP_DEBUG))
-# pragma detect_mismatch("EXIP_USE_MIMALLOC", EXICPP_STR(EXIP_USE_MIMALLOC))
-# undef EXICPP_STR
-# undef EXICPP_STR_
+#ifdef _MSC_VER
+# define EXI_STR_(s) #s
+# define EXI_STR(s)  EXI_STR_(EXI_STR)
+# pragma detect_mismatch("EXI_INVARIANTS", EXI_STR(EXI_INVARIANTS))
+# pragma detect_mismatch("EXIP_USE_MIMALLOC", EXI_STR(EXIP_USE_MIMALLOC))
+# undef EXI_STR
+# undef EXI_STR_
 #else
 # if defined(_WIN32) || defined(__CYGWIN__)
-#  define EXICPP_HIDDEN static
-#  define EXICPP_WEAK
+#  define EXI_HIDDEN static
+#  define EXI_WEAK
 # elif !(defined(_AIX) && defined(__GNUC__) && !defined(__clang__))
-#  define EXICPP_HIDDEN __attribute__((visibility("hidden")))
-#  define EXICPP_WEAK __attribute__((weak))
+#  define EXI_HIDDEN __attribute__((visibility("hidden")))
+#  define EXI_WEAK __attribute__((weak))
 # else
-#  define EXICPP_HIDDEN
-#  define EXICPP_WEAK __attribute__((weak))
+#  define EXI_HIDDEN
+#  define EXI_WEAK __attribute__((weak))
 # endif
 namespace exi {
-// Check if debugging enabled
-# if EXICPP_DEBUG
+// Check if invariants enabled
+# if EXI_INVARIANTS
 extern char debugModeEnabled;
-EXICPP_HIDDEN EXICPP_WEAK
+EXI_HIDDEN EXI_WEAK
   char* VerifyDebugModeOnLink = &debugModeEnabled;
 # else
 extern char debugModeDisabled;
-EXICPP_HIDDEN EXICPP_WEAK
+EXI_HIDDEN EXI_WEAK
   char* VerifyDebugModeOnLink = &debugModeDisabled;
-# endif // EXICPP_DEBUG
+# endif // EXI_INVARIANTS
 // Check if mimalloc allocator enabled
-# if EXIP_USE_MIMALLOC
+# if EXI_USE_MIMALLOC
 extern char mimallocEnabled;
-EXICPP_HIDDEN EXICPP_WEAK
+EXI_HIDDEN EXI_WEAK
   char* VerifyMimallocOnLink = &mimallocEnabled;
 # else
 extern char mimallocDisabled;
-EXICPP_HIDDEN EXICPP_WEAK
+EXI_HIDDEN EXI_WEAK
   char* VerifyMimallocOnLink = &mimallocDisabled;
-# endif // EXIP_USE_MIMALLOC
+# endif // EXI_USE_MIMALLOC
 } // namespace exi
-# undef EXICPP_WEAK
-# undef EXICPP_HIDDEN
-#endif // EXICPP_MSVC
-
-#endif // EXICPP_DEBUG_CHECKFLAGS_HPP
+# undef EXI_WEAK
+# undef EXI_HIDDEN
+#endif
