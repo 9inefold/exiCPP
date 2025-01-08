@@ -77,9 +77,9 @@
 #endif
 
 #ifdef _WIN32
-// #include "llvm/Support/ConvertUTF.h"
+# include <Support/ConvertUTF.hpp>
 // #include "llvm/Support/Signals.h"
-// #include "llvm/Support/Windows/WindowsSupport.h"
+# include <Support/Windows/WindowsSupport.hpp>
 #endif
 
 using namespace exi;
