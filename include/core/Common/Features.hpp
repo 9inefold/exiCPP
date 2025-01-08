@@ -23,7 +23,7 @@
 
 #pragma once
 
-#include <Config.inc>
+#include <Config/Config.inc>
 #include <cassert>
 #include <cstddef>
 #ifdef _MSC_VER
