@@ -34,16 +34,12 @@
 #include <Common/Option.hpp>
 #include <Common/SmallVec.hpp>
 #include <Common/String.hpp>
+#include <Config/FeatureFlags.hpp>
 #include <Support/ErrorHandle.hpp>
 // #include "llvm/Support/DataTypes.h"
 #include <cstring>
 #include <system_error>
 #include <type_traits>
-
-// TODO: Implement file streams (will be useful later...)
-#define EXI_HAS_RAW_FILE_STREAMS 0
-// TODO: Implement system headers
-#define EXI_HAS_SYS_IMPL 0
 
 namespace exi {
 
@@ -627,6 +623,11 @@ raw_fd_ostream &outs();
 /// stderr is written, to ensure the error messages are written in their
 /// expected place.
 raw_fd_ostream &errs();
+
+#else
+
+raw_ostream &outs();
+raw_ostream &errs();
 
 #endif // EXI_HAS_RAW_FILE_STREAMS
 

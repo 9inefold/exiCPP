@@ -31,6 +31,7 @@
 #include <Common/FunctionRef.hpp>
 #include <Common/Fundamental.hpp>
 #include <Common/iterator_range.hpp>
+#include <Config/FeatureFlags.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <algorithm>
 #include <cstring>
@@ -40,8 +41,6 @@
 #include <type_traits>
 #include <utility>
 #include <fmt/core.h>
-
-#define EXI_HAS_AP_SCALARS 0
 
 namespace exi {
 

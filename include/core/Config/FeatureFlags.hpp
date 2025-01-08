@@ -1,4 +1,4 @@
-//===- Common/String.hpp --------------------------------------------===//
+//===- Config/FeatureFlags.inc --------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -15,20 +15,20 @@
 //     limitations under the License.
 //
 //===----------------------------------------------------------------===//
+///
+/// Macros to check if a given feature has been implemented.
+///
+//===----------------------------------------------------------------===//
 
 #pragma once
 
-#include <Config/FeatureFlags.hpp>
-#include <Common/_Str.hpp>
-#include <string_view>
-#if EXI_CUSTOM_STRREF
-# include <Common/StrRef.hpp>
-#endif
+#include <Config/Config.inc>
 
-namespace exi {
-
-#if !EXI_CUSTOM_STRREF
-using StrRef = StrSpan;
-#endif
-
-} // namespace exi
+#define EXI_CUSTOM_STRREF 1
+// TODO: Implement arbitrary precision scalars (APInt, APFloat)
+#define EXI_HAS_AP_SCALARS 0
+// TODO: Implement file streams (will be useful later...)
+#define EXI_HAS_RAW_FILE_STREAMS 0
+#define EXI_HAS_DBG_IMPL 0
+// TODO: Implement system headers
+#define EXI_HAS_SYS_IMPL 0
