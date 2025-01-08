@@ -91,7 +91,7 @@ public:
   /// by the process. This only counts the memory allocated via the malloc,
   /// calloc and realloc functions and includes any "free" holes in the
   /// allocated space.
-  static size_t GetMallocUsage();
+  static usize GetMallocUsage();
 
   /// This static function will set \p user_time to the amount of CPU time
   /// spent in user (non-kernel) mode and \p sys_time to the amount of CPU
