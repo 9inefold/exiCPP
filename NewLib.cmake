@@ -30,6 +30,8 @@ include_items(EXICPP_CORE "lib/core"
   Common/StrRef.cpp
   Common/Twine.cpp
 
+  Config/ABIBreak.cpp
+
   Support/Alloc.cpp
   Support/Chrono.cpp
   Support/ConvertUTF.cpp
@@ -42,6 +44,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/raw_ostream.cpp
 )
 
+add_subdirectory(include/core)
 include_items(EXICPP_SRC "lib/exi")
 
 add_library(exicpp STATIC ${EXICPP_CORE} ${EXICPP_SRC})
@@ -49,6 +52,8 @@ add_library(exicpp::exicpp ALIAS exicpp)
 target_include_directories(exicpp PUBLIC include include/core)
 
 target_link_libraries(exicpp PUBLIC fmt::fmt rapidxml::rapidxml)
+target_compile_features(exicpp PUBLIC cxx_std_20)
+
 if(EXI_USE_MIMALLOC)
   target_link_libraries(exicpp PUBLIC mimalloc-static)
 endif()
@@ -57,22 +62,6 @@ if(WIN32)
     psapi shell32 ole32 uuid advapi32 ws2_32 ntdll)
 endif()
 
-target_compile_features(exicpp PUBLIC cxx_std_20)
-configure_file(include/core/Config.inc.in
-  "${CMAKE_SOURCE_DIR}/include/core/Config.inc"
-  @ONLY
-  NEWLINE_STYLE LF
-)
-
-target_forward_options(exicpp PUBLIC
-  EXI_ANSI
-  EXI_DEBUG
-  EXI_INVARIANTS
-  EXI_USE_MIMALLOC
-
-  EXI_ON_WIN32
-  EXI_ON_UNIX
-)
 
 if(NOT EXI_EXCEPTIONS)
   target_compile_definitions(exicpp PUBLIC
