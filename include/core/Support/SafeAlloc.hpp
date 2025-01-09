@@ -49,7 +49,7 @@ EXI_RETURNS_NONNULL inline void* safe_calloc(usize num, usize size) {
   return ptr;
 }
 
-EXI_RETURNS_NONNULL inline void* safe_realloc(void* ptr, size_t size) {
+EXI_RETURNS_NONNULL inline void* safe_realloc(void* ptr, usize size) {
   void* newPtr = exi_realloc(ptr, size);
   if EXI_UNLIKELY(newPtr == nullptr) {
     // It is implementation-defined whether allocation occurs if the space
@@ -61,5 +61,10 @@ EXI_RETURNS_NONNULL inline void* safe_realloc(void* ptr, size_t size) {
   }
   return newPtr;
 }
+
+EXI_RETURNS_NONNULL EXI_RETURNS_NOALIAS
+void* allocate_buffer(usize size, usize align);
+
+void deallocate_buffer(void* ptr, usize size, usize align);
 
 } // namespace exi
