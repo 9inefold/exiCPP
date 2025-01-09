@@ -36,14 +36,14 @@
 #define _WIN32_WINNT 0x0601
 #define WIN32_LEAN_AND_MEAN
 #ifndef NOMINMAX
-#define NOMINMAX
+# define NOMINMAX
 #endif
 
 #include <Common/SmallVec.hpp>
 #include <Common/StringExtras.hpp>
 #include <Common/StrRef.hpp>
 #include <Common/Twine.hpp>
-// #include "llvm/Support/Allocator.h"
+#include <Support/Allocator.hpp>
 #include <Support/Chrono.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <Support/VersionTuple.hpp>
@@ -237,19 +237,19 @@ inline FILETIME toFILETIME(TimePoint<> TP) {
 }
 
 namespace windows {
-/* TODO
+
 // Returns command line arguments. Unlike arguments given to main(),
 // this function guarantees that the returned arguments are encoded in
 // UTF-8 regardless of the current code page setting.
 std::error_code GetCommandLineArguments(SmallVecImpl<const char *> &Args,
                                         BumpPtrAllocator &Alloc);
-*/
 
 /// Convert UTF-8 path to a suitable UTF-16 path for use with the Win32 Unicode
 /// File API.
 std::error_code widenPath(const Twine &Path8, SmallVecImpl<wchar_t> &Path16,
                           size_t MaxPathLen = MAX_PATH);
 
-} // end namespace windows
-} // end namespace sys
-} // end namespace exi
+} // namespace windows
+
+} // namespace sys
+} // namespace exi
