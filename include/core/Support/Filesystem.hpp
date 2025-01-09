@@ -44,13 +44,13 @@
 #pragma once
 
 #include <Common/Features.hpp>
-#include <Common/SmallString.hpp>
-#include <Common/StringRef.hpp>
+#include <Common/SmallStr.hpp>
+#include <Common/StrRef.hpp>
 #include <Common/Twine.hpp>
 #include <Config/FeatureFlags.hpp>
 #include <Support/Chrono.hpp>
 #include <Support/Error.hpp>
-#include <Support/ErrorHandling.hpp>
+#include <Support/ErrorHandle.hpp>
 #include <Support/ErrorOr.hpp>
 #include <Support/FileSystem/UniqueID.hpp>
 #include <Support/MD5.hpp>
@@ -93,9 +93,9 @@ enum class file_type {
 
 /// space_info - Self explanatory.
 struct space_info {
-  uint64_t capacity;
-  uint64_t free;
-  uint64_t available;
+  u64 capacity;
+  u64 free;
+  u64 available;
 };
 
 enum perms {
@@ -154,18 +154,18 @@ protected:
 #if EXI_ON_UNIX
   time_t fs_st_atime = 0;
   time_t fs_st_mtime = 0;
-  uint32_t fs_st_atime_nsec = 0;
-  uint32_t fs_st_mtime_nsec = 0;
+  u32 fs_st_atime_nsec = 0;
+  u32 fs_st_mtime_nsec = 0;
   uid_t fs_st_uid = 0;
   gid_t fs_st_gid = 0;
   off_t fs_st_size = 0;
 #elif defined(_WIN32)
-  uint32_t LastAccessedTimeHigh = 0;
-  uint32_t LastAccessedTimeLow = 0;
-  uint32_t LastWriteTimeHigh = 0;
-  uint32_t LastWriteTimeLow = 0;
-  uint32_t FileSizeHigh = 0;
-  uint32_t FileSizeLow = 0;
+  u32 LastAccessedTimeHigh = 0;
+  u32 LastAccessedTimeLow = 0;
+  u32 LastWriteTimeHigh = 0;
+  u32 LastWriteTimeLow = 0;
+  u32 FileSizeHigh = 0;
+  u32 FileSizeLow = 0;
 #endif
   file_type Type = file_type::status_error;
   perms Perms = perms_not_known;
@@ -177,17 +177,17 @@ public:
 
 #if EXI_ON_UNIX
   basic_file_status(file_type Type, perms Perms, time_t ATime,
-                    uint32_t ATimeNSec, time_t MTime, uint32_t MTimeNSec,
+                    u32 ATimeNSec, time_t MTime, u32 MTimeNSec,
                     uid_t UID, gid_t GID, off_t Size)
       : fs_st_atime(ATime), fs_st_mtime(MTime),
         fs_st_atime_nsec(ATimeNSec), fs_st_mtime_nsec(MTimeNSec),
         fs_st_uid(UID), fs_st_gid(GID),
         fs_st_size(Size), Type(Type), Perms(Perms) {}
 #elif defined(_WIN32)
-  basic_file_status(file_type Type, perms Perms, uint32_t LastAccessTimeHigh,
-                    uint32_t LastAccessTimeLow, uint32_t LastWriteTimeHigh,
-                    uint32_t LastWriteTimeLow, uint32_t FileSizeHigh,
-                    uint32_t FileSizeLow)
+  basic_file_status(file_type Type, perms Perms, u32 LastAccessTimeHigh,
+                    u32 LastAccessTimeLow, u32 LastWriteTimeHigh,
+                    u32 LastWriteTimeLow, u32 FileSizeHigh,
+                    u32 FileSizeLow)
       : LastAccessedTimeHigh(LastAccessTimeHigh),
         LastAccessedTimeLow(LastAccessTimeLow),
         LastWriteTimeHigh(LastWriteTimeHigh),
@@ -215,20 +215,20 @@ public:
   TimePoint<> getLastModificationTime() const;
 
 #if EXI_ON_UNIX
-  uint32_t getUser() const { return fs_st_uid; }
-  uint32_t getGroup() const { return fs_st_gid; }
-  uint64_t getSize() const { return fs_st_size; }
+  u32 getUser() const { return fs_st_uid; }
+  u32 getGroup() const { return fs_st_gid; }
+  u64 getSize() const { return fs_st_size; }
 #elif defined (_WIN32)
-  uint32_t getUser() const {
+  u32 getUser() const {
     return 9999; // Not applicable to Windows, so...
   }
 
-  uint32_t getGroup() const {
+  u32 getGroup() const {
     return 9999; // Not applicable to Windows, so...
   }
 
-  uint64_t getSize() const {
-    return (uint64_t(FileSizeHigh) << 32) + FileSizeLow;
+  u64 getSize() const {
+    return (u64(FileSizeHigh) << 32) + FileSizeLow;
   }
 #endif
 
@@ -246,9 +246,9 @@ class file_status : public basic_file_status {
   nlink_t fs_st_nlinks = 0;
   ino_t fs_st_ino = 0;
 #elif defined(_WIN32)
-  uint32_t NumLinks = 0;
-  uint32_t VolumeSerialNumber = 0;
-  uint64_t PathHash = 0;
+  u32 NumLinks = 0;
+  u32 VolumeSerialNumber = 0;
+  u64 PathHash = 0;
 #endif
 
 public:
@@ -258,18 +258,18 @@ public:
 
 #if EXI_ON_UNIX
   file_status(file_type Type, perms Perms, dev_t Dev, nlink_t Links, ino_t Ino,
-              time_t ATime, uint32_t ATimeNSec,
-              time_t MTime, uint32_t MTimeNSec,
+              time_t ATime, u32 ATimeNSec,
+              time_t MTime, u32 MTimeNSec,
               uid_t UID, gid_t GID, off_t Size)
       : basic_file_status(Type, Perms, ATime, ATimeNSec, MTime, MTimeNSec,
                           UID, GID, Size),
         fs_st_dev(Dev), fs_st_nlinks(Links), fs_st_ino(Ino) {}
 #elif defined(_WIN32)
-  file_status(file_type Type, perms Perms, uint32_t LinkCount,
-              uint32_t LastAccessTimeHigh, uint32_t LastAccessTimeLow,
-              uint32_t LastWriteTimeHigh, uint32_t LastWriteTimeLow,
-              uint32_t VolumeSerialNumber, uint32_t FileSizeHigh,
-              uint32_t FileSizeLow, uint64_t PathHash)
+  file_status(file_type Type, perms Perms, u32 LinkCount,
+              u32 LastAccessTimeHigh, u32 LastAccessTimeLow,
+              u32 LastWriteTimeHigh, u32 LastWriteTimeLow,
+              u32 VolumeSerialNumber, u32 FileSizeHigh,
+              u32 FileSizeLow, u64 PathHash)
       : basic_file_status(Type, Perms, LastAccessTimeHigh, LastAccessTimeLow,
                           LastWriteTimeHigh, LastWriteTimeLow, FileSizeHigh,
                           FileSizeLow),
@@ -278,7 +278,7 @@ public:
 #endif
 
   UniqueID getUniqueID() const;
-  uint32_t getLinkCount() const;
+  u32 getLinkCount() const;
 };
 
 /// @}
@@ -294,7 +294,7 @@ public:
 /// relative/../path => <current-directory>/relative/../path
 ///
 /// @param path A path that is modified to be an absolute path.
-void make_absolute(const Twine &current_directory, SmallVectorImpl<char> &path);
+void make_absolute(const Twine &current_directory, SmallVecImpl<char> &path);
 
 /// Make \a path an absolute path.
 ///
@@ -307,7 +307,7 @@ void make_absolute(const Twine &current_directory, SmallVectorImpl<char> &path);
 /// @param path A path that is modified to be an absolute path.
 /// @returns errc::success if \a path has been made absolute, otherwise a
 ///          platform-specific error_code.
-std::error_code make_absolute(SmallVectorImpl<char> &path);
+std::error_code make_absolute(SmallVecImpl<char> &path);
 
 /// Create all the non-existent directories in path.
 ///
@@ -356,21 +356,21 @@ std::error_code create_hard_link(const Twine &to, const Twine &from);
 /// @param output The location to store the resolved path.
 /// @param expand_tilde If true, resolves ~ expressions to the user's home
 ///                     directory.
-std::error_code real_path(const Twine &path, SmallVectorImpl<char> &output,
+std::error_code real_path(const Twine &path, SmallVecImpl<char> &output,
                           bool expand_tilde = false);
 
 /// Expands ~ expressions to the user's home directory. On Unix ~user
 /// directories are resolved as well.
 ///
 /// @param path The path to resolve.
-void expand_tilde(const Twine &path, SmallVectorImpl<char> &output);
+void expand_tilde(const Twine &path, SmallVecImpl<char> &output);
 
 /// Get the current path.
 ///
 /// @param result Holds the current path on return.
 /// @returns errc::success if the current path has been stored in result,
 ///          otherwise a platform-specific error_code.
-std::error_code current_path(SmallVectorImpl<char> &result);
+std::error_code current_path(SmallVecImpl<char> &result);
 
 /// Set the current path.
 ///
@@ -422,14 +422,14 @@ std::error_code copy_file(const Twine &From, int ToFD);
 /// @param Size Size to resize to.
 /// @returns errc::success if \a path has been resized to \a size, otherwise a
 ///          platform-specific error_code.
-std::error_code resize_file(int FD, uint64_t Size);
+std::error_code resize_file(int FD, u64 Size);
 
 /// Resize \p FD to \p Size before mapping \a mapped_file_region::readwrite. On
 /// non-Windows, this calls \a resize_file(). On Windows, this is a no-op,
 /// since the subsequent mapping (via \c CreateFileMapping) automatically
 /// extends the file.
 inline std::error_code resize_file_before_mapping_readwrite(int FD,
-                                                            uint64_t Size) {
+                                                            u64 Size) {
 #ifdef _WIN32
   (void)FD;
   (void)Size;
@@ -701,7 +701,7 @@ ErrorOr<perms> getPermissions(const Twine &Path);
 /// @param Result Set to the size of the file in \a Path.
 /// @returns errc::success if result has been successfully set, otherwise a
 ///          platform-specific error_code.
-inline std::error_code file_size(const Twine &Path, uint64_t &Result) {
+inline std::error_code file_size(const Twine &Path, u64 &Result) {
   file_status Status;
   std::error_code EC = status(Path, Status);
   if (EC)
@@ -816,7 +816,7 @@ enum OpenFlags : unsigned {
 /// @param Model Name to base unique path off of.
 /// @param ResultPath Set to the file's path.
 /// @param MakeAbsolute Whether to use the system temp directory.
-void createUniquePath(const Twine &Model, SmallVectorImpl<char> &ResultPath,
+void createUniquePath(const Twine &Model, SmallVecImpl<char> &ResultPath,
                       bool MakeAbsolute);
 
 /// Create a uniquely named file.
@@ -843,14 +843,14 @@ void createUniquePath(const Twine &Model, SmallVectorImpl<char> &ResultPath,
 /// @returns errc::success if Result{FD,Path} have been successfully set,
 ///          otherwise a platform-specific error_code.
 std::error_code createUniqueFile(const Twine &Model, int &ResultFD,
-                                 SmallVectorImpl<char> &ResultPath,
+                                 SmallVecImpl<char> &ResultPath,
                                  OpenFlags Flags = OF_None,
                                  unsigned Mode = all_read | all_write);
 
 /// Simpler version for clients that don't want an open file. An empty
 /// file will still be created.
 std::error_code createUniqueFile(const Twine &Model,
-                                 SmallVectorImpl<char> &ResultPath,
+                                 SmallVecImpl<char> &ResultPath,
                                  unsigned Mode = all_read | all_write);
 
 /// Represents a temporary file.
@@ -862,7 +862,7 @@ std::error_code createUniqueFile(const Twine &Model,
 /// properly handle errors in a destructor.
 class TempFile {
   bool Done = false;
-  TempFile(StringRef Name, int FD);
+  TempFile(StrRef Name, int FD);
 
 public:
   /// This creates a temporary file with createUniqueFile and schedules it for
@@ -874,7 +874,7 @@ public:
   TempFile &operator=(TempFile &&Other);
 
   // Name of the temporary file.
-  std::string TmpName;
+  String TmpName;
 
   // The open file descriptor.
   int FD = -1;
@@ -905,19 +905,19 @@ public:
 ///
 /// This should be used for things like a temporary .s that is removed after
 /// running the assembler.
-std::error_code createTemporaryFile(const Twine &Prefix, StringRef Suffix,
+std::error_code createTemporaryFile(const Twine &Prefix, StrRef Suffix,
                                     int &ResultFD,
-                                    SmallVectorImpl<char> &ResultPath,
+                                    SmallVecImpl<char> &ResultPath,
                                     OpenFlags Flags = OF_None);
 
 /// Simpler version for clients that don't want an open file. An empty
 /// file will still be created.
-std::error_code createTemporaryFile(const Twine &Prefix, StringRef Suffix,
-                                    SmallVectorImpl<char> &ResultPath,
+std::error_code createTemporaryFile(const Twine &Prefix, StrRef Suffix,
+                                    SmallVecImpl<char> &ResultPath,
                                     OpenFlags Flags = OF_None);
 
 std::error_code createUniqueDirectory(const Twine &Prefix,
-                                      SmallVectorImpl<char> &ResultPath);
+                                      SmallVecImpl<char> &ResultPath);
 
 /// Get a unique name, not currently exisiting in the filesystem. Subject
 /// to race conditions, prefer to use createUniqueFile instead.
@@ -927,7 +927,7 @@ std::error_code createUniqueDirectory(const Twine &Prefix,
 /// want to use the returned name to actually create a file, use
 /// createUniqueFile instead.
 std::error_code getPotentiallyUniqueFileName(const Twine &Model,
-                                             SmallVectorImpl<char> &ResultPath);
+                                             SmallVecImpl<char> &ResultPath);
 
 /// Get a unique temporary file name, not currently exisiting in the
 /// filesystem. Subject to race conditions, prefer to use createTemporaryFile
@@ -938,8 +938,8 @@ std::error_code getPotentiallyUniqueFileName(const Twine &Model,
 /// want to use the returned name to actually create a file, use
 /// createTemporaryFile instead.
 std::error_code
-getPotentiallyUniqueTempFileName(const Twine &Prefix, StringRef Suffix,
-                                 SmallVectorImpl<char> &ResultPath);
+getPotentiallyUniqueTempFileName(const Twine &Prefix, StrRef Suffix,
+                                 SmallVecImpl<char> &ResultPath);
 
 inline OpenFlags operator|(OpenFlags A, OpenFlags B) {
   return OpenFlags(unsigned(A) | unsigned(B));
@@ -1025,10 +1025,10 @@ file_t getStderrHandle();
 /// @param FileHandle File to read from.
 /// @param Buf Buffer to read into.
 /// @returns The number of bytes read, or error.
-Expected<size_t> readNativeFile(file_t FileHandle, MutableArrayRef<char> Buf);
+Expected<usize> readNativeFile(file_t FileHandle, MutArrayRef<char> Buf);
 
 /// Default chunk size for \a readNativeFileToEOF().
-enum : size_t { DefaultReadChunkSize = 4 * 4096 };
+enum : usize { DefaultReadChunkSize = 4 * 4096 };
 
 /// Reads from \p FileHandle until EOF, appending to \p Buffer in chunks of
 /// size \p ChunkSize.
@@ -1043,7 +1043,7 @@ enum : size_t { DefaultReadChunkSize = 4 * 4096 };
 /// \param Buffer Where to put the file content.
 /// \param ChunkSize Size of chunks.
 /// \returns The error if EOF was not found.
-Error readNativeFileToEOF(file_t FileHandle, SmallVectorImpl<char> &Buffer,
+Error readNativeFileToEOF(file_t FileHandle, SmallVecImpl<char> &Buffer,
                           ssize_t ChunkSize = DefaultReadChunkSize);
 
 /// Reads \p Buf.size() bytes from \p FileHandle at offset \p Offset into \p
@@ -1055,9 +1055,9 @@ Error readNativeFileToEOF(file_t FileHandle, SmallVectorImpl<char> &Buffer,
 /// @param Buf Buffer to read into.
 /// @param Offset Offset into the file at which the read should occur.
 /// @returns The number of bytes read, or error.
-Expected<size_t> readNativeFileSlice(file_t FileHandle,
-                                     MutableArrayRef<char> Buf,
-                                     uint64_t Offset);
+Expected<usize> readNativeFileSlice(file_t FileHandle,
+                                     MutArrayRef<char> Buf,
+                                     u64 Offset);
 
 /// @brief Opens the file with the given name in a write-only or read-write
 /// mode, returning its open file descriptor. If the file does not exist, it
@@ -1159,7 +1159,7 @@ inline Expected<file_t> openNativeFileForReadWrite(const Twine &Name,
 ///          platform-specific error_code.
 std::error_code openFileForRead(const Twine &Name, int &ResultFD,
                                 OpenFlags Flags = OF_None,
-                                SmallVectorImpl<char> *RealPath = nullptr);
+                                SmallVecImpl<char> *RealPath = nullptr);
 
 /// @brief Opens the file with the given name in a read-only mode, returning
 /// its open file descriptor.
@@ -1175,7 +1175,7 @@ std::error_code openFileForRead(const Twine &Name, int &ResultFD,
 ///          otherwise an error object.
 Expected<file_t>
 openNativeFileForRead(const Twine &Name, OpenFlags Flags = OF_None,
-                      SmallVectorImpl<char> *RealPath = nullptr);
+                      SmallVecImpl<char> *RealPath = nullptr);
 
 /// Try to locks the file during the specified time.
 ///
@@ -1232,7 +1232,7 @@ std::error_code closeFile(file_t &F);
 /// @param Group The group of the file to change to.
 /// @returns errc::success if successfully updated file ownership, otherwise an
 ///          error code is returned.
-std::error_code changeFileOwnership(int FD, uint32_t Owner, uint32_t Group);
+std::error_code changeFileOwnership(int FD, u32 Owner, u32 Group);
 #endif
 
 /// RAII class that facilitates file locking.
@@ -1240,7 +1240,7 @@ class FileLocker {
   int FD; ///< Locked file handle.
   FileLocker(int FD) : FD(FD) {}
 #if EXI_HAS_RAW_FILE_STREAMS
-  friend class llvm::raw_fd_ostream;
+  friend class exi::raw_fd_ostream;
 #endif // EXI_HAS_RAW_FILE_STREAMS
 
 public:
@@ -1291,7 +1291,7 @@ public:
 
 private:
   /// Platform-specific mapping state.
-  size_t Size = 0;
+  usize Size = 0;
   void *Mapping = nullptr;
 #ifdef _WIN32
   sys::fs::file_t FileHandle = nullptr;
@@ -1315,7 +1315,7 @@ private:
   void unmapImpl();
   void dontNeedImpl();
 
-  std::error_code init(sys::fs::file_t FD, uint64_t Offset, mapmode Mode);
+  std::error_code init(sys::fs::file_t FD, u64 Offset, mapmode Mode);
 
 public:
   mapped_file_region() = default;
@@ -1330,7 +1330,7 @@ public:
   mapped_file_region &operator=(const mapped_file_region &) = delete;
 
   /// \param fd An open file descriptor to map. Does not take ownership of fd.
-  mapped_file_region(sys::fs::file_t fd, mapmode mode, size_t length, uint64_t offset,
+  mapped_file_region(sys::fs::file_t fd, mapmode mode, usize length, u64 offset,
                      std::error_code &ec);
 
   ~mapped_file_region() { unmapImpl(); }
@@ -1345,7 +1345,7 @@ public:
   }
   void dontNeed() { dontNeedImpl(); }
 
-  size_t size() const;
+  usize size() const;
   char *data() const;
 
   /// Get a const view of the data. Modifying this memory has undefined
@@ -1359,7 +1359,7 @@ public:
 /// Return the path to the main executable, given the value of argv[0] from
 /// program startup and the address of main itself. In extremis, this function
 /// may fail and return an empty path.
-std::string getMainExecutable(const char *argv0, void *MainExecAddr);
+String getMainExecutable(const char *argv0, void *MainExecAddr);
 
 /// @}
 /// @name Iterators
@@ -1372,7 +1372,7 @@ class directory_entry {
   // information in basic_file_status, so on platforms where we can't populate
   // that whole structure, callers end up paying for a stat().
   // std::filesystem::directory_entry may be a better model.
-  std::string Path;
+  String Path;
   file_type Type = file_type::type_unknown; // Most platforms can provide this.
   bool FollowSymlinks = true;               // Affects the behavior of status().
   basic_file_status Status;                 // If available.
@@ -1389,7 +1389,7 @@ public:
   void replace_filename(const Twine &Filename, file_type Type,
                         basic_file_status Status = basic_file_status());
 
-  const std::string &path() const { return Path; }
+  const String &path() const { return Path; }
   // Get basic information about entry file (a subset of fs::status()).
   // On most platforms this is a stat() call.
   // On windows the information was already retrieved from the directory.
@@ -1416,7 +1416,7 @@ namespace H {
 
   struct DirIterState;
 
-  std::error_code directory_iterator_construct(DirIterState &, StringRef, bool);
+  std::error_code directory_iterator_construct(DirIterState &, StrRef, bool);
   std::error_code directory_iterator_increment(DirIterState &);
   std::error_code directory_iterator_destruct(DirIterState &);
 
@@ -1444,9 +1444,9 @@ public:
                               bool follow_symlinks = true)
       : FollowSymlinks(follow_symlinks) {
     State = std::make_shared<H::DirIterState>();
-    SmallString<128> path_storage;
+    SmallStr<128> path_storage;
     ec = H::directory_iterator_construct(
-        *State, path.toStringRef(path_storage), FollowSymlinks);
+        *State, path.toStrRef(path_storage), FollowSymlinks);
   }
 
   explicit directory_iterator(const directory_entry &de, std::error_code &ec,
@@ -1489,7 +1489,7 @@ namespace H {
   /// Keeps state for the recursive_directory_iterator.
   struct RecDirIterState {
     std::vector<directory_iterator> Stack;
-    uint16_t Level = 0;
+    u16 Level = 0;
     bool HasNoPushRequest = false;
   };
 

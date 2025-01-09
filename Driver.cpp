@@ -27,6 +27,7 @@
 #include <Support/Error.hpp>
 #include <Support/FmtBuffer.hpp>
 #include <Support/MemoryBuffer.hpp>
+#include <Support/Filesystem.hpp>
 #include <Support/raw_ostream.hpp>
 #include <fmt/format.h>
 #include <fmt/chrono.h>

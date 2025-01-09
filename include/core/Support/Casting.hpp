@@ -15,26 +15,16 @@
 
 #pragma once
 
+#include <Support/type_traits.hpp>
 #include <cassert>
 #include <memory>
 #include <optional>
-#include <type_traits>
 
 namespace exi {
 
 //===----------------------------------------------------------------------===//
 // simplify_type
 //===----------------------------------------------------------------------===//
-
-template <typename T>
-struct add_lvalue_reference_if_not_pointer { using type = T&; };
-
-template <typename T>
-struct add_lvalue_reference_if_not_pointer<T*> { using type = T*; };
-
-template <typename T>
-using add_lvalue_reference_if_not_pointer_t =
-  typename add_lvalue_reference_if_not_pointer<T>::type;
 
 /// Define a template that can be specialized by smart pointers to reflect the
 /// fact that they are automatically dereferenced, and are not involved with the
