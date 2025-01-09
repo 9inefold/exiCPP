@@ -136,6 +136,7 @@
 #endif
 
 //////////////////////////////////////////////////////////////////////////
+// Pragmas
 
 #if EXI_COMPILER(MSVC)
 # define EXI_PRAGMA(...) __pragma(__VA_ARGS__)
@@ -185,6 +186,7 @@
 #define MSVC_ERROR(code)    MSVC_DIAGNOSTIC(error, code)
 
 //////////////////////////////////////////////////////////////////////////
+// Attributes
 
 #if EXI_HAS_ATTR(always_inline)
 # define EXI_ALWAYS_INLINE __attribute__((always_inline)) inline
@@ -272,6 +274,17 @@
 # define EXI_RETURNS_NOALIAS
 #endif
 
+#if EXI_HAS_ATTR(used)
+# define EXI_USED __attribute__((__used__))
+#else
+# define EXI_USED
+#endif
+
+#if EXI_HAS_ATTR(unused)
+# define EXI_UNUSED __attribute__((__unused__))
+#else
+# define EXI_UNUSED
+#endif
 
 #if EXI_HAS_ATTR(returns_nonnull)
 # define EXI_RETURNS_NONNULL __attribute__((returns_nonnull))
@@ -282,6 +295,7 @@
 #endif
 
 //////////////////////////////////////////////////////////////////////////
+// Builtins
 
 #ifdef __GNUC__
 # define EXI_FUNCTION __PRETTY_FUNCTION__
@@ -341,6 +355,48 @@
 # define EXI_DBGTRAP __debugbreak()
 #else
 # define EXI_DBGTRAP
+#endif
+
+//////////////////////////////////////////////////////////////////////////
+// Sanitizers
+
+#if EXI_HAS_ATTR(no_sanitize)
+#define EXI_NO_SANITIZE(kind) __attribute__((no_sanitize(kind)))
+#else
+#define EXI_NO_SANITIZE(kind)
+#endif
+
+#if EXI_HAS_FEATURE(memory_sanitizer)
+# define EXI_MEMORY_SANITIZER_BUILD 1
+# include <sanitizer/msan_interface.h>
+# define EXI_NO_SANITIZE_MEMORY __attribute__((no_sanitize_memory))
+#else
+# define EXI_MEMORY_SANITIZER_BUILD 0
+# define __msan_allocated_memory(p, size)
+# define __msan_unpoison(p, size)
+# define EXI_NO_SANITIZE_MEMORY
+#endif
+
+#if EXI_HAS_FEATURE(address_sanitizer) || defined(__SANITIZE_ADDRESS__)
+# define EXI_ADDRESS_SANITIZER_BUILD 1
+# if __has_include(<sanitizer/asan_interface.h>)
+#  include <sanitizer/asan_interface.h>
+# else
+// These declarations exist to support ASan with MSVC. If MSVC eventually ships
+// asan_interface.h in their headers, then we can remove this.
+#  ifdef __cplusplus
+extern "C" {
+#  endif
+void __asan_poison_memory_region(void const volatile *addr, size_t size);
+void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
+#  ifdef __cplusplus
+} // extern "C"
+#  endif
+# endif
+#else
+# define EXI_ADDRESS_SANITIZER_BUILD 0
+# define __asan_poison_memory_region(p, size)
+# define __asan_unpoison_memory_region(p, size)
 #endif
 
 //======================================================================//
