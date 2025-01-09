@@ -18,12 +18,35 @@
 
 
 #include <Support/FmtBuffer.hpp>
+#include <Support/MathExtras.hpp>
 #include <Support/raw_ostream.hpp>
 #include <cstring>
 #include <fmt/format.h>
 
 using namespace exi;
 using WriteState = FmtBuffer::WriteState;
+
+////////////////////////////////////////////////////////////////////////
+// Ctors
+
+FmtBuffer::FmtBuffer() = default;
+
+FmtBuffer::FmtBuffer(char* data, usize cap) :
+ Data(data), Size(0), Cap(IntCast<size_type>(cap)) {
+  exi_assert(data || cap == 0, "Invalid buffer size.");
+}
+
+FmtBuffer::FmtBuffer(MutArrayRef<char> A) :
+ FmtBuffer(A.data(), A.size()) {
+}
+
+FmtBuffer::FmtBuffer(char* data, usize size, usize cap) : FmtBuffer(data, cap) {
+  exi_invariant(size <= Cap, "size is out of range.");
+  this->Size = IntCastOrZero<size_type>(size);
+}
+
+////////////////////////////////////////////////////////////////////////
+// Methods
 
 WriteState FmtBuffer::write(StrRef Str) {
   if EXI_UNLIKELY(!Data)
@@ -71,6 +94,11 @@ WriteState FmtBuffer::setLast(char C) {
   exi_invariant(Size > 0, "Invalid index.");
   this->Data[Size - 1] = C;
   return PartialWrite;
+}
+
+std::pair<char*, usize> FmtBuffer::getPtrAndRCap() const {
+  const size_type rcap = (Cap - Size);
+  return {Data + Size, static_cast<usize>(rcap)};
 }
 
 void FmtBuffer::zeroBuffer() const {

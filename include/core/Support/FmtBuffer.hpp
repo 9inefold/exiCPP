@@ -22,7 +22,6 @@
 #include <Common/Fundamental.hpp>
 #include <Common/String.hpp>
 #include <Common/StringExtras.hpp>
-#include <Support/MathExtras.hpp>
 #include <fmt/base.h>
 
 namespace exi {
@@ -56,9 +55,11 @@ public:
   };
 
 public:
-  constexpr FmtBuffer() = default;
+  FmtBuffer();
+  FmtBuffer(char* data, usize cap);
+  FmtBuffer(MutArrayRef<char> A);
 
-  EXI_INLINE constexpr FmtBuffer(FmtBuffer&& RHS) :
+  FmtBuffer(FmtBuffer&& RHS) :
    FmtBuffer(RHS.Data, RHS.Size, RHS.Cap) {
     RHS.clear();
   }
@@ -67,15 +68,6 @@ public:
     *this = RHS;
     RHS.clear();
     return *this;
-  }
-
-  constexpr FmtBuffer(char* data, usize cap) :
-   Data(data), Size(0), Cap(IntCast<size_type>(cap)) {
-    exi_assert(data || cap == 0, "Invalid buffer size.");
-  }
-
-  FmtBuffer(MutArrayRef<char> A) :
-   FmtBuffer(A.data(), A.size()) {
   }
 
   template <H::is_char_kind Ch>
@@ -89,17 +81,13 @@ public:
   FmtBuffer(T&& Buffer) : FmtBuffer(toCommonStringBuf(Buffer)) {}
 
 private:
-  EXI_INLINE constexpr FmtBuffer(const FmtBuffer& RHS) :
+  FmtBuffer(char* data, usize size, usize cap);
+
+  EXI_INLINE FmtBuffer(const FmtBuffer& RHS) :
    FmtBuffer(RHS.Data, RHS.Size, RHS.Cap) {
   }
 
   FmtBuffer& operator=(const FmtBuffer&) = default;
-
-  constexpr FmtBuffer(char* data, usize size, usize cap) :
-   FmtBuffer(data, cap) {
-    exi_invariant(size <= Cap, "size is out of range.");
-    this->Size = IntCastOrZero<size_type>(size);
-  }
 
 public:
   template <typename...Args>
@@ -162,16 +150,14 @@ public:
     return StrRef(Data, Size);
   }
 
-  template <H::is_char_kind Ch = char>
-  MutArrayRef<Ch> arr() {
+  template <H::is_char_kind Ch = char> MutArrayRef<Ch> arr() {
     return MutArrayRef<Ch>(reinterpret_cast<Ch*>(Data), Size);
   }
 
   template <H::is_char_kind Ch = char>
   ArrayRef<Ch> arr() const { return this->carr<Ch>(); }
 
-  template <H::is_char_kind Ch = char>
-  ArrayRef<Ch> carr() const {
+  template <H::is_char_kind Ch = char> ArrayRef<Ch> carr() const {
     return ArrayRef<Ch>(reinterpret_cast<const Ch*>(Data), Size);
   }
 
@@ -198,10 +184,7 @@ protected:
   WriteState formatImpl(fmt::string_view Str, fmt::format_args args);
 
   /// Returns a pair of `[Buffer Offset, Remaining Capacity]`.
-  std::pair<char*, usize> getPtrAndRCap() const {
-    const size_type rcap = (Cap - Size);
-    return {Data + Size, static_cast<usize>(rcap)};
-  }
+  std::pair<char*, usize> getPtrAndRCap() const;
 
   void zeroBuffer() const;
 
@@ -223,7 +206,9 @@ public:
   StaticFmtBuffer(StaticFmtBuffer&&) = delete;
 
 private:
-  char Buffer[N ? N : 1];
+  // If `N == 0`, then value is `0 + 1`.
+  // Otherwise, value is `N + 0`.
+  char Buffer[N + !N];
 };
 
 // Is a friend to `FmtBuffer`.
