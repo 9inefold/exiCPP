@@ -33,6 +33,7 @@ include_items(EXICPP_CORE "lib/core"
   Config/ABIBreak.cpp
 
   Support/Alloc.cpp
+  Support/Allocator.cpp
   Support/Chrono.cpp
   Support/ConvertUTF.cpp
   Support/ConvertUTFWrappers.cpp
@@ -42,6 +43,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/MemoryBuffer.cpp
   Support/MD5.cpp
   Support/NativeFormatting.cpp
+  Support/SafeAlloc.cpp
   Support/VersionTuple.cpp
   Support/raw_ostream.cpp
 )
