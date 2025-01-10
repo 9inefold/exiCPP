@@ -941,3 +941,15 @@ namespace fmt {
 FMT_FORMAT_AS(exi::StrRef, std::string_view);
 
 } // namespace fmt
+
+namespace std {
+
+template <> struct hash<exi::StrRef> : hash<std::string_view> {
+  using hash<std::string_view>::operator();
+};
+
+template <> struct hash<exi::StringLiteral> : hash<exi::StrRef> {
+  using hash<exi::StrRef>::operator();
+};
+
+} // namespace std
