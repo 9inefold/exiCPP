@@ -24,14 +24,9 @@
 //
 //===----------------------------------------------------------------===//
 //
-// This file implements the Windows specific implementation of the Path API.
+// This file implements the Win32 specific implementation of the Path API.
 //
 //===----------------------------------------------------------------===//
-
-//===----------------------------------------------------------------------===//
-//=== WARNING: Implementation here must contain only generic Windows code that
-//===          is guaranteed to work on *all* Windows variants.
-//===----------------------------------------------------------------------===//
 
 #include <Common/STLExtras.hpp>
 #include <Support/ConvertUTF.hpp>
@@ -58,6 +53,11 @@ typedef int errno_t;
 # pragma comment(lib, "advapi32.lib") // This provides CryptAcquireContextW.
 # pragma comment(lib, "ole32.lib")    // This provides CoTaskMemFree
 #endif
+
+//===----------------------------------------------------------------------===//
+//=== WARNING: Implementation here must contain only generic Windows code that
+//===          is guaranteed to work on *all* Windows variants.
+//===----------------------------------------------------------------------===//
 
 using namespace exi;
 
