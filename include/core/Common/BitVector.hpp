@@ -40,9 +40,6 @@
 #include <Support/ErrorHandle.hpp>
 #include <Support/MathExtras.hpp>
 #include <algorithm>
-#include <cassert>
-#include <climits>
-#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <iterator>
