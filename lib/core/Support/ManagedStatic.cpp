@@ -29,7 +29,7 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/ManagedStatic.hpp>
-#include <Config/Config.hpp>
+#include <Config/Config.inc>
 #include <Support/ErrorHandle.hpp>
 #include <Support/Threading.hpp>
 #include <mutex>

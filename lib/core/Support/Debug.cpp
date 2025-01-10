@@ -50,7 +50,7 @@
 #include <Support/Signals.hpp>
 #include <Support/circular_raw_ostream.hpp>
 #include <Support/raw_ostream.hpp>
-// #include "DebugOptions.h"
+#include "DebugOptions.hpp"
 
 #undef isCurrentDebugType
 #undef setCurrentDebugType
@@ -72,6 +72,8 @@ static bool IsEmptyCStr(const char *Str) noexcept {
   return *Str == '\0';
 }
 
+} // namespace exi
+
 /// Return true if the specified string is the debug type
 /// specified on the command line, or if none was specified on the command line
 /// with the -debug-only=X option.
@@ -91,8 +93,7 @@ bool exi::isCurrentDebugType(const char *DebugType) {
 /// Set the current debug type, as if the -debug-only=X
 /// option were specified.  Note that DebugFlag also needs to be set to true for
 /// debug output to be produced.
-///
-void setCurrentDebugTypes(const char **Types, unsigned Count);
+void exi::setCurrentDebugTypes(const char **Types, unsigned Count);
 
 void exi::setCurrentDebugType(const char *Type) {
   setCurrentDebugTypes(&Type, 1);
@@ -108,15 +109,34 @@ void exi::setCurrentDebugTypes(const char **Types, unsigned Count) {
   }
 }
 
-} // namespace exi
 
-// All Debug.h functionality is a no-op in NDEBUG mode.
+// All Debug.h functionality is a no-op in release mode.
 #if EXI_DEBUG
+
+namespace {
+
+struct CreateDebug {
+  static void* call() {
+    return new bool(true);
+  }
+};
+
+struct CreateDebugBufferSize {
+  static void* call() {
+    return new unsigned(0);
+  }
+};
+
+} // namespace `anonymous`
+
+static ManagedStatic<bool, CreateDebug> Debug;
+static ManagedStatic<unsigned, CreateDebugBufferSize> DebugBufferSize;
 
 // Signal handlers - dump debug output on termination.
 static void debug_user_sig_handler(void *Cookie);
 
 namespace {
+
 struct dbgstream {
   circular_raw_ostream Strm;
 
@@ -131,6 +151,7 @@ struct dbgstream {
     // zero, disabling buffering so it will output directly to errs().
   }
 };
+
 } // `namespace anonymous`
 
 // Signal handlers - dump debug output on termination.
@@ -145,22 +166,28 @@ static void debug_user_sig_handler(void *Cookie) {
 }
 
 /// dbgs - Return a circular-buffered debug stream.
-raw_ostream &exi::dbgs() {
+raw_ostream& exi::dbgs() {
   // Do one-time initialization in a thread-safe way.
   static dbgstream thestrm;
   return thestrm.Strm;
 }
 
+void exi::initDebugOptions() {
+  *Debug;
+  *DebugBufferSize;
+  // *DebugOnly;
+}
+
 #else
-// Avoid "has no symbols" warning.
-namespace exi {
+
 /// dbgs - Return errs().
-raw_ostream &dbgs() {
+raw_ostream& exi::dbgs() {
   return exi::errs();
 }
-} // namespace exi
+
+void exi::initDebugOptions() { }
+
 #endif
 
 /// EnableDebugBuffering - Turn on signal handler installation.
-///
 bool exi::EnableDebugBuffering = false;
