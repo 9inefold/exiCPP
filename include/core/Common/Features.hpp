@@ -127,17 +127,6 @@
 // Compiler Specific
 //======================================================================//
 
-#ifndef EXI_DEBUG
-# define EXI_DEBUG OFF
-#endif
-
-#ifndef EXI_ANSI
-# define EXI_ANSI ON
-#endif
-
-//////////////////////////////////////////////////////////////////////////
-// Pragmas
-
 #if EXI_COMPILER(MSVC)
 # define EXI_PRAGMA(...) __pragma(__VA_ARGS__)
 #else
