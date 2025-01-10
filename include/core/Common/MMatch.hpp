@@ -28,7 +28,7 @@ namespace exi {
 template <typename T>
 struct MMatch {
   using Type = std::remove_cvref_t<T>;
-  EXI_INLINE constexpr MMatch(T V) : V(V) { }
+  constexpr MMatch(T V) : V(V) { }
 public:
   constexpr bool is(auto&& R) const {
     return (V == EXI_FWD(R));
