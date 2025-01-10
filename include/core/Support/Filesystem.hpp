@@ -217,7 +217,7 @@ public:
   u32 getUser() const { return fs_st_uid; }
   u32 getGroup() const { return fs_st_gid; }
   u64 getSize() const { return fs_st_size; }
-#elif defined (_WIN32)
+#elif defined(_WIN32)
   u32 getUser() const {
     return 9999; // Not applicable to Windows, so...
   }
