@@ -54,7 +54,6 @@
 #include <Support/ErrorOr.hpp>
 #include <Support/FileSystem/UniqueID.hpp>
 #include <Support/MD5.hpp>
-#include <cassert>
 #include <cstdint>
 #include <ctime>
 #include <memory>

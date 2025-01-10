@@ -4,7 +4,7 @@ include(Setup.cmake)
 
 project(
   exi-cpp
-  VERSION 0.6.6
+  VERSION 0.6.7
   LANGUAGES CXX C
 )
 
@@ -21,7 +21,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")
 else()
   # TODO: Add function for this?
-  set(EXICPP_WARNING_FLAGS -Wall -Wextra -Wno-unused-variable -Wno-unused-function)
+  set(EXICPP_WARNING_FLAGS -Wall -Wextra
+    -Wno-unused-variable -Wno-unused-function
+    -Wno-unused-parameter
+  )
 endif()
 
 option(EXICPP_USE_EXIP   "Enables the old version of exicpp." OFF)
