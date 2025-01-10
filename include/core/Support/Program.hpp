@@ -40,7 +40,6 @@
 
 namespace exi {
 
-// TODO: BitVector
 class BitVector;
 
 namespace sys {
