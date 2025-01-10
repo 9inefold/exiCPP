@@ -37,7 +37,7 @@
 #include <Support/WindowsError.hpp>
 #include <malloc.h>
 
-// The Windows.h header must be after LLVM and standard headers.
+// The Windows.h header must be after EXI and standard headers.
 #include <Support/Windows/WindowsSupport.hpp>
 
 #include <direct.h>
