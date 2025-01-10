@@ -36,7 +36,6 @@
 #include <Common/String.hpp>
 #include <Config/FeatureFlags.hpp>
 #include <Support/ErrorHandle.hpp>
-// #include "llvm/Support/DataTypes.h"
 #include <cstring>
 #include <system_error>
 #include <type_traits>
@@ -459,8 +458,6 @@ public:
 // File Output Streams
 //===----------------------------------------------------------------------===//
 
-#if EXI_HAS_RAW_FILE_STREAMS
-
 /// A raw_ostream that writes to a file descriptor.
 ///
 class raw_fd_ostream : public raw_pwrite_stream {
@@ -624,21 +621,12 @@ raw_fd_ostream &outs();
 /// expected place.
 raw_fd_ostream &errs();
 
-#else
-
-raw_ostream &outs();
-raw_ostream &errs();
-
-#endif // EXI_HAS_RAW_FILE_STREAMS
-
 /// This returns a reference to a raw_ostream which simply discards output.
 raw_ostream &nulls();
 
 //===----------------------------------------------------------------------===//
 // File Streams
 //===----------------------------------------------------------------------===//
-
-#if EXI_HAS_RAW_FILE_STREAMS
 
 /// A raw_ostream of a file for reading/writing/seeking.
 ///
@@ -665,8 +653,6 @@ public:
   /// Check if \p OS is a pointer of type raw_fd_stream*.
   static bool classof(const raw_ostream *OS);
 };
-
-#endif // EXI_HAS_RAW_FILE_STREAMS
 
 //===----------------------------------------------------------------------===//
 // Output Stream Adaptors

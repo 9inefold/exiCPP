@@ -37,13 +37,13 @@
 // #include "llvm/Support/Compiler.h"
 // #include "llvm/Support/Duration.h"
 #include <Support/ErrorHandle.hpp>
-// #include "llvm/Support/FileSystem.h"
+#include <Support/Filesystem.hpp>
 // #include "llvm/Support/Format.h"
 // #include "llvm/Support/FormatVariadic.h"
 #include <Support/MathExtras.hpp>
 #include <Support/NativeFormatting.hpp>
-// #include "llvm/Support/Process.h"
-// #include "llvm/Support/Program.h"
+#include <Support/Process.hpp>
+#include <Support/Program.hpp>
 #include <algorithm>
 #include <cerrno>
 #include <cstdio>
@@ -63,7 +63,7 @@
 # include <io.h>
 #endif
 
-#if defined(_MSC_VER)
+#ifdef _MSC_VER
 #include <io.h>
 #ifndef STDIN_FILENO
 # define STDIN_FILENO 0
@@ -78,7 +78,7 @@
 
 #ifdef _WIN32
 # include <Support/ConvertUTF.hpp>
-// #include "llvm/Support/Signals.h"
+# include <Support/Signals.hpp>
 # include <Support/Windows/WindowsSupport.hpp>
 #endif
 
@@ -587,8 +587,6 @@ void format_object_base::home() {
 //  raw_fd_ostream
 //===----------------------------------------------------------------------===//
 
-#if EXI_HAS_RAW_FILE_STREAMS
-
 static int getFD(StrRef Filename, std::error_code &EC,
                  sys::fs::CreationDisposition Disp, sys::fs::FileAccess Access,
                  sys::fs::OpenFlags Flags) {
@@ -812,7 +810,7 @@ void raw_fd_ostream::write_impl(const char *Ptr, usize Size) {
       DWORD WinLastError = GetLastError();
       if (WinLastError == ERROR_BROKEN_PIPE ||
           (WinLastError == ERROR_NO_DATA && errno == EINVAL)) {
-        llvm::sys::CallOneShotPipeSignalHandler();
+        exi::sys::CallOneShotPipeSignalHandler();
         errno = EPIPE;
       }
 #endif
@@ -945,18 +943,6 @@ raw_fd_ostream &exi::errs() {
   static raw_fd_ostream S(STDERR_FILENO, false, true);
   return S;
 }
-
-#else
-
-raw_ostream &exi::outs() {
-  return exi::nulls();
-}
-
-raw_ostream &exi::errs() {
-  return exi::nulls();
-}
-
-#endif // EXI_HAS_RAW_FILE_STREAMS
 
 /// nulls() - This returns a reference to a raw_ostream which discards output.
 raw_ostream &exi::nulls() {
