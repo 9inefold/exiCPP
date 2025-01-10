@@ -194,6 +194,11 @@ public:
   }
 
   /// Check for string equality, ignoring case.
+  [[nodiscard]] bool equals(StrRef RHS) const {
+    return size() == RHS.size() && compare(RHS) == 0;
+  }
+
+  /// Check for string equality, ignoring case.
   [[nodiscard]] bool equals_insensitive(StrRef RHS) const {
     return size() == RHS.size() && compare_insensitive(RHS) == 0;
   }
