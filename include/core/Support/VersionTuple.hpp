@@ -23,10 +23,14 @@
 //     limitations under the License.
 //
 //===----------------------------------------------------------------===//
-//
-// This file provides useful additions to the standard type_traits library.
-//
+///
+/// \file
+/// Defines the llvm::VersionTuple class, which represents a version in
+/// the form major[.minor[.subminor]].
+///
 //===----------------------------------------------------------------===//
+
+#pragma once
 
 #include <Common/Hashing.hpp>
 #include <Common/Option.hpp>
