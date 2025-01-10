@@ -1,5 +1,7 @@
 # Temporary file, when I remove exip I'll move this into the main file.
 
+option(EXI_USE_THREADS "Enable multithreading?" OFF)
+
 set(EXI_INVARIANTS   ${EXICPP_INVARIANTS})
 set(EXI_EXCEPTIONS   ${EXICPP_EXCEPTIONS})
 set(EXI_DEBUG        ${EXICPP_DEBUG})
@@ -38,11 +40,13 @@ include_items(EXICPP_CORE "lib/core"
   Support/Chrono.cpp
   Support/ConvertUTF.cpp
   Support/ConvertUTFWrappers.cpp
+  Support/Debug.cpp
   Support/Error.cpp
   Support/ErrorHandle.cpp
   Support/FmtBuffer.cpp
-  Support/MemoryBuffer.cpp
+  Support/ManagedStatic.cpp
   Support/MD5.cpp
+  Support/MemoryBuffer.cpp
   # Support/MemoryBuffer.cpp
   Support/NativeFormatting.cpp
   Support/Path.cpp
@@ -52,6 +56,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/StringSaver.cpp
   Support/TokenizeCmd.cpp
   Support/VersionTuple.cpp
+  Support/circular_raw_ostream.cpp
   Support/raw_ostream.cpp
 )
 
