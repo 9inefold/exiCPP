@@ -1,4 +1,4 @@
-//===- Config/Config.inc --------------------------------------------===//
+//===- Support/Threading.hpp ----------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -15,23 +15,20 @@
 //     limitations under the License.
 //
 //===----------------------------------------------------------------===//
+///
+/// \file
+/// This file provides an interface for threading.
+///
+//===----------------------------------------------------------------===//
 
 #pragma once
 
-#define OFF 0
-#define ON 1
+#include <Config/Config.inc>
 
-#define EXI_VERSION_MAJOR @EXI_VERSION_MAJOR@
-#define EXI_VERSION_MINOR @EXI_VERSION_MINOR@
-#define EXI_VERSION_PATCH @EXI_VERSION_PATCH@
+namespace exi {
 
-#define EXI_BUILD_TYPE @CMAKE_BUILD_TYPE@
+inline constexpr bool exi_is_multithreaded() {
+  return EXI_USE_THREADS;
+}
 
-#define EXI_ANSI @EXI_ANSI@
-#define EXI_DEBUG @EXI_DEBUG@
-#define EXI_INVARIANTS @EXI_INVARIANTS@
-#define EXI_USE_THREADS @EXI_USE_THREADS@
-#define EXI_USE_MIMALLOC @EXI_USE_MIMALLOC@
-
-#define EXI_ON_WIN32 @EXI_ON_WIN32@
-#define EXI_ON_UNIX @EXI_ON_UNIX@
+} // namespace exi
