@@ -39,14 +39,9 @@ using namespace exi;
 using namespace exi::sys;
 
 int main() {
-  SmallVec<usize, 3> V;
-  usize N = 7;
-  for (usize Ix = 0; Ix < std::numeric_limits<usize>::digits10; ++Ix) {
-    V.push_back(N);
-    N *= 10;
-    N += 7;
-  }
-  fmt::println("V: {}", fmt::join(V, ", "));
+  SmallStr<256> Str;
+  fs::current_path(Str);
+  fmt::println("{}", Str);
 
   // TODO: Test raw_ostream
   TimePoint<> TP = sys::now();

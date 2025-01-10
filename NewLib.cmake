@@ -45,7 +45,11 @@ include_items(EXICPP_CORE "lib/core"
   # Support/MemoryBuffer.cpp
   Support/NativeFormatting.cpp
   Support/Path.cpp
+  Support/Process.cpp
+  Support/Program.cpp
   Support/SafeAlloc.cpp
+  Support/StringSaver.cpp
+  Support/TokenizeCmd.cpp
   Support/VersionTuple.cpp
   Support/raw_ostream.cpp
 )
