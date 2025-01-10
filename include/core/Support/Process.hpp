@@ -32,7 +32,7 @@
 /// follow the style of standard libraries and potentially become a proposal
 /// for a standard library.
 ///
-/// This file declares the llvm::sys::Process class which contains a collection
+/// This file declares the exi::sys::Process class which contains a collection
 /// of legacy static interfaces for extracting various information about the
 /// current process. The goal is to migrate users of this API over to the new
 /// interfaces.
@@ -44,9 +44,9 @@
 #include <Common/Fundamental.hpp>
 #include <Common/Option.hpp>
 #include <Common/_Str.hpp>
+#include <Config/FeatureFlags.hpp>
 #include <Support/Chrono.hpp>
 #include <Support/Error.hpp>
-// TODO:
 #include <Support/Program.hpp>
 #include <system_error>
 
@@ -61,7 +61,7 @@ namespace sys {
 /// current executing process.
 class Process {
 public:
-  using Pid = int32_t;
+  using Pid = i32;
 
   /// Get the process's identifier.
   static Pid getProcessId();
