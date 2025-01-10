@@ -25,6 +25,7 @@ else()
 endif()
 
 include_items(EXICPP_CORE "lib/core"
+  Common/Option.cpp
   Common/SmallVec.cpp
   Common/StringExtras.cpp
   Common/StrRef.cpp

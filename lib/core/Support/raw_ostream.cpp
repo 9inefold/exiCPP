@@ -1045,9 +1045,8 @@ void buffer_ostream::anchor() {}
 
 void buffer_unique_ostream::anchor() {}
 
-#if 0
-Error llvm::writeToOutput(StrRef OutputFileName,
-                          std::function<Error(raw_ostream &)> Write) {
+Error exi::writeToOutput(StrRef OutputFileName,
+                         std::function<Error(raw_ostream &)> Write) {
   if (OutputFileName == "-")
     return Write(outs());
 
@@ -1073,4 +1072,3 @@ Error llvm::writeToOutput(StrRef OutputFileName,
 
   return Temp->keep(OutputFileName);
 }
-#endif

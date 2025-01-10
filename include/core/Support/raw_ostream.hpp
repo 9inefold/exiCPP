@@ -832,7 +832,6 @@ inline raw_ostream &operator<<(raw_ostream &OS, const indent &Indent) {
   return OS.indent(Indent.NumIndents * Indent.Scale);
 }
 
-#if 0
 class Error;
 
 /// This helper creates an output stream and then passes it to \p Write.
@@ -843,8 +842,8 @@ class Error;
 /// temporary file after the \p Write function is finished.
 Error writeToOutput(StrRef OutputFileName,
                     std::function<Error(raw_ostream &)> Write);
-#endif
 
+/// Found in `Common/Option.cpp>
 raw_ostream &operator<<(raw_ostream &OS, std::nullopt_t);
 
 template <typename T, typename = decltype(std::declval<raw_ostream &>()
