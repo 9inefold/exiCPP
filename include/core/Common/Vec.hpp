@@ -23,7 +23,7 @@
 
 namespace exi {
 
-template <typename T>
-using Vec = std::vector<T, Allocator<T>>;
+template <typename T, typename Alloc = Allocator<T>>
+using Vec = std::vector<T, Alloc>;
 
 } // namespace exi
