@@ -27,6 +27,9 @@
 #pragma once
 
 #include <Common/Features.hpp>
+#include <Common/Hashing.hpp>
+#include <Common/SmallVec.hpp>
+#include <Common/Vec.hpp>
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -37,7 +40,6 @@
 #include <memory>
 #include <span>
 #include <type_traits>
-#include <vector>
 
 namespace exi {
 template <typename T> class [[nodiscard]] MutArrayRef;
@@ -65,7 +67,7 @@ public:
   using const_iterator = const_pointer;
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-  using size_type = size_t;
+  using size_type = usize;
   using difference_type = ptrdiff_t;
 
 private:
@@ -90,7 +92,7 @@ public:
     : Data(&OneElt), Length(1) {}
 
   /// Construct an ArrayRef from a pointer and length.
-  constexpr /*implicit*/ ArrayRef(const T *data, size_t length)
+  constexpr /*implicit*/ ArrayRef(const T *data, usize length)
     : Data(data), Length(length) {}
 
   /// Construct an ArrayRef from a range.
@@ -99,24 +101,33 @@ public:
     assert(begin <= end);
   }
 
-  /// Construct an ArrayRef from a std::vector.
+  /// Construct an ArrayRef from a SmallVec. This is templated in order to
+    /// avoid instantiating SmallVecTemplateCommon<T> whenever we
+    /// copy-construct an ArrayRef.
+  template <typename U>
+  /*implicit*/ ArrayRef(const SmallVecTemplateCommon<T, U> &Vec)
+    : Data(Vec.data()), Length(Vec.size()) {}
+
+  /// Construct an ArrayRef from a Vec.
   template <typename A>
-  /*implicit*/ ArrayRef(const std::vector<T, A> &Vec)
+  /*implicit*/ ArrayRef(const Vec<T, A> &Vec)
     : Data(Vec.data()), Length(Vec.size()) {}
   
   /// Construct an ArrayRef from a std::span.
-  template <std::size_t Ext>
+  template <usize Ext>
   /*implicit*/ constexpr ArrayRef(std::span<T, Ext> Sp)
     : Data(Sp.data()), Length(Sp.size()) {}
 
   /// Construct an ArrayRef from a std::array.
-  template <size_t N>
+  template <usize N>
   /*implicit*/ constexpr ArrayRef(const std::array<T, N> &Arr)
     : Data(Arr.data()), Length(N) {}
 
   /// Construct an ArrayRef from a C array.
-  template <size_t N>
+  template <usize N>
   /*implicit*/ constexpr ArrayRef(const T (&Arr)[N]) : Data(Arr), Length(N) {}
+
+  // TODO: Add SmallVec...
 
   /// Construct an ArrayRef from a std::initializer_list.
 DIAGNOSTIC_PUSH()
@@ -137,10 +148,10 @@ DIAGNOSTIC_POP()
                * = nullptr)
       : Data(A.data()), Length(A.size()) {}
 
-  /// Construct an ArrayRef<const T*> from std::vector<T*>. This uses SFINAE
+  /// Construct an ArrayRef<const T*> from Vec<T*>. This uses SFINAE
   /// to ensure that only vectors of pointers can be converted.
   template <typename U, typename A>
-  ArrayRef(const std::vector<U *, A> &Vec,
+  ArrayRef(const Vec<U *, A> &Vec,
            std::enable_if_t<std::is_convertible<U *const *, T const *>::value>
                * = nullptr)
       : Data(Vec.data()), Length(Vec.size()) {}
@@ -161,7 +172,7 @@ DIAGNOSTIC_POP()
   const T *data() const { return Data; }
 
   /// size - Get the array size.
-  size_t size() const { return Length; }
+  usize size() const { return Length; }
 
   /// front - Get the first element.
   const T &front() const {
@@ -191,22 +202,22 @@ DIAGNOSTIC_POP()
 
   /// slice(n, m) - Chop off the first N elements of the array, and keep M
   /// elements in the array.
-  ArrayRef<T> slice(size_t N, size_t M) const {
+  ArrayRef<T> slice(usize N, usize M) const {
     assert(N+M <= size() && "Invalid specifier");
     return ArrayRef<T>(data()+N, M);
   }
 
   /// slice(n) - Chop off the first N elements of the array.
-  ArrayRef<T> slice(size_t N) const { return slice(N, size() - N); }
+  ArrayRef<T> slice(usize N) const { return slice(N, size() - N); }
 
   /// Drop the first \p N elements of the array.
-  ArrayRef<T> drop_front(size_t N = 1) const {
+  ArrayRef<T> drop_front(usize N = 1) const {
     assert(size() >= N && "Dropping more elements than exist");
     return slice(N, size() - N);
   }
 
   /// Drop the last \p N elements of the array.
-  ArrayRef<T> drop_back(size_t N = 1) const {
+  ArrayRef<T> drop_back(usize N = 1) const {
     assert(size() >= N && "Dropping more elements than exist");
     return slice(0, size() - N);
   }
@@ -224,14 +235,14 @@ DIAGNOSTIC_POP()
   }
 
   /// Return a copy of *this with only the first \p N elements.
-  ArrayRef<T> take_front(size_t N = 1) const {
+  ArrayRef<T> take_front(usize N = 1) const {
     if (N >= size())
       return *this;
     return drop_back(size() - N);
   }
 
   /// Return a copy of *this with only the last \p N elements.
-  ArrayRef<T> take_back(size_t N = 1) const {
+  ArrayRef<T> take_back(usize N = 1) const {
     if (N >= size())
       return *this;
     return drop_front(size() - N);
@@ -252,7 +263,7 @@ DIAGNOSTIC_POP()
   /// @}
   /// @name Operator Overloads
   /// @{
-  const T &operator[](size_t Index) const {
+  const T &operator[](usize Index) const {
     assert(Index < Length && "Invalid index!");
     return Data[Index];
   }
@@ -276,15 +287,15 @@ DIAGNOSTIC_POP()
   /// @}
   /// @name Expensive Operations
   /// @{
-  std::vector<T> vec() const {
-    return std::vector<T>(Data, Data+Length);
+  Vec<T> vec() const {
+    return Vec<T>(Data, Data+Length);
   }
 
   /// @}
   /// @name Conversion operators
   /// @{
-  operator std::vector<T>() const {
-    return std::vector<T>(Data, Data+Length);
+  operator Vec<T>() const {
+    return Vec<T>(Data, Data+Length);
   }
 
   /// @}
@@ -314,7 +325,7 @@ public:
   using const_iterator = const_pointer;
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-  using size_type = size_t;
+  using size_type = usize;
   using difference_type = ptrdiff_t;
 
   /// Construct an empty MutArrayRef.
@@ -327,28 +338,28 @@ public:
   /*implicit*/ MutArrayRef(T &OneElt) : ArrayRef<T>(OneElt) {}
 
   /// Construct a MutArrayRef from a pointer and length.
-  /*implicit*/ MutArrayRef(T *data, size_t length)
+  /*implicit*/ MutArrayRef(T *data, usize length)
     : ArrayRef<T>(data, length) {}
 
   /// Construct a MutArrayRef from a range.
   MutArrayRef(T *begin, T *end) : ArrayRef<T>(begin, end) {}
 
-  /// Construct a MutArrayRef from a std::vector.
-  /*implicit*/ MutArrayRef(std::vector<T> &Vec)
+  /// Construct a MutArrayRef from a Vec.
+  /*implicit*/ MutArrayRef(Vec<T> &Vec)
   : ArrayRef<T>(Vec) {}
 
   /// Construct a MutArrayRef from a std::span.
-  template <std::size_t Ext>
+  template <usize Ext>
   /*implicit*/ constexpr MutArrayRef(std::span<T, Ext> Sp)
     : ArrayRef<T>(Sp) {}
 
   /// Construct a MutArrayRef from a std::array
-  template <size_t N>
+  template <usize N>
   /*implicit*/ constexpr MutArrayRef(std::array<T, N> &Arr)
       : ArrayRef<T>(Arr) {}
 
   /// Construct a MutArrayRef from a C array.
-  template <size_t N>
+  template <usize N>
   /*implicit*/ constexpr MutArrayRef(T (&Arr)[N]) : ArrayRef<T>(Arr) {}
 
   T *data() const { return const_cast<T*>(ArrayRef<T>::data()); }
@@ -373,23 +384,23 @@ public:
 
   /// slice(n, m) - Chop off the first N elements of the array, and keep M
   /// elements in the array.
-  MutArrayRef<T> slice(size_t N, size_t M) const {
+  MutArrayRef<T> slice(usize N, usize M) const {
     assert(N + M <= this->size() && "Invalid specifier");
     return MutArrayRef<T>(this->data() + N, M);
   }
 
   /// slice(n) - Chop off the first N elements of the array.
-  MutArrayRef<T> slice(size_t N) const {
+  MutArrayRef<T> slice(usize N) const {
     return slice(N, this->size() - N);
   }
 
   /// Drop the first \p N elements of the array.
-  MutArrayRef<T> drop_front(size_t N = 1) const {
+  MutArrayRef<T> drop_front(usize N = 1) const {
     assert(this->size() >= N && "Dropping more elements than exist");
     return slice(N, this->size() - N);
   }
 
-  MutArrayRef<T> drop_back(size_t N = 1) const {
+  MutArrayRef<T> drop_back(usize N = 1) const {
     assert(this->size() >= N && "Dropping more elements than exist");
     return slice(0, this->size() - N);
   }
@@ -409,14 +420,14 @@ public:
   }
 
   /// Return a copy of *this with only the first \p N elements.
-  MutArrayRef<T> take_front(size_t N = 1) const {
+  MutArrayRef<T> take_front(usize N = 1) const {
     if (N >= this->size())
       return *this;
     return drop_back(this->size() - N);
   }
 
   /// Return a copy of *this with only the last \p N elements.
-  MutArrayRef<T> take_back(size_t N = 1) const {
+  MutArrayRef<T> take_back(usize N = 1) const {
     if (N >= this->size())
       return *this;
     return drop_front(this->size() - N);
@@ -439,7 +450,7 @@ public:
   /// @}
   /// @name Operator Overloads
   /// @{
-  T &operator[](size_t Index) const {
+  T &operator[](usize Index) const {
     assert(Index < this->size() && "Invalid index!");
     return data()[Index];
   }
@@ -449,7 +460,7 @@ public:
 template <typename T> class OwningArrayRef : public MutArrayRef<T> {
 public:
   OwningArrayRef() = default;
-  OwningArrayRef(size_t Size) : MutArrayRef<T>(new T[Size], Size) {}
+  OwningArrayRef(usize Size) : MutArrayRef<T>(new T[Size], Size) {}
 
   OwningArrayRef(ArrayRef<T> Data)
       : MutArrayRef<T>(new T[Data.size()], Data.size()) {
@@ -474,20 +485,27 @@ public:
 template <typename T> ArrayRef(const T &OneElt) -> ArrayRef<T>;
 
 /// Deduction guide to construct an ArrayRef from a pointer and length
-template <typename T> ArrayRef(const T *data, size_t length) -> ArrayRef<T>;
+template <typename T> ArrayRef(const T *data, usize length) -> ArrayRef<T>;
 
 /// Deduction guide to construct an ArrayRef from a range
 template <typename T> ArrayRef(const T *data, const T *end) -> ArrayRef<T>;
 
-/// Deduction guide to construct an ArrayRef from a std::vector
-template <typename T> ArrayRef(const std::vector<T> &Vec) -> ArrayRef<T>;
+/// Deduction guide to construct an ArrayRef from a SmallVec
+template <typename T> ArrayRef(const SmallVecImpl<T> &Vec) -> ArrayRef<T>;
+
+/// Deduction guide to construct an ArrayRef from a SmallVec
+template <typename T, unsigned N>
+ArrayRef(const SmallVec<T, N> &Vec) -> ArrayRef<T>;
+
+/// Deduction guide to construct an ArrayRef from a Vec
+template <typename T> ArrayRef(const Vec<T> &Vec) -> ArrayRef<T>;
 
 /// Deduction guide to construct an ArrayRef from a std::span
-template <typename T, std::size_t Ext>
+template <typename T, usize Ext>
 ArrayRef(std::span<T, Ext> Sp) -> ArrayRef<T>;
 
 /// Deduction guide to construct an ArrayRef from a std::array
-template <typename T, std::size_t N>
+template <typename T, usize N>
 ArrayRef(const std::array<T, N> &Vec) -> ArrayRef<T>;
 
 /// Deduction guide to construct an ArrayRef from an ArrayRef (const)
@@ -497,7 +515,7 @@ template <typename T> ArrayRef(const ArrayRef<T> &Vec) -> ArrayRef<T>;
 template <typename T> ArrayRef(ArrayRef<T> &Vec) -> ArrayRef<T>;
 
 /// Deduction guide to construct an ArrayRef from a C array.
-template <typename T, size_t N> ArrayRef(const T (&Arr)[N]) -> ArrayRef<T>;
+template <typename T, usize N> ArrayRef(const T (&Arr)[N]) -> ArrayRef<T>;
 
 /// @}
 
@@ -509,21 +527,28 @@ template <class T> MutArrayRef(T &OneElt) -> MutArrayRef<T>;
 /// Deduction guide to construct a `MutArrayRef` from a pointer and
 /// length.
 template <class T>
-MutArrayRef(T *data, size_t length) -> MutArrayRef<T>;
+MutArrayRef(T *data, usize length) -> MutArrayRef<T>;
 
-/// Deduction guide to construct a `MutArrayRef` from a `std::vector`.
-template <class T> MutArrayRef(std::vector<T> &Vec) -> MutArrayRef<T>;
+/// Deduction guide to construct a `MutableArrayRef` from a `SmallVector`.
+template <class T>
+MutArrayRef(SmallVecImpl<T> &Vec) -> MutArrayRef<T>;
+
+template <class T, unsigned N>
+MutArrayRef(SmallVec<T, N> &Vec) -> MutArrayRef<T>;
+
+/// Deduction guide to construct a `MutArrayRef` from a `Vec`.
+template <class T> MutArrayRef(Vec<T> &Vec) -> MutArrayRef<T>;
 
 /// Deduction guide to construct a `MutArrayRef` from a `std::span`.
-template <typename T, std::size_t Ext>
+template <typename T, usize Ext>
 MutArrayRef(std::span<T, Ext> Sp) -> MutArrayRef<T>;
 
 /// Deduction guide to construct a `MutArrayRef` from a `std::array`.
-template <class T, std::size_t N>
+template <class T, usize N>
 MutArrayRef(std::array<T, N> &Vec) -> MutArrayRef<T>;
 
 /// Deduction guide to construct a `MutArrayRef` from a C array.
-template <typename T, size_t N>
+template <typename T, usize N>
 MutArrayRef(T (&Arr)[N]) -> MutArrayRef<T>;
 
 /// @}
@@ -536,7 +561,17 @@ inline bool operator==(ArrayRef<T> LHS, ArrayRef<T> RHS) {
 }
 
 template <typename T>
+inline bool operator==(SmallVecImpl<T> &LHS, ArrayRef<T> RHS) {
+  return ArrayRef<T>(LHS).equals(RHS);
+}
+
+template <typename T>
 inline bool operator!=(ArrayRef<T> LHS, ArrayRef<T> RHS) {
+  return !(LHS == RHS);
+}
+
+template <typename T>
+inline bool operator!=(SmallVecImpl<T> &LHS, ArrayRef<T> RHS) {
   return !(LHS == RHS);
 }
 
