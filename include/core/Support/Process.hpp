@@ -47,7 +47,7 @@
 #include <Support/Chrono.hpp>
 #include <Support/Error.hpp>
 // TODO:
-// #include "llvm/Support/Program.h"
+#include <Support/Program.hpp>
 #include <system_error>
 
 namespace exi {

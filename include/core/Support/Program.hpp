@@ -34,11 +34,11 @@
 #include <Common/Option.hpp>
 #include <Common/StrRef.hpp>
 #include <Support/ErrorOr.hpp>
-#include </Support/Filesystem.hpp>
+#include <Support/Filesystem.hpp>
 #include <chrono>
 #include <system_error>
 
-namespace llvm {
+namespace exi {
 
 // TODO: BitVector
 class BitVector;
@@ -262,4 +262,5 @@ ErrorOr<WString> flattenWindowsCommandLine(ArrayRef<StrRef> Args);
 #endif
 
 } // namespace sys
+
 } // namespace exi
