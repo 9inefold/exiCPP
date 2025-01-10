@@ -25,8 +25,7 @@ namespace exi {
 
 /// Match adaptor, simplifies some stuff.
 /// Use like `MMatch(V).is(arg1, arg2, ...)`.
-template <typename T>
-struct MMatch {
+template <typename T> struct MMatch {
   using Type = std::remove_cvref_t<T>;
   constexpr MMatch(T V) : V(V) { }
 public:
