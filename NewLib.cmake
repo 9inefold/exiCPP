@@ -37,6 +37,7 @@ include_items(EXICPP_CORE "lib/core"
 
   Support/Alloc.cpp
   Support/Allocator.cpp
+  Support/AutoConvert.cpp
   Support/Chrono.cpp
   Support/ConvertUTF.cpp
   Support/ConvertUTFWrappers.cpp
@@ -48,7 +49,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/ManagedStatic.cpp
   Support/MD5.cpp
   Support/MemoryBuffer.cpp
-  # Support/MemoryBuffer.cpp
+  Support/MemoryBufferRef.cpp
   Support/NativeFormatting.cpp
   Support/Path.cpp
   Support/Process.cpp
