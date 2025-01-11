@@ -1,4 +1,12 @@
-//===- Support/Format.hpp -------------------------------------------===//
+//===- Support/Format.hpp --------------------------------------------===//
+//
+// MODIFIED FOR THE PURPOSES OF THE EXICPP LIBRARY.
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -72,7 +80,7 @@ EXI_INLINE auto format(
 }
 
 //////////////////////////////////////////////////////////////////////////
-// Single Objects
+// Single Objects - Everything below under the LLVM license
 
 // This is a helper class for left_justify, right_justify, and center_justify.
 class FormattedString {
