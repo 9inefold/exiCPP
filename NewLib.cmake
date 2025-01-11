@@ -44,6 +44,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/Error.cpp
   Support/ErrorHandle.cpp
   Support/FmtBuffer.cpp
+  Support/Format.cpp
   Support/ManagedStatic.cpp
   Support/MD5.cpp
   Support/MemoryBuffer.cpp
@@ -53,6 +54,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/Process.cpp
   Support/Program.cpp
   Support/SafeAlloc.cpp
+  Support/Signals.cpp
   Support/StringSaver.cpp
   Support/TokenizeCmd.cpp
   Support/VersionTuple.cpp

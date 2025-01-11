@@ -43,6 +43,7 @@
 
 #pragma once
 
+#include <Common/ArrayRef.hpp>
 #include <Common/Features.hpp>
 #include <Common/SmallStr.hpp>
 #include <Common/StrRef.hpp>
