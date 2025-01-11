@@ -38,7 +38,7 @@
 // #include "llvm/Support/Duration.h"
 #include <Support/ErrorHandle.hpp>
 #include <Support/Filesystem.hpp>
-// #include "llvm/Support/Format.h"
+#include <Support/Format.hpp>
 // #include "llvm/Support/FormatVariadic.h"
 #include <Support/MathExtras.hpp>
 #include <Support/NativeFormatting.hpp>
@@ -178,9 +178,9 @@ raw_ostream &raw_ostream::write_uuid(const uuid_t UUID) {
 }
 
 
-raw_ostream &raw_ostream::write_escaped(StrRef S,
+raw_ostream &raw_ostream::write_escaped(StrRef Str,
                                         bool UseHexEscapes) {
-  for (unsigned char c : S) {
+  for (unsigned char c : Str) {
     switch (c) {
     case '\\':
       *this << '\\' << '\\';
@@ -317,9 +317,8 @@ void raw_ostream::copy_to_buffer(const char *Ptr, usize Size) {
   OutBufCur += Size;
 }
 
-#if 0
 // Formatted output.
-raw_ostream &raw_ostream::operator<<(const format_object_base &Fmt) {
+raw_ostream &raw_ostream::operator<<(const IFormatObject& Fmt) {
   // If we have more than a few bytes left in our output buffer, try
   // formatting directly onto its end.
   usize NextBufferSize = 127;
@@ -359,15 +358,10 @@ raw_ostream &raw_ostream::operator<<(const format_object_base &Fmt) {
   }
 }
 
-raw_ostream &raw_ostream::operator<<(const formatv_object_base &Obj) {
-  Obj.format(*this);
-  return *this;
-}
-
 raw_ostream &raw_ostream::operator<<(const FormattedString &FS) {
   unsigned LeftIndent = 0;
   unsigned RightIndent = 0;
-  const ssize_t Difference = FS.Width - FS.S.size();
+  const ssize_t Difference = FS.Width - FS.Str.size();
   if (Difference > 0) {
     switch (FS.Justify) {
     case FormattedString::JustifyNone:
@@ -385,7 +379,7 @@ raw_ostream &raw_ostream::operator<<(const FormattedString &FS) {
     }
   }
   indent(LeftIndent);
-  (*this) << FS.S;
+  (*this) << FS.Str;
   indent(RightIndent);
   return *this;
 }
@@ -401,11 +395,11 @@ raw_ostream &raw_ostream::operator<<(const FormattedNumber &FN) {
       Style = HexPrintStyle::PrefixLower;
     else
       Style = HexPrintStyle::Lower;
-    llvm::write_hex(*this, FN.HexValue, Style, FN.Width);
+    exi::write_hex(*this, FN.HexValue, Style, FN.Width);
   } else {
-    llvm::SmallString<16> Buffer;
-    llvm::raw_svector_ostream Stream(Buffer);
-    llvm::exi::write_integer(Stream, FN.DecValue, 0, IntStyle::Integer);
+    exi::SmallStr<16> Buffer;
+    exi::raw_svector_ostream Stream(Buffer);
+    exi::write_integer(Stream, FN.DecValue, 0, IntStyle::Integer);
     if (Buffer.size() < FN.Width)
       indent(FN.Width - Buffer.size());
     (*this) << Buffer;
@@ -430,8 +424,8 @@ raw_ostream &raw_ostream::operator<<(const FormattedBytes &FB) {
     u64 MaxOffset = *FB.FirstByteOffset + Lines * FB.NumPerLine;
     unsigned Power = 0;
     if (MaxOffset > 0)
-      Power = llvm::Log2_64_Ceil(MaxOffset);
-    OffsetWidth = std::max<u64>(4, llvm::alignTo(Power, 4) / 4);
+      Power = exi::Log2_64_Ceil(MaxOffset);
+    OffsetWidth = std::max<u64>(4, exi::alignTo(Power, 4) / 4);
   }
 
   // The width of a block of data including all spaces for group separators.
@@ -444,7 +438,7 @@ raw_ostream &raw_ostream::operator<<(const FormattedBytes &FB) {
 
     if (FB.FirstByteOffset) {
       u64 Offset = *FB.FirstByteOffset;
-      llvm::write_hex(*this, Offset + LineIndex, HPS, OffsetWidth);
+      exi::write_hex(*this, Offset + LineIndex, HPS, OffsetWidth);
       *this << ": ";
     }
 
@@ -457,7 +451,7 @@ raw_ostream &raw_ostream::operator<<(const FormattedBytes &FB) {
         ++CharsPrinted;
         *this << " ";
       }
-      llvm::write_hex(*this, Line[I], HPS, 2);
+      exi::write_hex(*this, Line[I], HPS, 2);
     }
 
     if (FB.ASCII) {
@@ -484,7 +478,6 @@ raw_ostream &raw_ostream::operator<<(const FormattedBytes &FB) {
   }
   return *this;
 }
-#endif
 
 template <char C>
 static raw_ostream &write_padding(raw_ostream &OS, unsigned NumChars) {
@@ -579,7 +572,7 @@ void raw_ostream::anchor() {}
 
 #if 0
 // Out of line virtual method.
-void format_object_base::home() {
+void IFormatObject::home() {
 }
 #endif
 
@@ -929,9 +922,9 @@ raw_fd_ostream &exi::outs() {
   EC = enablezOSAutoConversion(STDOUT_FILENO);
   assert(!EC);
 #endif
-  static raw_fd_ostream S("-", EC, sys::fs::OF_None);
+  static raw_fd_ostream Str("-", EC, sys::fs::OF_None);
   assert(!EC);
-  return S;
+  return Str;
 }
 
 raw_fd_ostream &exi::errs() {
@@ -940,21 +933,19 @@ raw_fd_ostream &exi::errs() {
   std::error_code EC = enablezOSAutoConversion(STDERR_FILENO);
   assert(!EC);
 #endif
-  static raw_fd_ostream S(STDERR_FILENO, false, true);
-  return S;
+  static raw_fd_ostream Str(STDERR_FILENO, false, true);
+  return Str;
 }
 
 /// nulls() - This returns a reference to a raw_ostream which discards output.
 raw_ostream &exi::nulls() {
-  static raw_null_ostream S;
-  return S;
+  static raw_null_ostream Str;
+  return Str;
 }
 
 //===----------------------------------------------------------------------===//
 // File Streams
 //===----------------------------------------------------------------------===//
-
-#if EXI_HAS_RAW_FILE_STREAMS
 
 raw_fd_stream::raw_fd_stream(StrRef Filename, std::error_code &EC)
     : raw_fd_ostream(getFD(Filename, EC, sys::fs::CD_CreateAlways,
@@ -984,8 +975,6 @@ ssize_t raw_fd_stream::read(char *Ptr, usize Size) {
 bool raw_fd_stream::classof(const raw_ostream *OS) {
   return OS->get_kind() == OStreamKind::OK_FDStream;
 }
-
-#endif // EXI_HAS_RAW_FILE_STREAMS
 
 //===----------------------------------------------------------------------===//
 //  raw_string_ostream

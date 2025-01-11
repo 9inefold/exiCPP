@@ -43,13 +43,10 @@
 namespace exi {
 
 class Duration;
-#if 0
-class formatv_object_base;
-class format_object_base;
+class IFormatObject;
 class FormattedString;
 class FormattedNumber;
 class FormattedBytes;
-#endif
 template <class T> class [[nodiscard]] Expected;
 
 namespace sys {
@@ -304,9 +301,8 @@ public:
   raw_ostream &write(unsigned char C);
   raw_ostream &write(const char *Ptr, usize Size);
 
-#if 0
-  // Formatted output, see the format() function in Support/Format.h.
-  raw_ostream &operator<<(const format_object_base &Fmt);
+  // Formatted output, see the format() function in Support/Format.hpp.
+  raw_ostream &operator<<(const IFormatObject &Fmt);
 
   // Formatted output, see the leftJustify() function in Support/Format.h.
   raw_ostream &operator<<(const FormattedString &);
@@ -314,12 +310,8 @@ public:
   // Formatted output, see the formatHex() function in Support/Format.h.
   raw_ostream &operator<<(const FormattedNumber &);
 
-  // Formatted output, see the formatv() function in Support/FormatVariadic.h.
-  raw_ostream &operator<<(const formatv_object_base &);
-
   // Formatted output, see the format_bytes() function in Support/Format.h.
   raw_ostream &operator<<(const FormattedBytes &);
-#endif
 
   /// indent - Insert 'NumSpaces' spaces.
   raw_ostream &indent(unsigned NumSpaces);

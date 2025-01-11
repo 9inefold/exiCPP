@@ -38,16 +38,18 @@
 using namespace exi;
 using namespace exi::sys;
 
-int main() {
+int main(int Argc, char* Argv[]) {
   SmallStr<256> Str;
   fs::current_path(Str);
-  fmt::println("{}", Str);
+  // fmt::println("{}", Str);
+  outs() << Str << '\n';
 
   // TODO: Test raw_ostream
   TimePoint<> TP = sys::now();
   fmt::println("TimePoint<>: {}", TP);
   TimePoint<> TP2 = sys::now();
   fmt::println("Duration: {}", (TP2 - TP));
+
 
   std::allocator<char> CA {};
   char* P = CA.allocate(128);
