@@ -32,14 +32,11 @@
 #include <Common/Fundamental.hpp>
 #include <Common/Twine.hpp>
 #include <Common/StringExtras.hpp>
-// #include "llvm/Config/config.h"
-// #include "llvm/Support/AutoConvert.h"
-// #include "llvm/Support/Compiler.h"
+#include <Support/AutoConvert.hpp>
 // #include "llvm/Support/Duration.h"
 #include <Support/ErrorHandle.hpp>
 #include <Support/Filesystem.hpp>
 #include <Support/Format.hpp>
-// #include "llvm/Support/FormatVariadic.h"
 #include <Support/MathExtras.hpp>
 #include <Support/NativeFormatting.hpp>
 #include <Support/Process.hpp>
