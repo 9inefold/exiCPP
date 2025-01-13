@@ -2,6 +2,7 @@
 
 option(EXI_USE_THREADS "Enable multithreading?" OFF)
 
+set(EXI_WARNING_FLAGS ${EXICPP_WARNING_FLAGS})
 set(EXI_INVARIANTS   ${EXICPP_INVARIANTS})
 set(EXI_EXCEPTIONS   ${EXICPP_EXCEPTIONS})
 set(EXI_DEBUG        ${EXICPP_DEBUG})
@@ -63,11 +64,14 @@ include_items(EXICPP_CORE "lib/core"
   Support/raw_ostream.cpp
 )
 
-add_subdirectory(include/core)
-include_items(EXICPP_SRC "lib/exi")
+include_items(EXICPP_SRC "lib/exi"
+
+)
 
 add_library(exicpp STATIC ${EXICPP_CORE} ${EXICPP_SRC})
 add_library(exicpp::exicpp ALIAS exicpp)
+
+add_subdirectory(include/core)
 target_include_directories(exicpp PUBLIC include include/core)
 
 target_link_libraries(exicpp PUBLIC fmt::fmt rapidxml::rapidxml)
@@ -92,7 +96,7 @@ endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # ...
 else()
-  target_compile_options(exicpp PRIVATE ${EXICPP_WARNING_FLAGS})
+  target_compile_options(exicpp PRIVATE ${EXI_WARNING_FLAGS})
 endif()
 
 if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
