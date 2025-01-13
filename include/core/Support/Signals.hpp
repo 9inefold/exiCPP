@@ -48,7 +48,7 @@ void RunInterruptHandlers();
 /// This function registers signal handlers to ensure that if a signal gets
 /// delivered that the named file is removed.
 /// Remove a file if a fatal signal occurs.
-bool RemoveFileOnSignal(StrRef Filename, std::string* ErrMsg = nullptr);
+bool RemoveFileOnSignal(StrRef Filename, String* ErrMsg = nullptr);
 
 /// This function removes a file from the list of files to be removed on
 /// signal delivery.
