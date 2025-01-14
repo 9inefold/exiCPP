@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include <Common/Box.hpp>
 #include <Common/Fundamental.hpp>
 #include <Common/Option.hpp>
 #include <Common/SmallVec.hpp>
@@ -217,16 +218,16 @@ public:
     return *this;
   }
 
-  raw_ostream &operator<<(StrRef S) {
+  raw_ostream &operator<<(StrRef Str) {
     // Inline fast path, particularly for strings with a known length.
-    usize Size = S.size();
+    usize Size = Str.size();
 
     // Make sure we can use the fast path.
     if (Size > (usize)(OutBufEnd - OutBufCur))
-      return write(S.data(), Size);
+      return write(Str.data(), Size);
 
     if (Size) {
-      std::memcpy(OutBufCur, S.data(), Size);
+      std::memcpy(OutBufCur, Str.data(), Size);
       OutBufCur += Size;
     }
     return *this;
@@ -243,29 +244,29 @@ public:
   // e.g.  replace `u8"\u00a0"` by `"\xc2\xa0"`
   // or use `reinterpret_cast`:
   // e.g. replace `u8"\u00a0"` by `reinterpret_cast<const char *>(u8"\u00a0")`
-  raw_ostream &operator<<(const char8_t *S) = delete;
+  raw_ostream &operator<<(const char8_t *Str) = delete;
 #endif
 
-  raw_ostream &operator<<(const char *S) {
+  raw_ostream &operator<<(const char *Str) {
     // Inline fast path, particularly for constant strings where a sufficiently
     // smart compiler will simplify strlen.
 
-    return this->operator<<(StrRef(S));
+    return this->operator<<(StrRef(Str));
   }
 
-  raw_ostream &operator<<(const String &S) {
+  raw_ostream &operator<<(const String &Str) {
     // Avoid the fast path, it would only increase code size for a marginal win.
-    return write(S.data(), S.length());
+    return write(Str.data(), Str.length());
   }
 
 #if EXI_CUSTOM_STRREF
-  raw_ostream &operator<<(const std::string_view &S) {
-    return write(S.data(), S.length());
+  raw_ostream &operator<<(const std::string_view &Str) {
+    return write(Str.data(), Str.length());
   }
 #endif
 
-  raw_ostream &operator<<(const SmallVecImpl<char> &S) {
-    return write(S.data(), S.size());
+  raw_ostream &operator<<(const SmallVecImpl<char> &Str) {
+    return write(Str.data(), Str.size());
   }
 
   raw_ostream &operator<<(unsigned long N);
@@ -294,9 +295,9 @@ public:
   using uuid_t = uint8_t[16];
   raw_ostream &write_uuid(const uuid_t UUID);
 
-  /// Output \p S, turning '\\', '\t', '\n', '"', and anything that doesn't
+  /// Output \p Str, turning '\\', '\t', '\n', '"', and anything that doesn't
   /// satisfy llvm::isPrint into an escape sequence.
-  raw_ostream &write_escaped(StrRef S, bool UseHexEscapes = false);
+  raw_ostream &write_escaped(StrRef Str, bool UseHexEscapes = false);
 
   raw_ostream &write(unsigned char C);
   raw_ostream &write(const char *Ptr, usize Size);
@@ -751,13 +752,13 @@ public:
 };
 
 class buffer_unique_ostream : public raw_svector_ostream {
-  std::unique_ptr<raw_ostream> OS;
+  Box<raw_ostream> OS;
   SmallVec<char, 0> Buffer;
 
   void anchor() override;
 
 public:
-  buffer_unique_ostream(std::unique_ptr<raw_ostream> OS)
+  buffer_unique_ostream(Box<raw_ostream> OS)
       : raw_svector_ostream(Buffer), OS(std::move(OS)) {
     // Turn off buffering on OS, which we now own, to avoid allocating a buffer
     // when the destructor writes only to be immediately flushed again.
@@ -765,6 +766,29 @@ public:
   }
   ~buffer_unique_ostream() override { *OS << str(); }
 };
+
+// These helper functions create output streams based on the input.
+// Useful for concise local streams.
+
+inline raw_null_ostream wrap_stream() {
+  return raw_null_ostream();
+}
+
+inline raw_string_ostream wrap_stream(String &Str) {
+  return raw_string_ostream(Str);
+}
+
+inline raw_svector_ostream wrap_stream(SmallVecImpl<char> &O) {
+  return raw_svector_ostream(O);
+}
+
+inline buffer_ostream wrap_stream(raw_ostream &OS) {
+  return buffer_ostream(OS);
+}
+
+inline buffer_unique_ostream wrap_stream(Box<raw_ostream> OS) {
+  return buffer_unique_ostream(std::move(OS));
+}
 
 // Helper struct to add indentation to raw_ostream. Instead of
 // OS.indent(6) << "more stuff";
@@ -848,4 +872,4 @@ raw_ostream &operator<<(raw_ostream &OS, const Option<T> &O) {
   return OS;
 }
 
-} // end namespace exi
+} // namespace exi
