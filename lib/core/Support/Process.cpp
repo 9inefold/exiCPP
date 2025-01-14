@@ -32,6 +32,7 @@
 #include <Common/Option.hpp>
 #include <Common/STLExtras.hpp>
 #include <Common/StringExtras.hpp>
+#include <Config/Config.inc>
 #include <Config/FeatureFlags.hpp>
 #if EXI_HAS_CRASHRECOVERYCONTEXT
 # include <Support/CrashRecoveryContext.hpp>
@@ -39,6 +40,9 @@
 #include <Support/FileSystem.hpp>
 #include <Support/Path.hpp>
 #include <stdlib.h> // for _Exit
+#if EXI_USE_MIMALLOC
+# include <mimalloc.h>
+#endif
 
 #define EXI_ENABLE_CRASH_DUMPS 0
 
@@ -49,6 +53,36 @@ using namespace exi::sys;
 //=== WARNING: Implementation here must contain only TRULY operating system
 //===          independent code.
 //===----------------------------------------------------------------------===//
+
+#if EXI_USE_MIMALLOC
+
+static bool MimallocUsageVisitor(
+  const mi_heap_t* Heap,
+  const mi_heap_area_t* HeapArea,
+  void* Block, usize BlockSize,
+  void* Input
+) {
+  if EXI_LIKELY(HeapArea) {
+    auto& Usage = *static_cast<usize*>(Input);
+    Usage += HeapArea->used * HeapArea->full_block_size;
+  }
+  return true;
+}
+
+#endif
+
+usize Process::GetMallocUsage() {
+#if EXI_USE_MIMALLOC
+  usize Usage = 0;
+  mi_heap_visit_blocks(
+    mi_heap_get_default(), false,
+    &MimallocUsageVisitor, &Usage
+  );
+  return Usage;
+#else
+  return Process::GetStdMallocUsage();
+#endif
+}
 
 Option<String>
 Process::FindInEnvPath(StrRef EnvName, StrRef FileName, char Separator) {

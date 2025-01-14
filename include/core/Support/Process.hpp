@@ -88,10 +88,17 @@ public:
 
   /// Return process memory usage.
   /// This static function will return the total amount of memory allocated
-  /// by the process. This only counts the memory allocated via the malloc,
-  /// calloc and realloc functions and includes any "free" holes in the
+  /// by the process. This only counts the memory allocated via the exi_malloc, 
+  /// exi_calloc and exi_realloc functions and includes any "free" holes in the
   /// allocated space.
   static usize GetMallocUsage();
+
+  /// TODO: Make sure we do this on Unix.
+  /// Return process memory usage.
+  /// This static function works the same as `GetMallocUsage`, the only
+  /// difference being it exclusively works for the standard malloc,
+  /// calloc and realloc.
+  static usize GetStdMallocUsage();
 
   /// This static function will set \p user_time to the amount of CPU time
   /// spent in user (non-kernel) mode and \p sys_time to the amount of CPU

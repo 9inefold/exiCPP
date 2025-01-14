@@ -86,7 +86,8 @@ Expected<unsigned> Process::getPageSize() {
   return Ret;
 }
 
-usize Process::GetMallocUsage() {
+
+usize Process::GetStdMallocUsage() {
   _HEAPINFO hinfo;
   hinfo._pentry = NULL;
 
