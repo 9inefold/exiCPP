@@ -31,9 +31,8 @@
 #include <fmt/format.h>
 #include <fmt/chrono.h>
 
-namespace exi {
-
-using namespace sys;
+using namespace exi;
+using namespace exi::sys;
 
 const char exi::H::unit<std::ratio<3600>>::value[] = "h";
 const char exi::H::unit<std::ratio<60>>::value[] = "m";
@@ -65,7 +64,7 @@ static inline struct tm getStructTMUtc(UtcTime<> TP) {
   return Storage;
 }
 
-raw_ostream& operator<<(raw_ostream& OS, sys::TimePoint<>& D) {
+raw_ostream& exi::operator<<(raw_ostream& OS, const sys::TimePoint<>& D) {
   StaticFmtBuffer<maxPrintSize> Buf;
   return OS << Buf("{}", D);
 }
@@ -79,5 +78,3 @@ raw_ostream& exi::H::print_duration(
  raw_ostream& OS, double D, const char* Unit) {
   return OS << D << Unit;
 }
-
-} // namespace exi
