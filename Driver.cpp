@@ -22,18 +22,21 @@
 #include <Common/SmallStr.hpp>
 #include <Common/SmallVec.hpp>
 #include <Common/StringSwitch.hpp>
+#include <Support/Allocator.hpp>
 #include <Support/Chrono.hpp>
 #include <Support/Casting.hpp>
 #include <Support/Error.hpp>
-#include <Support/FmtBuffer.hpp>
-#include <Support/MemoryBuffer.hpp>
 #include <Support/Filesystem.hpp>
+#include <Support/FmtBuffer.hpp>
+#include <Support/MemoryBufferRef.hpp>
+#include <Support/Process.hpp>
 #include <Support/raw_ostream.hpp>
 #include <fmt/format.h>
 #include <fmt/chrono.h>
 #include <fmt/ranges.h>
 
 #include <tuple>
+#include <windows.h>
 
 using namespace exi;
 using namespace exi::sys;
@@ -49,13 +52,14 @@ int main(int Argc, char* Argv[]) {
   fmt::println("TimePoint<>: {}", TP);
   TimePoint<> TP2 = sys::now();
   fmt::println("Duration: {}", (TP2 - TP));
+  outs() << TP << ", " << TP2 << '\n';
 
-
-  std::allocator<char> CA {};
-  char* P = CA.allocate(128);
-  if (mi_is_in_heap_region(P))
-    fmt::println("In heap!");
-  CA.deallocate(P, 128);
+  {
+    auto* P = (char*)exi::allocate_buffer(4096, 16);
+    if (mi_is_in_heap_region(P))
+      fmt::println("In heap!");
+    exi::deallocate_buffer(P, 4096, 16);
+  }
 
   if (Error E = createStringError(
    exi::inconvertibleErrorCode(), "X: {}", 1)) {
@@ -78,4 +82,16 @@ int main(int Argc, char* Argv[]) {
     .Default(4);
   exi_assert(I == 3, "StringSwitch failed!");
   fmt::println("{}", I);
+
+  SmallStr<4> SS;
+  // exi::wrap_stream(SS) << "Hello" << ' ' << "world" << '!';
+
+  String StdStr;
+  exi::wrap_stream(StdStr) << "Hello" << ' ' << "world" << '!';
+  if (mi_is_in_heap_region(StdStr.data()))
+    fmt::println("String in heap!");
+
+  errs() << "\n\n";
+  errs() << "mimalloc: " << Process::GetMallocUsage() << '\n';
+  errs() << "malloc:   " << Process::GetStdMallocUsage() << '\n';
 }
