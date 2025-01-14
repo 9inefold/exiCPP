@@ -39,6 +39,7 @@
 #include <Support/FileSystem.hpp>
 #include <Support/Process.hpp>
 #include <Support/Program.hpp>
+#include <Support/Alloc.hpp>
 #include <Support/SmallVecMemoryBuffer.hpp>
 #include <Support/_IO.hpp>
 #include <algorithm>
@@ -101,7 +102,8 @@ void *operator new(size_t N, const NamedBufferAlloc &Alloc) {
   // memory handler installed by default in LLVM. See operator delete() member
   // functions within this file for the paired call to free().
   char *Mem =
-      static_cast<char *>(std::malloc(N + sizeof(size_t) + NameRef.size() + 1));
+      static_cast<char *>(
+        exi::exi_malloc(N + sizeof(size_t) + NameRef.size() + 1));
   if (!Mem)
     exi::fatal_alloc_error("Allocation failed");
   *reinterpret_cast<size_t *>(Mem + N) = NameRef.size();
@@ -121,7 +123,7 @@ public:
 
   /// Disable sized deallocation for MemoryBufferMem, because it has
   /// tail-allocated data.
-  void operator delete(void *p) { std::free(p); }
+  void operator delete(void *p) { exi::exi_free(p); }
 
   StrRef getBufferIdentifier() const override {
     // The name is stored after the class itself.
@@ -248,7 +250,7 @@ public:
 
   /// Disable sized deallocation for MemoryBufferMMapFile, because it has
   /// tail-allocated data.
-  void operator delete(void *p) { std::free(p); }
+  void operator delete(void *p) { exi::exi_free(p); }
 
   StrRef getBufferIdentifier() const override {
     // The name is stored after the class itself.
@@ -345,7 +347,7 @@ WritableMemoryBuffer::getNewUninitMemBuffer(size_t Size,
   // See MemoryBufferMem::operator delete() for the paired call to free(), and
   // exi::install_out_of_memory_new_handler() for the installation of the
   // custom new handler.
-  char *Mem = static_cast<char *>(std::malloc(RealLen));
+  char *Mem = static_cast<char *>(exi::exi_malloc(RealLen));
   if (!Mem)
     return nullptr;
 

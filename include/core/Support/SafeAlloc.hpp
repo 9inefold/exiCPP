@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <Config/Config.inc>
 #include <Support/Alloc.hpp>
 #include <Support/ErrorHandle.hpp>
 

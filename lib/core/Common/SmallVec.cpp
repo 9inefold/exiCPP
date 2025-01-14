@@ -146,8 +146,8 @@ static void *replaceAllocation(void *NewElts, usize TSize, usize NewCapacity,
                                usize VSize = 0) {
   void *NewEltsReplace = exi::safe_malloc(NewCapacity * TSize);
   if (VSize)
-    memcpy(NewEltsReplace, NewElts, VSize * TSize);
-  free(NewElts);
+    std::memcpy(NewEltsReplace, NewElts, VSize * TSize);
+  exi::exi_free(NewElts);
   return NewEltsReplace;
 }
 
@@ -177,7 +177,7 @@ void SmallVecBase<Size_T>::grow_pod(void *FirstEl, usize MinSize,
       NewElts = replaceAllocation(NewElts, TSize, NewCapacity);
 
     // Copy the elements over.  No need to run dtors on PODs.
-    memcpy(NewElts, this->BeginX, size() * TSize);
+    std::memcpy(NewElts, this->BeginX, size() * TSize);
   } else {
     // If this wasn't grown from the inline copy, grow the allocated space.
     NewElts = exi::safe_realloc(this->BeginX, NewCapacity * TSize);
