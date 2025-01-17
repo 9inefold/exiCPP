@@ -45,6 +45,7 @@ int main(int Argc, char* Argv[]) {
   SmallStr<256> Str;
   fs::current_path(Str);
   // fmt::println("{}", Str);
+  outs() << Argv[0] << '\n';
   outs() << Str << '\n';
 
   // TODO: Test raw_ostream

@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
 include_guard(DIRECTORY)
-include(Setup.cmake)
 
 project(
   exi-cpp
@@ -8,6 +7,7 @@ project(
   LANGUAGES CXX C
 )
 
+include(Setup.cmake)
 include(ListUtils)
 include(SetFlags)
 include(SetOptions)
