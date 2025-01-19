@@ -5,6 +5,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 option(MI_SECURE            "Use full security mitigations (like guard pages, allocation randomization, double-free mitigation, and free-list corruption detection)" OFF)
+option(MI_DEBUG_FAST        "Compile with RelWithDebInfo in DEBUG mode" OFF)
 option(MI_DEBUG_FULL        "Use full internal heap invariant checking in DEBUG mode (expensive)" OFF)
 option(MI_PADDING           "Enable padding to detect heap block overflow (always on in DEBUG or SECURE mode, or with Valgrind/ASAN)" OFF)
 option(MI_OVERRIDE          "Override the standard malloc interface (e.g. define entry points for malloc() etc)" ON)
@@ -70,7 +71,7 @@ set(mi_libraries "")
 # -----------------------------------------------------------------------------
 
 message(STATUS "")
-if (DEFINED EXICPP_FAST_DEBUG AND EXICPP_FAST_DEBUG)
+if (MI_DEBUG_FAST)
   if (NOT MI_TRACK_ETW)
     message(STATUS "Fast debug mode selected, default to: RelWithDebInfo")
     set(CMAKE_BUILD_TYPE "RelWithDebInfo")

@@ -3,7 +3,7 @@ include_guard(DIRECTORY)
 
 project(
   exi-cpp
-  VERSION 0.6.11
+  VERSION 0.6.12
   LANGUAGES CXX C
 )
 
@@ -17,73 +17,125 @@ cmake_policy(SET CMP0077 NEW)
 set_version(EXI PROJECT)
 set(EFL_NAMESPACE exi) # Unused... for now
 
+option(EXI_USE_EXIP     "Enables the old version of exicpp." OFF)
+option(EXI_DRIVER       "If the driver should be built (always ON at top level)." OFF)
+option(EXI_TESTS        "If tests should be run." OFF)
+
+option(EXI_USE_THREADS  "Enable multithreading?" OFF)
+option(EXI_EXCEPTIONS   "If exceptions should be enabled." OFF)
+option(EXI_USE_MIMALLOC "If allocation should be done through mimalloc" ON)
+
+option(EXI_INVARIANTS   "Adds extra invariant checking." ON)
+option(EXI_FAST_DEBUG   "If parts of debug builds should be optimized." OFF)
+option(EXI_DEBUG        "If debug printing should be enabled." ON)
+option(EXI_ANSI         "If ANSI should be enabled." ON)
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")
 else()
   # TODO: Add function for this?
-  set(EXICPP_WARNING_FLAGS -Wall -Wextra
+  set(EXI_WARNING_FLAGS -Wall -Wextra
     -Wno-unused-variable -Wno-unused-function
     -Wno-unused-parameter
   )
 endif()
 
-option(EXICPP_USE_EXIP   "Enables the old version of exicpp." OFF)
-option(EXICPP_DRIVER     "If the driver should be built (always ON at top level)." OFF)
-option(EXICPP_TESTS      "If tests should be run." OFF)
+if(WIN32)
+  if(CYGWIN)
+    set(EXI_ON_WIN32 0)
+    set(EXI_ON_UNIX 1)
+  else()
+    set(EXI_ON_WIN32 1)
+    set(EXI_ON_UNIX 0)
+  endif()
+elseif(FUCHSIA OR UNIX)
+  set(EXI_ON_WIN32 0)
+  set(EXI_ON_UNIX 1)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Generic")
+  set(EXI_ON_WIN32 0)
+  set(EXI_ON_UNIX 0)
+else()
+  message(SEND_ERROR "Unable to determine platform")
+endif()
 
-option(EXICPP_INVARIANTS "Adds extra invariant checking." ON)
-option(EXICPP_FAST_DEBUG "If parts of debug builds should be optimized." OFF)
-option(EXICPP_EXCEPTIONS "If exceptions should be enabled." OFF)
-option(EXICPP_DEBUG      "If debug printing should be enabled." ON)
-option(EXICPP_ANSI       "If ANSI should be enabled." ON)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(EXI_DEBUG_BUILD ON)
+else()
+  set(EXI_DEBUG_BUILD OFF)
+  set(EXI_FAST_DEBUG OFF CACHE BOOL "" FORCE)
+endif()
 
-option(EXICPP_USE_MIMALLOC "If allocation should be done through mimalloc" ON)
-if(EXICPP_USE_EXIP)
+if(EXI_FAST_DEBUG)
+  set(MI_DEBUG_FAST ON)
+endif()
+
+if(EXI_USE_EXIP)
   option(EXIP_FORCE_SCOPE  "If the exip namespace should be forced." ON)
-  set(EXIP_USE_MIMALLOC ${EXICPP_USE_MIMALLOC})
-  set(EXIP_DEBUG ${EXICPP_DEBUG})
-  if(EXICPP_ANSI)
+
+  set_if_unset(EXICPP_WARNING_FLAGS ${EXI_WARNING_FLAGS})
+  set_if_unset(EXICPP_INVARIANTS    ${EXI_INVARIANTS})
+  set_if_unset(EXICPP_EXCEPTIONS    ${EXI_EXCEPTIONS})
+  set_if_unset(EXICPP_TESTS         ${EXI_TESTS})
+  set_if_unset(EXICPP_DEBUG         ${EXI_DEBUG})
+  set_if_unset(EXICPP_ANSI          ${EXI_ANSI})
+  set_if_unset(EXICPP_USE_MIMALLOC  ${EXI_USE_MIMALLOC})
+
+  set(EXICPP_DEBUG_BUILD            ${EXI_DEBUG_BUILD})
+  set(EXICPP_FAST_DEBUG             ${EXI_FAST_DEBUG})
+
+  set(EXIP_USE_MIMALLOC             ${EXI_USE_MIMALLOC})
+  set(EXIP_DEBUG                    ${EXI_DEBUG})
+  if(EXI_ANSI)
     set(EXIP_ANSI ON CACHE BOOL "")
   endif()
 endif()
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(EXICPP_DEBUG_BUILD ON)
-else()
-  set(EXICPP_DEBUG_BUILD OFF)
-  set(EXICPP_FAST_DEBUG OFF CACHE BOOL "" FORCE)
+message(STATUS "[exicpp] Tests: ${EXI_TESTS}")
+message(STATUS "[exicpp] Invariants: ${EXI_INVARIANTS}")
+message(STATUS "[exicpp] Debug printing: ${EXI_DEBUG}")
+message(STATUS "[exicpp] ANSI printing: ${EXI_ANSI}")
+message(STATUS "[exicpp] Exceptions: ${EXI_EXCEPTIONS}")
+if(EXI_DEBUG_BUILD)
+  message(STATUS "[exicpp] Fast debug: ${EXI_FAST_DEBUG}")
 endif()
 
-message(STATUS "[exicpp] Tests: ${EXICPP_TESTS}")
-message(STATUS "[exicpp] Invariants: ${EXICPP_INVARIANTS}")
-message(STATUS "[exicpp] Debug printing: ${EXICPP_DEBUG}")
-message(STATUS "[exicpp] ANSI printing: ${EXICPP_ANSI}")
-message(STATUS "[exicpp] Exceptions: ${EXICPP_EXCEPTIONS}")
-if(EXICPP_DEBUG_BUILD)
-  message(STATUS "[exicpp] Fast debug: ${EXICPP_FAST_DEBUG}")
-endif()
+add_subdirectory(include/core)
+set(EXI_BASE_FOLDER ${CMAKE_CURRENT_SOURCE_DIR})
 
-if(EXICPP_USE_MIMALLOC)
+if(EXI_USE_MIMALLOC)
   set(MI_OVERRIDE ON)
   set(MI_BUILD_TESTS OFF)
   set(MI_BUILD_SHARED ON)
   set(MI_BUILD_STATIC ON)
-  # Currently doesn't work on windows.
-  set(MI_WIN_REDIRECT OFF)
 
-  if(EXICPP_DEBUG_BUILD)
-    if(EXICPP_FAST_DEBUG)
+  if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    # Currently doesn't work on x64.
+    set(MI_WIN_REDIRECT OFF)
+    set(EXI_REDIRECT ON)
+  endif()
+
+  if(EXI_DEBUG_BUILD)
+    if(EXI_FAST_DEBUG)
       set(MI_NO_PADDING ON)
     else()
-      set(MI_TRACK_ETW ON)
+      # set(MI_TRACK_ETW ON)
     endif()
   endif()
+
   add_subdirectory(vendored/mimalloc)
+  if(EXI_REDIRECT)
+    add_subdirectory(redirect)
+    exi_clear_lib_prefix(mimalloc)
+    set_target_properties(mimalloc PROPERTIES
+      OUTPUT_NAME "mimalloc-override"
+    )
+  endif()
 endif()
+
 add_subdirectory(vendored/fmt)
 add_subdirectory(vendored/rapidxml)
 
-if(EXICPP_USE_EXIP)
+if(EXI_USE_EXIP)
   message(STATUS "[exicpp] Using exip.")
   add_subdirectory(vendored/exip)
   add_subdirectory(old)

@@ -104,3 +104,13 @@ function(target_forward_options tgt)
   _hc_fwd_opts(${tgt} PRIVATE X_PRIVATE)
   _hc_fwd_opts(${tgt} INTERFACE X_INTERFACE)
 endfunction()
+
+##======================================================================##
+## set_if_unset
+##======================================================================##
+
+macro(set_if_unset var src)
+  if(NOT DEFINED ${var})
+    set(${var} ${src})
+  endif()
+endmacro(set_if_unset)

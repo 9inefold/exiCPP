@@ -1,32 +1,5 @@
 # Temporary file, when I remove exip I'll move this into the main file.
 
-option(EXI_USE_THREADS "Enable multithreading?" OFF)
-
-set(EXI_WARNING_FLAGS ${EXICPP_WARNING_FLAGS})
-set(EXI_INVARIANTS   ${EXICPP_INVARIANTS})
-set(EXI_EXCEPTIONS   ${EXICPP_EXCEPTIONS})
-set(EXI_DEBUG        ${EXICPP_DEBUG})
-set(EXI_ANSI         ${EXICPP_ANSI})
-set(EXI_USE_MIMALLOC ${EXICPP_USE_MIMALLOC})
-
-if(WIN32)
-  if(CYGWIN)
-    set(EXI_ON_WIN32 0)
-    set(EXI_ON_UNIX 1)
-  else()
-    set(EXI_ON_WIN32 1)
-    set(EXI_ON_UNIX 0)
-  endif()
-elseif(FUCHSIA OR UNIX)
-  set(EXI_ON_WIN32 0)
-  set(EXI_ON_UNIX 1)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Generic")
-  set(EXI_ON_WIN32 0)
-  set(EXI_ON_UNIX 0)
-else()
-  message(SEND_ERROR "Unable to determine platform")
-endif()
-
 include_items(EXICPP_CORE "lib/core"
   Common/Option.cpp
   Common/SmallVec.cpp
@@ -71,7 +44,6 @@ include_items(EXICPP_SRC "lib/exi"
 add_library(exicpp STATIC ${EXICPP_CORE} ${EXICPP_SRC})
 add_library(exicpp::exicpp ALIAS exicpp)
 
-add_subdirectory(include/core)
 target_include_directories(exicpp PUBLIC include include/core)
 
 target_link_libraries(exicpp PUBLIC fmt::fmt rapidxml::rapidxml)
@@ -82,7 +54,8 @@ if(EXI_USE_MIMALLOC)
 endif()
 if(WIN32)
   target_link_libraries(exicpp PRIVATE
-    psapi shell32 ole32 uuid advapi32 ws2_32 ntdll)
+    exi::redirect
+    ntdll psapi shell32 ole32 uuid advapi32 ws2_32)
 endif()
 
 

@@ -51,6 +51,11 @@
 #include <wmistr.h>
 #include <evntrace.h>
 #include <evntprov.h>
+#include <sal.h>
+
+#ifndef _Pre_cap_
+# define _Pre_cap_(expr)
+#endif
 
 #ifndef ETW_INLINE
   #ifdef _ETW_KM_
