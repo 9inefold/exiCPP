@@ -884,7 +884,7 @@ std::error_code mapped_file_region::init(sys::fs::file_t OrigFileHandle,
   if (OrigFileHandle == INVALID_HANDLE_VALUE)
     return make_error_code(errc::bad_file_descriptor);
 
-  DWORD flprotect;
+  DWORD flprotect = 0;
   switch (Mode) {
   case readonly:
     flprotect = PAGE_READONLY;
@@ -904,7 +904,7 @@ std::error_code mapped_file_region::init(sys::fs::file_t OrigFileHandle,
     return ec;
   }
 
-  DWORD dwDesiredAccess;
+  DWORD dwDesiredAccess = 0;
   switch (Mode) {
   case readonly:
     dwDesiredAccess = FILE_MAP_READ;
@@ -1244,7 +1244,7 @@ Expected<file_t> openNativeFile(const Twine &Name, CreationDisposition Disp,
   if (Flags & OF_ChildInherit)
     Inherit = true;
 
-  file_t Result;
+  file_t Result {};
   std::error_code EC = openNativeFileInternal(
       Name, Result, NativeDisp, NativeAccess, FILE_ATTRIBUTE_NORMAL, Inherit);
   if (EC)
@@ -1277,7 +1277,7 @@ std::error_code openFile(const Twine &Name, int &ResultFD,
 
 static std::error_code directoryRealPath(const Twine &Name,
                                          SmallVecImpl<char> &RealPath) {
-  file_t File;
+  file_t File {};
   std::error_code EC = openNativeFileInternal(
       Name, File, OPEN_EXISTING, GENERIC_READ, FILE_FLAG_BACKUP_SEMANTICS);
   if (EC)

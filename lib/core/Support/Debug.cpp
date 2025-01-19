@@ -58,7 +58,7 @@
 
 using namespace exi;
 
-// Even though LLVM might be built with NDEBUG, define symbols that the code
+// Even though exicpp might be built with NDEBUG, define symbols that the code
 // built without NDEBUG can depend on via the llvm/Support/Debug.h header.
 namespace exi {
 /// Exported boolean set by the -debug option.
@@ -72,12 +72,10 @@ static bool IsEmptyCStr(const char *Str) noexcept {
   return *Str == '\0';
 }
 
-} // namespace exi
-
 /// Return true if the specified string is the debug type
 /// specified on the command line, or if none was specified on the command line
 /// with the -debug-only=X option.
-bool exi::isCurrentDebugType(const char *DebugType) {
+bool isCurrentDebugType(const char *DebugType) {
   if (CurrentDebugType->empty())
     return true;
   StrRef DebugTypeStr(DebugType);
@@ -93,13 +91,13 @@ bool exi::isCurrentDebugType(const char *DebugType) {
 /// Set the current debug type, as if the -debug-only=X
 /// option were specified.  Note that DebugFlag also needs to be set to true for
 /// debug output to be produced.
-void exi::setCurrentDebugTypes(const char **Types, unsigned Count);
+void setCurrentDebugTypes(const char **Types, unsigned Count);
 
-void exi::setCurrentDebugType(const char *Type) {
+void setCurrentDebugType(const char *Type) {
   setCurrentDebugTypes(&Type, 1);
 }
 
-void exi::setCurrentDebugTypes(const char **Types, unsigned Count) {
+void setCurrentDebugTypes(const char **Types, unsigned Count) {
   CurrentDebugType->clear();
   for (usize T = 0; T < Count; ++T) {
     const char *const Type = Types[T];
@@ -109,6 +107,7 @@ void exi::setCurrentDebugTypes(const char **Types, unsigned Count) {
   }
 }
 
+} // namespace exi
 
 // All Debug.h functionality is a no-op in release mode.
 #if EXI_DEBUG

@@ -136,7 +136,7 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& buf, StrRef S) {
 // For more information, see:
 // https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/pebteb/teb/index.htm
 // https://github.com/llvm/llvm-project/issues/89137
-extern "C" NTSYSAPI NTSTATUS NTAPI RtlGetLastNtStatus();
+extern "C" NTSYSAPI NTSTATUS NTAPI RtlGetLastNtStatus(void);
 
 // This function obtains the last error code and maps it. It may call
 // RtlGetLastNtStatus, which is a lower level API that can return a
