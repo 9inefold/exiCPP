@@ -30,6 +30,7 @@
 #include <Common/Hashing.hpp>
 #include <Common/SmallVec.hpp>
 #include <Common/Vec.hpp>
+#include <Support/ErrorHandle.hpp>
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -203,7 +204,7 @@ DIAGNOSTIC_POP()
   /// slice(n, m) - Chop off the first N elements of the array, and keep M
   /// elements in the array.
   ArrayRef<T> slice(usize N, usize M) const {
-    assert(N+M <= size() && "Invalid specifier");
+    exi_assert(N+M <= size(), "Invalid specifier");
     return ArrayRef<T>(data()+N, M);
   }
 
@@ -212,13 +213,13 @@ DIAGNOSTIC_POP()
 
   /// Drop the first \p N elements of the array.
   ArrayRef<T> drop_front(usize N = 1) const {
-    assert(size() >= N && "Dropping more elements than exist");
+    exi_assert(size() >= N, "Dropping more elements than exist");
     return slice(N, size() - N);
   }
 
   /// Drop the last \p N elements of the array.
   ArrayRef<T> drop_back(usize N = 1) const {
-    assert(size() >= N && "Dropping more elements than exist");
+    exi_assert(size() >= N, "Dropping more elements than exist");
     return slice(0, size() - N);
   }
 
@@ -264,7 +265,7 @@ DIAGNOSTIC_POP()
   /// @name Operator Overloads
   /// @{
   const T &operator[](usize Index) const {
-    assert(Index < Length && "Invalid index!");
+    exi_assert(Index < Length, "Invalid index!");
     return Data[Index];
   }
 
@@ -385,7 +386,7 @@ public:
   /// slice(n, m) - Chop off the first N elements of the array, and keep M
   /// elements in the array.
   MutArrayRef<T> slice(usize N, usize M) const {
-    assert(N + M <= this->size() && "Invalid specifier");
+    exi_assert(N + M <= this->size(), "Invalid specifier");
     return MutArrayRef<T>(this->data() + N, M);
   }
 
@@ -396,12 +397,12 @@ public:
 
   /// Drop the first \p N elements of the array.
   MutArrayRef<T> drop_front(usize N = 1) const {
-    assert(this->size() >= N && "Dropping more elements than exist");
+    exi_assert(this->size() >= N, "Dropping more elements than exist");
     return slice(N, this->size() - N);
   }
 
   MutArrayRef<T> drop_back(usize N = 1) const {
-    assert(this->size() >= N && "Dropping more elements than exist");
+    exi_assert(this->size() >= N, "Dropping more elements than exist");
     return slice(0, this->size() - N);
   }
 
@@ -451,7 +452,7 @@ public:
   /// @name Operator Overloads
   /// @{
   T &operator[](usize Index) const {
-    assert(Index < this->size() && "Invalid index!");
+    exi_assert(Index < this->size(), "Invalid index!");
     return data()[Index];
   }
 };
