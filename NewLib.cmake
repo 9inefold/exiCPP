@@ -50,7 +50,8 @@ target_link_libraries(exicpp PUBLIC fmt::fmt rapidxml::rapidxml)
 target_compile_features(exicpp PUBLIC cxx_std_20)
 
 if(EXI_USE_MIMALLOC)
-  target_link_libraries(exicpp PUBLIC mimalloc-static)
+  target_link_libraries(exicpp PUBLIC exi::redirect mimalloc)
+  #target_link_libraries(exicpp PUBLIC mimalloc-static)
 endif()
 if(WIN32)
   target_link_libraries(exicpp PRIVATE

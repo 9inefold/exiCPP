@@ -41,7 +41,19 @@
 using namespace exi;
 using namespace exi::sys;
 
+extern "C" {
+__declspec(dllimport) bool mi_allocator_init(const char** Str);
+}
+
 int main(int Argc, char* Argv[]) {
+  {
+    mi_option_disable(mi_option_verbose);
+    const char* Msgs = nullptr;
+    mi_allocator_init(&Msgs);
+    outs() << "Messages:\n" << Msgs;
+    return 0;
+  }
+
   SmallStr<256> Str;
   fs::current_path(Str);
   // fmt::println("{}", Str);
