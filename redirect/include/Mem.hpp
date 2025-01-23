@@ -111,13 +111,13 @@ To* ptr_cast(uptr V) noexcept {
 
 template <typename To>
 To* aligned_ptr_cast(auto* Ptr) noexcept {
-  constexpr usize Align = alignof(To);
+  constexpr usize Align = alignof_v<To>;
   return assume_aligned<Align>(ptr_cast<To>(Ptr));
 }
 
 template <typename To>
 To* aligned_ptr_cast(uptr Ptr) noexcept {
-  constexpr usize Align = alignof(To);
+  constexpr usize Align = alignof_v<To>;
   return assume_aligned<Align>(ptr_cast<To>(Ptr));
 }
 

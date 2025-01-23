@@ -32,12 +32,63 @@
 #pragma once
 
 #include <Fundamental.hpp>
-#include <Strings.hpp>
 #include <initializer_list>
 #include <type_traits>
 
 namespace re {
+template <typename T> class [[nodiscard]] ArrayRef;
 template <typename T> class [[nodiscard]] MutArrayRef;
+
+template <typename T> 
+class ArrayRefBase {
+  using Derived = ArrayRef<T>;
+public:
+  constexpr ArrayRefBase() = default;
+
+  /// equals - Check for element-wise equality.
+  bool equals(ArrayRef<T> RHS) const {
+    if (self().Length != RHS.Length)
+      return false;
+    auto It = RHS.begin();
+    for (const T& Val : self()) {
+      if (Val != *It)
+        return false;
+      ++It;
+    }
+    return true;
+  }
+
+private:
+  const Derived& self() const {
+    return *static_cast<const Derived*>(this);
+  }
+};
+
+template <> class ArrayRefBase<char> {
+public:
+  constexpr ArrayRefBase() = default;
+
+  /// equals - Check for element-wise equality.
+  bool equals(ArrayRef<char> RHS) const;
+
+  /// Check if this string starts with the given \p Prefix.
+  [[nodiscard]] bool starts_with(ArrayRef<char> Prefix) const;
+  [[nodiscard]] bool starts_with(char Prefix) const;
+
+  /// Check if this string starts with the given \p Prefix, ignoring case.
+  [[nodiscard]] bool starts_with_insensitive(ArrayRef<char> Prefix) const;
+
+  /// Check if this string ends with the given \p Suffix.
+  [[nodiscard]] bool ends_with(ArrayRef<char> Suffix) const;
+  [[nodiscard]] bool ends_with(char Suffix) const;
+
+  /// Check if this string ends with the given \p Suffix, ignoring case.
+  [[nodiscard]] bool ends_with_insensitive(ArrayRef<char> Suffix) const;
+
+private:
+  bool isGrEqual(ArrayRef<char> RHS) const;
+  const ArrayRef<char>& self() const;
+};
 
 /// ArrayRef - Represent a constant reference to an array (0 or more elements
 /// consecutively in memory), i.e. a start pointer and a length.  It allows
@@ -51,7 +102,8 @@ template <typename T> class [[nodiscard]] MutArrayRef;
 /// This is intended to be trivially copyable, so it should be passed by
 /// value.
 template <typename T>
-class [[nodiscard]] ArrayRef {
+class [[nodiscard]] ArrayRef : public ArrayRefBase<T> {
+  friend class ArrayRefBase<T>;
 public:
   using value_type = T;
   using pointer = value_type *;
@@ -127,6 +179,7 @@ public:
 
   /// empty - Check if the array is empty.
   bool empty() const { return Length == 0; }
+  explicit operator bool() const { return !empty(); }
 
   const T *data() const { return Data; }
 
@@ -143,25 +196,6 @@ public:
   const T &back() const {
     re_assert(!empty());
     return Data[Length-1];
-  }
-
-  /// equals - Check for element-wise equality.
-  bool equals(ArrayRef RHS) const {
-    if (Length != RHS.Length)
-      return false;
-    using Base = std::remove_cv_t<T>;
-    if constexpr (std::is_same_v<Base, char>) {
-      // Special case when comparing strings.
-      return Strequals(this->data(), RHS.data(), size());
-    } else {
-      auto It = RHS.begin();
-      for (const T& Val : *this) {
-        if (Val != *It)
-          return false;
-        ++It;
-      }
-      return true;
-    }
   }
 
   /// slice(n, m) - Chop off the first N elements of the array, and keep M
@@ -226,6 +260,19 @@ public:
 
   /// @}
 };
+
+// template <typename T>
+// inline bool ArrayRefBase<T>::equals(ArrayRef<T> RHS) const {
+//   if (self().Length != RHS.Length)
+//     return false;
+//   auto It = RHS.begin();
+//   for (const T& Val : self()) {
+//     if (Val != *It)
+//       return false;
+//     ++It;
+//   }
+//   return true;
+// }
 
 /// MutArrayRef - Represent a mutable reference to an array (0 or more
 /// elements consecutively in memory), i.e. a start pointer and a length.  It
@@ -384,5 +431,7 @@ inline bool operator!=(ArrayRef<T> LHS, ArrayRef<T> RHS) {
 }
 
 /// @}
+
+
 
 } // namespace re

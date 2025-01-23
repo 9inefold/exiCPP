@@ -2,7 +2,7 @@ include_guard(DIRECTORY)
 
 project(
   exi-redirect
-  VERSION 0.1.0
+  VERSION 0.1.1
   LANGUAGES CXX C
 )
 
@@ -34,12 +34,17 @@ target_include_directories(exi-redirect PRIVATE
 )
 
 target_sources(exi-redirect PRIVATE
+  lib/ArrayRef.cpp
   lib/Buf.cpp
+  lib/Detours.cpp
+  lib/DetoursImpl.cpp
+  lib/DetoursSetup.cpp
   lib/Env.cpp
   lib/Globals.cpp
   lib/Logging.cpp
   lib/NtImports.cpp
   lib/Patches.cpp
+  lib/RVA.cpp
   lib/Strings.cpp
   lib/Version.cpp
   lib/VMemcpy.cpp

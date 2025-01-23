@@ -102,17 +102,17 @@ const char* Strchr(const char* Str, u8 Val);
 char* StrchrInsensitive(char* Str, u8 Val);
 const char* StrchrInsensitive(const char* Str, u8 Val);
 
-static inline bool Strequal(const char* LHS, const char* RHS) {
+inline bool Strequal(const char* LHS, const char* RHS) {
   return Strcmp(LHS, RHS) == 0;
 }
-static inline bool Strequal(const char* LHS, const char* RHS, usize Max) {
+inline bool Strequal(const char* LHS, const char* RHS, usize Max) {
   return Strncmp(LHS, RHS, Max) == 0;
 }
 
-static inline bool StrequalInsensitive(const char* LHS, const char* RHS) {
+inline bool StrequalInsensitive(const char* LHS, const char* RHS) {
   return StrcmpInsensitive(LHS, RHS) == 0;
 }
-static inline bool StrequalInsensitive(const char* LHS, const char* RHS, usize Max) {
+inline bool StrequalInsensitive(const char* LHS, const char* RHS, usize Max) {
   return StrncmpInsensitive(LHS, RHS, Max) == 0;
 }
 

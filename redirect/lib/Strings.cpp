@@ -303,10 +303,14 @@ static constexpr i32 xstrncmp(
 //======================================================================//
 
 usize re::Strlen(const char* Str) {
+  if UNLIKELY(!Str)
+    return 0;
   return stringlen(Str);
 }
 
 usize re::Strnlen(const char* Str, usize Max) {
+  if UNLIKELY(!Str)
+    return 0;
   return stringnlen(Str, Max);
 }
 

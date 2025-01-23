@@ -146,6 +146,11 @@ struct LDRDataTableEntry {
   u32               ReferenceCount;
 
 public:
+  static LDRListEntry*  GetBase();
+  static LoadOrderList* GetLoadOrder();
+  static MemOrderList*  GetMemOrder();
+  static InitOrderList* GetInitOrder();
+
   template <usize TableOffset = LDRListKind::memOrder>
   ALWAYS_INLINE TLDRListEntry<TableOffset>* asListEntry() const {
     using TblType = TLDRListEntry<TableOffset>;
@@ -166,10 +171,48 @@ public:
 
 template <usize TableOffset>
 struct TLDRListEntry : public LDRListEntry {
+  static_assert(TableOffset < 3);
   using BaseType = LDRListEntry;
   using SelfType = TLDRListEntry<TableOffset>;
   using TblType  = LDRDataTableEntry;
+
+  struct iterator {
+    using difference_type = ptrdiff;
+    using value_type = TLDRListEntry*;
+  public:
+    bool operator==(const iterator&) const = default;
+    value_type operator*()  const { return It; }
+    value_type operator->() const { return It; }
+
+    iterator& operator++() {
+      this->It = It->prev();
+      return *this;
+    }
+    iterator operator++(int) {
+      iterator tmp = *this;
+      ++*this;
+      return tmp;
+    }
+  
+  public:
+    value_type It = nullptr;
+  };
+
+  struct ListProxy {
+    iterator begin() const {
+      return {end()->prev()};
+    }
+    iterator end() const {
+      return {SelfType::GetSentinel()->asMutable()};
+    }
+  };
+
 public:
+  static SelfType* GetSentinel() {
+    BaseType* Base = LDRDataTableEntry::GetBase();
+    return static_cast<SelfType*>(Base + TableOffset);
+  }
+
   inline SelfType* next() {
     auto* baseNext = this->BaseType::_iNext;
     return reinterpret_cast<SelfType*>(baseNext);
@@ -199,6 +242,14 @@ public:
   ALWAYS_INLINE SelfType* asMutable() const {
     return const_cast<SelfType*>(this);
   }
+
+  //==================================================================//
+  // Misc.
+  //==================================================================//
+
+  static ListProxy Iterable() noexcept { return ListProxy{}; }
+  iterator begin() const { return {end()->prev()}; }
+  iterator end() const { return {SelfType::GetSentinel()->asMutable()}; }
 };
 
 extern template struct TLDRListEntry<0u>;
@@ -210,7 +261,7 @@ extern template struct TLDRListEntry<2u>;
 
 extern "C" {
 
-NTSYSAPI void NTAPI     LdrEnumerateLoadedModules(
+NTSYSAPI NTSTATUS NTAPI LdrEnumerateLoadedModules(
   PVOID                 Unused,
   LDRENUMPROC           Callback,
   PVOID                 Context);

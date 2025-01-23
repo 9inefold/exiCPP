@@ -18,6 +18,7 @@
 
 #include <ArrayRef.hpp>
 #include <Buf.hpp>
+#include <Detours.hpp>
 #include <Env.hpp>
 #include <Globals.hpp>
 #include <Logging.hpp>
@@ -95,7 +96,9 @@ static bool Driver(HINSTANCE Dll) {
   auto [Major, Minor, Build] = GetVersionTriple();
   MiTrace("windows version: %u.%u.%u", Major, Minor, Build);
 
-  const char* DllNames[7] {
+  MIMALLOC_VERBOSE = true; // TODO: REMOVE
+
+  const char* DllNames[] {
     "mimalloc.dll",
     "mimalloc-override.dll",
     "mimalloc-secure.dll",
@@ -103,6 +106,9 @@ static bool Driver(HINSTANCE Dll) {
     "mimalloc-debug.dll",
     "mimalloc-release.dll"
   };
+
+  void* MiDll = FindMimallocAndSetup(
+    GetPatches(), DllNames, ::ForceRedirect);
 
   return Result;
 }

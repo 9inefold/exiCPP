@@ -37,7 +37,10 @@ enum PatchMode : int {
 struct PatchData {
   int UsePatchedImports;
   // int _iPad1;
-  byte* FunctionData; 
+  union {
+    byte* FunctionData; 
+    byte** IATEntry;
+  };
   PatchMode ModeStore;
   // int _iPad2;  
   byte* StoreFunc;        // Stored in .text section
@@ -48,6 +51,7 @@ struct PatchData {
   byte PatchBytes[16]; 
 };
 
+inline constexpr usize kPatchDataCount = 4;
 struct PerFuncPatchData {
   const char* FunctionName;
   const char* TargetName;
@@ -56,9 +60,7 @@ struct PerFuncPatchData {
   void*       TermAddr;
   const char* ModuleName;
   byte**      FunctionRVA;
-  PatchData   Patches[3];
-  void*       BaseAddrPtr_maybe;
-  u64 _iReserved[9];
+  PatchData   Patches[kPatchDataCount];
 };
 
 inline constexpr usize kPatchCount = 56;

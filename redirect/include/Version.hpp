@@ -28,6 +28,6 @@ struct VersionTriple {
   u32 Build = 0;
 };
 
-VersionTriple GetVersionTriple(void);
+VersionTriple GetVersionTriple();
 
 } // namespace re

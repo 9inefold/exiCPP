@@ -497,7 +497,7 @@ static void WriteInt(const ParseSection& PS, Parser& Args) {
   
   char Prefix[2] {};
   usize PrefixLen = 0;
-  if ((PS.Conv == 'X' || PS.Conv == 'x') && Flags.AltForm && Val != 0) {
+  if (Radix == 16 && Flags.AltForm && Val != 0) {
     PrefixLen = 2;
     Prefix[0] = '0';
     Prefix[1] = a + ('x' - 'a');

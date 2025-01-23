@@ -34,6 +34,12 @@ template <typename T>
 inline constexpr std::size_t bitsizeof_v
   = (sizeof_v<T> * std::size_t(CHAR_BIT));
 
+template <typename T>
+inline constexpr std::size_t alignof_v = alignof(T);
+
+template <>
+inline constexpr std::size_t alignof_v<void> = 1ull;
+
 //////////////////////////////////////////////////////////////////////////
 // Integrals
 
