@@ -35,6 +35,8 @@
 
 using namespace re;
 
+template class re::ArrayRef<char>;
+
 ALWAYS_INLINE static bool CompareArrays(
  const ArrayRef<char>& LHS, const ArrayRef<char>& RHS) noexcept {
   return Strequal(LHS.data(), RHS.data(), RHS.size());
@@ -51,6 +53,14 @@ bool ArrayRefBase<char>::isGrEqual(ArrayRef<char> RHS) const {
 
 const ArrayRef<char>& ArrayRefBase<char>::self() const {
   return *static_cast<const ArrayRef<char>*>(this);
+}
+
+ArrayRef<char> ArrayRefBase<char>::New(const char* Str) {
+  return ArrayRef<char>(Str, Strlen(Str));
+}
+
+ArrayRef<char> re::operator""_str(const char* Str, usize Len) noexcept {
+  return ArrayRef<char>(Str, Len);
 }
 
 //////////////////////////////////////////////////////////////////////////

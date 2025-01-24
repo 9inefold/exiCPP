@@ -28,6 +28,7 @@
 #include <RVA.hpp>
 #include <Strings.hpp>
 #include <Version.hpp>
+#include <utility>
 #include "NtImports.hpp"
 
 using namespace re;
@@ -40,7 +41,7 @@ using ModuleCrawlerFunc = bool(
   PPatchData Patches);
 
 namespace {
-struct Context {
+struct ModCtx {
   PPatchData Patches;
   ModuleCrawlerFunc* Callback;
   bool Result = true;
@@ -54,15 +55,9 @@ static void CrawlerProc(LDRDataTableEntry* Entry, void* Raw, bool*) {
   if (Status < 0)
     return;
   
-  Context* Ctx = ptr_cast<Context>(Raw);
+  ModCtx* Ctx = ptr_cast<ModCtx>(Raw);
   NameBuf Buf;
-  {
-    AnsiString Str;
-    Buf.setNt(Str);
-    RtlUnicodeStringToAnsiString(
-      &Str, &Entry->FullDllName, false);
-    Buf.loadNt(Str);
-  }
+  Buf.loadNt_U(Entry->FullDllName);
 
   if (Mod != Entry->DllBase) {
     MiTrace("entries for \"%s\" do not match: %#p -> %#p",
@@ -78,7 +73,7 @@ static void CrawlerProc(LDRDataTableEntry* Entry, void* Raw, bool*) {
 }
 
 static bool CrawlLoadedModules(ModuleCrawlerFunc* CB, PPatchData Patches) {
-  Context Ctx { Patches, CB, true };
+  ModCtx Ctx { Patches, CB, true };
   i32 Status = LdrEnumerateLoadedModules(nullptr, &CrawlerProc, &Ctx);
   if (Status < 0 || !Ctx.Result) {
     MiWarn("module crawler status: %#x", u32(Status));
@@ -110,6 +105,14 @@ static byte* AnsiGetDllHandle(const char* Filename) noexcept {
   return ptr_cast<byte>(Out);
 }
 
+static LDRDataTableEntry* FindEntryForLoadedModule(void* Handle) {
+  if UNLIKELY(!Handle)
+    return nullptr;
+  LDRDataTableEntry* Out = nullptr;
+  i32 Status = LdrFindEntryForAddress(Handle, &Out);
+  return (Status >= 0) ? Out : nullptr;
+}
+
 ALWAYS_INLINE static bool VerifySize(RVAHandler& RVAs) {
 #if EXI_DEBUG
   for (auto* Link : LoadOrderList::Iterable()) {
@@ -132,12 +135,16 @@ static void UpdatePatchesFromMod(void* Mod, PPatchData Patches) {
 
   ExportHandler Exports = RVAs.exports();
   for (PerFuncPatchData& Patch : Patches) {
-    if (Patch.TargetAddr != nullptr)
-      continue;
     const char* Name = Patch.FunctionName;
+    if UNLIKELY(!Name)
+      // Last element, shouldn't be found.
+      break;
+    if (Patch.TargetAddr != nullptr)
+      // Address has already been found.
+      continue;
     Patch.TargetAddr = Exports[Patch.TargetName];
-    if (!Patch.TargetAddr && !Patch.ModuleName)
-      MiWarn("cannot resolve target %s.", Name);
+    if (!Patch.TargetAddr)
+      MiWarn("cannot resolve target %s.", Patch.TargetName);
     // Get for mode 2?
     if (Patch.TermName && !Patch.TermAddr) {
       Patch.TermAddr = Exports[Patch.TermName];
@@ -148,12 +155,11 @@ static void UpdatePatchesFromMod(void* Mod, PPatchData Patches) {
 //////////////////////////////////////////////////////////////////////////
 // Setup
 
-const byte kInvalid = 0;
+static byte kInvalid = 1;
 
 static bool CheckForCRT(StringRef Name);
 static bool CheckForCRT(const char* Name) {
-  StringRef Str(Name, Strlen(Name));
-  return CheckForCRT(Str);
+  return CheckForCRT(StringRef::New(Name));
 }
 
 static byte* GetDetouredAddress(DetourHandler Func) {
@@ -161,11 +167,11 @@ static byte* GetDetouredAddress(DetourHandler Func) {
 }
 
 static byte* CheckBasedFuncs(ExportHandler& Exp, StringRef Name) {
-  if (!Name.ends_with("_base"))
+  if (!Name.ends_with("_base"_str))
     return nullptr;
   Name = Name.drop_back(sizeof("_base") - 1);
 
-  byte* Out = const_cast<byte*>(&kInvalid);
+  byte* Out = &kInvalid;
   auto CheckBase = [&Exp, &Out, Name] (StringRef Base) -> bool {
     if (!Name.equals(Base))
       return false;
@@ -175,11 +181,11 @@ static byte* CheckBasedFuncs(ExportHandler& Exp, StringRef Name) {
     return true;
   };
 
-  if (CheckBase("_realloc"))
+  if (CheckBase("_realloc"_str))
     return Out;
-  if (CheckBase("_msize"))
+  if (CheckBase("_msize"_str))
     return Out;
-  if (CheckBase("_expand"))
+  if (CheckBase("_expand"_str))
     return Out;
   return Out;
 }
@@ -194,9 +200,8 @@ static byte* ResolveExport(
     return FuncAddr;
   }
 
-  StringRef Name(FuncName, Strlen(FuncName));
-  byte* Out = CheckBasedFuncs(Exp, Name);
-
+  byte* Out = CheckBasedFuncs(
+    Exp, StringRef::New(FuncName));
   if (Out == &kInvalid)
     // No match.
     return nullptr;
@@ -217,14 +222,17 @@ static byte** ResolveImport(
     *RelocOut = nullptr;
 
   byte* Export = nullptr;
-  if (auto Mod = AnsiGetDllHandle(ImpModName)) {
+  if (auto* Mod = AnsiGetDllHandle(ImpModName)) {
     RVAHandler ModRVAs(Mod);
     Export = ModRVAs.getExport<byte>(FuncName);
-    if (RelocOut && Export)
+    if (!Export)
+      return nullptr;
+    if (RelocOut)
       *RelocOut = Export;
+    return Imp.findIATEntry(Export);
   }
 
-  return Imp.findIATEntry(Export);
+  return nullptr;
 }
 
 static byte* GetCodeSegment(RVAHandler& RVAs, usize* FileAddr = nullptr) {
@@ -299,6 +307,7 @@ static void ResolveFunctions(
       if (byte** FnRVA = Patch.FunctionRVA)
         *FnRVA = *IATEntry;
       
+      // IATEntry != nullptr
       Data.UsePatchedImports = true;
       Data.IATEntry = IATEntry;
 
@@ -314,6 +323,8 @@ static void ResolveFunctions(
       Exp, ModName, Patch.FunctionName);
     if (!Resolved)
       continue;
+    
+    // Resolved != nullptr
     Data.UsePatchedImports = false;
     Data.FunctionData = Resolved;
     Data.StoreFunc = CodeSeg;
@@ -326,10 +337,22 @@ static void ResolveFunctions(
   }
 }
 
+static const char* StrchrLast(const char* Haystack, const char Needle) {
+  if UNLIKELY(!Haystack)
+    return nullptr;
+  const char* Out = nullptr;
+  while (*Haystack != '\0') {
+    if (*Haystack == Needle)
+      Out = Haystack;
+    ++Haystack;
+  }
+  return Out;
+}
+
 static bool CheckForCRT(StringRef Name) {
-  if (Name.starts_with_insensitive("ucrtbase"))
-    return true;
-  return Name.starts_with_insensitive("msvcrt");
+  // if (Name.starts_with_insensitive("msvcrt"_str))
+  //   return true;
+  return Name.starts_with_insensitive("ucrtbase"_str);
 }
 
 static bool IsPostWindows11Build() {
@@ -339,15 +362,60 @@ static bool IsPostWindows11Build() {
 
 static bool CheckIfLoadedAndAttatched(
  const LDRDataTableEntry* Entry) {
-  // LdrFindEntryForAddress()
-  for (auto* Link : InitOrderList::Iterable()) {
-    auto* Tbl = Link->asDataTableEntry();
-    if (Tbl->DllBase == Entry->DllBase) {
-      return (Tbl->Flags & 0x80000) != 0;
-    }
+  LDRDataTableEntry* EntryOut
+    = FindEntryForLoadedModule(Entry->DllBase);
+  if (EntryOut == nullptr)
+    return false;
+  if UNLIKELY(Entry != EntryOut) {
+    MiTrace("entries do not match: %#p -> %#p", Entry, EntryOut);
+    return true;
   }
 
-  return false;
+  // Checks if ProcessAttachCalled is true.
+  return (EntryOut->Flags & 0x80000) != 0;
+}
+
+template <usize Kind>
+static void DumpLoadedModulesImpl(NameBuf& Buf) {
+  using Ty = TLDRListEntry<Kind>;
+  int Count = 0;
+
+  for (auto* Link : Ty::Iterable()) {
+    auto* Entry = Link->asDataTableEntry();
+    Buf.loadNt_U(Entry->FullDllName);
+
+    const char* Status;
+    if ((Entry->Flags & 0x80000) == 0)
+      Status = "un-initialized";
+    else
+      Status = "initialized";
+    MiTrace("%d: %s, %s, base: 0x%x",
+      Count, Buf.data(), Status, Count);
+    ++Count;
+  }
+}
+
+static void DumpLoadedModules(bool LoadOrInitOrder) {
+  if (!::MIMALLOC_VERBOSE)
+    // Exit early, can't see anything anyways.
+    return;
+  
+  auto* Ntdll = AnsiGetDllHandle("ntdll.dll");
+  if (Ntdll == nullptr)
+    return;
+  auto* Entry = FindEntryForLoadedModule(Ntdll);
+  if (Entry == nullptr)
+    return;
+  
+  const bool IsLoad = (LoadOrInitOrder == 1);
+  MiTrace("module %s order:",
+    (IsLoad ? "load" : "initialization"));
+  
+  NameBuf Buf;
+  if (IsLoad)
+    DumpLoadedModulesImpl<LDRListKind::loadOrder>(Buf);
+  else
+    DumpLoadedModulesImpl<LDRListKind::initOrder>(Buf);
 }
 
 static bool SetupPatching(
@@ -355,18 +423,28 @@ static bool SetupPatching(
  const LDRDataTableEntry* Entry,
  PPatchData Patches
 ) {
-  if (const char* Split = Strchr(Name.data(), '\\'))
-    Name = {Split + 1, Name.end()};
   MiTrace("module \"%s\"", Name.data());
-
+  if (const char* Split = StrchrLast(Name.data(), '\\'))
+    Name = {Split + 1, Name.end()};
+  
   bool IsCRT = CheckForCRT(Name);
-  bool IsShell = Name.starts_with_insensitive("shell32.dll");
+  bool IsShell = Name.starts_with_insensitive("shell32.dll"_str);
 
-  if (IsCRT || (!IsShell && IsPostWindows11Build())) {
-    MiTrace("resolving \"%s\"", Name.data());
+  if (IsCRT || (IsShell && IsPostWindows11Build())) {
+    MiTrace("%s \"%s\"", (IsCRT ? "RESOLVING" : "resolving"), Name.data());
     RVAHandler RVAs(Entry->DllBase);
     ResolveFunctions(Name.data(), RVAs, Patches, !IsCRT);
-    bool IsLoaded = CheckIfLoadedAndAttatched(Entry);
+    // bool IsLoaded = CheckIfLoadedAndAttatched(Entry);
+    if (CheckIfLoadedAndAttatched(Entry)) {
+      MiError("mimalloc-redirect.dll seems to be initialized after %s\n  "
+              "(hint: try to link with the mimalloc library earlier "
+              "on the command line?)",
+        Name.data());
+      DumpLoadedModules(true);
+      DumpLoadedModules(false);
+      MiError("\n");
+      return false;
+    }
   }
 
   return true;
@@ -382,7 +460,7 @@ void* re::FindMimallocAndSetup(
     MiTrace("checking for target %s", Name);
     Dll = AnsiGetDllHandle(Name);
     if (Dll != nullptr) {
-      MiTrace("found %s!", Name);
+      // MiTrace("found %s!", Name);
       break;
     }
   }
@@ -393,8 +471,12 @@ void* re::FindMimallocAndSetup(
   }
 
   UpdatePatchesFromMod(Dll, Patches);
-  bool DidSetup = CrawlLoadedModules(&SetupPatching, Patches);
-  // "there were errors during resolving but these are ignored (due to MIMALLOC_FORCE_REDIRECT=1)."
-
+  if (!CrawlLoadedModules(&SetupPatching, Patches)) {
+    if (!ForceRedirect)
+      return nullptr;
+    MiWarn("there were errors during resolving but these are "
+           "ignored (due to MIMALLOC_FORCE_REDIRECT=1).");
+  }
+  
   return Dll;
 }

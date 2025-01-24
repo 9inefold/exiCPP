@@ -42,7 +42,7 @@ include_items(EXICPP_SRC "lib/exi"
 )
 
 add_library(exicpp STATIC ${EXICPP_CORE} ${EXICPP_SRC})
-add_library(exicpp::exicpp ALIAS exicpp)
+add_library(exi::exicpp ALIAS exicpp)
 
 target_include_directories(exicpp PUBLIC include include/core)
 
@@ -50,7 +50,7 @@ target_link_libraries(exicpp PUBLIC fmt::fmt rapidxml::rapidxml)
 target_compile_features(exicpp PUBLIC cxx_std_20)
 
 if(EXI_USE_MIMALLOC)
-  target_link_libraries(exicpp PUBLIC exi::redirect mimalloc)
+  target_link_libraries(exicpp PUBLIC mimalloc)
   #target_link_libraries(exicpp PUBLIC mimalloc-static)
 endif()
 if(WIN32)
@@ -58,7 +58,6 @@ if(WIN32)
     exi::redirect
     ntdll psapi shell32 ole32 uuid advapi32 ws2_32)
 endif()
-
 
 if(NOT EXI_EXCEPTIONS)
   target_compile_definitions(exicpp PUBLIC
@@ -75,5 +74,6 @@ endif()
 
 if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
   add_executable(exi-driver Driver.cpp)
-  target_link_libraries(exi-driver exicpp::exicpp)
+  target_link_libraries(exi-driver exi::exicpp)
+  exi_minject(exi-driver BACKUP)
 endif()

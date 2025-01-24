@@ -2,7 +2,7 @@ include_guard(DIRECTORY)
 
 project(
   exi-redirect
-  VERSION 0.1.1
+  VERSION 0.1.2
   LANGUAGES CXX C
 )
 
@@ -53,3 +53,56 @@ target_sources(exi-redirect PRIVATE
 
 target_link_options(exi-redirect PRIVATE -nostdlib -nodefaultlibs)
 target_link_libraries(exi-redirect PRIVATE ntdll)
+
+##########################################################################
+
+function(exi_minject tgt)
+  cmake_parse_arguments(
+    PARSE_ARGV 1 arg
+    "COPY;BACKUP;CLASSIC" "" "")
+  
+  if(EXI_REDIRECT)
+    if(arg_CLASSIC)
+      target_link_libraries(${tgt}
+        ${EXI_MI_FOLDER}/bin/mimalloc-redirect.lib)
+      add_custom_command(TARGET ${tgt} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${EXI_MI_FOLDER}/bin/mimalloc-redirect.dll
+        $<TARGET_FILE_DIR:${tgt}>/mimalloc-redirect.dll)
+    else()
+      target_link_libraries(${tgt} exi::redirect)
+    endif()
+  endif()
+  
+  get_target_property(prop_TYPE ${tgt} TYPE)
+  if(NOT prop_TYPE STREQUAL "EXECUTABLE")
+    message(SEND_ERROR
+      "exi_minject should only be called on an EXECUTABLE (got ${prop_TYPE})")
+  endif()
+
+  if(arg_COPY OR arg_BACKUP)
+    add_custom_command(TARGET ${tgt} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${tgt}>
+      $<TARGET_FILE_DIR:${tgt}>/backup-$<TARGET_FILE_NAME:${tgt}>)
+  endif()
+
+  if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(MINJECT_FILE minject.exe)
+  else()
+    set(MINJECT_FILE minject32.exe)
+  endif()
+
+  get_target_property(prop_OUTPUT_NAME mimalloc OUTPUT_NAME)
+  string(REGEX REPLACE "mimalloc\-?" "" var_POSTFIX ${prop_OUTPUT_NAME})
+  if(var_POSTFIX STREQUAL "")
+    set_target_properties(mimalloc PROPERTIES
+      OUTPUT_NAME "mimalloc-override")
+    set(var_POSTFIX "override")
+  endif()
+
+  # message(STATUS "Postfix: ${var_POSTFIX}")
+  add_custom_command(TARGET ${tgt} POST_BUILD
+    COMMAND ${EXI_MI_FOLDER}/bin/${MINJECT_FILE}
+    --inplace --force
+    --postfix=${var_POSTFIX} $<TARGET_FILE:${tgt}>)
+endfunction(exi_minject)

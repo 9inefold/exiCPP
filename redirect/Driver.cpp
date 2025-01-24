@@ -23,6 +23,7 @@
 #include <Globals.hpp>
 #include <Logging.hpp>
 #include <Mem.hpp>
+#include <RVA.hpp>
 #include <Strings.hpp>
 #include <WinAPI.hpp>
 #include <Version.hpp>
@@ -109,12 +110,27 @@ static bool Driver(HINSTANCE Dll) {
 
   void* MiDll = FindMimallocAndSetup(
     GetPatches(), DllNames, ::ForceRedirect);
+  if (MiDll == nullptr)
+    return Result;
+  
+  ::mi_redirect_entry = RVAHandler(MiDll)
+    .getExport<_mi_redirect_entry>("_mi_redirect_entry");
+  if (::mi_redirect_entry && ::PrioritizeLoadOrder) {
+    // TODO: PlaceDllAfterNtdllInLoadOrder(MiDll);
+  }
 
   return Result;
 }
 
 static bool DriverMain(HINSTANCE Dll, DWORD Reason) {
   bool Ret = Driver(Dll);
+  if (NO_PATCH_ERRORS) {
+    MiTrace("standard malloc is redirected (v1.1c)");
+  } else {
+    MiWarn("standard malloc is _not_ redirected! -- "
+           "using regular malloc/free. (v1.1c)");
+  }
+
   if (NO_PATCH_ERRORS && mi_redirect_entry != nullptr) {
     mi_redirect_entry(Reason);
   }

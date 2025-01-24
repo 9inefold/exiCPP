@@ -67,6 +67,7 @@ private:
 template <> class ArrayRefBase<char> {
 public:
   constexpr ArrayRefBase() = default;
+  static ArrayRef<char> New(const char* Str);
 
   /// equals - Check for element-wise equality.
   bool equals(ArrayRef<char> RHS) const;
@@ -261,18 +262,7 @@ public:
   /// @}
 };
 
-// template <typename T>
-// inline bool ArrayRefBase<T>::equals(ArrayRef<T> RHS) const {
-//   if (self().Length != RHS.Length)
-//     return false;
-//   auto It = RHS.begin();
-//   for (const T& Val : self()) {
-//     if (Val != *It)
-//       return false;
-//     ++It;
-//   }
-//   return true;
-// }
+extern template class ArrayRef<char>;
 
 /// MutArrayRef - Represent a mutable reference to an array (0 or more
 /// elements consecutively in memory), i.e. a start pointer and a length.  It
@@ -378,6 +368,8 @@ public:
     return data()[Index];
   }
 };
+
+ArrayRef<char> operator ""_str(const char* Str, usize Len) noexcept;
 
 /// @name ArrayRef Deduction guides
 /// @{

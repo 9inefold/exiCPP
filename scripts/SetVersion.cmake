@@ -19,9 +19,9 @@ endmacro()
 function(set_version prefix)
   cmake_parse_arguments(
     PARSE_ARGV 0 _V
-    "PROJECT" # Options
+    "PROJECT"       # Options
     "PREFIX;STRING" # Single value
-    "" # Multi value
+    ""              # Multi value
   )
 
   if(DEFINED _V_STRING)

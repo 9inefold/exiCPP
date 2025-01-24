@@ -32,7 +32,7 @@
 
 using namespace re;
 
-static constexpr usize kBufSize = 4096 * 4;
+static constexpr usize kBufSize = 4096 * 8;
 static char LogBuffer[kBufSize + 2];
 static usize LogSize = 0;
 
@@ -605,6 +605,7 @@ static void LogCommon(const char* Pre, const char* Fmt, H::ArgList& Args) {
   if (not IsLogFull()) {
     WriteToLog('\n');
   } else {
+    ::LogBuffer[kBufSize - 1] = '.';
     ::LogBuffer[kBufSize + 0] = '\n';
     ::LogBuffer[kBufSize + 1] = '\0';
   }

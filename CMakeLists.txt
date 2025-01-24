@@ -99,8 +99,14 @@ if(EXI_DEBUG_BUILD)
   message(STATUS "[exicpp] Fast debug: ${EXI_FAST_DEBUG}")
 endif()
 
-add_subdirectory(include/core)
-set(EXI_BASE_FOLDER ${CMAKE_CURRENT_SOURCE_DIR})
+set(EXI_BASE_FOLDER ${CMAKE_CURRENT_SOURCE_DIR} CACHE FILEPATH "The root exi directory.")
+set(EXI_VENDORED_FOLDER "${EXI_BASE_FOLDER}/vendored" CACHE FILEPATH "The vendored directory.")
+set(EXI_MI_FOLDER "${EXI_VENDORED_FOLDER}/mimalloc" CACHE FILEPATH "The mimalloc directory.")
+add_subdirectory(include/core) # Configure files
+
+function(exi_minject tgt)
+  # Does nothing...
+endfunction(exi_minject)
 
 if(EXI_USE_MIMALLOC)
   set(MI_OVERRIDE ON)
@@ -109,9 +115,11 @@ if(EXI_USE_MIMALLOC)
   set(MI_BUILD_STATIC ON)
 
   if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
-    # Currently doesn't work on x64.
-    set(MI_WIN_REDIRECT OFF)
-    set(EXI_REDIRECT ON)
+    if(NOT MSVC)
+      # Currently doesn't work on x64.
+      set(MI_WIN_REDIRECT OFF)
+      set(EXI_REDIRECT ON CACHE BOOL "" FORCE)
+    endif()
   endif()
 
   if(EXI_DEBUG_BUILD)
@@ -124,11 +132,8 @@ if(EXI_USE_MIMALLOC)
 
   add_subdirectory(vendored/mimalloc)
   if(EXI_REDIRECT)
-    add_subdirectory(redirect)
     exi_clear_lib_prefix(mimalloc)
-    set_target_properties(mimalloc PROPERTIES
-      OUTPUT_NAME "mimalloc-override"
-    )
+    add_subdirectory(redirect)
   endif()
 endif()
 

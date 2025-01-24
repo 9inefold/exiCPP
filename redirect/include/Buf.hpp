@@ -37,17 +37,18 @@ namespace H {
 
 template <typename Ch> struct GenericBuf {
   using Char = Ch;
+  static constexpr usize kGBufSize = kMaxPath + 1;
 public:
   constexpr Char* data() { return Data; }
   constexpr const Char* data() const { return Data; }
   constexpr usize size() const { return Size; }
   constexpr usize sizeInBytes() const { return Size * sizeof(Char); }
-  static constexpr usize capacity() { return kMaxPath; }
-  static constexpr usize capacityInBytes() { return kMaxPath * sizeof(Char); }
+  static constexpr usize capacity() { return kGBufSize - 1; }
+  static constexpr usize capacityInBytes() { return capacity() * sizeof(Char); }
   constexpr bool empty() const { return Size == 0 || *Data == Ch(0); }
 public:
   usize Size = 0;
-  Char Data[kMaxPath] {};
+  Char Data[kGBufSize] {};
 };
 
 extern template struct GenericBuf<char>;
@@ -59,6 +60,7 @@ struct NameBuf : public H::GenericBuf<char> {
   using Base = H::GenericBuf<Char>;
 public:
   void loadNt(AnsiString Str);
+  void loadNt_U(UnicodeString UStr);
   void setNt(AnsiString& Str) const;
 
   MutArrayRef<Char> buf();

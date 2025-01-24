@@ -38,13 +38,7 @@ static UnicodeString LoadEnvStr(const char* Env, WNameBuf& UBuf) {
 static void CloneUStrToStr(WNameBuf& UBuf, NameBuf& Buf) {
   UnicodeString UStr;
   UBuf.setNt(UStr);
-
-  AnsiString Str;
-  Buf.setNt(Str);
-
-  RtlUnicodeStringToAnsiString(&Str, &UStr, false);
-  Buf.loadNt(Str);
-  Buf.Data[Buf.capacity() - 1] = '\0';
+  Buf.loadNt_U(UStr);
 }
 
 static bool DoQuery(UnicodeString UEnv, WNameBuf& UNameBuf) {
@@ -74,7 +68,6 @@ bool re::FindEnvironmentVariable(const char* Env, NameBuf& Buf) {
   UnicodeString UEnv = LoadEnvStr(Env, EnvBuf);
 
   WNameBuf UNameBuf {};
-
   if (!DoQuery(UEnv, UNameBuf))
     return false;
 

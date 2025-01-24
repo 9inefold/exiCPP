@@ -60,7 +60,8 @@ template <usize Align, typename T>
 inline T* assume_aligned(T* Ptr) noexcept {
   static_assert(is_pow2(Align), "Align must be a power of 2");
 #if EXI_INVARIANTS
-  re_assert((uptr(Ptr) & (Align - 1)) == 0);
+  re_assert((uptr(Ptr) & uptr(Align - 1)) == 0,
+    "Misaligned pointer in assume_aligned!");
 #endif // EXI_INVARIANTS
   return static_cast<T*>(
     __builtin_assume_aligned(Ptr, Align));
@@ -69,7 +70,7 @@ inline T* assume_aligned(T* Ptr) noexcept {
 template <usize Align>
 inline uptr offset_from_last_align(const void* ptr) {
   static_assert(is_pow2(Align), "Align must be a power of 2");
-  return Align - (uptr(ptr) & (Align - 1U));
+  return Align - (uptr(ptr) & uptr(Align - 1U));
 }
 
 template <typename T>

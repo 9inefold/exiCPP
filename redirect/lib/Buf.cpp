@@ -41,13 +41,19 @@ static inline void DoSet(StrType& Out, const BufType& In) {
 template <class StrType, class BufType>
 static inline void DoLoad(const StrType& In, BufType& Out) {
   using Char = typename BufType::Char;
-  re_assert(In.Length <= Out.capacityInBytes());
+  if UNLIKELY(In.Length > Out.capacityInBytes()) {
+    re_assert(In.Length <= Out.capacityInBytes());
+    Out.Size = 0;
+    Out.Data[0] = '\0';
+    return;
+  }
 
   const usize Len = (In.Length / sizeof(Char));
   if (In.Buffer != Out.data())
     // Only copy if this isn't a reference to this buffer.
     (void) Memcpy(Out.Data, In.Buffer, Len);
   Out.Size = Len;
+  Out.Data[Len] = '\0';
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -55,6 +61,13 @@ static inline void DoLoad(const StrType& In, BufType& Out) {
 
 void NameBuf::loadNt(AnsiString Str) {
   DoLoad(Str, *this);
+}
+
+void NameBuf::loadNt_U(UnicodeString UStr) {
+  AnsiString Str;
+  this->setNt(Str);
+  RtlUnicodeStringToAnsiString(&Str, &UStr, false);
+  this->loadNt(Str);
 }
 
 void NameBuf::setNt(AnsiString& Str) const {

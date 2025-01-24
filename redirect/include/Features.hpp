@@ -41,11 +41,21 @@
 #endif
 
 #if HAS_ATTR(always_inline)
-# define ALWAYS_INLINE inline __attribute__((always_inline))
-#elif defined(_MSC_VER)
+# define RE_ALWAYS_INLINE __attribute__((always_inline))
+#else
+# define RE_ALWAYS_INLINE inline
+#endif
+
+#if defined(_MSC_VER)
 # define ALWAYS_INLINE __forceinline
 #else
-# define ALWAYS_INLINE inline
+# define ALWAYS_INLINE inline RE_ALWAYS_INLINE
+#endif
+
+#if HAS_ATTR(cold)
+# define RE_COLD __attribute__((cold))
+#else
+# define RE_COLD
 #endif
 
 #define DLL_EXPORT __declspec(dllexport)
@@ -61,6 +71,8 @@
 #define LIKELY(...)   RE_EXPECT(1, (__VA_ARGS__))
 #define UNLIKELY(...) RE_EXPECT(0, (__VA_ARGS__))
 
+#define FWD(...) static_cast<decltype(__VA_ARGS__)&&>(__VA_ARGS__)
+
 #if HAS_BUILTIN(__builtin_trap) || defined(__GNUC__)
 # define RE_TRAP __builtin_trap()
 #elif defined(_MSC_VER)
@@ -70,23 +82,27 @@
 #endif
 
 #if EXI_DEBUG
-# define re_assert(...) \
- (LIKELY(::re::re_assert_(__VA_ARGS__)) ? (void(0)) : (RE_TRAP))
+# define re_assert(...) [] RE_ALWAYS_INLINE               \
+ (auto&& Expr, const char* Msg = "") {                    \
+  LIKELY(static_cast<bool>(FWD(Expr))) ? (void(0))        \
+    : (void(::re::re_assert_failed(Msg, #__VA_ARGS__)));  \
+} (__VA_ARGS__)
 #else
 # define re_assert(...) (void(0))
 #endif
 
 #if __has_cpp_attribute(clang::musttail)
+# define HAS_MUSTTAIL 1
 # define tail_return [[clang::musttail]] return
 #else
+# define HAS_MUSTTAIL 0
 # define tail_return return
 #endif
 
 namespace re {
-
-ALWAYS_INLINE constexpr bool
- re_assert_(auto Expr, const char* Str = "") {
-  return LIKELY(static_cast<bool>(Expr));
-}
-
+#if EXI_DEBUG
+/// Defined in `Globals.cpp`.
+RE_COLD void re_assert_failed(
+  const char* Msg, const char* Expr);
+#endif // EXI_DEBUG
 } // namespace re

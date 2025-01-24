@@ -95,7 +95,7 @@ public:
 
   template <typename T>
   T* getExport(const char* Str) const {
-    return static_cast<T*>(
+    return reinterpret_cast<T*>(
       this->getExportRaw(Str));
   }
 
@@ -147,20 +147,25 @@ struct RVAHandler {
   usize size() const { return Size; }
 
 public:
+  static constexpr bool alignDefault = false;
+  
   /// Gets a pointer of type `T` from an RVA.
-  template <typename T = void>
+  template <typename T = void, bool DoAlign = alignDefault>
   T* get(usize Off) const {
     // Don't fuck up..
     re_assert((Off + sizeof_v<T>) <= this->Size);
-    return aligned_ptr_cast<T>(Base + Off);
+    if constexpr (DoAlign)
+      return aligned_ptr_cast<T>(Base + Off);
+    else
+      return ptr_cast<T>(Base + Off);
   }
 
   /// Gets an array of type `T` from an RVA & length.
-  template <typename T>
+  template <typename T, bool DoAlign = alignDefault>
   MutArrayRef<T> getArr(usize Off, usize Count) const {
     static_assert(sizeof_v<T> != 0, "Cannot use void!");
     re_assert((Off + Count * sizeof_v<T>) <= this->Size);
-    return MutArrayRef<T>(get<T>(Off), Count);
+    return MutArrayRef<T>(get<T, DoAlign>(Off), Count);
   }
 
   /// Gets the offset of the default PE headers.
@@ -190,7 +195,7 @@ public:
   /// Gets an export of type `T` from the current module.
   template <typename T>
   T* getExport(const char* Str) const {
-    return static_cast<T*>(
+    return reinterpret_cast<T*>(
       this->getExportRaw(Str));
   }
 

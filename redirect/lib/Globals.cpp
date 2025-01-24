@@ -22,3 +22,64 @@
 //===----------------------------------------------------------------===//
 
 #include <Globals.hpp>
+#include <Fundamental.hpp>
+#if EXI_DEBUG
+# include <ArrayRef.hpp>
+# include <Strings.hpp>
+# include "NtImports.hpp"
+#endif
+
+using namespace re;
+
+#if EXI_DEBUG
+extern "C" {
+NTSYSAPI ULONG DbgPrint(PCSTR Fmt, ...);
+} // extern "C"
+
+static bool AssertInPrint = false;
+
+static void PrintSimpleExpr(const char* Expr) {
+  (void) DbgPrint("Assertion `%s` failed.\n", Expr);
+}
+
+static void PrintMsg(const char* Msg) {
+  (void) DbgPrint("Assertion failed: %s.\n", Msg);
+}
+
+static void PrintDbg(const char* Msg, const char* Expr) {
+  if (!Msg || *Msg == '\0')
+    return PrintSimpleExpr(Expr);
+
+  ArrayRef MsgStr(Msg, Strlen(Msg));
+  ArrayRef ExprStr(Expr, Strlen(Expr));
+
+  if (!ExprStr.ends_with('"'))
+    return PrintMsg(Msg);
+  
+  ExprStr = ExprStr.drop_back();
+  if (!ExprStr.ends_with(MsgStr))
+    return PrintMsg(Msg);
+  ExprStr = ExprStr.drop_back();
+
+  for (char Back = ExprStr.back(); Back != ',';) {
+    if (ExprStr.empty())
+      return PrintMsg(Msg);
+    Back = ExprStr.back();
+    ExprStr = ExprStr.drop_back();
+  }
+
+  int ExprSize = ExprStr.size();
+  (void) DbgPrint("Assertion `%*s` failed: %s.\n",
+    int(ExprSize), Expr, Msg);
+} 
+
+/// Use with breakpoints.
+RE_COLD void re::re_assert_failed(const char* Msg, const char* Expr) {
+  if (not AssertInPrint && Expr) {
+    AssertInPrint = true;
+    PrintDbg(Msg, Expr);
+    AssertInPrint = false;
+  }
+  RE_TRAP;
+}
+#endif
