@@ -32,7 +32,7 @@
 
 using namespace re;
 
-static constexpr usize kBufSize = 4096 * 8;
+static constexpr usize kBufSize = 4096 * 4;
 static char LogBuffer[kBufSize + 2];
 static usize LogSize = 0;
 
