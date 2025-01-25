@@ -25,19 +25,19 @@
 
 using namespace re;
 
-JmpKind DetourHandler::getJmpKind() const {
+Jmp DetourHandler::getJmpKind() const {
   if UNLIKELY(Func == nullptr)
-    return JK_Unknown;
+    return Jmp::Unknown;
   
   if (Func[0] == 0xeb)
-    return JK_NearBYTE;
+    return Jmp::NearBYTE;
   else if (Func[0] == 0xe9)
-    return JK_NearDWORD;
+    return Jmp::NearDWORD;
   else if (get<u16&>(0) == 0x25ff
         && get<i32&>(2) == 0)
-    return JK_FarQWORD;
-  
-  return JK_Unknown;
+    return Jmp::FarQWORD;
+  else
+    return Jmp::Unknown;
 }
 
 byte* DetourHandler::getDetouredAddress() const {
@@ -45,13 +45,13 @@ byte* DetourHandler::getDetouredAddress() const {
     return nullptr;
   
   switch (getJmpKind()) {
-  case JK_NearBYTE:
+  case Jmp::NearBYTE:
     return get<byte>(
       Func[1] + 2);
-  case JK_NearDWORD:
+  case Jmp::NearDWORD:
     return get<byte>(
       get<i32&>(1) + 5);
-  case JK_FarQWORD:
+  case Jmp::FarQWORD:
     return *get<byte*>(6);
   default:
     return nullptr;

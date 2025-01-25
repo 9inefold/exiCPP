@@ -56,6 +56,8 @@ extern template struct GenericBuf<wchar_t>;
 
 } // namespace H
 
+struct WNameBuf;
+
 struct NameBuf : public H::GenericBuf<char> {
   using Base = H::GenericBuf<Char>;
 public:
@@ -71,6 +73,7 @@ struct WNameBuf : public H::GenericBuf<wchar_t> {
   using Base = H::GenericBuf<Char>;
 public:
   void loadNt(UnicodeString UStr);
+  void loadNt_U(AnsiString Str);
   void setNt(UnicodeString& UStr) const;
 
   MutArrayRef<Char> buf();

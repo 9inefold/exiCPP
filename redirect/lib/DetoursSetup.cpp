@@ -28,7 +28,6 @@
 #include <RVA.hpp>
 #include <Strings.hpp>
 #include <Version.hpp>
-#include <utility>
 #include "NtImports.hpp"
 
 using namespace re;
@@ -309,7 +308,7 @@ static void ResolveFunctions(
       
       // IATEntry != nullptr
       Data.UsePatchedImports = true;
-      Data.IATEntry = IATEntry;
+      Data.IATEntry = ptr_cast<void*>(IATEntry);
 
       MiTrace("resolve import \"%s!%s\" in %s at %#p to %#p (%i)",
         Patch.ModuleName, Patch.FunctionName,
@@ -399,6 +398,9 @@ static void DumpLoadedModules(bool LoadOrInitOrder) {
   if (!::MIMALLOC_VERBOSE)
     // Exit early, can't see anything anyways.
     return;
+  const bool IsLoad = (LoadOrInitOrder == 1);
+  MiTrace("module %s order:",
+    (IsLoad ? "load" : "initialization"));
   
   auto* Ntdll = AnsiGetDllHandle("ntdll.dll");
   if (Ntdll == nullptr)
@@ -406,10 +408,6 @@ static void DumpLoadedModules(bool LoadOrInitOrder) {
   auto* Entry = FindEntryForLoadedModule(Ntdll);
   if (Entry == nullptr)
     return;
-  
-  const bool IsLoad = (LoadOrInitOrder == 1);
-  MiTrace("module %s order:",
-    (IsLoad ? "load" : "initialization"));
   
   NameBuf Buf;
   if (IsLoad)
@@ -450,7 +448,7 @@ static bool SetupPatching(
   return true;
 }
 
-void* re::FindMimallocAndSetup(
+HINSTANCE re::FindMimallocAndSetup(
   MutArrayRef<PerFuncPatchData> Patches,
   ArrayRef<const char*> Names,
   bool ForceRedirect
@@ -478,5 +476,69 @@ void* re::FindMimallocAndSetup(
            "ignored (due to MIMALLOC_FORCE_REDIRECT=1).");
   }
   
-  return Dll;
+  return reinterpret_cast<HINSTANCE>(Dll);
+}
+
+//======================================================================//
+// Ordering
+//======================================================================//
+
+static LDRDataTableEntry* AnsiFindEntry(const char* Name) {
+  WNameBuf UBuf;
+  {
+    if UNLIKELY(!Name || *Name == '\0')
+      return nullptr;
+    AnsiString Str;
+    RtlInitAnsiString(&Str, Name);
+    UBuf.loadNt_U(Str);
+  }
+
+  ArrayRef<wchar_t> UName = UBuf.buf();
+  for (auto* Link : LoadOrderList::Iterable()) {
+    LDRDataTableEntry* Entry
+      = Link->asDataTableEntry();
+    auto& Dll = Entry->BaseDllName;
+    if (UName == Dll.buf())
+      return Entry;
+  }
+
+  return nullptr;
+}
+
+static void LinkRemove(LoadOrderList* Link) {
+  auto* Flink = Link->Flink;
+  auto* Blink = Link->Blink;
+  if (Flink)
+    Flink->Blink = Blink;
+  if (Blink)
+    Blink->Flink = Flink;
+}
+
+static void LinkInsert(LoadOrderList* Prev, LoadOrderList* Next) {
+  auto* Flink = Prev->Flink;
+  Next->Flink = Flink;
+  if (Flink)
+    Flink->Blink = Next;
+  Next->Blink = Prev;
+  Prev->Flink = Next;
+}
+
+void re::PlaceDllAfterNtdllInLoadOrder(HINSTANCE Dll) {
+  LDRDataTableEntry* MiTbl
+    = FindEntryForLoadedModule(Dll);
+  LDRDataTableEntry* NtTbl
+    = AnsiFindEntry("ntdll.dll");
+  if (!NtTbl || !MiTbl)
+    return;
+  if (NtTbl == MiTbl)
+    return;
+  
+  auto* MiLink = MiTbl->inLoadOrder();
+  auto* NtLink = NtTbl->inLoadOrder();
+  // Check if already in the correct order.
+  if (NtLink->Flink == MiLink)
+    return;
+  
+  LinkRemove(MiLink);
+  LinkInsert(NtLink, MiLink);
 }

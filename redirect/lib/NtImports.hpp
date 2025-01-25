@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <ArrayRef.hpp>
 #include <Fundamental.hpp>
 #include <WinAPI.hpp>
 
@@ -68,6 +69,7 @@ public:
   u16 MaximumLength; // Max length in bytes.
   Char* Buffer;      // Pointer to the buffer.
 public:
+  MutArrayRef<Char> buf() const { return {Buffer, size()}; }
   constexpr Char* data() { return Buffer; }
   constexpr const Char* data() const { return Buffer; }
   usize size() const { return Length / sizeof(Ch); }
@@ -106,8 +108,8 @@ struct RTLBalancedNode {
 // Type-Safe List
 
 struct LDRListEntry {
-  LDRListEntry* _iPrev;
-  LDRListEntry* _iNext;
+  LDRListEntry* Flink;
+  LDRListEntry* Blink;
 };
 
 template <usize TableOffset> struct TLDRListEntry;
@@ -214,12 +216,12 @@ public:
   }
 
   inline SelfType* next() {
-    auto* baseNext = this->BaseType::_iNext;
+    auto* baseNext = this->BaseType::Blink;
     return reinterpret_cast<SelfType*>(baseNext);
   }
 
   inline SelfType* prev() {
-    auto* basePrev = this->BaseType::_iPrev;
+    auto* basePrev = this->BaseType::Flink;
     return reinterpret_cast<SelfType*>(basePrev);
   }
 

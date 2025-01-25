@@ -34,12 +34,19 @@ enum PatchMode : int {
   PM_PATCH_TERM = 2,
 };
 
+enum PatchResult : int {
+  PR_SUCCESS = 0,
+  PR_FAILED  = 1,
+  PR_PARTIAL = 2,
+};
+
 struct PatchData {
   int UsePatchedImports;
   // int _iPad1;
   union {
-    byte* FunctionData; 
-    byte** IATEntry;
+    byte* FunctionData;
+    void** IATEntry;
+    void* FDOrIAT;
   };
   PatchMode ModeStore;
   // int _iPad2;  

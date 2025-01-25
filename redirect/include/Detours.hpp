@@ -24,6 +24,7 @@
 #pragma once
 
 #include <Patches.hpp>
+#include <windef.h>
 
 namespace re {
 namespace H {
@@ -37,11 +38,11 @@ using ref_or_ptr_t = H::RefOrPtrType<
   std::remove_reference_t<T>
 >;
 
-enum JmpKind {
-  JK_NearBYTE,
-  JK_NearDWORD,
-  JK_FarQWORD,
-  JK_Unknown,
+enum class Jmp {
+  NearBYTE,
+  NearDWORD,
+  FarQWORD,
+  Unknown,
 };
 
 class DetourHandler {
@@ -63,22 +64,29 @@ public:
   }
 
   /// Returns the type of detour used, or unknown.
-  JmpKind getJmpKind() const;
+  Jmp getJmpKind() const;
   /// Returns the address of the detour, or null.
   byte* getDetouredAddress() const;
   
+  byte* data() const { return Func; }
   explicit operator bool() const { return !!Func; }
 };
 
 //////////////////////////////////////////////////////////////////////////
 // Setup
 
-void* FindMimallocAndSetup(
+HINSTANCE FindMimallocAndSetup(
   MutArrayRef<PerFuncPatchData> Patches,
   ArrayRef<const char*> Names,
   bool ForceRedirect);
 
+void PlaceDllAfterNtdllInLoadOrder(HINSTANCE Dll);
+
 //////////////////////////////////////////////////////////////////////////
 // Implementation
+
+PatchResult HandlePatching(
+  PatchMode Mode,
+  MutArrayRef<PerFuncPatchData> Patches);
 
 } // namespace re

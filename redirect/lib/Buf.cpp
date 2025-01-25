@@ -44,7 +44,7 @@ static inline void DoLoad(const StrType& In, BufType& Out) {
   if UNLIKELY(In.Length > Out.capacityInBytes()) {
     re_assert(In.Length <= Out.capacityInBytes());
     Out.Size = 0;
-    Out.Data[0] = '\0';
+    Out.Data[0] = Char('\0');
     return;
   }
 
@@ -53,7 +53,7 @@ static inline void DoLoad(const StrType& In, BufType& Out) {
     // Only copy if this isn't a reference to this buffer.
     (void) Memcpy(Out.Data, In.Buffer, Len);
   Out.Size = Len;
-  Out.Data[Len] = '\0';
+  Out.Data[Len] = Char('\0');
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -87,6 +87,13 @@ ArrayRef<char> NameBuf::buf() const {
 
 void WNameBuf::loadNt(UnicodeString UStr) {
   DoLoad(UStr, *this);
+}
+
+void WNameBuf::loadNt_U(AnsiString Str) {
+  UnicodeString UStr;
+  this->setNt(UStr);
+  RtlAnsiStringToUnicodeString(&UStr, &Str, false);
+  this->loadNt(UStr);
 }
 
 void WNameBuf::setNt(UnicodeString& UStr) const {

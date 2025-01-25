@@ -86,18 +86,14 @@ static void InitGlobals(NameBuf& Buf) {
 }
 
 static bool Driver(HINSTANCE Dll) {
-  bool Result = true;
   NameBuf Buf {};
-
   if (IsRedirectDisabled(Buf))
-    return Result;
+    return true;
   InitGlobals(Buf);
 
   MiTrace("build: %s", __DATE__);
   auto [Major, Minor, Build] = GetVersionTriple();
   MiTrace("windows version: %u.%u.%u", Major, Minor, Build);
-
-  MIMALLOC_VERBOSE = true; // TODO: REMOVE
 
   const char* DllNames[] {
     "mimalloc.dll",
@@ -107,19 +103,33 @@ static bool Driver(HINSTANCE Dll) {
     "mimalloc-debug.dll",
     "mimalloc-release.dll"
   };
-
-  void* MiDll = FindMimallocAndSetup(
+  
+  HINSTANCE MiDll = FindMimallocAndSetup(
     GetPatches(), DllNames, ::ForceRedirect);
   if (MiDll == nullptr)
-    return Result;
+    return true;
   
   ::mi_redirect_entry = RVAHandler(MiDll)
     .getExport<_mi_redirect_entry>("_mi_redirect_entry");
-  if (::mi_redirect_entry && ::PrioritizeLoadOrder) {
-    // TODO: PlaceDllAfterNtdllInLoadOrder(MiDll);
+  if (::mi_redirect_entry && ::PrioritizeLoadOrder)
+    PlaceDllAfterNtdllInLoadOrder(MiDll);
+  
+  PatchResult Result
+    = HandlePatching(PM_PATCH, GetPatches());
+  if (Result == PR_SUCCESS || ::ForceRedirect) {
+    if (::ForceRedirect)
+      MiWarn("there were errors during patching but these are ignored "
+             "(due to MIMALLOC_FORCE_REDIRECT=1).");
+    NO_PATCH_ERRORS = true;
+  } else if (Result == PR_FAILED) {
+    MiWarn("redirection patching failed");
+  } else /*Result == PR_PARTIAL*/ {
+    MiWarn("redirection failed with partially applied patches -- "
+           "aborting dll loading.");
+    return false;
   }
 
-  return Result;
+  return true;
 }
 
 static bool DriverMain(HINSTANCE Dll, DWORD Reason) {

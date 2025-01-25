@@ -143,6 +143,10 @@ struct RVAHandler {
     this->updateSize();
   }
 
+  RVAHandler(HINSTANCE Dll) :
+   RVAHandler(static_cast<void*>(Dll)) {
+  }
+
   byte* base() const { return Base; }
   usize size() const { return Size; }
 

@@ -18,6 +18,7 @@
 
 #include "NtImports.hpp"
 #include <RVA.hpp>
+#include <Strings.hpp>
 
 using namespace re;
 
