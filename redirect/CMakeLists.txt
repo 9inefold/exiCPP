@@ -2,7 +2,7 @@ include_guard(DIRECTORY)
 
 project(
   exi-redirect
-  VERSION 0.1.3
+  VERSION 0.1.4
   LANGUAGES CXX C
 )
 
@@ -10,7 +10,22 @@ if(NOT WIN32)
   message(SEND_ERROR "Redirect should not be used on non-Windows targets!")
 endif()
 
-# target_link_options(hcrt-inc INTERFACE -nostdlib++)
+add_library(exi-redirect-patches STATIC lib/Patches.cpp)
+if(NOT MSVC)
+  target_compile_options(exi-redirect-patches
+    PRIVATE -fpermissive -w
+    PUBLIC
+    -fno-threadsafe-statics
+    -fno-asynchronous-unwind-tables
+    -fno-exceptions -fno-rtti
+  )
+endif()
+
+target_include_directories(
+  exi-redirect-patches PUBLIC
+  ${EXI_BASE_FOLDER}/include/core/Config
+  include
+)
 
 add_library(exi-redirect SHARED Driver.cpp)
 add_library(exi::redirect ALIAS exi-redirect)
@@ -28,11 +43,7 @@ target_compile_options(exi-redirect PRIVATE
   -fno-exceptions -fno-rtti
 )
 
-target_include_directories(exi-redirect PRIVATE
-  ${EXI_BASE_FOLDER}/include/core/Config
-  include
-)
-
+target_link_libraries(exi-redirect PRIVATE exi-redirect-patches)
 target_sources(exi-redirect PRIVATE
   lib/ArrayRef.cpp
   lib/Buf.cpp
@@ -43,7 +54,7 @@ target_sources(exi-redirect PRIVATE
   lib/Globals.cpp
   lib/Logging.cpp
   lib/NtImports.cpp
-  lib/Patches.cpp
+  # lib/Patches.cpp
   lib/RVA.cpp
   lib/Strings.cpp
   lib/Version.cpp
@@ -54,6 +65,16 @@ target_sources(exi-redirect PRIVATE
 target_link_options(exi-redirect PRIVATE -nostdlib -nodefaultlibs)
 target_link_libraries(exi-redirect PRIVATE ntdll)
 
+set(re_install_libdir       "${CMAKE_INSTALL_LIBDIR}")
+set(re_install_bindir       "${CMAKE_INSTALL_BINDIR}")
+set(re_install_cmakedir     "${CMAKE_INSTALL_LIBDIR}/cmake/exi-redirect")
+
+install(TARGETS exi-redirect EXPORT exi-redirect
+  ARCHIVE DESTINATION ${re_install_libdir}
+  RUNTIME DESTINATION ${re_install_bindir}
+  LIBRARY DESTINATION ${re_install_libdir})
+install(EXPORT exi-redirect DESTINATION ${re_install_cmakedir})
+
 ##########################################################################
 
 function(exi_minject tgt)
@@ -61,6 +82,12 @@ function(exi_minject tgt)
     PARSE_ARGV 1 arg
     "COPY;BACKUP;CLASSIC" "" "")
   
+  get_target_property(prop_TYPE ${tgt} TYPE)
+  if(NOT prop_TYPE STREQUAL "EXECUTABLE")
+    message(SEND_ERROR
+      "exi_minject should only be called on an EXECUTABLE (got ${prop_TYPE})")
+  endif()
+
   if(EXI_REDIRECT)
     if(arg_CLASSIC)
       target_link_libraries(${tgt}
@@ -72,12 +99,6 @@ function(exi_minject tgt)
     else()
       target_link_libraries(${tgt} exi::redirect)
     endif()
-  endif()
-  
-  get_target_property(prop_TYPE ${tgt} TYPE)
-  if(NOT prop_TYPE STREQUAL "EXECUTABLE")
-    message(SEND_ERROR
-      "exi_minject should only be called on an EXECUTABLE (got ${prop_TYPE})")
   endif()
 
   if(arg_COPY OR arg_BACKUP)

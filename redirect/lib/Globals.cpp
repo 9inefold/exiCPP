@@ -31,19 +31,15 @@
 
 using namespace re;
 
-#if EXI_DEBUG
-extern "C" {
-NTSYSAPI ULONG DbgPrint(PCSTR Fmt, ...);
-} // extern "C"
-
+#if RE_DEBUG_EXTRA
 static bool AssertInPrint = false;
 
 static void PrintSimpleExpr(const char* Expr) {
-  (void) DbgPrint("Assertion `%s` failed.\n", Expr);
+  DbgPrint("Assertion `%s` failed.\n", Expr);
 }
 
 static void PrintMsg(const char* Msg) {
-  (void) DbgPrint("Assertion failed: %s.\n", Msg);
+  DbgPrint("Assertion failed: %s.\n", Msg);
 }
 
 static void PrintDbg(const char* Msg, const char* Expr) {
@@ -69,17 +65,22 @@ static void PrintDbg(const char* Msg, const char* Expr) {
   }
 
   int ExprSize = ExprStr.size();
-  (void) DbgPrint("Assertion `%*s` failed: %s.\n",
+  DbgPrint("Assertion `%*s` failed: %s.\n",
     int(ExprSize), Expr, Msg);
 } 
 
+#endif // RE_DEBUG_EXTRA
+
+#if EXI_DEBUG
 /// Use with breakpoints.
 RE_COLD void re::re_assert_failed(const char* Msg, const char* Expr) {
+#if RE_DEBUG_EXTRA
   if (not AssertInPrint && Expr) {
     AssertInPrint = true;
     PrintDbg(Msg, Expr);
     AssertInPrint = false;
   }
+#endif // RE_DEBUG_EXTRA
   RE_TRAP;
 }
-#endif
+#endif // EXI_DEBUG

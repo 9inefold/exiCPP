@@ -97,7 +97,7 @@ template <usize Align, typename T>
 inline T* align_ptr(T* Ptr) {
   static_assert(is_pow2(Align), "Align must be a power of 2");
   static constexpr uptr kMask = ~(Align - 1u);
-  const uptr Val = uptr(Ptr) + 8;
+  const uptr Val = uptr(Ptr) + Align;
   return reinterpret_cast<T*>(Val & kMask);
 }
 

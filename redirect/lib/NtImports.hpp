@@ -263,6 +263,13 @@ extern template struct TLDRListEntry<2u>;
 
 extern "C" {
 
+#if RE_DEBUG_EXTRA
+NTSYSAPI ULONG DbgPrint(PCSTR Fmt, ...);
+# define DbgPrint(...) ((void)::DbgPrint(__VA_ARGS__))
+#else
+# define DbgPrint(...) (void(0))
+#endif
+
 NTSYSAPI NTSTATUS NTAPI LdrEnumerateLoadedModules(
   PVOID                 Unused,
   LDRENUMPROC           Callback,

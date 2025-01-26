@@ -92,7 +92,7 @@ byte** ImportHandler::findIATEntry(byte* Loc) const {
 
   for (IMAGE_IMPORT_DESCRIPTOR& IID : Imports) {
     byte** IAT = RVAs->get<byte*>(IID.FirstThunk);
-    for (; *IAT; ++IAT) {
+    for (; *IAT != nullptr; ++IAT) {
       if (*IAT == Loc)
         return IAT;
     }

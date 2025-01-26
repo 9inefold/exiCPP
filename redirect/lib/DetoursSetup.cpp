@@ -134,8 +134,7 @@ static void UpdatePatchesFromMod(void* Mod, PPatchData Patches) {
 
   ExportHandler Exports = RVAs.exports();
   for (PerFuncPatchData& Patch : Patches) {
-    const char* Name = Patch.FunctionName;
-    if UNLIKELY(!Name)
+    if UNLIKELY(!Patch.FunctionName)
       // Last element, shouldn't be found.
       break;
     if (Patch.TargetAddr != nullptr)
@@ -147,6 +146,8 @@ static void UpdatePatchesFromMod(void* Mod, PPatchData Patches) {
     // Get for mode 2?
     if (Patch.TermName && !Patch.TermAddr) {
       Patch.TermAddr = Exports[Patch.TermName];
+      if (!Patch.TermAddr)
+        MiWarnEx("cannot resolve term %s.", Patch.TermName);
     }
   }
 }
@@ -281,19 +282,35 @@ static void ResolveFunctions(
 ) {
   usize PhysicalAddr = 0;
   byte* CodeSeg = GetCodeSegment(RVAs, &PhysicalAddr);
-  MiTrace("module: %s %#p: code start 0x%#p, size: 0x%zx",
+  MiTrace("module: %s %#p: code start 0x%p, size: 0x%zx",
     ModName, RVAs.base(), CodeSeg, PhysicalAddr);
   
   ExportHandler Exp = RVAs.exports();
   ImportHandler Imp = RVAs.imports();
   for (PerFuncPatchData& Patch : Patches) {
+    if (!Patch.TargetAddr && !Patch.TermAddr) {
+      MiWarnEx("\"%s\" -> \"%s\" has no target or term address",
+        Patch.FunctionName, Patch.TargetName);
+      continue;
+    }
+
     auto Ix = FindUnusedPatch(Patch);
-    if UNLIKELY(!Ix)
+    if UNLIKELY(!Ix) {
+      MiTraceEx("\"%s\" patches full",
+        Patch.FunctionName);
       continue;
-    
-    // Exit early if we want redirects but shouldn't import.
-    if (ForceRedirect && !Patch.ModuleName)
-      continue;
+    }
+
+    if (Patch.ModuleName || ForceRedirect) {
+      // Exit early if we want redirects but shouldn't import.
+      if (!Patch.ModuleName)
+        continue;
+      if (!MIMALLOC_PATCH_IMPORTS && !ForceRedirect) {
+        MiTraceEx("\"%s!%s\" module name but no redirect",
+          Patch.ModuleName, Patch.FunctionName);
+        continue;
+      }
+    }
 
     auto& Data = Patch.Patches[*Ix];
     if (Patch.ModuleName &&
@@ -305,12 +322,12 @@ static void ResolveFunctions(
         continue;
       if (byte** FnRVA = Patch.FunctionRVA)
         *FnRVA = *IATEntry;
-      
+
       // IATEntry != nullptr
       Data.UsePatchedImports = true;
       Data.IATEntry = ptr_cast<void*>(IATEntry);
 
-      MiTrace("resolve import \"%s!%s\" in %s at %#p to %#p (%i)",
+      MiTrace("resolve import \"%s!%s\" in %s at 0x%zu to 0x%zu (%i)",
         Patch.ModuleName, Patch.FunctionName,
         ModName, IATEntry, Patch.TargetAddr, *Ix
       );
@@ -432,7 +449,6 @@ static bool SetupPatching(
     MiTrace("%s \"%s\"", (IsCRT ? "RESOLVING" : "resolving"), Name.data());
     RVAHandler RVAs(Entry->DllBase);
     ResolveFunctions(Name.data(), RVAs, Patches, !IsCRT);
-    // bool IsLoaded = CheckIfLoadedAndAttatched(Entry);
     if (CheckIfLoadedAndAttatched(Entry)) {
       MiError("mimalloc-redirect.dll seems to be initialized after %s\n  "
               "(hint: try to link with the mimalloc library earlier "
@@ -440,7 +456,7 @@ static bool SetupPatching(
         Name.data());
       DumpLoadedModules(true);
       DumpLoadedModules(false);
-      MiError("\n");
+      MiErrorEx("\n");
       return false;
     }
   }
@@ -458,7 +474,7 @@ HINSTANCE re::FindMimallocAndSetup(
     MiTrace("checking for target %s", Name);
     Dll = AnsiGetDllHandle(Name);
     if (Dll != nullptr) {
-      // MiTrace("found %s!", Name);
+      MiTraceEx("found %s!", Name);
       break;
     }
   }

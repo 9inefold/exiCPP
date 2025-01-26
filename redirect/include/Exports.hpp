@@ -28,7 +28,9 @@
 extern "C" {
 
 DLL_EXPORT bool mi_allocator_init(const char** Str); // In `Logging.cpp`.
-DLL_EXPORT bool mi_redirect_enable(void);
-DLL_EXPORT void mi_redirect_disable(void);
+DLL_EXPORT bool mi_redirect_enable(void);            // In `DetoursImpl.cpp`
+DLL_EXPORT bool mi_redirect_enable_term(void);       // In `DetoursImpl.cpp`
+DLL_EXPORT void mi_redirect_disable(void);           // In `DetoursImpl.cpp`
+DLL_EXPORT void mi_allocator_done(void);             // In `DetoursImpl.cpp`
 
 } // extern "C"

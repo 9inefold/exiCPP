@@ -39,4 +39,14 @@ PRINTF_ATTR void MiTrace(const char* Fmt, ...);
 PRINTF_ATTR void MiWarn(const char* Fmt, ...);
 PRINTF_ATTR void MiError(const char* Fmt, ...);
 
+#if RE_DEBUG_EXTRA
+# define MiTraceEx(...) MiTrace(__VA_ARGS__)
+# define MiWarnEx(...)  MiWarn(__VA_ARGS__)
+# define MiErrorEx(...) MiError(__VA_ARGS__)
+#else
+# define MiTraceEx(...) (void(0))
+# define MiWarnEx(...)  (void(0))
+# define MiErrorEx(...) (void(0))
+#endif
+
 } // namespace re

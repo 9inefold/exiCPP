@@ -22,6 +22,14 @@
 #include <Config.inc>
 #include <cstddef>
 
+#define RE_DEBUG_EXTRA_ 1
+
+#if EXI_DEBUG && RE_DEBUG_EXTRA_
+# define RE_DEBUG_EXTRA 1
+#else
+# define RE_DEBUG_EXTRA 0
+#endif
+
 #if !EXI_ON_WIN32
 # error This library should only be used on Windows!
 #elif !defined(_WIN64)

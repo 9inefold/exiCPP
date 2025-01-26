@@ -73,11 +73,11 @@ static void InitGlobals(NameBuf& Buf) {
     MIMALLOC_VERBOSE = false;
 
   Found = FindEnvironmentVariable("MIMALLOC_PRIORITIZE_LOAD_ORDER", Buf);
-  if (!Found || IsTrueEnvBuf(Buf))
+  if (!Found || !IsTrueEnvBuf(Buf))
     ::PrioritizeLoadOrder = false;
   
   Found = FindEnvironmentVariable("MIMALLOC_PATCH_IMPORTS", Buf);
-  if (!Found || IsTrueEnvBuf(Buf))
+  if (!Found || !IsTrueEnvBuf(Buf))
     MIMALLOC_PATCH_IMPORTS = false;
 
   Found = FindEnvironmentVariable("MIMALLOC_FORCE_REDIRECT", Buf);
@@ -103,7 +103,7 @@ static bool Driver(HINSTANCE Dll) {
     "mimalloc-debug.dll",
     "mimalloc-release.dll"
   };
-  
+
   HINSTANCE MiDll = FindMimallocAndSetup(
     GetPatches(), DllNames, ::ForceRedirect);
   if (MiDll == nullptr)

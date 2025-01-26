@@ -169,16 +169,18 @@ void PatchHandler::patchNear(PatchData& Patch, const i64 Dist) {
     // ------------
     // jmp DWORD imm @Dist
     DH.get<u8&>(0)   = 0xe9;
-    DH.get<u32&>(1)  = Dist - 5; // Relative to entry
+    DH.get<i32&>(1)  = Dist - 5; // Relative to entry
+    MiTraceEx("installed near < 5; %li", Padding);
   } else /*Padding == 5*/ {
     SaveBytesForPatching(Patch, DH.data() - 5, 7);
     // jmp DWORD imm @Dist
     DH.get<u8&>(-5)  = 0xe9;
-    DH.get<u32&>(-4) = Dist;
+    DH.get<i32&>(-4) = Dist;
     // ------------
     // jmp BYTE imm -7
     DH.get<u8&>(0)   = 0xeb;
     DH.get<i8&>(1)   = -7;
+    MiTraceEx("installed near == 5; %li", Padding);
   }
 
   MiTrace("write entry: %p, %i, 0x%zx, na",
@@ -204,15 +206,17 @@ void PatchHandler::patchFar(PatchData& Patch, Po* Detour) {
       // [@func]
       DH.get<u8&>(0)  = 0xff;
       DH.get<u8&>(1)  = 0x25;
-      DH.get<u32&>(2) = 0;
+      DH.get<i32&>(2) = 0;
       DH.get<Po*&>(6) = Detour;
+      MiTraceEx("installed far < 8, off == 0; %li", Padding);
     } else {
       SaveBytesForPatching(Patch, DH.data(), 6);
       // ------------
       // jmp QWORD PTR [rip - 6 + @store]
       DH.get<u8&>(0)  = 0xff;
       DH.get<i8&>(1)  = 0x25;
-      DH.get<i32&>(2) = Patch.FunctionOffset - 6; // External
+      DH.get<i32&>(2) = Patch.FunctionOffset - 6; // @store relative
+      MiTraceEx("installed far < 8, off != 0; %li", Padding);
     }
   } else if (Padding < 14) {
     SaveBytesForPatching(Patch, DH.data() - 8, 14);
@@ -222,19 +226,21 @@ void PatchHandler::patchFar(PatchData& Patch, Po* Detour) {
     // jmp QWORD PTR [rip - 14]
     DH.get<u8&>(0)    = 0xff;
     DH.get<u8&>(1)    = 0x25;
-    DH.get<u32&>(2)   = -14;  // Relative to next instruction
+    DH.get<i32&>(2)   = -14;  // Relative to next instruction
+    MiTraceEx("installed far < 14; %li", Padding);
   } else /*Padding == 14*/ {
     SaveBytesForPatching(Patch, DH.data() - 14, 16);
     // jmp QWORD PTR [rip + 0]
     // [@func]
     DH.get<u8&>(-14)  = 0xff;
     DH.get<u8&>(-13)  = 0x25;
-    DH.get<u32&>(-12) = 0;
+    DH.get<i32&>(-12) = 0;
     DH.get<Po*&>(-8)  = Detour;
     // ------------
     // jmp BYTE imm -16
     DH.get<u8&>(0)    = 0xeb;
     DH.get<i8&>(1)    = -16;  // Relative to next instruction
+    MiTraceEx("installed far == 14; %li", Padding);
   }
 
   MiTrace("write entry: %p, %i, 0x%zx, %zi",
@@ -247,15 +253,15 @@ void PatchHandler::patchFunction(PatchData& Patch, byte* Detour) {
   if (IsNearCall(Dist)) {
     PatchHandler::patchNear(Patch, Dist);
   } else {
-    // Using `X` to keep names shorter :P
+    // Using `Po` to keep names shorter :P
     PatchHandler::patchFar(Patch, ptr_cast<Po>(Detour));
   }
 }
 
 void PatchHandler::patch(PatchData& Patch, void* Addr) {
-  if (Addr == nullptr);
+  if (Addr == nullptr)
     return;
-  if UNLIKELY(!Patch.FDOrIAT)
+  if (!Patch.FDOrIAT)
     return;
   
   if (not Patch.UsePatchedImports) {
@@ -264,6 +270,7 @@ void PatchHandler::patch(PatchData& Patch, void* Addr) {
     SaveBytesForPatching(
       Patch, sizeof(*Patch.IATEntry));
     *Patch.IATEntry = Addr;
+    MiTraceEx("installed import 0x%zu", *Patch.IATEntry);
   }
 }
 
@@ -303,11 +310,11 @@ bool PatchHandler::handlePatch(PerFuncPatchData& Data, i32 At) const {
   }
 
   if (Mode == PM_UNPATCH)
-    this->unpatch(Patch);
+    PatchHandler::unpatch(Patch);
   else if (Mode == PM_PATCH)
-    this->patch(Patch, Data.TargetAddr);
+    PatchHandler::patch(Patch, Data.TargetAddr);
   else /*Mode == PM_PATCH_TERM*/
-    this->patch(Patch, Data.TermAddr);
+    PatchHandler::patch(Patch, Data.TermAddr);
   
   Patch.ModeStore = Mode;
   ChangeProtect(BaseAddr, Size, OldFlags);
@@ -360,7 +367,10 @@ static bool ModifyAllPatches(
     // `Patches.size() - 1`, but in the loop stops iterating if `Ix == 0`,
     // which means the first patch is never undone. This has been fixed here.
     for (i32 Ix = kPatchCount - 1; Ix >= 0; --Ix) {
-      if (!Handler(Patches[Ix]))
+      PerFuncPatchData& Patch = Patches[Ix];
+      if UNLIKELY(Patch.FunctionName == nullptr)
+        break;
+      if (!Handler(Patch))
         PatchStatus = false;
     }
     return PatchStatus;
@@ -368,6 +378,8 @@ static bool ModifyAllPatches(
 
   // Not unpatching, loop forward.
   for (PerFuncPatchData& Patch : Patches) {
+    if UNLIKELY(Patch.FunctionName == nullptr)
+      break;
     if (!Handler(Patch))
       return false;
   }
@@ -393,3 +405,32 @@ PatchResult re::HandlePatching(
 
   return DidSucceed ? PR_SUCCESS : PR_FAILED;
 }
+
+//======================================================================//
+// Exports
+//======================================================================//
+
+extern "C" {
+
+DLL_EXPORT bool mi_redirect_enable(void) {
+  PatchResult Result
+    = HandlePatching(PM_PATCH, GetPatches());
+  return (Result == PR_SUCCESS);
+}
+
+DLL_EXPORT bool mi_redirect_enable_term(void) {
+  PatchResult Result
+    = HandlePatching(PM_PATCH_TERM, GetPatches());
+  return (Result == PR_SUCCESS);
+}
+
+DLL_EXPORT void mi_redirect_disable(void) {
+  (void) HandlePatching(PM_UNPATCH, GetPatches());
+}
+
+DLL_EXPORT void mi_allocator_done(void) {
+  return;
+}
+
+
+} // extern "C"

@@ -26,15 +26,51 @@
 #include <ArgList.hpp>
 #include <Globals.hpp>
 #include <Strings.hpp>
+#include <limits>
 #include <utility>
+#if EXI_DEBUG
+# include "NtImports.hpp"
+#endif
 
 #undef SETUP_PRINTF
 
 using namespace re;
 
-static constexpr usize kBufSize = 4096 * 4;
+static constexpr i64 kBufSize = 4096 * 8;
 static char LogBuffer[kBufSize + 2];
-static usize LogSize = 0;
+static i64 LogSize = 0;
+
+#if RE_DEBUG_EXTRA
+static constexpr i64 kMaxDbgInt = 512;
+/// Writes the specified string to `DbgPrint`.
+static void WriteToDbgPrint(const char* Str, i64 Len = -1) {
+  char LocalBuf[kMaxDbgInt + 1];
+  if UNLIKELY(!Str)
+    Str = "(null)";
+  if (Len < 1)
+    Len = Strnlen(Str, kMaxDbgInt);
+  const int WriteLen = re::min(Len, kMaxDbgInt);
+  (void) Memcpy(LocalBuf, Str, WriteLen);
+  LocalBuf[WriteLen] = '\0';
+  DbgPrint("%*s", WriteLen, LocalBuf);
+}
+/// Writes the current string to `DbgPrint`.
+static inline void WriteBufToDbgPrint(i64 Len) {
+  WriteToDbgPrint(LogBuffer + LogSize, Len);
+}
+/// Writes padding characters to `DbgPrint`.
+static void WritePaddingToDbgPrint(const char C, i64 Len) {
+  char LocalBuf[kMaxDbgInt + 1];
+  const int WriteLen = re::min(Len, kMaxDbgInt);
+  (void) Memset(LocalBuf, static_cast<u8>(C), WriteLen);
+  LocalBuf[WriteLen] = '\0';
+  DbgPrint("%*s", WriteLen, LocalBuf);
+}
+#else
+# define WriteToDbgPrint(x, ...)     (void(0))
+# define WriteBufToDbgPrint(x)       (void(0))
+# define WritePaddingToDbgPrint(...) (void(0))
+#endif
 
 static inline bool IsLogFull() noexcept {
   re_assert(LogSize < sizeof(LogBuffer));
@@ -42,27 +78,35 @@ static inline bool IsLogFull() noexcept {
 }
 
 static void WritePadding(const char C, i64 Len) {
-  if (IsLogFull())
-    return;
   if (C == '\0' || Len <= 0)
     return;
+  if UNLIKELY(IsLogFull()) {
+    WritePaddingToDbgPrint(C, Len);
+    return;
+  }
   
-  const usize FinalSize = re::min(LogSize + Len, kBufSize);
-  const usize WriteSize = FinalSize - LogSize;
+  const i64 FinalSize = re::min(LogSize + Len, kBufSize);
+  const i64 WriteSize = FinalSize - LogSize;
+  if UNLIKELY(WriteSize < 1)
+    return;
 
   (void) Memset(LogBuffer + LogSize, static_cast<u8>(C), WriteSize);
+  WriteBufToDbgPrint(WriteSize);
   ::LogSize = FinalSize;
   ::LogBuffer[LogSize] = '\0';
 }
 
 static void WriteToLog(const char* Str, i64 Len) {
-  if (IsLogFull())
-    return;
   if (!Str || Len <= 0)
     return;
+  WriteToDbgPrint(Str, Len);
+  if UNLIKELY(IsLogFull())
+    return;
   
-  const usize FinalSize = re::min(LogSize + Len, kBufSize);
-  const usize WriteSize = FinalSize - LogSize;
+  const i64 FinalSize = re::min(LogSize + Len, kBufSize);
+  const i64 WriteSize = FinalSize - LogSize;
+  if UNLIKELY(WriteSize < 1)
+    return;
 
   (void) Memcpy(LogBuffer + LogSize, Str, WriteSize);
   ::LogSize = FinalSize;
@@ -72,7 +116,7 @@ static void WriteToLog(const char* Str, i64 Len) {
 static void WriteToLog(const char* Str) {
   if (!Str || IsLogFull())
     return;
-  const usize Cap = (kBufSize - LogSize);
+  const i64 Cap = (kBufSize - LogSize);
   return WriteToLog(Str, Strnlen(Str, Cap));
 }
 
