@@ -48,9 +48,11 @@ __declspec(dllimport) bool mi_allocator_init(const char** Str);
 int main(int Argc, char* Argv[]) {
   {
     mi_option_disable(mi_option_verbose);
-    const char* Msgs = "";
-    mi_allocator_init(&Msgs);
-    outs() << "Messages:\n" << Msgs;
+    if (!mi_is_redirected()) {
+      const char* Msgs = "";
+      mi_allocator_init(&Msgs);
+      outs() << "Messages:\n" << Msgs;
+    }
     outs() << '\n' << "Is redirected? "
       << mi_is_redirected() << '\n';
     return 0;

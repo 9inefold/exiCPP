@@ -145,7 +145,7 @@ if(WIN32)
       set(MI_WIN_REDIRECT OFF)
     endif()
   endif()
-  if (NOT MI_WIN_REDIRECT)
+  if (NOT MI_WIN_REDIRECT AND NOT EXI_REDIRECT)
     # use a negative define for backward compatibility
     list(APPEND mi_defines MI_WIN_NOREDIRECT=1)
   endif()
@@ -490,6 +490,9 @@ if(MI_BUILD_SHARED)
       COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/bin/mimalloc-redirect${MIMALLOC_REDIRECT_SUFFIX}.dll" $<TARGET_FILE_DIR:mimalloc>
       COMMENT "Copy mimalloc-redirect${MIMALLOC_REDIRECT_SUFFIX}.dll to output directory")
     install(FILES "$<TARGET_FILE_DIR:mimalloc>/mimalloc-redirect${MIMALLOC_REDIRECT_SUFFIX}.dll" DESTINATION ${mi_install_bindir})
+  elseif(EXI_REDIRECT)
+    # target_link_libraries(mimalloc PRIVATE exi::redirect)
+    # install(FILES "$<TARGET_FILE_DIR:exi-redirect>/mimalloc-redirect.dll" DESTINATION ${mi_install_bindir})
   endif()
 
   install(TARGETS mimalloc EXPORT mimalloc ARCHIVE DESTINATION ${mi_install_libdir} RUNTIME DESTINATION ${mi_install_bindir} LIBRARY DESTINATION ${mi_install_libdir})

@@ -12,7 +12,9 @@ include(ListUtils)
 include(SetFlags)
 include(SetOptions)
 include(SetVersion)
+
 cmake_policy(SET CMP0077 NEW)
+cmake_policy(SET CMP0079 NEW)
 
 set_version(EXI PROJECT)
 set(EFL_NAMESPACE exi) # Unused... for now
@@ -130,10 +132,14 @@ if(EXI_USE_MIMALLOC)
     endif()
   endif()
 
+  if(EXI_REDIRECT)
+    add_subdirectory(redirect)
+    # target_link_libraries(mimalloc PRIVATE exi::redirect)
+  endif()
   add_subdirectory(vendored/mimalloc)
   if(EXI_REDIRECT)
     exi_clear_lib_prefix(mimalloc)
-    add_subdirectory(redirect)
+    target_link_libraries(mimalloc PRIVATE exi::redirect)
   endif()
 endif()
 

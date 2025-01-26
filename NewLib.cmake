@@ -55,7 +55,7 @@ if(EXI_USE_MIMALLOC)
 endif()
 if(WIN32)
   target_link_libraries(exicpp PRIVATE
-    exi::redirect
+    # exi::redirect
     ntdll psapi shell32 ole32 uuid advapi32 ws2_32)
 endif()
 
