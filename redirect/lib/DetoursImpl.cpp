@@ -43,7 +43,7 @@ static HANDLE GetProgramHandle() {
 
 static bool ChangeProtect(
  void* Base, usize InSize,
- u32 Flags, u32* OldFlags = nullptr) {
+ DWORD Flags, DWORD* OldFlags = nullptr) {
   if (!OldFlags)
     OldFlags = &Flags;
   i32 Status = NtProtectVirtualMemory(
@@ -52,7 +52,7 @@ static bool ChangeProtect(
 }
 
 static bool InstallDetourInAddressStore(byte* AddressStore, void* Detour) {
-  u32 OldFlags = 4;
+  DWORD OldFlags = 4;
   if (!ChangeProtect(AddressStore, 8, PAGE_EXECUTE_READWRITE, &OldFlags)) {
     MiError("unable to get write permission for address store (at %p)",
       AddressStore);
@@ -126,12 +126,11 @@ static bool IsNearCall(i64 Dist) {
 /// causes `SIGILL` to be raised. The nop may also be generated in release.
 static i64 CountNoopAndInt3Padding(byte* Data, i64 MaxIters) {
   for (int Ix = 0; Ix < MaxIters; ++Ix) {
-    if (Data[-1 - Ix] == 0xCC) // INT3
-      continue;
-    if (Data[-1 - Ix] == 0x90) // nop
-      continue;
-    // Unexpected byte, return.
-    return Ix;
+    const byte Instr = Data[-1 - Ix];
+    // Check if byte isn't INT3 or NOP.
+    if (Instr != 0xCC && Instr != 0x90)
+      // Unexpected byte, return.
+      return Ix;
   }
 
   return MaxIters;
@@ -300,7 +299,7 @@ bool PatchHandler::handlePatch(PerFuncPatchData& Data, i32 At) const {
     return true;
   }
 
-  u32 OldFlags = 4;
+  DWORD OldFlags = 4;
   byte* BaseAddr = Patch.FunctionData - 16;
   constexpr usize Size = 32;
   if (!ChangeProtect(BaseAddr, Size, PAGE_EXECUTE_READWRITE, &OldFlags)) {

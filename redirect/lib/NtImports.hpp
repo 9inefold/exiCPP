@@ -280,7 +280,7 @@ NTSYSAPI NTSTATUS NTAPI LdrFindEntryForAddress(
   LDRDataTableEntry**   TableEntry);
 
 NTSYSAPI NTSTATUS NTAPI LdrGetDllHandle(
-  u16*                  pwPath,
+  WORD*                 pwPath,
   void*                 Unused,
   UnicodeString*        ModuleFileName,
   HANDLE*               pHModule);
@@ -289,13 +289,13 @@ NTSYSAPI NTSTATUS NTAPI NtProtectVirtualMemory(
   HANDLE                ProcessHandle,
   void**                BaseAddress,
   usize*                RegionSize,
-  u32                   NewProtection,
-  u32*                  OldProtection);
+  DWORD                 NewProtection,
+  DWORD*                OldProtection);
 
 NTSYSAPI void NTAPI     RtlGetNtVersionNumbers(
-  u32*                  MajorVersion,
-  u32*                  MinorVersion,
-  u32*                  BuildNumber);
+  DWORD*                MajorVersion,
+  DWORD*                MinorVersion,
+  DWORD*                BuildNumber);
 
 NTSYSAPI NTSTATUS NTAPI RtlAnsiStringToUnicodeString(
   UnicodeString*        DestinationString,

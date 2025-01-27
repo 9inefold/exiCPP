@@ -22,10 +22,10 @@
 using namespace re;
 
 VersionTriple re::GetVersionTriple(void) {
-  u32 Major = 10;
-  u32 Minor = 0;
-  u32 Build = 0;
+  DWORD Major = 10;
+  DWORD Minor = 0;
+  DWORD Build = 0;
 
   RtlGetNtVersionNumbers(&Major, &Minor, &Build);
-  return {Major, Minor, Build & 0xFFFF};
+  return {Major, Minor, u32(Build) & 0xFFFF};
 }
