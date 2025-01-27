@@ -22,7 +22,8 @@
 #include <Config.inc>
 #include <cstddef>
 
-#define RE_DEBUG_EXTRA_ 1
+// A flag for extra info.
+#define RE_DEBUG_EXTRA_ 0
 
 #if EXI_DEBUG && RE_DEBUG_EXTRA_
 # define RE_DEBUG_EXTRA 1
