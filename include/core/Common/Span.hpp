@@ -24,14 +24,14 @@
 namespace exi {
 
 /// @brief Alias for `std::dynamic_extent`.
-EXI_CONST usize dyn_extent = std::dynamic_extent;
+EXI_CONST usize kDynExtent = std::dynamic_extent;
 
 /// @brief Same as `std::span<T, E>`.
-template <typename T, usize Extent = dyn_extent>
+template <typename T, usize Extent = kDynExtent>
 using MutableSpan = std::span<T, Extent>;
 
 /// @brief Maps `[T, E] -> [const T, E]`.
-template <typename T, usize Extent = dyn_extent>
+template <typename T, usize Extent = kDynExtent>
 using Span = MutableSpan<const T, Extent>;
 
 } // namespace exi
