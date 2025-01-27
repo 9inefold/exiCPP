@@ -106,10 +106,6 @@ set(EXI_VENDORED_FOLDER "${EXI_BASE_FOLDER}/vendored" CACHE FILEPATH "The vendor
 set(EXI_MI_FOLDER "${EXI_VENDORED_FOLDER}/mimalloc" CACHE FILEPATH "The mimalloc directory.")
 add_subdirectory(include/core) # Configure files
 
-function(exi_minject tgt)
-  # Does nothing...
-endfunction(exi_minject)
-
 if(EXI_USE_MIMALLOC)
   set(MI_OVERRIDE ON)
   set(MI_BUILD_TESTS OFF)
@@ -134,13 +130,16 @@ if(EXI_USE_MIMALLOC)
 
   if(EXI_REDIRECT)
     add_subdirectory(redirect)
-    # target_link_libraries(mimalloc PRIVATE exi::redirect)
   endif()
   add_subdirectory(vendored/mimalloc)
   if(EXI_REDIRECT)
     exi_clear_lib_prefix(mimalloc)
     target_link_libraries(mimalloc PRIVATE exi::redirect)
   endif()
+else()
+  function(exi_minject tgt)
+    # Does nothing...
+  endfunction(exi_minject)
 endif()
 
 add_subdirectory(vendored/fmt)
