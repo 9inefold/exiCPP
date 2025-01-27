@@ -61,8 +61,9 @@ static constexpr bool kDoUnsafeMultibyteOps = true;
 
 template <typename Ch>
 static constexpr usize make_mask() {
+  constexpr int kSizeof = sizeof(Ch);
   usize out = 0xFF;
-  for (int I = 0; I < sizeof(Ch); ++I)
+  for (int I = 0; I < kSizeof; ++I)
     out = (out << CHAR_BIT) | 0xFF;
   return out;
 }
@@ -80,6 +81,7 @@ static constexpr Int repeat_byte(Int byte) {
 
 template <typename Int, typename Char>
 static constexpr bool has_zeros(Int block) {
+  // using UInt = std::make_unsigned_t<Int>;
   static_assert(sizeof(Char) <= 2);
   constexpr usize off = (bitsizeof_v<Char> - 8);
   constexpr Int loBits = repeat_byte<Int, Char>(0x01);
@@ -239,7 +241,6 @@ static void* xFFC_wide_read(
 template <typename Char, typename Conv>
 [[maybe_unused]] static void*
  xFFC_byte_read(const Char* S, Char C, usize n, Conv&& conv) {
-  using UChar = re::uintty_t<Char>;
   const char CC = conv(C);
   for (; n && conv(*S) != CC; --n, ++S);
   return n ? const_cast<Char*>(S) : nullptr;

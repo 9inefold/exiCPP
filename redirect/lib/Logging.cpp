@@ -36,7 +36,7 @@
 
 using namespace re;
 
-static constexpr i64 kBufSize = 4096 * 8;
+static constexpr i64 kBufSize = 4096 * 4;
 static char LogBuffer[kBufSize + 2];
 static i64 LogSize = 0;
 
@@ -73,7 +73,8 @@ static void WritePaddingToDbgPrint(const char C, i64 Len) {
 #endif
 
 static inline bool IsLogFull() noexcept {
-  re_assert(LogSize < sizeof(LogBuffer));
+  static constexpr i64 kRealBufSize = sizeof(LogBuffer);
+  re_assert(LogSize < kRealBufSize);
   return UNLIKELY(LogSize == kBufSize);
 }
 
@@ -462,7 +463,6 @@ static void Write(char C) {
 static void WriteChar(const ParseSection& PS, Parser& Args) {
   char C = Args.next<unsigned int>();
   constexpr usize kDefaultLen = 1;
-
   usize Padding
     = PS.MinWidth > kDefaultLen
     ? PS.MinWidth - kDefaultLen : 0;

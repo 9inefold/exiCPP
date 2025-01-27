@@ -284,7 +284,7 @@ void PatchHandler::unpatch(PatchData& Patch) {
 // Setup
 
 bool PatchHandler::handlePatch(PerFuncPatchData& Data, i32 At) const {
-  if UNLIKELY(At < 0 || At >= kPatchDataCount)
+  if UNLIKELY(At < 0 || At >= int(kPatchDataCount))
     return false;
 
   PatchData& Patch = Data.Patches[At];
@@ -341,7 +341,7 @@ bool PatchHandler::operator()(PerFuncPatchData& Data) {
   }
 
   // Not unpatching, loop forward.
-  for (i32 Ix = 0; Ix < kPatchDataCount; ++Ix) {
+  for (i32 Ix = 0; Ix < i32(kPatchDataCount); ++Ix) {
     if (!handlePatch(Data, Ix))
       return false;
   }

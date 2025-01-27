@@ -267,7 +267,7 @@ static byte* GetCodeSegment(RVAHandler& RVAs, usize* FileAddr = nullptr) {
 }
 
 static OptInt<int> FindUnusedPatch(PerFuncPatchData& Patch) {
-  for (int Ix = 0; Ix < kPatchDataCount; ++Ix) {
+  for (int Ix = 0; Ix < int(kPatchDataCount); ++Ix) {
     if (Patch.Patches[Ix].FunctionData == nullptr)
       return Ix;
   }

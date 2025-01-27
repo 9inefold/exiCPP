@@ -57,7 +57,8 @@ OptInt<u32> ExportHandler::findNameIndex(const char* Str) const {
     return re::nullopt;
   
   ArrayRef<u32> Names = getNameTable();
-  for (i64 Ix = 0; Ix < Names.size(); ++Ix) {
+  const i64 Size = Names.size();
+  for (i64 Ix = 0; Ix < Size; ++Ix) {
     auto* Sym = RVAs->get<const char>(Names[Ix]);
     if (Strequal(Str, Sym))
       return static_cast<u32>(Ix);
