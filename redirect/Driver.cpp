@@ -30,6 +30,27 @@
 
 using namespace re;
 
+extern "C" {
+NTSYSAPI DWORD DbgPrint(const char* Fmt, ...);
+
+static const char* GetReason(DWORD Reason) {
+  switch (Reason) {
+  case DLL_PROCESS_ATTACH:  
+    return "DLL_PROCESS_ATTACH";
+  case DLL_THREAD_ATTACH:   
+    return "DLL_THREAD_ATTACH";
+  case DLL_THREAD_DETACH:   
+    return "DLL_THREAD_DETACH";
+  case DLL_PROCESS_DETACH:  
+    return "DLL_PROCESS_DETACH";
+  case DLL_PROCESS_VERIFIER:
+    return "DLL_PROCESS_VERIFIER";
+  default:
+    return "UNKNOWN";
+  }
+}
+} // extern "C"
+
 static bool PrioritizeLoadOrder = true;
 static bool ForceRedirect = false;
 
@@ -142,6 +163,7 @@ static bool DriverMain(HINSTANCE Dll, DWORD Reason) {
   }
 
   if (NO_PATCH_ERRORS && mi_redirect_entry != nullptr) {
+    DbgPrint("Entry reason: %s\n", GetReason(Reason));
     mi_redirect_entry(Reason);
   }
   return Ret;
@@ -151,6 +173,5 @@ extern "C" BOOL WINAPI DllMainCRTStartup(HINSTANCE Dll, DWORD Reason, PVOID) {
   bool Result = true;
   if (Reason == DLL_PROCESS_ATTACH)
     Result = DriverMain(Dll, Reason);
-  // TODO: Invoke mi_redirect_entry
   return Result;
 }

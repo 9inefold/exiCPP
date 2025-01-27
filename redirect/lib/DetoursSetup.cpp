@@ -327,7 +327,7 @@ static void ResolveFunctions(
       Data.UsePatchedImports = true;
       Data.IATEntry = ptr_cast<void*>(IATEntry);
 
-      MiTrace("resolve import \"%s!%s\" in %s at 0x%zu to 0x%zu (%i)",
+      MiTrace("resolve import \"%s!%s\" in %s at 0x%zx to 0x%zx (%i)",
         Patch.ModuleName, Patch.FunctionName,
         ModName, IATEntry, Patch.TargetAddr, *Ix
       );

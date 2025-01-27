@@ -55,7 +55,7 @@ int main(int Argc, char* Argv[]) {
     }
     outs() << '\n' << "Is redirected? "
       << mi_is_redirected() << '\n';
-    return 0;
+    // return 0;
   }
 
   SmallStr<256> Str;

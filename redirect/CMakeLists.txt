@@ -2,7 +2,7 @@ include_guard(DIRECTORY)
 
 project(
   exi-redirect
-  VERSION 0.2.1
+  VERSION 0.2.2
   LANGUAGES CXX C
 )
 

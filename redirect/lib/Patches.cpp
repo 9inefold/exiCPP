@@ -28,7 +28,7 @@
 
 using namespace re;
 
-static_assert(sizeof(void*) == sizeof(void(*)(void)));
+static_assert(sizeof(void* volatile) == sizeof(void(*)(void)));
 static_assert(sizeof(PatchData) == 0x50);
 static_assert(sizeof(PerFuncPatchData) == 0x178);
 
@@ -39,56 +39,56 @@ static byte* RtlReAllocateHeap_RVA = nullptr;
 //////////////////////////////////////////////////////////////////////////
 // Stubs
 
-DEFINE_STUB(void*, malloc, usize Size)
-DEFINE_STUB(void*, calloc, usize Num, usize Size)
-DEFINE_STUB(void*, realloc, void* Ptr, usize Size)
-DEFINE_STUB(void, _aligned_free, void* Ptr)
-DEFINE_STUB(void*, _expand_base, void* Ptr, usize Size)
-DEFINE_STUB(void*, _recalloc_base, void* Ptr, usize Num)
+DEFINE_STUB(void* volatile, malloc, volatile usize Size)
+DEFINE_STUB(void* volatile, calloc, volatile usize Num, volatile usize Size)
+DEFINE_STUB(void* volatile, realloc, void* volatile Ptr, volatile usize Size)
+DEFINE_STUB(void, _aligned_free, void* volatile Ptr)
+DEFINE_STUB(void* volatile, _expand_base, void* volatile Ptr, volatile usize Size)
+DEFINE_STUB(void* volatile, _recalloc_base, void* volatile Ptr, volatile usize Num)
 
-DEFINE_STUB(usize, usable_size, void* Ptr)
-DEFINE_STUB(void*, new_nothrow, usize Size)
-DEFINE_STUB(bool, in_heap_region, void* Ptr)
+DEFINE_STUB(volatile usize, usable_size, void* volatile Ptr)
+DEFINE_STUB(void* volatile, new_nothrow, volatile usize Size)
+DEFINE_STUB(bool, in_heap_region, void* volatile Ptr)
 
-// DEFINE_STUB(void*, realloc_aligned,
-//   void* Ptr, usize Size, usize Align)
-// DEFINE_STUB(void*, aligned_recalloc,
-//   void* Ptr, usize Num, usize Size, usize Align)
-// DEFINE_STUB(void*, aligned_offset_recalloc,
-//   void* Ptr, usize Num, usize Size, usize Align, usize Off)
+// DEFINE_STUB(void* volatile, realloc_aligned,
+//   void* volatile Ptr, volatile usize Size, volatile usize Align)
+// DEFINE_STUB(void* volatile, aligned_recalloc,
+//   void* volatile Ptr, volatile usize Num, volatile usize Size, volatile usize Align)
+// DEFINE_STUB(void* volatile, aligned_offset_recalloc,
+//   void* volatile Ptr, volatile usize Num, volatile usize Size, volatile usize Align, volatile usize Off)
 
-DEFINE_STUB(void*, malloc_aligned_at,
-  usize Size, usize Align, usize Off)
-DEFINE_STUB(void*, realloc_aligned_at,
-  void* Ptr, usize Size, usize Align, usize Off)
+DEFINE_STUB(void* volatile, malloc_aligned_at,
+  volatile usize Size, volatile usize Align, volatile usize Off)
+DEFINE_STUB(void* volatile, realloc_aligned_at,
+  void* volatile Ptr, volatile usize Size, volatile usize Align, volatile usize Off)
 
-DEFINE_STUB(void*, _aligned_malloc,
-  usize Size, usize Align)
-DEFINE_STUB(void*, _aligned_realloc,
-  void* Ptr, usize Size, usize Align)
-DEFINE_STUB(void*, _aligned_recalloc,
-  void* Ptr, usize Num, usize Size, usize Align)
-DEFINE_STUB(void*, _aligned_offset_realloc,
-  void* Ptr, usize Size, usize Align, usize Off)
-DEFINE_STUB(void*, _aligned_offset_recalloc,
-  void* Ptr, usize Num, usize Size, usize Align, usize Off)
+DEFINE_STUB(void* volatile, _aligned_malloc,
+  volatile usize Size, volatile usize Align)
+DEFINE_STUB(void* volatile, _aligned_realloc,
+  void* volatile Ptr, volatile usize Size, volatile usize Align)
+DEFINE_STUB(void* volatile, _aligned_recalloc,
+  void* volatile Ptr, volatile usize Num, volatile usize Size, volatile usize Align)
+DEFINE_STUB(void* volatile, _aligned_offset_realloc,
+  void* volatile Ptr, volatile usize Size, volatile usize Align, volatile usize Off)
+DEFINE_STUB(void* volatile, _aligned_offset_recalloc,
+  void* volatile Ptr, volatile usize Num, volatile usize Size, volatile usize Align, volatile usize Off)
 
-// DEFINE_STUB(void*, _malloc_dbg,
-//   usize Size, int Type, const char* File, int Line)
-// DEFINE_STUB(void*, _realloc_dbg,
-//   void* Ptr, usize Size, int Type, const char* File, int Line)
-// DEFINE_STUB(void*, _calloc_dbg,
-//   usize Num, usize Size, int Type, const char* File, int Line)
+// DEFINE_STUB(void* volatile, _malloc_dbg,
+//   volatile usize Size, int Type, const char* File, int Line)
+// DEFINE_STUB(void* volatile, _realloc_dbg,
+//   void* volatile Ptr, volatile usize Size, int Type, const char* File, int Line)
+// DEFINE_STUB(void* volatile, _calloc_dbg,
+//   volatile usize Num, volatile usize Size, int Type, const char* File, int Line)
 
-DEFINE_STUB(void*, _aligned_realloc_dbg,
-  void* Ptr, usize Size, usize Align, const char* File, int Line)
-DEFINE_STUB(void*, _aligned_recalloc_dbg,
-  void* Ptr, usize Num, usize Size, usize Align, const char* File, int Line)
-DEFINE_STUB(void*, _aligned_offset_realloc_dbg,
-  void* Ptr, usize Size, usize Align, usize Off,
+DEFINE_STUB(void* volatile, _aligned_realloc_dbg,
+  void* volatile Ptr, volatile usize Size, volatile usize Align, const char* File, int Line)
+DEFINE_STUB(void* volatile, _aligned_recalloc_dbg,
+  void* volatile Ptr, volatile usize Num, volatile usize Size, volatile usize Align, const char* File, int Line)
+DEFINE_STUB(void* volatile, _aligned_offset_realloc_dbg,
+  void* volatile Ptr, volatile usize Size, volatile usize Align, volatile usize Off,
   const char* File, int Line)
-DEFINE_STUB(void*, _aligned_offset_recalloc_dbg,
-  void* Ptr, usize Num, usize Size, usize Align, usize Off,
+DEFINE_STUB(void* volatile, _aligned_offset_recalloc_dbg,
+  void* volatile Ptr, volatile usize Num, volatile usize Size, volatile usize Align, volatile usize Off,
   const char* File, int Line)
 
 //////////////////////////////////////////////////////////////////////////
@@ -97,38 +97,42 @@ DEFINE_STUB(void*, _aligned_offset_recalloc_dbg,
 /*free == aligned_free*/
 
 // No FUNC
-DECLARE_TERM(usize, _msize, void* Ptr) {
+DECLARE_TERM(volatile usize, _msize, void* volatile Ptr) {
   if (Ptr && STUB(in_heap_region)(Ptr)) {
     return STUB(usable_size)(Ptr);
   }
   return 0;
 }
 
-DECLARE_FUNC(void*, _expand_base, void* Ptr, usize Size) {
+DECLARE_FUNC(void* volatile, _expand_base,
+ void* volatile Ptr, volatile usize Size) {
   return STUB(_expand_base)(Ptr, Size);
 }
-DECLARE_TERM(void*, _expand_base, void* Ptr, usize Size) {
+DECLARE_TERM(void* volatile, _expand_base,
+ void* volatile Ptr, volatile usize Size) {
   return STUB(_expand_base)(Ptr, Size);
 }
 
-DECLARE_FUNC(void*, _recalloc_base, void* Ptr, usize Num) {
+DECLARE_FUNC(void* volatile, _recalloc_base,
+ void* volatile Ptr, volatile usize Num) {
   return STUB(_recalloc_base)(Ptr, Num);
 }
-DECLARE_TERM(void*, _recalloc_base, void* Ptr, usize Num) {
+DECLARE_TERM(void* volatile, _recalloc_base,
+ void* volatile Ptr, volatile usize Num) {
   return STUB(_recalloc_base)(Ptr, Num);
 }
 
-DECLARE_FUNC(usize, _msize_base, void* Ptr) {
+DECLARE_FUNC(volatile usize, _msize_base, void* volatile Ptr) {
   return STUB(usable_size)(Ptr);
 }
-DECLARE_TERM(usize, _msize_base, void* Ptr) {
+DECLARE_TERM(volatile usize, _msize_base, void* volatile Ptr) {
   return TERM(_msize)(Ptr);
 }
 
-DECLARE_MS_FUNC(ULONG, RtlSizeHeap,
- void* HeapHandle, ULONG Flags, void* BaseAddress) {
+DECLARE_MS_FUNC(volatile usize, RtlSizeHeap,
+ void* volatile HeapHandle, ULONG Flags, void* volatile BaseAddress) {
   if (!STUB(in_heap_region)(BaseAddress)) {
-    auto* const SizeHeap = GET_RVA(RtlSizeHeap);
+    auto* volatile SizeHeap = GET_RVA(RtlSizeHeap);
     if (!SizeHeap)
       return 0u;
     return (*SizeHeap)(
@@ -138,11 +142,11 @@ DECLARE_MS_FUNC(ULONG, RtlSizeHeap,
 }
 
 DECLARE_MS_FUNC(bool, RtlFreeHeap,
- void* HeapHandle, ULONG Flags, void* BaseAddress) {
+ void* volatile HeapHandle, ULONG Flags, void* volatile BaseAddress) {
   if (BaseAddress == nullptr)
     return true;
   if (!STUB(in_heap_region)(BaseAddress)) {
-    auto* const FreeHeap = GET_RVA(RtlFreeHeap);
+    auto* volatile FreeHeap = GET_RVA(RtlFreeHeap);
     if (!FreeHeap)
       return false;
     return (*FreeHeap)(
@@ -152,12 +156,13 @@ DECLARE_MS_FUNC(bool, RtlFreeHeap,
   return true;
 }
 
-DECLARE_MS_FUNC(void*, RtlReAllocateHeap,
- void* HeapHandle, ULONG Flags, void* BaseAddress, usize Size) {
+DECLARE_MS_FUNC(void* volatile, RtlReAllocateHeap,
+ void* volatile HeapHandle, ULONG Flags,
+ void* volatile BaseAddress, volatile usize Size) {
   Size &= 0xffffffff;
   if (!BaseAddress || !STUB(in_heap_region)(BaseAddress)) {
     // The default route, calls `RtlFreeHeap`.
-    auto* const ReAllocateHeap = GET_RVA(RtlReAllocateHeap);
+    auto* volatile ReAllocateHeap = GET_RVA(RtlReAllocateHeap);
     if (!ReAllocateHeap)
       return nullptr;
     return (*ReAllocateHeap)(
@@ -183,82 +188,84 @@ DECLARE_MS_FUNC(void*, RtlReAllocateHeap,
 }
 
 // No FUNC
-DECLARE_TERM(void, _aligned_free, void* Ptr) {
+DECLARE_TERM(void, _aligned_free, void* volatile Ptr) {
   if (Ptr && STUB(in_heap_region)(Ptr)) {
     return STUB(_aligned_free)(Ptr);
   }
 }
 
-DECLARE_FUNC(usize, _aligned_msize, void* Ptr) {
+DECLARE_FUNC(volatile usize, _aligned_msize, void* volatile Ptr) {
   return STUB(usable_size)(Ptr);
 }
-DECLARE_TERM(usize, _aligned_msize, void* Ptr) {
+DECLARE_TERM(volatile usize, _aligned_msize, void* volatile Ptr) {
   return TERM(_msize)(Ptr);
 }
 
 // No TERM
-DECLARE_FUNC(void*, _malloc_dbg,
- usize Size, int /*Type*/, const char* /*File*/, int /*Line*/) {
+DECLARE_FUNC(void* volatile, _malloc_dbg,
+ volatile usize Size, int /*Type*/, const char* /*File*/, int /*Line*/) {
   return STUB(malloc)(Size);
 }
 
 // No TERM
-DECLARE_FUNC(void*, _realloc_dbg,
- void* Ptr, usize Size,
+DECLARE_FUNC(void* volatile, _realloc_dbg,
+ void* volatile Ptr, volatile usize Size,
  int /*Type*/, const char* /*File*/, int /*Line*/) {
   return STUB(realloc)(Ptr, Size);
 }
 
 // No TERM
-DECLARE_FUNC(void*, _calloc_dbg,
- usize Num, usize Size, int Type,
+DECLARE_FUNC(void* volatile, _calloc_dbg,
+ volatile usize Num, volatile usize Size, int Type,
  int /*Type*/, const char* /*File*/, int /*Line*/) {
   return STUB(calloc)(Num, Size);
 }
 
 // No TERM
-DECLARE_FUNC(void, _free_dbg, void* Ptr, int /*Type*/) {
+DECLARE_FUNC(void, _free_dbg, void* volatile Ptr, int /*Type*/) {
   return STUB(_aligned_free)(Ptr);
 }
 
-DECLARE_FUNC(void*, _expand_dbg,
- void* Ptr, usize Size,
+DECLARE_FUNC(void* volatile, _expand_dbg,
+ void* volatile Ptr, volatile usize Size,
  int /*Type*/, const char* /*File*/, int /*Line*/) {
   return STUB(_expand_base)(Ptr, Size);
 }
-DECLARE_TERM(void*, _expand_dbg,
- void* Ptr, usize Size,
+DECLARE_TERM(void* volatile, _expand_dbg,
+ void* volatile Ptr, volatile usize Size,
  int /*Type*/, const char* /*File*/, int /*Line*/) {
   return STUB(_expand_base)(Ptr, Size);
 }
 
-DECLARE_FUNC(void*, _recalloc_dbg,
- void* Ptr, usize Num, usize Size,
+DECLARE_FUNC(void* volatile, _recalloc_dbg,
+ void* volatile Ptr, volatile usize Num, volatile usize Size,
  int /*Type*/, const char* /*File*/, int /*Line*/) {
   return STUB(_recalloc_base)(Ptr, Num);
 }
-DECLARE_TERM(void*, _recalloc_dbg,
- void* Ptr, usize Num, usize Size,
+DECLARE_TERM(void* volatile, _recalloc_dbg,
+ void* volatile Ptr, volatile usize Num, volatile usize Size,
  int /*Type*/, const char* /*File*/, int /*Line*/) {
   return STUB(_recalloc_base)(Ptr, Num);
 }
 
-DECLARE_FUNC(usize, _msize_dbg, void* Ptr) {
+DECLARE_FUNC(volatile usize, _msize_dbg, void* volatile Ptr) {
   return STUB(usable_size)(Ptr);
 }
-DECLARE_TERM(usize, _msize_dbg, void* Ptr) {
+DECLARE_TERM(volatile usize, _msize_dbg, void* volatile Ptr) {
   return TERM(_msize)(Ptr);
 }
 
 // No TERM
-DECLARE_FUNC(void*, _aligned_malloc_dbg,
- usize Size, usize Align, const char* /*File*/, int /*Line*/) {
+DECLARE_FUNC(void* volatile, _aligned_malloc_dbg,
+ volatile usize Size, volatile usize Align,
+ const char* /*File*/, int /*Line*/) {
   return STUB(_aligned_malloc)(Size, Align);
 }
 
 // TERM == STUB
-DECLARE_FUNC(void*, _aligned_realloc_dbg,
- void* Ptr, usize Size, usize Align, const char* /*File*/, int /*Line*/) {
+DECLARE_FUNC(void* volatile, _aligned_realloc_dbg,
+ void* volatile Ptr, volatile usize Size, volatile usize Align,
+ const char* /*File*/, int /*Line*/) {
   return STUB(_aligned_realloc)(Ptr, Size, Align);
 }
 
@@ -266,29 +273,32 @@ DECLARE_FUNC(void*, _aligned_realloc_dbg,
 /*_aligned_msize_dbg == _aligned_msize*/
 
 // TERM == STUB
-DECLARE_FUNC(void*, _aligned_recalloc_dbg,
- void* Ptr, usize Num, usize Size, usize Align,
+DECLARE_FUNC(void* volatile, _aligned_recalloc_dbg,
+ void* volatile Ptr, volatile usize Num,
+ volatile usize Size, volatile usize Align,
  const char* /*File*/, int /*Line*/) {
   return STUB(_aligned_recalloc)(Ptr, Num, Size, Align);
 }
 
 // No TERM
-DECLARE_FUNC(void*, _aligned_offset_malloc_dbg,
- usize Size, usize Align, usize Off,
+DECLARE_FUNC(void* volatile, _aligned_offset_malloc_dbg,
+ volatile usize Size, volatile usize Align, volatile usize Off,
  const char* /*File*/, int /*Line*/) {
   return STUB(malloc_aligned_at)(Size, Align, Off);
 }
 
 // TERM == STUB
-DECLARE_FUNC(void*, _aligned_offset_realloc_dbg,
- void* Ptr, usize Size, usize Align, usize Off,
+DECLARE_FUNC(void* volatile, _aligned_offset_realloc_dbg,
+ void* volatile Ptr, volatile usize Size,
+ volatile usize Align, volatile usize Off,
  const char* /*File*/, int /*Line*/) {
   return STUB(realloc_aligned_at)(Ptr, Size, Align, Off);
 }
 
 // TERM == STUB
-DECLARE_FUNC(void*, _aligned_offset_recalloc_dbg,
- void* Ptr, usize Num, usize Size, usize Align, usize Off,
+DECLARE_FUNC(void* volatile, _aligned_offset_recalloc_dbg,
+ void* volatile Ptr, volatile usize Num, volatile usize Size,
+ volatile usize Align, volatile usize Off,
  const char* /*File*/, int /*Line*/) {
   return STUB(_aligned_offset_recalloc)(Ptr, Num, Size, Align, Off);
 }

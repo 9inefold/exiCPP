@@ -269,7 +269,7 @@ void PatchHandler::patch(PatchData& Patch, void* Addr) {
     SaveBytesForPatching(
       Patch, sizeof(*Patch.IATEntry));
     *Patch.IATEntry = Addr;
-    MiTraceEx("installed import 0x%zu", *Patch.IATEntry);
+    MiTraceEx("installed import 0x%zx", *Patch.IATEntry);
   }
 }
 
