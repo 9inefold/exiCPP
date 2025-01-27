@@ -32,6 +32,7 @@
 
 #include <Common/Fundamental.hpp>
 #include <Support/ErrorHandle.hpp>
+#include <Support/IntCast.hpp>
 #include <Support/Limits.hpp>
 #include <bit>
 #include <climits>
@@ -40,24 +41,6 @@
 #include <type_traits>
 
 namespace exi {
-/// Some template parameter helpers to optimize for bitwidth, for functions that
-/// take multiple arguments.
-
-namespace H {
-
-template <typename T, typename U>
-concept both_int_ = std::is_integral_v<T> && std::is_integral_v<U>;
-
-template <typename T, typename U>
-concept both_int = both_int_<T, U> && both_int_<U, T>;
-
-template <typename T, typename U>
-concept same_sign_ = (std::is_signed_v<T> == std::is_signed_v<U>);
-
-template <typename T, typename U>
-concept same_sign = same_sign_<T, U> && same_sign_<U, T>;
-
-} // namespace H
 
 // We can't verify signedness, since callers rely on implicit coercions to
 // signed/unsigned.
@@ -808,71 +791,6 @@ std::enable_if_t<std::is_signed_v<T>, T> MulOverflow(T X, T Y, T &Result) {
   else
     return UX > (static_cast<U>(std::numeric_limits<T>::max())) / UY;
 #endif
-}
-
-/// Check if casting one number to another has the same representation.
-/// This overload only considers values of the same sign.
-template <typename To, typename From>
-requires (H::both_int<To, From> && H::same_sign<To, From>)
-constexpr bool CheckIntCast(const From X) {
-  if constexpr (sizeof(To) >= sizeof(From)) {
-    return true;
-  } else {
-    if constexpr (std::is_signed_v<To>) {
-      if (X < 0)
-        return (X > From(min_v<To>));
-    }
-    // Either unsigned or positive.
-    return (X < From(max_v<To>));
-  }
-}
-
-/// Check if casting one number to another has the same representation.
-/// This overload considers values of different signs.
-template <typename To, typename From>
-requires (H::both_int<To, From> && !H::same_sign<To, From>)
-constexpr bool CheckIntCast(const From X) {
-  if constexpr (std::is_unsigned_v<To>) {
-    // Check if `X` is negative, as this will
-    // always result in a different representation.
-    if (X < 0)
-      return false;
-  }
-
-  if constexpr (sizeof(To) >= sizeof(From)) {
-    // We already confirmed that `X` can't be negative,
-    // so no more checks are required.
-    return true;
-  } else if constexpr (std::is_signed_v<To>) {
-    using UTo = std::make_unsigned_t<To>;
-    return (X < From(static_cast<UTo>(max_v<To>)));
-  } else /* To is unsigned */ {
-    using UFrom = std::make_unsigned_t<From>;
-    return (X < From(static_cast<UFrom>(max_v<To>)));
-  }
-}
-
-/// Assert that casting results in the same representation.
-template <typename To, typename From>
-constexpr void AssertIntCast(From X) {
-  exi_assert(CheckIntCast<To>(X), "Int conversion is lossy.");
-}
-
-/// Cast that checks if the result is the same representation.
-template <typename To, typename From>
-EXI_INLINE constexpr To IntCast(From X) {
-  AssertIntCast<To>(X);
-  return static_cast<To>(X);
-}
-
-/// Cast that checks if the result is the same representation.
-/// If they would differ, returns 0.
-template <typename To, typename From>
-constexpr inline To IntCastOrZero(From X) {
-  if EXI_UNLIKELY(!CheckIntCast<To>(X))
-    // TODO: Add warning in debug if this occurs?
-    return static_cast<To>(0);
-  return static_cast<To>(X);
 }
 
 /// Type to force float point values onto the stack, so that x86 doesn't add
