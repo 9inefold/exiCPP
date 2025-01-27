@@ -369,26 +369,26 @@ template <> constexpr usize CTLog2<1>() { return 0; }
 /// Return the floor log base 2 of the specified value, -1 if the value is zero.
 /// (32 bit edition.)
 /// Ex. Log2_32(32) == 5, Log2_32(1) == 0, Log2_32(0) == -1, Log2_32(6) == 2
-inline unsigned Log2_32(u32 Value) {
+constexpr inline unsigned Log2_32(u32 Value) {
   return 31 - std::countl_zero(Value);
 }
 
 /// Return the floor log base 2 of the specified value, -1 if the value is zero.
 /// (64 bit edition.)
-inline unsigned Log2_64(u64 Value) {
+constexpr inline unsigned Log2_64(u64 Value) {
   return 63 - std::countl_zero(Value);
 }
 
 /// Return the ceil log base 2 of the specified value, 32 if the value is zero.
 /// (32 bit edition).
 /// Ex. Log2_32_Ceil(32) == 5, Log2_32_Ceil(1) == 0, Log2_32_Ceil(6) == 3
-inline unsigned Log2_32_Ceil(u32 Value) {
+constexpr inline unsigned Log2_32_Ceil(u32 Value) {
   return 32 - std::countl_zero(Value - 1);
 }
 
 /// Return the ceil log base 2 of the specified value, 64 if the value is zero.
 /// (64 bit edition.)
-inline unsigned Log2_64_Ceil(u64 Value) {
+constexpr inline unsigned Log2_64_Ceil(u64 Value) {
   return 64 - std::countl_zero(Value - 1);
 }
 
