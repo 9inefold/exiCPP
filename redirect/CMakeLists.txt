@@ -10,8 +10,20 @@ if(NOT WIN32)
   message(SEND_ERROR "Redirect should not be used on non-Windows targets!")
 endif()
 
+##########################################################################
+## Patches
+
 add_library(exi-redirect-patches STATIC lib/Patches.cpp)
-if(NOT MSVC)
+
+if(MSVC)
+  target_compile_options(exi-redirect-patches
+    PRIVATE /permissive /w
+    PUBLIC
+    /Zc:preprocessor
+    /Zc:threadSafeInit-
+    /EHcs- /EHr- /GR-
+  )
+else()
   target_compile_options(exi-redirect-patches
     PRIVATE -fpermissive -w
     PUBLIC
@@ -27,6 +39,9 @@ target_include_directories(
   include
 )
 
+##########################################################################
+## Redirect
+
 add_library(exi-redirect SHARED Driver.cpp)
 add_library(exi::redirect ALIAS exi-redirect)
 
@@ -35,15 +50,19 @@ set_target_properties(exi-redirect PROPERTIES
   OUTPUT_NAME "mimalloc-redirect"
 )
 
-target_compile_options(exi-redirect PRIVATE
-  ${EXICPP_WARNING_FLAGS}
-  -shared
-  -fno-threadsafe-statics
-  -fno-asynchronous-unwind-tables
-  -fno-exceptions -fno-rtti
-)
+target_link_libraries(exi-redirect PRIVATE ntdll exi-redirect-patches)
+if(MSVC)
+  target_link_options(exi-redirect PRIVATE /NODEFAULTLIB)
+else()
+  target_compile_options(exi-redirect PRIVATE
+    -shared
+    -fno-threadsafe-statics
+    -fno-asynchronous-unwind-tables
+    -fno-exceptions -fno-rtti
+  )
+  target_link_options(exi-redirect PRIVATE -nostdlib -nodefaultlibs)
+endif()
 
-target_link_libraries(exi-redirect PRIVATE exi-redirect-patches)
 target_sources(exi-redirect PRIVATE
   lib/ArrayRef.cpp
   lib/Buf.cpp
@@ -62,18 +81,12 @@ target_sources(exi-redirect PRIVATE
   lib/VMemset.cpp
 )
 
-target_link_options(exi-redirect PRIVATE -nostdlib -nodefaultlibs)
-target_link_libraries(exi-redirect PRIVATE ntdll)
-
-set(re_install_libdir       "${CMAKE_INSTALL_LIBDIR}")
-set(re_install_bindir       "${CMAKE_INSTALL_BINDIR}")
-set(re_install_cmakedir     "${CMAKE_INSTALL_LIBDIR}/cmake/exi-redirect")
-
 install(TARGETS exi-redirect EXPORT exi-redirect
-  ARCHIVE DESTINATION ${re_install_libdir}
-  RUNTIME DESTINATION ${re_install_bindir}
-  LIBRARY DESTINATION ${re_install_libdir})
-install(EXPORT exi-redirect DESTINATION ${re_install_cmakedir})
+  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+install(EXPORT exi-redirect
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/exi-redirect")
 
 ##########################################################################
 

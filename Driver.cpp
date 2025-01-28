@@ -40,6 +40,8 @@
 #include <malloc.h>
 #include <windows.h>
 
+// TODO: Tests!!
+
 using namespace exi;
 using namespace exi::sys;
 
@@ -107,11 +109,9 @@ int main(int Argc, char* Argv[]) {
 
   SmallStr<256> Str;
   fs::current_path(Str);
-  // fmt::println("{}", Str);
   outs() << Argv[0] << '\n';
-  outs() << Str << '\n';
+  fmt::println("{}", Str);
 
-  // TODO: Test raw_ostream
   TimePoint<> TP = sys::now();
   fmt::println("TimePoint<>: {}", TP);
   TimePoint<> TP2 = sys::now();
@@ -123,40 +123,6 @@ int main(int Argc, char* Argv[]) {
     if (mi_is_in_heap_region(P))
       fmt::println("In heap!");
     exi::deallocate_buffer(P, 4096, 16);
-  }
-
-  if (Error E = createStringError(
-   exi::inconvertibleErrorCode(), "X: {}", 1)) {
-    handleAllErrors(std::move(E), [](StringError& SE) {
-      fmt::println("Error: `{}`", SE.getMessage());
-    });
-  }
-
-  SmallStr<256> Inl {};
-  {
-    raw_svector_ostream V(Inl);
-    V << "hello" << ' ' << "world" << '!';
-  }
-
-  int I = StringSwitch<int>(Inl.str())
-    .Case("Hello",            0)
-    .CaseLower("Hello",       1)
-    .StartsWith("Hello",      2)
-    .StartsWithLower("Hello", 3)
-    .Default(4);
-  exi_assert(I == 3, "StringSwitch failed!");
-  fmt::println("{}", I);
-
-  SmallStr<4> SS;
-  // exi::wrap_stream(SS) << "Hello" << ' ' << "world" << '!';
-
-  String StdStr;
-  // StdStr.reserve(16);
-  exi::wrap_stream(StdStr) << "Hello" << ' ' << "world" << '!';
-  if (mi_is_in_heap_region(StdStr.data())) {
-    fmt::println("String in heap!");
-  } else {
-    fmt::println("String value: \"{}\"", StdStr);
   }
 
   errs() << "\n\n";
