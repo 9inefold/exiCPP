@@ -32,6 +32,7 @@
 #pragma once
 
 #include <Common/Fundamental.hpp>
+#include <bit>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
