@@ -188,11 +188,19 @@ struct FirstIndexOfType<T, U, Us...>
 template <typename T, typename... Us>
 struct FirstIndexOfType<T, T, Us...> : std::integral_constant<size_t, 0> {};
 
+#if EXI_HAS_BUILTIN(__type_pack_element)
+/// Find the type at a given index in a list of types.
+///
+/// TypeAtIndex<I, Ts...> is the type at index I in Ts.
+template <size_t I, typename... Ts>
+using TypeAtIndex = __type_pack_element<I, Ts...>;
+#else
 /// Find the type at a given index in a list of types.
 ///
 /// TypeAtIndex<I, Ts...> is the type at index I in Ts.
 template <size_t I, typename... Ts>
 using TypeAtIndex = std::tuple_element_t<I, std::tuple<Ts...>>;
+#endif
 
 /// Helper which adds two underlying types of enumeration type.
 /// Implicit conversion to a common type is accepted.
