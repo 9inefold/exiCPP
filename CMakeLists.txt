@@ -3,7 +3,7 @@ include_guard(DIRECTORY)
 
 project(
   exi-cpp
-  VERSION 0.6.12
+  VERSION 0.6.13
   LANGUAGES CXX C
 )
 
@@ -97,6 +97,11 @@ message(STATUS "[exicpp] Invariants: ${EXI_INVARIANTS}")
 message(STATUS "[exicpp] Debug printing: ${EXI_DEBUG}")
 message(STATUS "[exicpp] ANSI printing: ${EXI_ANSI}")
 message(STATUS "[exicpp] Exceptions: ${EXI_EXCEPTIONS}")
+if(EXI_USE_MIMALLOC)
+  message(STATUS "[exicpp] Allocator: mimalloc")
+else()
+  message(STATUS "[exicpp] Allocator: classic")
+endif()
 if(EXI_DEBUG_BUILD)
   message(STATUS "[exicpp] Fast debug: ${EXI_FAST_DEBUG}")
 endif()
@@ -106,16 +111,21 @@ set(EXI_VENDORED_FOLDER "${EXI_BASE_FOLDER}/vendored" CACHE FILEPATH "The vendor
 set(EXI_MI_FOLDER "${EXI_VENDORED_FOLDER}/mimalloc" CACHE FILEPATH "The mimalloc directory.")
 add_subdirectory(include/core) # Configure files
 
+function(exi_minject tgt)
+  # Does nothing...
+endfunction(exi_minject)
+
 if(EXI_USE_MIMALLOC)
   set(MI_OVERRIDE ON)
   set(MI_BUILD_TESTS OFF)
   set(MI_BUILD_SHARED ON)
   set(MI_BUILD_STATIC ON)
+  # TODO: Work on this, we want it to be consistent on all platforms.
+  set(MI_WIN_REDIRECT OFF)
 
-  if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
-    if(NOT MSVC)
+  if(WIN32 AND (CMAKE_SIZEOF_VOID_P EQUAL 8) AND (NOT MSVC))
+    if(NOT (DEFINED EXI_REDIRECT AND NOT EXI_REDIRECT))
       # Currently doesn't work on x64.
-      set(MI_WIN_REDIRECT OFF)
       set(EXI_REDIRECT ON CACHE BOOL "" FORCE)
     endif()
   endif()
@@ -136,10 +146,6 @@ if(EXI_USE_MIMALLOC)
     exi_clear_lib_prefix(mimalloc)
     target_link_libraries(mimalloc PRIVATE exi::redirect)
   endif()
-else()
-  function(exi_minject tgt)
-    # Does nothing...
-  endfunction(exi_minject)
 endif()
 
 add_subdirectory(vendored/fmt)

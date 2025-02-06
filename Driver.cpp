@@ -45,6 +45,7 @@
 using namespace exi;
 using namespace exi::sys;
 
+#if EXI_USE_MIMALLOC
 bool ITestMimallocRedirect(usize Mul) {
   bool Result = true;
   if (!mi_is_redirected())
@@ -97,15 +98,26 @@ bool testMimallocRedirect() {
   return Result;
 }
 
+void printIfInHeap(const void* Ptr) {
+  if (mi_is_in_heap_region(Ptr))
+    fmt::println("\"{}\" in heap!", Ptr);
+  else
+    fmt::println("\"{}\" not in heap!", Ptr);
+}
+#else
+# define printIfInHeap(...) (void(0))
+#endif // EXI_USE_MIMALLOC
+
 int main(int Argc, char* Argv[]) {
+#if EXI_USE_MIMALLOC
   mi_option_disable(mi_option_verbose);
   if (!mi_is_redirected()) {
     outs() << "\nRedirection failed.\n";
-    return 1;
+  } else {
+    outs() << "\nIs redirected!\n";
+    testMimallocRedirect();
   }
-
-  outs() << "\nIs redirected!\n";
-  testMimallocRedirect();
+#endif // EXI_USE_MIMALLOC
 
   SmallStr<256> Str;
   fs::current_path(Str);
@@ -120,10 +132,13 @@ int main(int Argc, char* Argv[]) {
 
   {
     auto* P = (char*)exi::allocate_buffer(4096, 16);
-    if (mi_is_in_heap_region(P))
-      fmt::println("In heap!");
+    printIfInHeap(P);
     exi::deallocate_buffer(P, 4096, 16);
   }
+
+  std::string SStr;
+  wrap_stream(SStr) << "Hello world!\nIt's me!";
+  printIfInHeap(SStr.data());
 
   errs() << "\n\n";
   errs() << "mimalloc: " << Process::GetMallocUsage() << '\n';
