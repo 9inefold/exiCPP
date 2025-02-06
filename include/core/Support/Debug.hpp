@@ -113,7 +113,7 @@ extern bool EnableDebugBuffering;
 /// like: dbgs() << "foo" << "bar";
 raw_ostream &dbgs();
 
-// DEBUG macro - This macro should be used by passes to emit debug information.
+// This macro should be used by passes to emit debug information.
 // If the '-debug' option is specified on the commandline, and if this is a
 // debug build, then the code specified as the option to the macro will be
 // executed.  Otherwise it will not be.  Example:
