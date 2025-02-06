@@ -34,7 +34,7 @@
 #include <Support/ErrorHandle.hpp>
 #include <Support/IntCast.hpp>
 #include <Support/Limits.hpp>
-#include <bit>
+#include <Common/bit.hpp>
 #include <climits>
 #include <cstdint>
 #include <cstring>
