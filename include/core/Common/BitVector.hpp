@@ -99,9 +99,9 @@ public:
 
 class BitVector {
   using BitWord = uintptr_t;
-  static constexpr unsigned bitwordSize = bitsizeof_v<BitWord>; 
+  static constexpr unsigned kBitwordSize = bitsizeof_v<BitWord>; 
 
-  static_assert(bitwordSize == 64 || bitwordSize == 32,
+  static_assert(kBitwordSize == 64 || kBitwordSize == 32,
                 "Unsupported word size");
 
   using Storage = SmallVec<BitWord>;
@@ -120,8 +120,8 @@ public:
 
   public:
     reference(BitVector &b, unsigned Idx) {
-      WordRef = &b.Bits[Idx / bitwordSize];
-      BitPos = Idx % bitwordSize;
+      WordRef = &b.Bits[Idx / kBitwordSize];
+      BitPos = Idx % kBitwordSize;
     }
 
     reference() = delete;
@@ -145,8 +145,8 @@ public:
     }
   };
 
-  typedef const_set_bits_iterator_impl<BitVector> const_set_bits_iterator;
-  typedef const_set_bits_iterator set_iterator;
+  using const_set_bits_iterator = const_set_bits_iterator_impl<BitVector>;
+  using set_iterator = const_set_bits_iterator;
 
   const_set_bits_iterator set_bits_begin() const {
     return const_set_bits_iterator(*this);
@@ -190,13 +190,13 @@ public:
 
   /// all - Returns true if all bits are set.
   bool all() const {
-    for (unsigned i = 0; i < Size / bitwordSize; ++i)
+    for (unsigned i = 0; i < Size / kBitwordSize; ++i)
       if (Bits[i] != ~BitWord(0))
         return false;
 
     // If bits remain check that they are ones. The unused bits are always zero.
-    if (unsigned Remainder = Size % bitwordSize)
-      return Bits[Size / bitwordSize] == (BitWord(1) << Remainder) - 1;
+    if (unsigned Remainder = Size % kBitwordSize)
+      return Bits[Size / kBitwordSize] == (BitWord(1) << Remainder) - 1;
 
     return true;
   }
@@ -214,8 +214,8 @@ public:
     if (Begin == End)
       return -1;
 
-    unsigned FirstWord = Begin / bitwordSize;
-    unsigned LastWord = (End - 1) / bitwordSize;
+    unsigned FirstWord = Begin / kBitwordSize;
+    unsigned LastWord = (End - 1) / kBitwordSize;
 
     // Check subsequent words.
     // The code below is based on search for the first _set_ bit. If
@@ -228,16 +228,16 @@ public:
         Copy = ~Copy;
 
       if (i == FirstWord) {
-        unsigned FirstBit = Begin % bitwordSize;
+        unsigned FirstBit = Begin % kBitwordSize;
         Copy &= maskTrailingZeros<BitWord>(FirstBit);
       }
 
       if (i == LastWord) {
-        unsigned LastBit = (End - 1) % bitwordSize;
+        unsigned LastBit = (End - 1) % kBitwordSize;
         Copy &= maskTrailingOnes<BitWord>(LastBit + 1);
       }
       if (Copy != 0)
-        return i * bitwordSize + exi::countr_zero(Copy);
+        return i * kBitwordSize + exi::countr_zero(Copy);
     }
     return -1;
   }
@@ -249,25 +249,25 @@ public:
     if (Begin == End)
       return -1;
 
-    unsigned LastWord = (End - 1) / bitwordSize;
-    unsigned FirstWord = Begin / bitwordSize;
+    unsigned LastWord = (End - 1) / kBitwordSize;
+    unsigned FirstWord = Begin / kBitwordSize;
 
     for (unsigned i = LastWord + 1; i >= FirstWord + 1; --i) {
       unsigned CurrentWord = i - 1;
 
       BitWord Copy = Bits[CurrentWord];
       if (CurrentWord == LastWord) {
-        unsigned LastBit = (End - 1) % bitwordSize;
+        unsigned LastBit = (End - 1) % kBitwordSize;
         Copy &= maskTrailingOnes<BitWord>(LastBit + 1);
       }
 
       if (CurrentWord == FirstWord) {
-        unsigned FirstBit = Begin % bitwordSize;
+        unsigned FirstBit = Begin % kBitwordSize;
         Copy &= maskTrailingZeros<BitWord>(FirstBit);
       }
 
       if (Copy != 0)
-        return (CurrentWord + 1) * bitwordSize - exi::countl_zero(Copy) - 1;
+        return (CurrentWord + 1) * kBitwordSize - exi::countl_zero(Copy) - 1;
     }
 
     return -1;
@@ -286,26 +286,26 @@ public:
     if (Begin == End)
       return -1;
 
-    unsigned LastWord = (End - 1) / bitwordSize;
-    unsigned FirstWord = Begin / bitwordSize;
+    unsigned LastWord = (End - 1) / kBitwordSize;
+    unsigned FirstWord = Begin / kBitwordSize;
 
     for (unsigned i = LastWord + 1; i >= FirstWord + 1; --i) {
       unsigned CurrentWord = i - 1;
 
       BitWord Copy = Bits[CurrentWord];
       if (CurrentWord == LastWord) {
-        unsigned LastBit = (End - 1) % bitwordSize;
+        unsigned LastBit = (End - 1) % kBitwordSize;
         Copy |= maskTrailingZeros<BitWord>(LastBit + 1);
       }
 
       if (CurrentWord == FirstWord) {
-        unsigned FirstBit = Begin % bitwordSize;
+        unsigned FirstBit = Begin % kBitwordSize;
         Copy |= maskTrailingOnes<BitWord>(FirstBit);
       }
 
       if (Copy != ~BitWord(0)) {
         unsigned Result =
-            (CurrentWord + 1) * bitwordSize - exi::countl_one(Copy) - 1;
+            (CurrentWord + 1) * kBitwordSize - exi::countl_one(Copy) - 1;
         return Result < Size ? Result : -1;
       }
     }
@@ -373,7 +373,7 @@ public:
 
   BitVector &set(unsigned Idx) {
     exi_assert(Idx < Size, "access in bound");
-    Bits[Idx / bitwordSize] |= BitWord(1) << (Idx % bitwordSize);
+    Bits[Idx / kBitwordSize] |= BitWord(1) << (Idx % kBitwordSize);
     return *this;
   }
 
@@ -384,24 +384,24 @@ public:
 
     if (I == E) return *this;
 
-    if (I / bitwordSize == E / bitwordSize) {
-      BitWord EMask = BitWord(1) << (E % bitwordSize);
-      BitWord IMask = BitWord(1) << (I % bitwordSize);
+    if (I / kBitwordSize == E / kBitwordSize) {
+      BitWord EMask = BitWord(1) << (E % kBitwordSize);
+      BitWord IMask = BitWord(1) << (I % kBitwordSize);
       BitWord Mask = EMask - IMask;
-      Bits[I / bitwordSize] |= Mask;
+      Bits[I / kBitwordSize] |= Mask;
       return *this;
     }
 
-    BitWord PrefixMask = ~BitWord(0) << (I % bitwordSize);
-    Bits[I / bitwordSize] |= PrefixMask;
-    I = alignTo(I, bitwordSize);
+    BitWord PrefixMask = ~BitWord(0) << (I % kBitwordSize);
+    Bits[I / kBitwordSize] |= PrefixMask;
+    I = alignTo(I, kBitwordSize);
 
-    for (; I + bitwordSize <= E; I += bitwordSize)
-      Bits[I / bitwordSize] = ~BitWord(0);
+    for (; I + kBitwordSize <= E; I += kBitwordSize)
+      Bits[I / kBitwordSize] = ~BitWord(0);
 
-    BitWord PostfixMask = (BitWord(1) << (E % bitwordSize)) - 1;
+    BitWord PostfixMask = (BitWord(1) << (E % kBitwordSize)) - 1;
     if (I < E)
-      Bits[I / bitwordSize] |= PostfixMask;
+      Bits[I / kBitwordSize] |= PostfixMask;
 
     return *this;
   }
@@ -412,7 +412,7 @@ public:
   }
 
   BitVector &reset(unsigned Idx) {
-    Bits[Idx / bitwordSize] &= ~(BitWord(1) << (Idx % bitwordSize));
+    Bits[Idx / kBitwordSize] &= ~(BitWord(1) << (Idx % kBitwordSize));
     return *this;
   }
 
@@ -423,24 +423,24 @@ public:
 
     if (I == E) return *this;
 
-    if (I / bitwordSize == E / bitwordSize) {
-      BitWord EMask = BitWord(1) << (E % bitwordSize);
-      BitWord IMask = BitWord(1) << (I % bitwordSize);
+    if (I / kBitwordSize == E / kBitwordSize) {
+      BitWord EMask = BitWord(1) << (E % kBitwordSize);
+      BitWord IMask = BitWord(1) << (I % kBitwordSize);
       BitWord Mask = EMask - IMask;
-      Bits[I / bitwordSize] &= ~Mask;
+      Bits[I / kBitwordSize] &= ~Mask;
       return *this;
     }
 
-    BitWord PrefixMask = ~BitWord(0) << (I % bitwordSize);
-    Bits[I / bitwordSize] &= ~PrefixMask;
-    I = alignTo(I, bitwordSize);
+    BitWord PrefixMask = ~BitWord(0) << (I % kBitwordSize);
+    Bits[I / kBitwordSize] &= ~PrefixMask;
+    I = alignTo(I, kBitwordSize);
 
-    for (; I + bitwordSize <= E; I += bitwordSize)
-      Bits[I / bitwordSize] = BitWord(0);
+    for (; I + kBitwordSize <= E; I += kBitwordSize)
+      Bits[I / kBitwordSize] = BitWord(0);
 
-    BitWord PostfixMask = (BitWord(1) << (E % bitwordSize)) - 1;
+    BitWord PostfixMask = (BitWord(1) << (E % kBitwordSize)) - 1;
     if (I < E)
-      Bits[I / bitwordSize] &= ~PostfixMask;
+      Bits[I / kBitwordSize] &= ~PostfixMask;
 
     return *this;
   }
@@ -453,7 +453,7 @@ public:
   }
 
   BitVector &flip(unsigned Idx) {
-    Bits[Idx / bitwordSize] ^= BitWord(1) << (Idx % bitwordSize);
+    Bits[Idx / kBitwordSize] ^= BitWord(1) << (Idx % kBitwordSize);
     return *this;
   }
 
@@ -465,8 +465,8 @@ public:
 
   bool operator[](unsigned Idx) const {
     exi_assert(Idx < Size, "Out-of-bounds Bit access.");
-    BitWord Mask = BitWord(1) << (Idx % bitwordSize);
-    return (Bits[Idx / bitwordSize] & Mask) != 0;
+    BitWord Mask = BitWord(1) << (Idx % kBitwordSize);
+    return (Bits[Idx / kBitwordSize] & Mask) != 0;
   }
 
   /// Return the last element in the vector.
@@ -603,9 +603,9 @@ public:
     unsigned NumWords = Bits.size();
     assert(NumWords >= 1);
 
-    wordShr(N / bitwordSize);
+    wordShr(N / kBitwordSize);
 
-    unsigned BitDistance = N % bitwordSize;
+    unsigned BitDistance = N % kBitwordSize;
     if (BitDistance == 0)
       return *this;
 
@@ -632,7 +632,7 @@ public:
     // Step 5: Word[2] >>= 4           ; 0x02334455
     // Result: { 0x1ABBCCDD, 0x5EEFF001, 0x02334455 }
     const BitWord Mask = maskTrailingOnes<BitWord>(BitDistance);
-    const unsigned LSH = bitwordSize - BitDistance;
+    const unsigned LSH = kBitwordSize - BitDistance;
 
     for (unsigned I = 0; I < NumWords - 1; ++I) {
       Bits[I] >>= BitDistance;
@@ -652,9 +652,9 @@ public:
     unsigned NumWords = Bits.size();
     assert(NumWords >= 1);
 
-    wordShl(N / bitwordSize);
+    wordShl(N / kBitwordSize);
 
-    unsigned BitDistance = N % bitwordSize;
+    unsigned BitDistance = N % kBitwordSize;
     if (BitDistance == 0)
       return *this;
 
@@ -682,7 +682,7 @@ public:
     // Step 5: Word[0] <<= 4           ; 0xABBCCDD0
     // Result: { 0xABBCCDD0, 0xEFF0011A, 0x2334455E }
     const BitWord Mask = maskLeadingOnes<BitWord>(BitDistance);
-    const unsigned RSH = bitwordSize - BitDistance;
+    const unsigned RSH = kBitwordSize - BitDistance;
 
     for (int I = NumWords - 1; I > 0; --I) {
       Bits[I] <<= BitDistance;
@@ -787,18 +787,18 @@ private:
   }
 
   int next_unset_in_word(int WordIndex, BitWord Word) const {
-    unsigned Result = WordIndex * bitwordSize + exi::countr_one(Word);
+    unsigned Result = WordIndex * kBitwordSize + exi::countr_one(Word);
     return Result < size() ? Result : -1;
   }
 
   unsigned NumBitWords(unsigned S) const {
-    return (S + bitwordSize-1) / bitwordSize;
+    return (S + kBitwordSize-1) / kBitwordSize;
   }
 
   // Set the unused bits in the high words.
   void set_unused_bits(bool t = true) {
     //  Then set any stray high bits of the last used word.
-    if (unsigned ExtraBits = Size % bitwordSize) {
+    if (unsigned ExtraBits = Size % kBitwordSize) {
       BitWord ExtraBitMask = ~BitWord(0) << ExtraBits;
       if (t)
         Bits.back() |= ExtraBitMask;
@@ -818,14 +818,14 @@ private:
 
   template<bool AddBits, bool InvertMask>
   void applyMask(const u32 *Mask, unsigned MaskWords) {
-    static_assert(bitwordSize % 32 == 0, "Unsupported BitWord size.");
+    static_assert(kBitwordSize % 32 == 0, "Unsupported BitWord size.");
     MaskWords = std::min(MaskWords, (size() + 31) / 32);
-    const unsigned Scale = bitwordSize / 32;
+    const unsigned Scale = kBitwordSize / 32;
     unsigned i;
     for (i = 0; MaskWords >= Scale; ++i, MaskWords -= Scale) {
       BitWord BW = Bits[i];
-      // This inner loop should unroll completely when bitwordSize > 32.
-      for (unsigned b = 0; b != bitwordSize; b += 32) {
+      // This inner loop should unroll completely when kBitwordSize > 32.
+      for (unsigned b = 0; b != kBitwordSize; b += 32) {
         u32 M = *Mask++;
         if (InvertMask) M = ~M;
         if (AddBits) BW |=   BitWord(M) << b;
@@ -846,7 +846,7 @@ private:
 public:
   /// Return the size (in bytes) of the bit vector.
   size_type getMemorySize() const { return Bits.size() * sizeof(BitWord); }
-  size_type getBitCapacity() const { return Bits.size() * bitwordSize; }
+  size_type getBitCapacity() const { return Bits.size() * kBitwordSize; }
 };
 
 inline BitVector::size_type capacity_in_bytes(const BitVector &X) {

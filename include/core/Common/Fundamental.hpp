@@ -89,7 +89,7 @@ using function_t = Ret(Args...);
 template <typename Ret, class Obj, typename...Args>
 using method_t = Ret(Obj::*)(Args...);
 
-EXI_CONST bool hasInlineFunctionPtrs
+EXI_CONST bool kHasInlineFunctionPtrs
   = (sizeof(function_t<void>*) == sizeof(void*));
 
 } // namespace exi

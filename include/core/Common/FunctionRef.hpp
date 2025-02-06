@@ -96,7 +96,7 @@ struct CallbackType {
 };
 
 template <typename CB>
-requires (hasInlineFunctionPtrs)
+requires (kHasInlineFunctionPtrs)
 struct CallbackType<CB, true> {
   using UType = std::remove_pointer_t<std::remove_cvref_t<CB>>;
   using value_type = UType*;
