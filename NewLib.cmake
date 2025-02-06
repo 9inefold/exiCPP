@@ -1,6 +1,7 @@
 # Temporary file, when I remove exip I'll move this into the main file.
 
 include_items(EXICPP_CORE "lib/core"
+  Common/APInt.cpp
   Common/Option.cpp
   Common/SmallVec.cpp
   Common/StringExtras.cpp
