@@ -80,7 +80,7 @@ public:
 
   const char *getBufferStart() const { return BufferStart; }
   const char *getBufferEnd() const   { return BufferEnd; }
-  size_t getBufferSize() const { return BufferEnd-BufferStart; }
+  usize getBufferSize() const { return BufferEnd-BufferStart; }
 
   StrRef getBuffer() const {
     return StrRef(BufferStart, getBufferSize());
@@ -124,8 +124,8 @@ public:
   /// MemoryBuffer. The slice is specified by an \p Offset and \p MapSize.
   /// Since this is in the middle of a file, the buffer is not null terminated.
   static ErrorOr<Box<MemoryBuffer>>
-  getOpenFileSlice(sys::fs::file_t FD, const Twine &Filename, uint64_t MapSize,
-                   int64_t Offset, bool IsVolatile = false,
+  getOpenFileSlice(sys::fs::file_t FD, const Twine &Filename, u64 MapSize,
+                   i64 Offset, bool IsVolatile = false,
                    Option<Align> Alignment = nullopt);
 
   /// Given an already-open file descriptor, read the file and return a
@@ -138,7 +138,7 @@ public:
   /// \param Alignment Set to indicate that the buffer should be aligned to at
   /// least the specified alignment.
   static ErrorOr<Box<MemoryBuffer>>
-  getOpenFile(sys::fs::file_t FD, const Twine &Filename, uint64_t FileSize,
+  getOpenFile(sys::fs::file_t FD, const Twine &Filename, u64 FileSize,
               bool RequiresNullTerminator = true, bool IsVolatile = false,
               Option<Align> Alignment = nullopt);
 
@@ -168,7 +168,7 @@ public:
 
   /// Map a subrange of the specified file as a MemoryBuffer.
   static ErrorOr<Box<MemoryBuffer>>
-  getFileSlice(const Twine &Filename, uint64_t MapSize, uint64_t Offset,
+  getFileSlice(const Twine &Filename, u64 MapSize, u64 Offset,
                bool IsVolatile = false,
                Option<Align> Alignment = nullopt);
 
@@ -220,7 +220,7 @@ public:
 
   /// Map a subrange of the specified file as a WritableMemoryBuffer.
   static ErrorOr<Box<WritableMemoryBuffer>>
-  getFileSlice(const Twine &Filename, uint64_t MapSize, uint64_t Offset,
+  getFileSlice(const Twine &Filename, u64 MapSize, u64 Offset,
                bool IsVolatile = false,
                Option<Align> Alignment = nullopt);
 
@@ -231,14 +231,14 @@ public:
   /// \param Alignment Set to indicate that the buffer should be aligned to at
   /// least the specified alignment.
   static Box<WritableMemoryBuffer>
-  getNewUninitMemBuffer(size_t Size, const Twine &BufferName = "",
+  getNewUninitMemBuffer(usize Size, const Twine &BufferName = "",
                         Option<Align> Alignment = nullopt);
 
   /// Allocate a new zero-initialized MemoryBuffer of the specified size. Note
   /// that the caller need not initialize the memory allocated by this method.
   /// The memory is owned by the MemoryBuffer object.
   static Box<WritableMemoryBuffer>
-  getNewMemBuffer(size_t Size, const Twine &BufferName = "");
+  getNewMemBuffer(usize Size, const Twine &BufferName = "");
 
 private:
   // Hide these base class factory function so one can't write
@@ -279,11 +279,11 @@ public:
   }
 
   static ErrorOr<Box<WriteThroughMemoryBuffer>>
-  getFile(const Twine &Filename, int64_t FileSize = -1);
+  getFile(const Twine &Filename, i64 FileSize = -1);
 
   /// Map a subrange of the specified file as a ReadWriteMemoryBuffer.
   static ErrorOr<Box<WriteThroughMemoryBuffer>>
-  getFileSlice(const Twine &Filename, uint64_t MapSize, uint64_t Offset);
+  getFileSlice(const Twine &Filename, u64 MapSize, u64 Offset);
 
 private:
   // Hide these base class factory function so one can't write

@@ -91,7 +91,7 @@ struct NamedBufferAlloc {
 };
 } // namespace
 
-void *operator new(size_t N, const NamedBufferAlloc &Alloc) {
+void *operator new(usize N, const NamedBufferAlloc &Alloc) {
   SmallStr<256> NameBuf;
   StrRef NameRef = Alloc.Name.toStrRef(NameBuf);
 
@@ -103,11 +103,11 @@ void *operator new(size_t N, const NamedBufferAlloc &Alloc) {
   // functions within this file for the paired call to free().
   char *Mem =
       static_cast<char *>(
-        exi::exi_malloc(N + sizeof(size_t) + NameRef.size() + 1));
+        exi::exi_malloc(N + sizeof(usize) + NameRef.size() + 1));
   if (!Mem)
     exi::fatal_alloc_error("Allocation failed");
-  *reinterpret_cast<size_t *>(Mem + N) = NameRef.size();
-  CopyStrRef(Mem + N + sizeof(size_t), NameRef);
+  *reinterpret_cast<usize *>(Mem + N) = NameRef.size();
+  CopyStrRef(Mem + N + sizeof(usize), NameRef);
   return Mem;
 }
 
@@ -127,8 +127,8 @@ public:
 
   StrRef getBufferIdentifier() const override {
     // The name is stored after the class itself.
-    return StrRef(reinterpret_cast<const char *>(this + 1) + sizeof(size_t),
-                     *reinterpret_cast<const size_t *>(this + 1));
+    return StrRef(reinterpret_cast<const char *>(this + 1) + sizeof(usize),
+                     *reinterpret_cast<const usize *>(this + 1));
   }
 
   MemoryBuffer::BufferKind getBufferKind() const override {
@@ -139,7 +139,7 @@ public:
 
 template <typename MB>
 static ErrorOr<Box<MB>>
-getFileAux(const Twine &Filename, uint64_t MapSize, uint64_t Offset,
+getFileAux(const Twine &Filename, u64 MapSize, u64 Offset,
            bool IsText, bool RequiresNullTerminator, bool IsVolatile,
            Option<Align> Alignment);
 
@@ -191,8 +191,8 @@ MemoryBuffer::getFileOrSTDIN(const Twine &Filename, bool IsText,
 }
 
 ErrorOr<Box<MemoryBuffer>>
-MemoryBuffer::getFileSlice(const Twine &FilePath, uint64_t MapSize,
-                           uint64_t Offset, bool IsVolatile,
+MemoryBuffer::getFileSlice(const Twine &FilePath, u64 MapSize,
+                           u64 Offset, bool IsVolatile,
                            Option<Align> Alignment) {
   return getFileAux<MemoryBuffer>(FilePath, MapSize, Offset, /*IsText=*/false,
                                   /*RequiresNullTerminator=*/false, IsVolatile,
@@ -225,21 +225,21 @@ template<typename MB>
 class MemoryBufferMMapFile : public MB {
   sys::fs::mapped_file_region MFR;
 
-  static uint64_t getLegalMapOffset(uint64_t Offset) {
+  static u64 getLegalMapOffset(u64 Offset) {
     return Offset & ~(sys::fs::mapped_file_region::alignment() - 1);
   }
 
-  static uint64_t getLegalMapSize(uint64_t Len, uint64_t Offset) {
+  static u64 getLegalMapSize(u64 Len, u64 Offset) {
     return Len + (Offset - getLegalMapOffset(Offset));
   }
 
-  const char *getStart(uint64_t Len, uint64_t Offset) {
+  const char *getStart(u64 Len, u64 Offset) {
     return MFR.const_data() + (Offset - getLegalMapOffset(Offset));
   }
 
 public:
-  MemoryBufferMMapFile(bool RequiresNullTerminator, sys::fs::file_t FD, uint64_t Len,
-                       uint64_t Offset, std::error_code &EC)
+  MemoryBufferMMapFile(bool RequiresNullTerminator, sys::fs::file_t FD, u64 Len,
+                       u64 Offset, std::error_code &EC)
       : MFR(FD, Mapmode<MB>, getLegalMapSize(Len, Offset),
             getLegalMapOffset(Offset), EC) {
     if (!EC) {
@@ -254,8 +254,8 @@ public:
 
   StrRef getBufferIdentifier() const override {
     // The name is stored after the class itself.
-    return StrRef(reinterpret_cast<const char *>(this + 1) + sizeof(size_t),
-                     *reinterpret_cast<const size_t *>(this + 1));
+    return StrRef(reinterpret_cast<const char *>(this + 1) + sizeof(usize),
+                     *reinterpret_cast<const usize *>(this + 1));
   }
 
   MemoryBuffer::BufferKind getBufferKind() const override {
@@ -285,13 +285,13 @@ MemoryBuffer::getFile(const Twine &Filename, bool IsText,
 
 template <typename MB>
 static ErrorOr<Box<MB>>
-getOpenFileImpl(sys::fs::file_t FD, const Twine &Filename, uint64_t FileSize,
-                uint64_t MapSize, int64_t Offset, bool RequiresNullTerminator,
+getOpenFileImpl(sys::fs::file_t FD, const Twine &Filename, u64 FileSize,
+                u64 MapSize, i64 Offset, bool RequiresNullTerminator,
                 bool IsVolatile, Option<Align> Alignment);
 
 template <typename MB>
 static ErrorOr<Box<MB>>
-getFileAux(const Twine &Filename, uint64_t MapSize, uint64_t Offset,
+getFileAux(const Twine &Filename, u64 MapSize, u64 Offset,
            bool IsText, bool RequiresNullTerminator, bool IsVolatile,
            Option<Align> Alignment) {
   Expected<sys::fs::file_t> FDOrErr = sys::fs::openNativeFileForRead(
@@ -314,8 +314,8 @@ WritableMemoryBuffer::getFile(const Twine &Filename, bool IsVolatile,
 }
 
 ErrorOr<Box<WritableMemoryBuffer>>
-WritableMemoryBuffer::getFileSlice(const Twine &Filename, uint64_t MapSize,
-                                   uint64_t Offset, bool IsVolatile,
+WritableMemoryBuffer::getFileSlice(const Twine &Filename, u64 MapSize,
+                                   u64 Offset, bool IsVolatile,
                                    Option<Align> Alignment) {
   return getFileAux<WritableMemoryBuffer>(
       Filename, MapSize, Offset, /*IsText=*/false,
@@ -323,7 +323,7 @@ WritableMemoryBuffer::getFileSlice(const Twine &Filename, uint64_t MapSize,
 }
 
 Box<WritableMemoryBuffer>
-WritableMemoryBuffer::getNewUninitMemBuffer(size_t Size,
+WritableMemoryBuffer::getNewUninitMemBuffer(usize Size,
                                             const Twine &BufferName,
                                             Option<Align> Alignment) {
   using MemBuffer = MemoryBufferMem<WritableMemoryBuffer>;
@@ -336,8 +336,8 @@ WritableMemoryBuffer::getNewUninitMemBuffer(size_t Size,
   SmallStr<256> NameBuf;
   StrRef NameRef = BufferName.toStrRef(NameBuf);
 
-  size_t StringLen = sizeof(MemBuffer) + sizeof(size_t) + NameRef.size() + 1;
-  size_t RealLen = StringLen + Size + 1 + BufAlign.value();
+  usize StringLen = sizeof(MemBuffer) + sizeof(usize) + NameRef.size() + 1;
+  usize RealLen = StringLen + Size + 1 + BufAlign.value();
   if (RealLen <= Size) // Check for rollover.
     return nullptr;
   // We use a call to malloc() rather than a call to a non-throwing operator
@@ -352,8 +352,8 @@ WritableMemoryBuffer::getNewUninitMemBuffer(size_t Size,
     return nullptr;
 
   // The name is stored after the class itself.
-  *reinterpret_cast<size_t *>(Mem + sizeof(MemBuffer)) = NameRef.size();
-  CopyStrRef(Mem + sizeof(MemBuffer) + sizeof(size_t), NameRef);
+  *reinterpret_cast<usize *>(Mem + sizeof(MemBuffer)) = NameRef.size();
+  CopyStrRef(Mem + sizeof(MemBuffer) + sizeof(usize), NameRef);
 
   // The buffer begins after the name and must be aligned.
   char *Buf = (char *)alignAddr(Mem + StringLen, BufAlign);
@@ -364,7 +364,7 @@ WritableMemoryBuffer::getNewUninitMemBuffer(size_t Size,
 }
 
 Box<WritableMemoryBuffer>
-WritableMemoryBuffer::getNewMemBuffer(size_t Size, const Twine &BufferName) {
+WritableMemoryBuffer::getNewMemBuffer(usize Size, const Twine &BufferName) {
   auto SB = WritableMemoryBuffer::getNewUninitMemBuffer(Size, BufferName);
   if (!SB)
     return nullptr;
@@ -373,8 +373,8 @@ WritableMemoryBuffer::getNewMemBuffer(size_t Size, const Twine &BufferName) {
 }
 
 static bool shouldUseMmap(sys::fs::file_t FD,
-                          size_t FileSize,
-                          size_t MapSize,
+                          usize FileSize,
+                          usize MapSize,
                           off_t Offset,
                           bool RequiresNullTerminator,
                           int PageSize,
@@ -402,7 +402,7 @@ static bool shouldUseMmap(sys::fs::file_t FD,
   // file descriptor is cheaper than stat on a random path.
   // FIXME: this chunk of code is duplicated, but it avoids a fstat when
   // RequiresNullTerminator = false and MapSize != -1.
-  if (FileSize == size_t(-1)) {
+  if (FileSize == usize(-1)) {
     sys::fs::file_status Status;
     if (sys::fs::status(FD, Status))
       return false;
@@ -411,7 +411,7 @@ static bool shouldUseMmap(sys::fs::file_t FD,
 
   // If we need a null terminator and the end of the map is inside the file,
   // we cannot use mmap.
-  size_t End = Offset + MapSize;
+  usize End = Offset + MapSize;
   assert(End <= FileSize);
   if (End != FileSize)
     return false;
@@ -433,8 +433,8 @@ static bool shouldUseMmap(sys::fs::file_t FD,
 }
 
 static ErrorOr<Box<WriteThroughMemoryBuffer>>
-getReadWriteFile(const Twine &Filename, uint64_t FileSize, uint64_t MapSize,
-                 uint64_t Offset) {
+getReadWriteFile(const Twine &Filename, u64 FileSize, u64 MapSize,
+                 u64 Offset) {
   Expected<sys::fs::file_t> FDOrErr = sys::fs::openNativeFileForReadWrite(
       Filename, sys::fs::CD_OpenExisting, sys::fs::OF_None);
   if (!FDOrErr)
@@ -442,10 +442,10 @@ getReadWriteFile(const Twine &Filename, uint64_t FileSize, uint64_t MapSize,
   sys::fs::file_t FD = *FDOrErr;
 
   // Default is to map the full file.
-  if (MapSize == uint64_t(-1)) {
+  if (MapSize == u64(-1)) {
     // If we don't know the file size, use fstat to find out.  fstat on an open
     // file descriptor is cheaper than stat on a random path.
-    if (FileSize == uint64_t(-1)) {
+    if (FileSize == u64(-1)) {
       sys::fs::file_status Status;
       std::error_code EC = sys::fs::status(FD, Status);
       if (EC)
@@ -474,29 +474,29 @@ getReadWriteFile(const Twine &Filename, uint64_t FileSize, uint64_t MapSize,
 }
 
 ErrorOr<Box<WriteThroughMemoryBuffer>>
-WriteThroughMemoryBuffer::getFile(const Twine &Filename, int64_t FileSize) {
+WriteThroughMemoryBuffer::getFile(const Twine &Filename, i64 FileSize) {
   return getReadWriteFile(Filename, FileSize, FileSize, 0);
 }
 
 /// Map a subrange of the specified file as a WritableMemoryBuffer.
 ErrorOr<Box<WriteThroughMemoryBuffer>>
-WriteThroughMemoryBuffer::getFileSlice(const Twine &Filename, uint64_t MapSize,
-                                       uint64_t Offset) {
+WriteThroughMemoryBuffer::getFileSlice(const Twine &Filename, u64 MapSize,
+                                       u64 Offset) {
   return getReadWriteFile(Filename, -1, MapSize, Offset);
 }
 
 template <typename MB>
 static ErrorOr<Box<MB>>
-getOpenFileImpl(sys::fs::file_t FD, const Twine &Filename, uint64_t FileSize,
-                uint64_t MapSize, int64_t Offset, bool RequiresNullTerminator,
+getOpenFileImpl(sys::fs::file_t FD, const Twine &Filename, u64 FileSize,
+                u64 MapSize, i64 Offset, bool RequiresNullTerminator,
                 bool IsVolatile, Option<Align> Alignment) {
   static int PageSize = sys::Process::getPageSizeEstimate();
 
   // Default is to map the full file.
-  if (MapSize == uint64_t(-1)) {
+  if (MapSize == u64(-1)) {
     // If we don't know the file size, use fstat to find out.  fstat on an open
     // file descriptor is cheaper than stat on a random path.
-    if (FileSize == uint64_t(-1)) {
+    if (FileSize == u64(-1)) {
       sys::fs::file_status Status;
       std::error_code EC = sys::fs::status(FD, Status);
       if (EC)
@@ -549,7 +549,7 @@ getOpenFileImpl(sys::fs::file_t FD, const Twine &Filename, uint64_t FileSize,
   // Read until EOF, zero-initialize the rest.
   MutArrayRef<char> ToRead = Buf->getBuffer();
   while (!ToRead.empty()) {
-    Expected<size_t> ReadBytes =
+    Expected<usize> ReadBytes =
         sys::fs::readNativeFileSlice(FD, ToRead, Offset);
     if (!ReadBytes)
       return errorToErrorCode(ReadBytes.takeError());
@@ -566,7 +566,7 @@ getOpenFileImpl(sys::fs::file_t FD, const Twine &Filename, uint64_t FileSize,
 
 ErrorOr<Box<MemoryBuffer>>
 MemoryBuffer::getOpenFile(sys::fs::file_t FD, const Twine &Filename,
-                          uint64_t FileSize, bool RequiresNullTerminator,
+                          u64 FileSize, bool RequiresNullTerminator,
                           bool IsVolatile, Option<Align> Alignment) {
   return getOpenFileImpl<MemoryBuffer>(FD, Filename, FileSize, FileSize, 0,
                                        RequiresNullTerminator, IsVolatile,
@@ -574,9 +574,9 @@ MemoryBuffer::getOpenFile(sys::fs::file_t FD, const Twine &Filename,
 }
 
 ErrorOr<Box<MemoryBuffer>> MemoryBuffer::getOpenFileSlice(
-    sys::fs::file_t FD, const Twine &Filename, uint64_t MapSize, int64_t Offset,
+    sys::fs::file_t FD, const Twine &Filename, u64 MapSize, i64 Offset,
     bool IsVolatile, Option<Align> Alignment) {
-  assert(MapSize != uint64_t(-1));
+  assert(MapSize != u64(-1));
   return getOpenFileImpl<MemoryBuffer>(FD, Filename, -1, MapSize, Offset, false,
                                        IsVolatile, Alignment);
 }
