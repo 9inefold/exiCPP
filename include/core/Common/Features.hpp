@@ -275,12 +275,38 @@
 # define EXI_UNUSED
 #endif
 
+// Prior to clang 3.2, clang did not accept any spelling of
+// __has_attribute(const), so assume it is supported.
+#if defined(__clang__) || defined(__GNUC__)
+# define EXI_READNONE __attribute__((__const__))
+#else
+# define EXI_READNONE
+#endif
+
+#if EXI_HAS_ATTR(pure) || defined(__GNUC__)
+# define EXI_READONLY __attribute__((__pure__))
+#else
+# define EXI_READONLY
+#endif
+
 #if EXI_HAS_ATTR(returns_nonnull)
 # define EXI_RETURNS_NONNULL __attribute__((returns_nonnull))
 #elif defined(_MSC_VER)
 # define EXI_RETURNS_NONNULL _Ret_notnull_
 #else
 # define EXI_RETURNS_NONNULL
+#endif
+
+/// Mark debug helper function definitions like dump() that should not be
+/// stripped from debug builds.
+/// Note that you should also surround dump() functions with
+/// `#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)` so they do always
+/// get stripped in release builds.
+// FIXME: Move this to a private config.h as it's not usable in public headers.
+#if !defined(NDEBUG) || defined(EXI_ENABLE_DUMP)
+# define EXI_DUMP_METHOD EXI_NO_INLINE EXI_USED
+#else
+# define EXI_DUMP_METHOD EXI_NO_INLINE
 #endif
 
 //////////////////////////////////////////////////////////////////////////
