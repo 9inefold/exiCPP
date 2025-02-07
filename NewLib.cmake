@@ -2,6 +2,7 @@
 
 include_items(EXICPP_CORE "lib/core"
   Common/APInt.cpp
+  Common/APSInt.cpp
   Common/Option.cpp
   Common/SmallVec.cpp
   Common/StringExtras.cpp
