@@ -110,13 +110,17 @@ void printIfInHeap(const void* Ptr) {
 
 int main(int Argc, char* Argv[]) {
 #if EXI_USE_MIMALLOC
-  mi_option_disable(mi_option_verbose);
+  if (mi_option_is_enabled(mi_option_verbose)) {
+    mi_option_disable(mi_option_verbose);
+    outs() << '\n';
+  }
   if (!mi_is_redirected()) {
-    outs() << "\nRedirection failed.\n";
+    outs() << "Redirection failed.\n";
   } else {
-    outs() << "\nIs redirected!\n";
+    outs() << "Is redirected!\n";
     testMimallocRedirect();
   }
+  outs() << '\n';
 #endif // EXI_USE_MIMALLOC
 
   SmallStr<256> Str;
