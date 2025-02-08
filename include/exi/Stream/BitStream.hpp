@@ -30,8 +30,9 @@
 #include "exi/Basic/NBitInt.hpp"
 
 namespace exi {
-class StrRef;
+class APInt;
 class MemoryBuffer;
+class StrRef;
 class WritableMemoryBuffer;
 
 template <typename T> class SmallVecImpl;
@@ -45,8 +46,7 @@ static_assert(kCHAR_BIT == 8,
 
 /// The base for BitStream types. Provides a simple interface for reading
 /// the current position in bits and bytes, and wraps a "stream" buffer.
-template <class BufferT>
-class BitStreamBase {
+template <class BufferT> class BitStreamBase {
 public:
   using size_type = u64;
   static constexpr usize kMaxCapacity = max_v<size_type> / kCHAR_BIT;
@@ -65,8 +65,9 @@ public:
   /// The offset from the start of the current byte in bits.
   size_type nearByteOffset() const { return (Position & kMask); }
   /// The offset from the next byte in bits.
-  /// TODO: Do `Result & kMask`? 
   size_type farByteOffset() const { return kCHAR_BIT - nearByteOffset(); }
+  /// The offset from the next unaligned byte in bits.
+  size_type farByteOffsetInclusive() const { return (farByteOffset() & kMask); }
 
   /// The capacity in bits.
   size_type capacity() const { return (Stream.size() * kCHAR_BIT); }
@@ -116,25 +117,27 @@ protected:
   }
 };
 
-class InBitStream : public BitStreamBase<ArrayRef<u8>> {
+class BitStreamIn : public BitStreamBase<ArrayRef<u8>> {
   // TODO: friend class ...
 public:
   using StreamType = ArrayRef<u8>;
   using BaseType = BitStreamBase<StreamType>;
 public:
-  InBitStream(StreamType Stream) : BaseType(Stream) {}
+  BitStreamIn(StreamType Stream) : BaseType(Stream) {}
 private:
-  /// Constructs an `InBitStream` from a `StrRef`.
-  InBitStream(StrRef Buffer);
+  /// Constructs a `InBitStream` from a `StrRef`.
+  BitStreamIn(StrRef Buffer);
 public:
-  /// Creates an `InBitStream` from an `ArrayRef`.
-  static InBitStream New(ArrayRef<u8> Stream) { 
-    return InBitStream(Stream);
+  /// Creates a `BitStreamIn` from an `ArrayRef`.
+  static BitStreamIn New(ArrayRef<u8> Stream) { 
+    return BitStreamIn(Stream);
   }
-  /// Maybe creates an `InBitStream` from a `MemoryBuffer`.
-  static InBitStream New(const MemoryBuffer& MB);
-  /// Maybe creates an `InBitStream` from a `MemoryBuffer*`.
-  static Option<InBitStream> New(const MemoryBuffer* MB);
+  /// Maybe creates a `BitStreamIn` from a `MemoryBuffer`.
+  static BitStreamIn New(const MemoryBuffer& MB);
+  /// Maybe creates a `BitStreamIn` from a `MemoryBuffer*`.
+  static Option<BitStreamIn> New(const MemoryBuffer* MB);
+
+  void skip(i64 Bits) { BaseType::Position += Bits; }
 
   ////////////////////////////////////////////////////////////////////////
   // Reading
@@ -145,15 +148,18 @@ public:
   /// Peeks a variable number of bits (max of 64).
   u64 peekBits(i64 Bits) const;
 
+  /// Peeks a variable number of bits.
+  APInt peekBitsAP(i64 Bits) const;
+
   /// Peeks a static number of bits (max of 64).
   template <unsigned Bits> ubit<Bits> peekBits() const {
-    return ubit<Bits>(peekBits(Bits));
+    return ubit<Bits>::FromBits(peekBits(Bits));
   }
 
   /// Peeks a single bit.
   bool readBit() {
     const bool Result = peekBit();
-    ++BaseType::Position;
+    this->skip(1);
     return Result;
   }
 
@@ -161,15 +167,23 @@ public:
   /// This means data is peeked, then the position is advanced.
   u64 readBits(i64 Bits);
 
+  /// Reads a variable number of bits.
+  /// This means data is peeked, then the position is advanced.
+  APInt readBitsAP(i64 Bits);
+
   /// Reads a static number of bits (max of 64).
   /// This means data is peeked, then the position is advanced.
   template <unsigned Bits> ubit<Bits> readBits() {
-    return ubit<Bits>(readBits(Bits));
+    return ubit<Bits>::FromBits(readBits(Bits));
   }
 
 private:
   u8 getCurrentByte() const;
   u64 peekUnalignedBits() const;
+  u64 peekBitsImpl(i64 Bits) const;
+
+  u64 readUnalignedBits();
+  APInt readBitsAPLarge(i64 Bits);
 };
 
 // TODO: OutBitStream

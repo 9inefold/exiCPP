@@ -22,6 +22,8 @@
 //===----------------------------------------------------------------===//
 
 #include "exi/Stream/BitStream.hpp"
+#include "core/Common/APInt.hpp"
+#include "core/Common/SmallVec.hpp"
 #include "core/Common/StrRef.hpp"
 #include "core/Support/Debug.hpp"
 #include "core/Support/MemoryBuffer.hpp"
@@ -37,39 +39,50 @@ static ArrayRef<u8> GetU8Buffer(StrRef Buffer) {
     reinterpret_cast<const u8*>(Buffer.end()));
 }
 
-//======================================================================//
-// InBitStream
-//======================================================================//
-
-InBitStream::InBitStream(StrRef Buffer) :
- InBitStream::BaseType(GetU8Buffer(Buffer)) { 
+ALWAYS_INLINE static APInt
+ PeekBitsAPImpl(BitStreamIn thiz, i64 Bits) {
+  return thiz.readBitsAP(Bits);
 }
 
-InBitStream InBitStream::New(const MemoryBuffer& MB) {
-  return InBitStream(MB.getBuffer());
+//======================================================================//
+// BitStreamIn
+//======================================================================//
+
+BitStreamIn::BitStreamIn(StrRef Buffer) :
+ BitStreamIn::BaseType(GetU8Buffer(Buffer)) { 
 }
 
-Option<InBitStream> InBitStream::New(const MemoryBuffer* MB) {
+BitStreamIn BitStreamIn::New(const MemoryBuffer& MB) {
+  return BitStreamIn(MB.getBuffer());
+}
+
+Option<BitStreamIn> BitStreamIn::New(const MemoryBuffer* MB) {
   if EXI_UNLIKELY(!MB)
     return nullopt;
-  return InBitStream::New(*MB);
+  return BitStreamIn::New(*MB);
 }
 
 //////////////////////////////////////////////////////////////////////////
 // Reading
 
-u8 InBitStream::getCurrentByte() const {
+u8 BitStreamIn::getCurrentByte() const {
   exi_invariant(!BaseType::isFull());
   return BaseType::Stream[BaseType::bytePos()];
 }
 
-u64 InBitStream::peekUnalignedBits() const {
+u64 BitStreamIn::peekUnalignedBits() const {
   const u64 Pos = BaseType::nearByteOffset();
   const u64 Curr = getCurrentByte();
   return Curr & (0xff >> Pos);
 }
 
-bool InBitStream::peekBit() const {
+u64 BitStreamIn::readUnalignedBits() {
+  const u64 Peeked = peekUnalignedBits();
+  this->skip(BaseType::farByteOffsetInclusive());
+  return Peeked;
+}
+
+bool BitStreamIn::peekBit() const {
   if (BaseType::isFull()) {
     DEBUG_ONLY(dbgs() << "Unable to read bit.\n");
     return 0;
@@ -80,13 +93,8 @@ bool InBitStream::peekBit() const {
   return (Curr >> Pos) & 0x1;
 }
 
-u64 InBitStream::peekBits(i64 Bits) const {
-  exi_invariant(Bits >= 0, "Invalid bit size!");
-  if EXI_UNLIKELY(!BaseType::canReadNBits(Bits)) {
-    DEBUG_ONLY(dbgs() << "Unable to read " << Bits << " bits.\n");
-    return 0;
-  }
-
+/// Peeks without any extra checks. Those are assumed to have already been done.
+u64 BitStreamIn::peekBitsImpl(i64 Bits) const {
   if (Bits == 0)
     return 0;
   
@@ -124,10 +132,81 @@ u64 InBitStream::peekBits(i64 Bits) const {
   return Result;
 }
 
-u64 InBitStream::readBits(i64 Bits) {
+u64 BitStreamIn::peekBits(i64 Bits) const {
+  exi_invariant(Bits >= 0, "Invalid bit size!");
+  if EXI_UNLIKELY(!BaseType::canReadNBits(Bits)) {
+    DEBUG_ONLY(dbgs() << "Unable to read " << Bits << " bits.\n");
+    return 0;
+  }
+
+  return peekBitsImpl(Bits);
+}
+
+APInt BitStreamIn::peekBitsAP(i64 Bits) const {
+  exi_invariant(Bits >= 0, "Invalid bit size!");
+  if EXI_UNLIKELY(!BaseType::canReadNBits(Bits)) {
+    DEBUG_ONLY(dbgs() << "Unable to read " << Bits << " bits.\n");
+    return APInt::getZero(0);
+  }
+
+  if (Bits <= 64)
+    // Handle small cases.
+    return APInt(Bits, peekBitsImpl(Bits), false, true);
+  
+  // Handle bits over a size of 64.
+  // Copies and calls `readBitsAP`.
+  return PeekBitsAPImpl(*this, Bits);
+}
+
+u64 BitStreamIn::readBits(i64 Bits) {
   const u64 Result = peekBits(Bits);
-  BaseType::Position += Bits;
+  this->skip(Bits);
   return Result;
+}
+
+/// For reading `APInts` on the slow path.
+APInt BitStreamIn::readBitsAPLarge(i64 Bits) {
+  exi_invariant(Bits > 64, "Invalid bit size!");
+  const i64 OldBits = Bits;
+
+  constexpr i64 kBitsPerWord = APInt::kAPIntBitsPerWord;
+  const i64 NumWholeBytes = Bits / kBitsPerWord;
+  SmallVec<APInt::WordType> Buf(NumWholeBytes + 1);
+
+  i64 WrittenBytes = 0;
+  while (Bits >= kBitsPerWord) {
+    const u64 Read = readBits(kBitsPerWord);
+    // Read in chunks of 64 bits.
+    Buf[WrittenBytes++] = exi::byteswap(Read);
+    Bits -= kBitsPerWord;
+  }
+
+  if (Bits != 0) {
+    u64 Read = readBits(Bits);
+    // Get the remaining bits.
+    Buf[WrittenBytes++] = Read;
+    Bits = 0;
+  }
+
+  this->skip(OldBits);
+  return APInt(OldBits, Buf);
+}
+
+APInt BitStreamIn::readBitsAP(i64 Bits) {
+  exi_invariant(Bits >= 0, "Invalid bit size!");
+  if EXI_UNLIKELY(!BaseType::canReadNBits(Bits)) {
+    DEBUG_ONLY(dbgs() << "Unable to read " << Bits << " bits.\n");
+    return APInt(0, 0, false, true);
+  }
+
+  if (Bits <= 64) {
+    // Handle small cases.
+    APInt AP(Bits, peekBitsImpl(Bits), false, true);
+    this->skip(Bits);
+    return AP;
+  }
+
+  return readBitsAPLarge(Bits);
 }
 
 //======================================================================//
