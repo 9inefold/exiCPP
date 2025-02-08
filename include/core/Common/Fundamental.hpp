@@ -24,6 +24,8 @@
 #include <cstdint>
 #include <type_traits>
 
+EXI_CONST std::size_t kCHAR_BIT = CHAR_BIT;
+
 template <typename T>
 EXI_CONST std::size_t sizeof_v = sizeof(T);
 
@@ -31,7 +33,7 @@ template <>
 EXI_CONST std::size_t sizeof_v<void> = 0ull;
 
 template <typename T>
-EXI_CONST std::size_t bitsizeof_v = (sizeof_v<T> * std::size_t(CHAR_BIT));
+EXI_CONST std::size_t bitsizeof_v = (sizeof_v<T> * kCHAR_BIT);
 
 //////////////////////////////////////////////////////////////////////////
 // Integrals
@@ -46,13 +48,43 @@ using u16 = std::uint16_t;
 using u32 = std::uint32_t;
 using u64 = std::uint64_t;
 
-using iptr = std::intptr_t;
-using uptr = std::uintptr_t;
-
 using ptrdiff = std::ptrdiff_t;
 
 using isize = std::make_signed_t<std::size_t>;
 using usize = std::size_t;
+
+namespace exi {
+namespace H {
+
+template <usize N> struct SIntN;
+template <usize N> struct UIntN;
+
+template <> struct SIntN<1UL>  { using type = i8; };
+template <> struct SIntN<2UL>  { using type = i16; };
+template <> struct SIntN<4UL>  { using type = i32; };
+template <> struct SIntN<8UL>  { using type = i64; };
+// template <> struct SIntN<16UL> { using type = i128; };
+
+template <> struct UIntN<1UL>  { using type = u8; };
+template <> struct UIntN<2UL>  { using type = u16; };
+template <> struct UIntN<4UL>  { using type = u32; };
+template <> struct UIntN<8UL>  { using type = u64; };
+// template <> struct UIntN<16UL> { using type = u128; };
+
+} // namespace H
+
+template <usize N> using intn_t  = typename H::SIntN<N>::type;
+template <usize N> using uintn_t = typename H::UIntN<N>::type;
+template <typename T> using intty_t  = intn_t<sizeof(T)>;
+template <typename T> using uintty_t = uintn_t<sizeof(T)>;
+
+} // namespace exi
+
+using iptr = std::intptr_t;
+using uptr = std::uintptr_t;
+
+using ihalfptr = exi::intn_t<sizeof(void*) / 2>;
+using uhalfptr = exi::uintn_t<sizeof(void*) / 2>;
 
 //////////////////////////////////////////////////////////////////////////
 // Floats
@@ -71,6 +103,7 @@ namespace exi {
 struct Dummy_ {};
 /// The default placeholder type.
 using dummy_t = Dummy_;
+EXI_CONST dummy_t dummy_v = Dummy_{};
 
 struct Void_ {
   ALWAYS_INLINE constexpr
