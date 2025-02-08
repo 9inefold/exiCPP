@@ -21,6 +21,7 @@
 #include <Common/Twine.hpp>
 #include <Support/_IO.hpp>
 #include <Support/Errc.hpp>
+#include <Support/Debug.hpp>
 #include <Support/FmtBuffer.hpp>
 #include <Support/WindowsError.hpp>
 #include <cstring>
@@ -28,6 +29,20 @@
 #if EXI_EXCEPTIONS
 # include <new>
 # include <stdexcept>
+#endif
+#ifdef _WIN32
+# define WIN32_NO_STATUS
+# include <Support/Windows/WindowsSupport.hpp>
+# undef WIN32_NO_STATUS
+#endif
+
+#if defined(_WIN32) && EXI_DEBUG
+# define TRAP_IF_DEBUGGING() do {       \
+  if (DebugFlag && IsDebuggerPresent()) \
+    EXI_TRAP;                           \
+} while(0)
+#else
+# define TRAP_IF_DEBUGGING() (void(0))
 #endif
 
 using namespace exi;
@@ -71,10 +86,12 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& buf, StrRef S) {
   }
   (void)::write(2, fullMsg.data(), fullMsg.size());
 
-  if (genCrashDiag)
+  if (genCrashDiag) {
     std::abort();
-  else
+  } else {
+    TRAP_IF_DEBUGGING();
     std::exit(1);
+  }
 }
 
 [[noreturn]] void exi::fatal_alloc_error([[maybe_unused]] const char* msg) {
@@ -107,6 +124,7 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& buf, StrRef S) {
     fmt::print(stderr, "{}", pre);
     
   fmt::println(stderr, ".");
+  TRAP_IF_DEBUGGING();
   std::abort();
 
 #ifdef EXI_UNREACHABLE
@@ -118,9 +136,6 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& buf, StrRef S) {
 
 #ifdef _WIN32
 
-#define WIN32_NO_STATUS
-#include <Support/Windows/WindowsSupport.hpp>
-#undef WIN32_NO_STATUS
 #include <ntstatus.h>
 #include <winerror.h>
 
