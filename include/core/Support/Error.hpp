@@ -722,9 +722,7 @@ private:
   }
 
 #if EXI_INVARIANTS
-  // TODO: Implement <Support/Debug.hpp>
   [[noreturn]] EXI_NO_INLINE void fatalUncheckedExpected() const {
-# if EXI_HAS_DBG_IMPL
     dbgs() << "Expected<T> must be checked before access or destruction.\n";
     if (HasError) {
       dbgs() << "Unchecked Expected<T> contained error:\n";
@@ -734,8 +732,7 @@ private:
                 "values in success mode must still be checked prior to being "
                 "destroyed).\n";
     }
-# endif
-    abort();
+    std::abort();
   }
 #endif
 
