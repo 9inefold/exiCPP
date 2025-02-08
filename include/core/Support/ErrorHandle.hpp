@@ -78,6 +78,7 @@ class Twine;
       __FILE__, __LINE__)))
 
 #if !defined(NDEBUG) || EXI_INVARIANTS
+# define EXI_ASSERTS 1
 /// Takes `(condition, "message")`, asserts in debug mode.
 # define exi_assert(expr, ...) \
  exi_assert_(ASK_Assert, expr __VA_OPT__(,) __VA_ARGS__)
