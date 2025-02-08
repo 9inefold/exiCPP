@@ -3,7 +3,7 @@ include_guard(DIRECTORY)
 
 project(
   exi-cpp
-  VERSION 0.6.13
+  VERSION 0.6.14
   LANGUAGES CXX C
 )
 
@@ -28,18 +28,23 @@ option(EXI_EXCEPTIONS   "If exceptions should be enabled." OFF)
 option(EXI_USE_MIMALLOC "If allocation should be done through mimalloc" ON)
 
 option(EXI_INVARIANTS   "Adds extra invariant checking." ON)
-option(EXI_FAST_DEBUG   "If parts of debug builds should be optimized." OFF)
 option(EXI_DEBUG        "If debug printing should be enabled." ON)
-option(EXI_ANSI         "If ANSI should be enabled." ON)
+option(EXI_FAST_DEBUG   "If parts of debug builds should be optimized." OFF)
+option(EXI_ANSI         "If ANSI should be enabled." ON) # DEPRECATED
+
+option(EXI_ENABLE_DUMP  "If dump methods shouldn't be stripped." OFF)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")
 else()
+  set(EXI_FLAGS $<$<NOT:$<CONFIG:Debug>>:"-ftrivial-auto-var-init=zero">)
   # TODO: Add function for this?
   set(EXI_WARNING_FLAGS -Wall -Wextra
     -Wno-unused-variable -Wno-unused-function
-    -Wno-unused-parameter
-  )
+    -Wno-unused-parameter)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GCC")
+    set(EXI_FLAGS "${EXI_FLAGS} -Wuninitialized=precise")
+  endif()
 endif()
 
 if(WIN32)
