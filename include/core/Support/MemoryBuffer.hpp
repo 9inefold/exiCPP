@@ -288,7 +288,7 @@ public:
 private:
   // Hide these base class factory function so one can't write
   //   WritableMemoryBuffer::getXXX()
-  // and be surprised that he got a read-only Buffer.
+  // and be surprised that they got a read-only Buffer.
   using MemoryBuffer::getFileAsStream;
   using MemoryBuffer::getFileOrSTDIN;
   using MemoryBuffer::getMemBuffer;
