@@ -79,13 +79,13 @@ protected:
   static APInt MakeAPInt(SInt Val, unsigned Bits);
   static APInt MakeAPInt(UInt Val, unsigned Bits);
 
-  template <bool Signed, typename InT>
+  template <bool Signed, typename InpT>
 #if !EXI_INVARIANTS
   ALWAYS_INLINE
 #endif
-  static void AssertNBitInt(InT I, unsigned Bits) noexcept {
+  static void AssertNBitInt(InpT I, unsigned Bits) noexcept {
 #if EXI_INVARIANTS
-    constexpr bool kSigned = std::is_signed_v<InT>;
+    constexpr bool kSigned = std::is_signed_v<InpT>;
     if (Signed != kSigned) {
       if (!Signed)
         exi_assert(I >= 0, "Negative sign conversion!");
@@ -150,8 +150,8 @@ protected:
   }
 
   /// Invoke `BaseType::AssertNBitInt` with the current values.
-  template <typename InT>
-  EXI_INLINE static void AssertNBitInt(InT I) noexcept {
+  template <typename InpT>
+  EXI_INLINE static void AssertNBitInt(InpT I) noexcept {
 #if EXI_INVARIANTS
     BaseType::AssertNBitInt<IsSigned>(I, Bits);
 #endif // EXI_INVARIANTS
@@ -166,14 +166,14 @@ public:
 
   /// We have to initialize `AllData` first,
   /// as otherwise it won't fill in the padding bits. Agh!
-  template <std::integral InT>
-  EXI_INLINE NBitIntCommon(InT I) : AllData{} {
+  template <std::integral InpT>
+  EXI_INLINE NBitIntCommon(InpT I) : AllData{} {
     SelfType::AssertNBitInt(I);
     this->Data = static_cast<IntT>(I);
   }
 
-  template <std::integral InT>
-  NBitIntCommon& operator=(InT I) {
+  template <std::integral InpT>
+  NBitIntCommon& operator=(InpT I) {
     SelfType::AssertNBitInt(I);
     this->Data = static_cast<IntT>(I);
     return *this;
@@ -197,13 +197,13 @@ public:
   friend bool operator==(const NBitIntCommon& LHS, NBitIntCommon RHS) noexcept {
     return LHS.Data == RHS.Data;
   }
-  template <std::integral InT>
-  friend bool operator==(const NBitIntCommon& LHS, InT RHS) noexcept {
+  template <std::integral InpT>
+  friend bool operator==(const NBitIntCommon& LHS, InpT RHS) noexcept {
     SelfType::AssertNBitInt(RHS);
     return LHS.Data == RHS;
   }
-  template <std::integral InT>
-  friend bool operator==(InT LHS, const NBitIntCommon& RHS) noexcept {
+  template <std::integral InpT>
+  friend bool operator==(InpT LHS, const NBitIntCommon& RHS) noexcept {
     SelfType::AssertNBitInt(LHS);
     return LHS == RHS.Data;
   }
@@ -254,8 +254,8 @@ public:
     return NBitSInt(All, true, dummy_v);
   }
 
-  template <std::integral InT>
-  NBitSInt& operator=(InT I) {
+  template <std::integral InpT>
+  NBitSInt& operator=(InpT I) {
     BaseType::operator=(I);
     return *this;
   }
@@ -289,8 +289,8 @@ public:
     return NBitUInt(All, true, dummy_v);
   }
 
-  template <std::integral InT>
-  NBitUInt& operator=(InT I) {
+  template <std::integral InpT>
+  NBitUInt& operator=(InpT I) {
     BaseType::operator=(I);
     return *this;
   }
