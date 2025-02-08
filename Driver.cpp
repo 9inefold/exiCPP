@@ -16,6 +16,7 @@
 //
 //===----------------------------------------------------------------===//
 
+#include <Common/APSInt.hpp>
 #include <Common/Box.hpp>
 #include <Common/Map.hpp>
 #include <Common/String.hpp>
@@ -47,6 +48,10 @@
 
 using namespace exi;
 using namespace exi::sys;
+
+//===----------------------------------------------------------------===//
+// Misc
+//===----------------------------------------------------------------===//
 
 #if EXI_USE_MIMALLOC
 static bool ITestMimallocRedirect(usize Mul) {
@@ -151,6 +156,10 @@ static void miscTests(int Argc, char* Argv[]) {
   errs() << "mimalloc: " << Process::GetMallocUsage() << '\n';
   errs() << "malloc:   " << Process::GetStdMallocUsage() << '\n';
 }
+
+//===----------------------------------------------------------------===//
+// NBitInt
+//===----------------------------------------------------------------===//
 
 template <bool Sign> struct BitData {
   using IntT = H::NBitIntValueType<Sign>;
@@ -260,26 +269,14 @@ static void runAllTests() {
   }
 }
 
-int main(int Argc, char* Argv[]) {
-  exi::DebugFlag = true;
+//===----------------------------------------------------------------===//
+// BitStream
+//===----------------------------------------------------------------===//
 
-  // miscTests(Argc, Argv);
-  u8 Data[] {0b1001'0110, 0b1011'1011, 0b1111'1110};
-  InBitStream BS(Data);
-  exi_assert(BS.bitPos() == 0, "Yeah.");
+static bool gPrintAPIntTail = true;
+static bool gPrintAPWordBounds = false;
 
-  exi_assert(BS.peekBit()     == 1);
-  exi_assert(BS.peekBits(4)   == 0b1001);
-  exi_assert(BS.readBits<4>() == 0b1001);
-  exi_assert(BS.readBits(3)   == 0b011);
-  exi_assert(BS.readBit()     == 0);
-  exi_assert(BS.peekBits<4>() == 0b1011);
-  exi_assert(BS.readBits(4)   == 0b1011);
-  exi_assert(BS.readBits(12)  == 0b1011'1111'1110);
-
-  // runAllTests();
-  // return 0;
-
+static void BitIntTests() {
   {
     using SInt = ibit<4>;
     using UInt = ubit<4>;
@@ -296,8 +293,7 @@ int main(int Argc, char* Argv[]) {
 
     outs() << "I: " << I << '\n';
     outs() << "U: " << U << '\n';
-  }
-  {
+  } {
     using SInt = ibit<8>;
     using UInt = ubit<5>;
 
@@ -321,4 +317,128 @@ int main(int Argc, char* Argv[]) {
     outs() << "I: " << I << '\n';
     outs() << "U: " << U << '\n';
   }
+}
+
+template <typename...Args>
+static void printWord(fmt::format_string<Args...> Fmt, Args&&...args) {
+  if (gPrintAPWordBounds) {
+    String Out = fmt::format(Fmt, EXI_FWD(args)...);
+    fmt::print("[{}]", std::move(Out));
+  } else {
+    fmt::print(Fmt, EXI_FWD(args)...);
+  }
+}
+
+static void printWordBits(u64 Block, unsigned Bits = 64) {
+  using Arr = std::array<u8, sizeof(u64)>;
+  auto A = std::bit_cast<Arr>(exi::byteswap(Block));
+  unsigned Remaining = 64;
+  for (u8 Byte : A) {
+    if ((Remaining - 8) <= Bits) {
+      if (Remaining > Bits)
+        printWord("{: >08b}", Byte);
+      else
+        printWord("{:0>08b}", Byte);
+    } else {
+      printWord("        ");
+    }
+    fmt::print(" ");
+    Remaining -= 8;
+  }
+}
+
+static void printAPIntBinary(const APInt& AP, const char* Pre) {
+  if (Pre && *Pre)
+    fmt::print("{}: ", Pre);
+  
+  ArrayRef<u64> Arr = AP.getData();
+  if (auto Bits = AP.getBitWidth() % 64; Bits != 0) {
+    // printWordBits(Arr.back(), Bits);
+    printWordBits(Arr.back());
+    Arr = Arr.drop_back();
+    if (gPrintAPIntTail)
+      fmt::print("| ");
+  }
+
+  if (!gPrintAPIntTail) {
+    fmt::println("");
+    return;
+  }
+
+  while (!Arr.empty()) {
+    const u64 Curr = Arr.back();
+    printWordBits(Arr.back());
+    if (Arr.size() > 1)
+      fmt::print("| ");
+    Arr = Arr.drop_back();
+  }
+
+  fmt::println("");
+}
+
+static void BitStreamTests(int Argc, char* Argv[]) noexcept {
+  {
+    u8 Data[] {0b1001'0110, 0b1011'1011, 0b1111'1110};
+    BitStreamIn BS(Data);
+    exi_assert(BS.bitPos() == 0, "Yeah.");
+
+    exi_assert(BS.peekBit()     == 1);
+    exi_assert(BS.peekBits(4)   == 0b1001);
+    exi_assert(BS.readBits<4>() == 0b1001);
+    exi_assert(BS.readBits(3)   == 0b011);
+    exi_assert(BS.readBit()     == 0);
+    exi_assert(BS.peekBits<4>() == 0b1011);
+    exi_assert(BS.readBits(4)   == 0b1011);
+    exi_assert(BS.readBits(12)  == 0b1011'1111'1110);
+  } {
+    SmallVec<u64> Buf(5, 0x5F9C334508BB7DA4ull);
+    ArrayRef<u8> U8Data((u8*)Buf.data(), Buf.size_in_bytes());
+
+    constexpr usize kOff = 22;
+    const usize Bits = (U8Data.size() * kCHAR_BIT) - kOff;
+
+    BitStreamIn BS(U8Data);
+    APInt AP(Bits, Buf);
+    APInt BSAP = BS.peekBitsAP(Bits);
+
+    outs() << "AP:    " << AP << '\n';
+    outs() << "BS:    " << BSAP << '\n';
+    outs() << "APAPS: " << APSInt(AP) << '\n';
+    outs() << "BSAPS: " << APSInt(BSAP) << '\n';
+    outs() << '\n';
+
+    if (AP != BSAP) {
+      ::gPrintAPIntTail = false;
+      ::gPrintAPWordBounds = true;
+      printAPIntBinary(AP, "AP");
+      printAPIntBinary(BSAP, "BS");
+      outs() << '\n';
+    }
+
+#define TEST_BOTH(name, ...) do {                                              \
+    auto Fn = [&](auto&& X) { return __VA_ARGS__; };                           \
+    outs() << name << ": [" << Fn(AP) << ", " << Fn(BSAP) << "]\n";            \
+  } while(0)
+
+    TEST_BOTH("BitWidth    ", X.getBitWidth());
+    TEST_BOTH("BitWidthAPS ", APSInt(X).getBitWidth());
+    TEST_BOTH("popcount    ", X.popcount());
+    TEST_BOTH("popcountAPS ", APSInt(X).popcount());
+    TEST_BOTH("dataLength  ", X.getNumWords());
+    // exi_assert(BS.readBitsAP(Bits) == AP);
+    outs() << '\n';
+#undef TEST_BOTH
+  }
+
+
+  // runAllTests();
+  // return 0;
+  BitIntTests();
+}
+
+int main(int Argc, char* Argv[]) {
+  exi::DebugFlag = true;
+
+  // miscTests(Argc, Argv);
+  BitStreamTests(Argc, Argv);
 }
