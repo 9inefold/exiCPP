@@ -40,32 +40,46 @@ include_items(EXICPP_CORE "lib/core"
 )
 
 include_items(EXICPP_SRC "lib/exi"
+  Basic/NBitInt.cpp
 
+  Stream/BitStream.cpp
 )
 
-add_library(exicpp STATIC ${EXICPP_CORE} ${EXICPP_SRC})
-add_library(exi::exicpp ALIAS exicpp)
+##########################################################################
 
-target_include_directories(exicpp PUBLIC include include/core)
+add_library(exi-core STATIC ${EXICPP_CORE})
+add_library(exi::core ALIAS exi-core)
 
-target_link_libraries(exicpp PUBLIC fmt::fmt rapidxml::rapidxml)
-target_compile_features(exicpp PUBLIC cxx_std_20)
-target_compile_options(exicpp PRIVATE ${EXI_WARNING_FLAGS})
+target_include_directories(exi-core PUBLIC include include/core)
+target_link_libraries(exi-core PUBLIC fmt::fmt)
+target_compile_features(exi-core PUBLIC cxx_std_20)
+target_compile_options(exi-core
+  PUBLIC ${EXI_FLAGS}
+  PRIVATE ${EXI_WARNING_FLAGS})
 
 if(EXI_USE_MIMALLOC)
-  target_link_libraries(exicpp PUBLIC mimalloc)
+  target_link_libraries(exi-core PUBLIC mimalloc)
 endif()
 if(WIN32)
-  target_link_libraries(exicpp PRIVATE
+  target_link_libraries(exi-core PRIVATE
     ntdll psapi shell32 ole32 uuid advapi32 ws2_32)
 endif()
 
 if(NOT EXI_EXCEPTIONS)
-  target_compile_definitions(exicpp PUBLIC
+  target_compile_definitions(exi-core PUBLIC
     EXI_NO_EXCEPTIONS=1
     RAPIDXML_NO_EXCEPTIONS=1
   )
 endif()
+
+##########################################################################
+
+add_library(exicpp STATIC ${EXICPP_SRC})
+add_library(exi::exicpp ALIAS exicpp)
+
+target_include_directories(exicpp PUBLIC include)
+target_link_libraries(exicpp PUBLIC exi::core rapidxml::rapidxml)
+target_compile_options(exicpp PRIVATE ${EXI_WARNING_FLAGS})
 
 if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
   add_executable(exi-driver Driver.cpp)
