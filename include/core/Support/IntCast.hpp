@@ -26,16 +26,16 @@
 #include <Common/Fundamental.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <Support/Limits.hpp>
+#include <concepts>
 #include <type_traits>
 
 namespace exi {
 /// Some template parameter helpers to optimize for bitwidth, for functions that
 /// take multiple arguments.
-
 namespace H {
 
 template <typename T, typename U>
-concept both_int_ = std::is_integral_v<T> && std::is_integral_v<U>;
+concept both_int_ = std::integral<T> && std::integral<U>;
 
 template <typename T, typename U>
 concept both_int = both_int_<T, U> && both_int_<U, T>;
@@ -46,71 +46,180 @@ concept same_sign_ = (std::is_signed_v<T> == std::is_signed_v<U>);
 template <typename T, typename U>
 concept same_sign = same_sign_<T, U> && same_sign_<U, T>;
 
+template <class From, class To>
+concept simple_convertible_to = requires {
+  static_cast<To>(std::declval<From>());
+};
+
 } // namespace H
 
-/// Check if casting one number to another has the same representation.
-/// This overload only considers values of the same sign.
-template <typename To, typename From>
+//===----------------------------------------------------------------===//
+// IntCastFrom
+//===----------------------------------------------------------------===//
+
+/// Used to specialize `IntCastFrom`.
+template <class FromT> struct IntCastByValue {
+  static constexpr bool value
+    = std::is_trivially_copyable_v<FromT>
+    && (sizeof(FromT) <= 2 * sizeof(void*));
+};
+
+/// By default, passes by value when an object is smaller than two `void*`s,
+/// and is trivially copyable. Specialize `IntCastByValue` to change this.
+template <class FromT>
+using IntCastFrom = std::conditional_t<
+  IntCastByValue<FromT>::value,
+    const FromT, const FromT&>;
+
+//===----------------------------------------------------------------===//
+// IntCastIsPossible
+//===----------------------------------------------------------------===//
+
+/// The core of the implementation of `CheckIntCast<X>` is here. This template
+/// can be specialized to customize the implementation of CheckIntCast<> without
+/// rewriting it from scratch.
+template <class To, class From>
+struct IntCastIsPossible {
+  static constexpr bool isPossible(
+   IntCastFrom<From>) noexcept {
+    return false;
+  }
+};
+
+template <class To, class From>
 requires (H::both_int<To, From> && H::same_sign<To, From>)
-constexpr bool CheckIntCast(const From X) {
-  if constexpr (sizeof(To) >= sizeof(From)) {
-    return true;
-  } else {
-    if constexpr (std::is_signed_v<To>) {
-      if (X < 0)
-        return (X > From(min_v<To>));
+struct IntCastIsPossible<To, From> {
+  /// Check if casting one number to another has the same representation.
+  /// This overload only considers values of the same sign.
+  static constexpr bool isPossible(const From X) noexcept {
+    if constexpr (sizeof(To) >= sizeof(From)) {
+      return true;
+    } else {
+      if constexpr (std::is_signed_v<To>) {
+        if (X < 0)
+          return (X > From(min_v<To>));
+      }
+      // Either unsigned or positive.
+      return (X < From(max_v<To>));
     }
-    // Either unsigned or positive.
-    return (X < From(max_v<To>));
   }
-}
+};
 
-/// Check if casting one number to another has the same representation.
-/// This overload considers values of different signs.
-template <typename To, typename From>
+template <class To, class From>
 requires (H::both_int<To, From> && !H::same_sign<To, From>)
-constexpr bool CheckIntCast(const From X) {
-  if constexpr (std::is_unsigned_v<To>) {
-    // Check if `X` is negative, as this will
-    // always result in a different representation.
-    if (X < 0)
-      return false;
+struct IntCastIsPossible<To, From> {
+  /// Check if casting one number to another has the same representation.
+  /// This overload considers values of different signs.
+  static constexpr bool isPossible(const From X) noexcept {
+    if constexpr (std::is_unsigned_v<To>) {
+      // Check if `X` is negative, as this will
+      // always result in a different representation.
+      if (X < 0)
+        return false;
+    }
+
+    if constexpr (sizeof(To) >= sizeof(From)) {
+      // We already confirmed that `X` can't be negative,
+      // so no more checks are required.
+      return true;
+    } else if constexpr (std::is_signed_v<To>) {
+      using UTo = std::make_unsigned_t<To>;
+      return (X < From(static_cast<UTo>(max_v<To>)));
+    } else /* To is unsigned */ {
+      using UFrom = std::make_unsigned_t<From>;
+      return (X < From(static_cast<UFrom>(max_v<To>)));
+    }
+  }
+};
+
+//===----------------------------------------------------------------===//
+// IntCastCast
+//===----------------------------------------------------------------===//
+
+template <class To, class From> struct IntCastCast;
+
+template <class To, class From,
+  class Derived = IntCastCast<To, From>>
+struct IntCastDefaultFailure {
+  using FromT = IntCastFrom<From>;
+public:
+  static inline To castFailed() { return To(0); }
+
+  static inline To doCastIfPossible(FromT X) {
+    if EXI_UNLIKELY(!Derived::isPossible(X))
+      // TODO: Add warning in debug if this occurs?
+      return castFailed();
+    return Derived::doCast(X);
+  }
+};
+
+template <class To, class From>
+struct IntCastCast
+  : public IntCastIsPossible<To, From>,
+    public IntCastDefaultFailure<To, From> {
+  using FromT = IntCastFrom<From>;
+  static_assert(H::simple_convertible_to<FromT, To>,
+    "Invalid IntCast, \"static_cast<To>(from)\" must be well-formed!");
+public:
+  static inline To doCast(FromT X) { return static_cast<To>(X); }
+};
+
+/// The real trait used by the cast functions. Nice and simple...
+template <class To, class From> struct IntCastInfo {
+  using SimpleFrom = std::remove_cvref_t<From>;
+  using SimplifiedSelf = IntCastCast<To, SimpleFrom>;
+  using FromT = IntCastFrom<SimpleFrom>;
+
+  static inline bool isPossible(FromT X) {
+    return SimplifiedSelf::isPossible(X);
   }
 
-  if constexpr (sizeof(To) >= sizeof(From)) {
-    // We already confirmed that `X` can't be negative,
-    // so no more checks are required.
-    return true;
-  } else if constexpr (std::is_signed_v<To>) {
-    using UTo = std::make_unsigned_t<To>;
-    return (X < From(static_cast<UTo>(max_v<To>)));
-  } else /* To is unsigned */ {
-    using UFrom = std::make_unsigned_t<From>;
-    return (X < From(static_cast<UFrom>(max_v<To>)));
+  static inline decltype(auto) doCast(FromT X) {
+    return SimplifiedSelf::doCast(X);
   }
+
+  static inline decltype(auto) castFailed() {
+    return SimplifiedSelf::castFailed();
+  }
+
+  static inline decltype(auto) doCastIfPossible(FromT X) {
+    return SimplifiedSelf::doCastIfPossible(X);
+  }
+};
+
+//===----------------------------------------------------------------===//
+// *IntCast
+//===----------------------------------------------------------------===//
+
+template <class To, class From>
+constexpr bool CheckIntCast(From X) {
+  return IntCastInfo<To, From>::isPossible(X);
 }
 
 /// Assert that casting results in the same representation.
-template <typename To, typename From>
+template <class To, class From>
+#if !EXI_ASSERTS
+ALWAYS_INLINE
+#endif
 constexpr void AssertIntCast(From X) {
-  exi_assert(CheckIntCast<To>(X), "Int conversion is lossy.");
+#if EXI_ASSERTS
+  const bool Lossy = !IntCastInfo<To, From>::isPossible(X);
+  exi_assert(not Lossy, "Int conversion is lossy.");
+#endif
 }
 
 /// Cast that checks if the result is the same representation.
-template <typename To, typename From>
-EXI_INLINE constexpr To IntCast(From X) {
-  AssertIntCast<To>(X);
-  return static_cast<To>(X);
+template <class To, class From>
+EXI_INLINE constexpr To IntCast(const From X) {
+  AssertIntCast<To, IntCastFrom<From>>(X);
+  return IntCastInfo<To, From>::doCast(X);
 }
 
 /// Cast that checks if the result is the same representation.
 /// If they would differ, returns 0.
-template <typename To, typename From>
-constexpr inline To IntCastOrZero(From X) {
-  if EXI_UNLIKELY(!CheckIntCast<To>(X))
-    // TODO: Add warning in debug if this occurs?
-    return static_cast<To>(0);
-  return static_cast<To>(X);
+template <class To, class From>
+constexpr inline To IntCastOrZero(const From X) {
+  return IntCastInfo<To, From>::doCastIfPossible(X);
 }
 
 } // namespace exi
