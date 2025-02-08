@@ -300,13 +300,19 @@
 /// Mark debug helper function definitions like dump() that should not be
 /// stripped from debug builds.
 /// Note that you should also surround dump() functions with
-/// `#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)` so they do always
+/// `#if !defined(NDEBUG) || EXI_ENABLE_DUMP` so they do always
 /// get stripped in release builds.
-// FIXME: Move this to a private config.h as it's not usable in public headers.
+// TODO: Move this to a private config.h as it's not usable in public headers.
 #if !defined(NDEBUG) || defined(EXI_ENABLE_DUMP)
 # define EXI_DUMP_METHOD EXI_NO_INLINE EXI_USED
 #else
 # define EXI_DUMP_METHOD EXI_NO_INLINE
+#endif
+
+#if EXI_HAS_ATTR(uninitialized)
+# define EXI_UNINITIALIZED __attribute__((uninitialized))
+#else
+# define EXI_UNINITIALIZED
 #endif
 
 //////////////////////////////////////////////////////////////////////////

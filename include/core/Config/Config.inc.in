@@ -35,3 +35,5 @@
 
 #cmakedefine01 EXI_ON_WIN32
 #cmakedefine01 EXI_ON_UNIX
+
+#cmakedefine01 EXI_ENABLE_DUMP
