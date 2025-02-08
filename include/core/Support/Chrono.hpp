@@ -151,7 +151,7 @@ public:
 // Implementation
 
 raw_ostream& operator<<(raw_ostream& OS, const sys::TimePoint<>& D);
-raw_ostream& operator<<(raw_ostream& OS, const sys::UtcTime<>& D); // TODO
+raw_ostream& operator<<(raw_ostream& OS, const sys::UtcTime<>& D); // TODO <<
 
 template <typename Rep, typename Dur>
 raw_ostream& operator<<(raw_ostream& OS,
