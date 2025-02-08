@@ -2289,7 +2289,7 @@ void APInt::toString(SmallVecImpl<char> &Str, unsigned Radix, bool Signed,
   std::reverse(Str.begin()+StartDig, Str.end());
 }
 
-#if !defined(NDEBUG) || defined(EXI_ENABLE_DUMP)
+#if !defined(NDEBUG) || EXI_ENABLE_DUMP
 EXI_DUMP_METHOD void APInt::dump() const {
   SmallStr<40> S, U;
   this->toStringUnsigned(U);
