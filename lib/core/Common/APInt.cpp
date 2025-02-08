@@ -193,6 +193,10 @@ bool APInt::isAligned(Align A) const {
   return TrailingZeroes >= MinimumTrailingZeroes;
 }
 
+ArrayRef<u64> APInt::getData() const {
+  return {getRawData(), getNumWords()};
+}
+
 /// Prefix increment operator. Increments the APInt by one.
 APInt& APInt::operator++() {
   if (isSingleWord())

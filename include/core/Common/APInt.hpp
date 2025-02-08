@@ -591,6 +591,11 @@ public:
     return &U.pVal[0];
   }
 
+  /// This function returns an `ArrayRef` to the internal storage of the APInt.
+  /// This is useful for writing out the APInt in binary form without any
+  /// conversions.
+  ArrayRef<u64> getData() const;
+
   /// @}
   /// \name Unary Operators
   /// @{
@@ -1980,7 +1985,7 @@ private:
 
     // Mask out the high bits.
     u64 mask = kWordTypeMax >> (kAPIntBitsPerWord - WordBits);
-    if (EXI_UNLIKELY(BitWidth == 0))
+    if EXI_UNLIKELY(BitWidth == 0)
       mask = 0;
 
     if (isSingleWord())
