@@ -93,9 +93,9 @@ constexpr float ef          = 2.71828183F, // (0x1.5bf0a8P+1) https://oeis.org/A
 
 /// Create a bitmask with the N right-most bits set to 1, and all other
 /// bits set to 0.  Only unsigned types are allowed.
-template <typename T> T maskTrailingOnes(unsigned N) {
+template <typename T> constexpr T maskTrailingOnes(unsigned N) {
   static_assert(std::is_unsigned_v<T>, "Invalid type!");
-  const unsigned Bits = bitsizeof_v<T>;
+  constexpr unsigned Bits = bitsizeof_v<T>;
   exi_assert(N <= Bits, "Invalid bit index");
   if (N == 0)
     return 0;
@@ -104,26 +104,26 @@ template <typename T> T maskTrailingOnes(unsigned N) {
 
 /// Create a bitmask with the N left-most bits set to 1, and all other
 /// bits set to 0.  Only unsigned types are allowed.
-template <typename T> T maskLeadingOnes(unsigned N) {
+template <typename T> constexpr T maskLeadingOnes(unsigned N) {
   return ~maskTrailingOnes<T>(bitsizeof_v<T> - N);
 }
 
 /// Create a bitmask with the N right-most bits set to 0, and all other
 /// bits set to 1.  Only unsigned types are allowed.
-template <typename T> T maskTrailingZeros(unsigned N) {
+template <typename T> constexpr T maskTrailingZeros(unsigned N) {
   return maskLeadingOnes<T>(bitsizeof_v<T> - N);
 }
 
 /// Create a bitmask with the N left-most bits set to 0, and all other
 /// bits set to 1.  Only unsigned types are allowed.
-template <typename T> T maskLeadingZeros(unsigned N) {
+template <typename T> constexpr T maskLeadingZeros(unsigned N) {
   return maskTrailingOnes<T>(bitsizeof_v<T> - N);
 }
 
 /// Macro compressed bit reversal table for 256 bits.
 ///
 /// http://graphics.stanford.edu/~seander/bithacks.html#BitReverseTable
-static const unsigned char BitReverseTable256[256] = {
+static constexpr u8 BitReverseTable256[256] = {
 #define R2(n) n, n + 2 * 64, n + 1 * 64, n + 3 * 64
 #define R4(n) R2(n), R2(n + 2 * 16), R2(n + 1 * 16), R2(n + 3 * 16)
 #define R6(n) R4(n), R4(n + 2 * 4), R4(n + 1 * 4), R4(n + 3 * 4)
@@ -791,6 +791,24 @@ std::enable_if_t<std::is_signed_v<T>, T> MulOverflow(T X, T Y, T &Result) {
   else
     return UX > (static_cast<U>(std::numeric_limits<T>::max())) / UY;
 #endif
+}
+
+/// Shifts left if `Shift >= 0`, otherwise shifts right by `ABS(Shift)`.
+template <typename IntT>
+constexpr IntT SignAwareSHL(IntT I, i64 Shift) noexcept {
+  if (Shift >= 0)
+    return (I << Shift);
+  else
+    return (I >> -Shift);
+}
+
+/// Shifts right if `Shift >= 0`, otherwise shifts left by `ABS(Shift)`.
+template <typename IntT>
+constexpr IntT SignAwareSHR(IntT I, i64 Shift) noexcept {
+  if (Shift >= 0)
+    return (I >> Shift);
+  else
+    return (I << -Shift);
 }
 
 /// Type to force float point values onto the stack, so that x86 doesn't add
