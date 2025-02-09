@@ -32,7 +32,7 @@
 #include "core/Support/raw_ostream.hpp"
 
 #define DEBUG_TYPE "BitStream"
-#define READ_FAST_PATH 1
+#define READ_FAST_PATH 0
 
 using namespace exi;
 
@@ -180,14 +180,14 @@ u64 BitStreamIn::peekBitsSlow(i64 Bits) const {
 u64 BitStreamIn::peekBitsImpl(i64 Bits) const {
   if EXI_UNLIKELY(Bits == 0)
     return 0;
-#if READ_FAST_PATH && 0
+#if READ_FAST_PATH
   // Check if whole word can be read.
   // TODO: Profile this!
   if EXI_LIKELY(BaseType::canAccessWords()) {
     const u8* Ptr = BaseType::getCurrentBytePtr();
     const usize BitAlign = BaseType::bitOffset();
     const WordT Read = ReadWordBit(Ptr, BitAlign);
-    return Read & GetIMask(Bits);
+    return Read >> (kBitsPerWord - Bits);
   }
 #endif
   tail_return peekBitsSlow(Bits);
@@ -410,12 +410,12 @@ void BitStreamOut::writeBitsSlow(u64 Value, i64 Bits) {
 void BitStreamOut::writeBitsImpl(u64 Value, i64 Bits) {
   if EXI_UNLIKELY(Bits == 0)
     return;
-#if READ_FAST_PATH && 0
+#if READ_FAST_PATH
   if EXI_LIKELY(BaseType::canAccessWords()) {
     Value &= GetIMask(Bits);
     u8* Ptr = BaseType::getCurrentBytePtr();
     const usize BitAlign = BaseType::bitOffset();
-    const i64 Off = i64(kBitsPerWord) - Bits;
+    const i64 Off = kBitsPerWord - Bits;
     WriteWordBit(Ptr, (Value << Off), BitAlign);
     BaseType::skip(Bits);
     return;
