@@ -192,8 +192,8 @@ protected:
 
   /// Check if `N` "words" can be read.
   bool canAccessWords(unsigned N = 1) const {
-    const size_type Offset
-      = bytePos() + (N * kWordSize);
+    const size_type Pos = (Position + 7) / kCHAR_BIT;
+    const size_type Offset = Pos + (N * kWordSize);
     return Offset <= capacityInBytes();
   }
 
@@ -327,7 +327,9 @@ public:
   void writeBits64(u64 Value, i64 Bits);
 
   /// Writes a variable number of bits.
-  void writeBits(const APInt& AP, i64 Bits = -1);
+  void writeBits(const APInt& AP);
+  /// Writes a variable number of bits (specified).
+  void writeBits(const APInt& AP, i64 Bits);
 
   /// Reads a static number of bits (max of 64).
   /// This means data is peeked, then the position is advanced.
@@ -343,6 +345,8 @@ private:
   void writeSingleByte(u8 Byte, i64 Bits = 8);
   void writeBitsImpl(u64 Value, i64 Bits);
   void writeBitsSlow(u64 Value, i64 Bits);
+
+  void writeBitsAP(const APInt& AP, i64 Bits);
 
   // u64 readUnalignedBits();
   // APInt readBitsAPLarge(i64 Bits);

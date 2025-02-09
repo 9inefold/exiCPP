@@ -25,6 +25,7 @@
 #include "core/Common/APInt.hpp"
 #include "core/Common/SmallVec.hpp"
 #include "core/Common/StrRef.hpp"
+#include "core/Common/STLExtras.hpp"
 #include "core/Support/Debug.hpp"
 #include "core/Support/Endian.hpp"
 #include "core/Support/MemoryBuffer.hpp"
@@ -81,7 +82,7 @@ static MutArrayRef<u8> GetU8Buffer(MutArrayRef<char> Buffer) {
 static inline i64 CheckReadWriteSizes(const i64 NMax, i64& Len) {
   const i64 NReads = (Len >= 0) ? Len : NMax;
   if EXI_UNLIKELY(NReads > NMax) {
-    exi_assert(NReads <= NMax, "Read/Write exceeds length!");
+    exi_invariant(NReads <= NMax, "Read/Write exceeds length!");
     return (Len = NMax);
   }
 
@@ -231,29 +232,28 @@ APInt BitStreamIn::readBitsAPLarge(i64 Bits) {
   exi_invariant(Bits > 64, "Invalid bit size!");
   const i64 OldBits = Bits;
 
-  constexpr i64 kBitsPerWord = BaseType::kBitsPerWord;
-  const i64 NumWholeBytes = Bits / kBitsPerWord;
-  SmallVec<APInt::WordType> Buf(NumWholeBytes + 1);
+  static_assert(APInt::kAPIntBitsPerWord == kBitsPerWord);
+  const i64 NumWholeBytes = (Bits + 63) / kBitsPerWord;
+  SmallVec<APInt::WordType> Buf(NumWholeBytes);
 
-  i64 WrittenBytes = 0;
-  while (Bits >= kBitsPerWord) {
+  i64 SpareWords = Buf.size();
+  if (i64 Remainder = Bits % kBitsPerWord; Remainder != 0) {
+    const u64 Read = peekBitsImpl(Remainder);
+    BaseType::skip(Remainder);
+    Buf[--SpareWords] = Read;
+    Bits -= Remainder;
+  }
+
+  while (Bits > 0) {
     const u64 Read = peekBitsImpl(kBitsPerWord);
     BaseType::skip(kBitsPerWord);
     // Read in chunks of 64 bits.
-    Buf[WrittenBytes++] = Read;
+    Buf[--SpareWords] = Read;
     Bits -= kBitsPerWord;
   }
 
-  if (Bits != 0) {
-    const u64 Read = peekBitsImpl(Bits);
-    BaseType::skip(Bits);
-    // Get the remaining bits.
-    Buf[WrittenBytes++] = Read;
-    // Bits = 0;
-  }
-
-  // BaseType::skip(OldBits);
-  return APInt(OldBits, Buf);
+  exi_invariant(Bits == 0);
+  return APInt(OldBits, ArrayRef(Buf).drop_front(SpareWords));
 }
 
 APInt BitStreamIn::readBits(i64 Bits) {
@@ -410,7 +410,7 @@ void BitStreamOut::writeBitsSlow(u64 Value, i64 Bits) {
 void BitStreamOut::writeBitsImpl(u64 Value, i64 Bits) {
   if EXI_UNLIKELY(Bits == 0)
     return;
-#if READ_FAST_PATH
+#if READ_FAST_PATH && 0
   if EXI_LIKELY(BaseType::canAccessWords()) {
     Value &= GetIMask(Bits);
     u8* Ptr = BaseType::getCurrentBytePtr();
@@ -434,8 +434,48 @@ void BitStreamOut::writeBits64(u64 Value, i64 Bits) {
   tail_return writeBitsImpl(Value, Bits);
 }
 
+void BitStreamOut::writeBitsAP(const APInt& AP, i64 Bits) {
+  ArrayRef<WordType> Words = AP.getData();
+  if (i64 Remainder = Bits % kBitsPerWord; Remainder != 0) {
+    writeBitsImpl(Words.back(), Remainder);
+    Words = Words.drop_back();
+    Bits -= Remainder;
+  }
+
+  for (WordType Word : exi::reverse(Words)) {
+    writeBitsImpl(Word, kBitsPerWord);
+    Bits -= kBitsPerWord;
+  }
+
+  exi_invariant(Bits == 0);
+}
+
+void BitStreamOut::writeBits(const APInt& AP) {
+  const i64 Bits = AP.getBitWidth();
+  if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
+    DEBUG_ONLY(dbgs() << "Unable to write " << Bits << " bits.\n");
+    return;
+  }
+
+  if (Bits <= 64) {
+    writeBitsImpl(AP.getSingleWord(), Bits);
+    return;
+  }
+
+  writeBitsAP(AP, Bits);
+}
+
 void BitStreamOut::writeBits(const APInt& AP, i64 Bits) {
-  const i64 NBytes = CheckReadWriteSizes(AP.getBitWidth(), Bits);
+  const i64 NBits = CheckReadWriteSizes(AP.getBitWidth(), Bits);
+  if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
+    DEBUG_ONLY(dbgs() << "Unable to write " << Bits << " bits.\n");
+    return;
+  }
+
+  if (NBits == AP.getBitWidth()) {
+    tail_return writeBitsAP(AP, NBits);
+  }
+
   exi_assert(false, "TODO");
 }
 
