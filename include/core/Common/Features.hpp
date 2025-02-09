@@ -315,6 +315,20 @@
 # define EXI_UNINITIALIZED
 #endif
 
+#if EXI_HAS_CPPATTR(clang::musttail)
+# define EXI_HAS_MUSTTAIL 1
+# define EXI_MUSTTAIL [[clang::musttail]]
+#elif EXI_HAS_ATTR(musttail)
+# define EXI_HAS_MUSTTAIL 1
+# define EXI_MUSTTAIL __attribute__((musttail))
+#else
+# define EXI_HAS_MUSTTAIL 0
+# define EXI_MUSTTAIL 
+#endif
+
+/// Forces and verifies tail calls (even in debug) if supported.
+#define tail_return EXI_MUSTTAIL return
+
 //////////////////////////////////////////////////////////////////////////
 // Builtins
 
