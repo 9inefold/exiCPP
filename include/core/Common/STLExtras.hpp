@@ -1615,7 +1615,7 @@ inline int (*get_array_pod_sort_comparator(const T &))
   return array_pod_sort_comparator<T>;
 }
 
-#if 0 && defined(EXPENSIVE_CHECKS)
+#if EXPENSIVE_CHECKS
 namespace H {
 
 inline unsigned presortShuffleEntropy() {
@@ -1652,7 +1652,7 @@ inline void array_pod_sort(IteratorTy Start, IteratorTy End) {
   // behavior with an empty sequence.
   auto NElts = End - Start;
   if (NElts <= 1) return;
-#if 0 && defined(EXPENSIVE_CHECKS)
+#ifdef EXPENSIVE_CHECKS
   H::presortShuffle<IteratorTy>(Start, End);
 #endif
   qsort(&*Start, NElts, sizeof(*Start), get_array_pod_sort_comparator(*Start));
