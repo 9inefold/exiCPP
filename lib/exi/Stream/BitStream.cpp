@@ -168,7 +168,7 @@ u64 BitStreamIn::peekBitsSlow(i64 Bits) const {
     u64 Curr = BaseType::Stream[Pos];
     Curr >>= (CHAR_BIT - Bits);
     // Add remaining bits.
-    Result <<= CHAR_BIT;
+    Result <<= Bits;
     Result  |= Curr;
   }
 
@@ -180,7 +180,7 @@ u64 BitStreamIn::peekBitsSlow(i64 Bits) const {
 u64 BitStreamIn::peekBitsImpl(i64 Bits) const {
   if EXI_UNLIKELY(Bits == 0)
     return 0;
-#if READ_FAST_PATH
+#if READ_FAST_PATH && 0
   // Check if whole word can be read.
   // TODO: Profile this!
   if EXI_LIKELY(BaseType::canAccessWords()) {
