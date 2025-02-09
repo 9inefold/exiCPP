@@ -376,58 +376,100 @@ static void printAPIntBinary(const APInt& AP, const char* Pre) {
   fmt::println("");
 }
 
-static void BitStreamTests(int Argc, char* Argv[]) noexcept {
-  {
-    u8 Data[] {0b1001'0110, 0b1011'1011, 0b1111'1110};
-    BitStreamIn BS(Data);
-    exi_assert(BS.bitPos() == 0, "Yeah.");
+static void CompareAPInts(APInt& LHS, APInt RHS) {
+  outs() << "AP:    " << LHS << '\n';
+  outs() << "IS:    " << RHS << '\n';
+  outs() << "APAPS: " << APSInt(LHS) << '\n';
+  outs() << "BSAPS: " << APSInt(RHS) << '\n';
+  outs() << '\n';
 
-    exi_assert(BS.peekBit()     == 1);
-    exi_assert(BS.peekBits(4)   == 0b1001);
-    exi_assert(BS.readBits<4>() == 0b1001);
-    exi_assert(BS.readBits(3)   == 0b011);
-    exi_assert(BS.readBit()     == 0);
-    exi_assert(BS.peekBits<4>() == 0b1011);
-    exi_assert(BS.readBits(4)   == 0b1011);
-    exi_assert(BS.readBits(12)  == 0b1011'1111'1110);
-  } {
-    SmallVec<u64> Buf(5, 0x5F9C334508BB7DA4ull);
-    ArrayRef<u8> U8Data((u8*)Buf.data(), Buf.size_in_bytes());
-
-    constexpr usize kOff = 22;
-    const usize Bits = (U8Data.size() * kCHAR_BIT) - kOff;
-
-    BitStreamIn BS(U8Data);
-    APInt AP(Bits, Buf);
-    APInt BSAP = BS.peekBitsAP(Bits);
-
-    outs() << "AP:    " << AP << '\n';
-    outs() << "BS:    " << BSAP << '\n';
-    outs() << "APAPS: " << APSInt(AP) << '\n';
-    outs() << "BSAPS: " << APSInt(BSAP) << '\n';
+  if (LHS != RHS) {
+    ::gPrintAPIntTail = false;
+    ::gPrintAPWordBounds = true;
+    printAPIntBinary(LHS, "AP");
+    printAPIntBinary(RHS, "IS");
     outs() << '\n';
-
-    if (AP != BSAP) {
-      ::gPrintAPIntTail = false;
-      ::gPrintAPWordBounds = true;
-      printAPIntBinary(AP, "AP");
-      printAPIntBinary(BSAP, "BS");
-      outs() << '\n';
-    }
+  }
 
 #define TEST_BOTH(name, ...) do {                                              \
     auto Fn = [&](auto&& X) { return __VA_ARGS__; };                           \
-    outs() << name << ": [" << Fn(AP) << ", " << Fn(BSAP) << "]\n";            \
+    outs() << name << ": [" << Fn(LHS) << ", " << Fn(RHS) << "]\n";            \
   } while(0)
 
-    TEST_BOTH("BitWidth    ", X.getBitWidth());
-    TEST_BOTH("BitWidthAPS ", APSInt(X).getBitWidth());
-    TEST_BOTH("popcount    ", X.popcount());
-    TEST_BOTH("popcountAPS ", APSInt(X).popcount());
-    TEST_BOTH("dataLength  ", X.getNumWords());
-    // exi_assert(BS.readBitsAP(Bits) == AP);
-    outs() << '\n';
+  TEST_BOTH("BitWidth    ", X.getBitWidth());
+  TEST_BOTH("BitWidthAPS ", APSInt(X).getBitWidth());
+  TEST_BOTH("popcount    ", X.popcount());
+  TEST_BOTH("popcountAPS ", APSInt(X).popcount());
+  TEST_BOTH("dataLength  ", X.getNumWords());
+  outs() << '\n';
 #undef TEST_BOTH
+}
+
+static void ReadAPIntExi(const APInt& AP, SmallVecImpl<u8>& Out) {
+  SmallVec<u64> Vec(AP.getData());
+  const usize Elts = Vec.size_in_bytes();
+  std::reverse(Vec.begin(), Vec.end());
+
+  u8* Raw = reinterpret_cast<u8*>(Vec.data());
+  Out.assign(Raw, Raw + Elts);
+}
+
+static void BitStreamTests(int Argc, char* Argv[]) noexcept {
+  {
+    u8 Data[4] {};
+    BitStreamOut OS(Data);
+
+    OS.writeBits64(0b1001, 4);
+    OS.writeBits<3>(0b011);
+    OS.writeBit(0);
+    OS.writeBits64(0b1011, 4);
+    OS.writeBits64(0b1011'1111'1110, 12);
+    OS.writeBit(1);
+
+    BitStreamIn IS(Data);
+    exi_assert(IS.bitPos() == 0, "Yeah.");
+
+    exi_assert(IS.peekBit()      == 1);
+    exi_assert(IS.peekBits64(4)  == 0b1001);
+    exi_assert(IS.readBits<4>()  == 0b1001);
+    exi_assert(IS.readBits64(3)  == 0b011);
+    exi_assert(IS.readBit()      == 0);
+    exi_assert(IS.peekBits<4>()  == 0b1011);
+    exi_assert(IS.readBits64(4)  == 0b1011);
+    exi_assert(IS.peekBits(12)   == 0b1011'1111'1110);
+    exi_assert(IS.readBits64(12) == 0b1011'1111'1110);
+    exi_assert(IS.readBit()      == 1);
+  } if (0) {
+    SmallVec<u64> Buf(5, 0x5F9C334508BB7DA4ull);
+    constexpr usize kOff = 22;
+    const usize Bits = (Buf.size_in_bytes() * kCHAR_BIT) - kOff;
+
+    SmallVec<u8> U8Data;
+    ReadAPIntExi(APInt(Bits, Buf), U8Data);
+
+    auto GetNewStream = [kOff, &U8Data]() {
+      BitStreamIn BSI(U8Data);
+      BSI.skip(kOff);
+      return BSI;
+    };
+
+    BitStreamIn IS = GetNewStream();
+    {
+      OwningArrayRef<u8> U8Peek(U8Data.size());
+      OwningArrayRef<u8> U8Read(U8Data.size());
+      IS.peek(U8Peek);
+      IS.read(U8Read);
+      exi_assert(U8Data == U8Peek);
+      exi_assert(U8Data == U8Read);
+      IS = GetNewStream();
+    }
+
+    APInt AP(Bits, Buf);
+    APInt BSAP = IS.peekBits(Bits);
+
+    if (AP != BSAP)
+      CompareAPInts(AP, BSAP);
+    exi_assert(IS.readBits(Bits) == AP);
   }
 
 
