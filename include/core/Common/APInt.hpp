@@ -1923,6 +1923,12 @@ public:
   // TODO
   // void Profile(FoldingSetNodeID &id) const;
 
+  /// Get the inline value if it is active.
+  u64 getSingleWord() const {
+    exi_invariant(isSingleWord());
+    return isSingleWord() ? U.VAL : 0;
+  }
+
   /// debug method
   void dump() const;
 
