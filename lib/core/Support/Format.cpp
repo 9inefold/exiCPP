@@ -31,14 +31,11 @@ using namespace exi;
 
 usize IFormatObject::print(char* Buffer, usize BufferSize) const {
   exi_assert(BufferSize, "Invalid buffer size!");
-
   auto [It, N] = fmt::vformat_to_n(Buffer, BufferSize, Fmt, VArgs);
-
   // Other implementations yield number of bytes needed, not including the
   // final '\0'.
   if (N >= BufferSize)
     return N + 1;
-
   // Otherwise N is the length of output (not including the final '\0').
   return N;
 }
