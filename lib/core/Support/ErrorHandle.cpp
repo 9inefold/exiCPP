@@ -18,14 +18,18 @@
 
 #include <Support/ErrorHandle.hpp>
 #include <Common/String.hpp>
+#include <Common/SmallStr.hpp>
 #include <Common/Twine.hpp>
 #include <Support/_IO.hpp>
 #include <Support/Errc.hpp>
 #include <Support/Debug.hpp>
+#include <Support/Format.hpp>
 #include <Support/FmtBuffer.hpp>
 #include <Support/WindowsError.hpp>
+#include <Support/raw_ostream.hpp>
 #include <cstring>
 #include <cstdlib>
+#include <fmt/color.h>
 #if EXI_EXCEPTIONS
 # include <new>
 # include <stdexcept>
@@ -37,9 +41,9 @@
 #endif
 
 #if defined(_WIN32) && EXI_DEBUG
-# define TRAP_IF_DEBUGGING() do {       \
-  if (DebugFlag && IsDebuggerPresent()) \
-    EXI_TRAP;                           \
+# define TRAP_IF_DEBUGGING() do {                 \
+  if (::exi::DebugFlag && IsDebuggerPresent())    \
+    EXI_TRAP;                                     \
 } while(0)
 #else
 # define TRAP_IF_DEBUGGING() (void(0))
@@ -47,9 +51,9 @@
 
 using namespace exi;
 
-static const char* getAssertionMessage(H::AssertionKind kind) {
+static const char* getAssertionMessage(H::AssertionKind Kind) {
   using enum H::AssertionKind;
-  switch (kind) {
+  switch (Kind) {
    case ASK_Assert:
     return "Assertion failed";
    case ASK_Invariant:
@@ -60,33 +64,33 @@ static const char* getAssertionMessage(H::AssertionKind kind) {
   return "??? failed";
 }
 
-static FmtBuffer::WriteState formatFatalError(FmtBuffer& buf, StrRef S) {
-  const auto out = buf.format("EXICPP ERROR: {}\n", S);
-  if (out != FmtBuffer::FullWrite)
-    return buf.setLast('\n');
-  return out;
+static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
+  const auto Out = Buf.format("EXICPP ERROR: {}\n", Str);
+  if (Out != FmtBuffer::FullWrite)
+    return Buf.setLast('\n');
+  return Out;
 }
 
-[[noreturn]] void exi::report_fatal_error(const char* msg, bool genCrashDiag) {
-  exi::report_fatal_error(Twine(msg), genCrashDiag);
+[[noreturn]] void exi::report_fatal_error(const char* Msg, bool GenCrashDiag) {
+  exi::report_fatal_error(Twine(Msg), GenCrashDiag);
 }
 
-[[noreturn]] void exi::report_fatal_error(StrRef msg, bool genCrashDiag) {
-  exi::report_fatal_error(Twine(msg), genCrashDiag);
+[[noreturn]] void exi::report_fatal_error(StrRef Msg, bool GenCrashDiag) {
+  exi::report_fatal_error(Twine(Msg), GenCrashDiag);
 }
 
-[[noreturn]] void exi::report_fatal_error(const Twine& msg, bool genCrashDiag) {
-  StaticFmtBuffer<512> fullMsg;
-  if (msg.isSingleStrRef()) {
+[[noreturn]] void exi::report_fatal_error(const Twine& Msg, bool GenCrashDiag) {
+  StaticFmtBuffer<512> FullMsg;
+  if (Msg.isSingleStrRef()) {
     // Trivial path, just grab the StrRef.
-    formatFatalError(fullMsg, msg.getSingleStrRef());
+    formatFatalError(FullMsg, Msg.getSingleStrRef());
   } else {
-    SmallVec<char, 256> tmpVec;
-    formatFatalError(fullMsg, msg.toStrRef(tmpVec));
+    SmallStr<256> Buf;
+    formatFatalError(FullMsg, Msg.toStrRef(Buf));
   }
-  (void)::write(2, fullMsg.data(), fullMsg.size());
+  (void)::write(2, FullMsg.data(), FullMsg.size());
 
-  if (genCrashDiag) {
+  if (GenCrashDiag) {
     std::abort();
   } else {
     TRAP_IF_DEBUGGING();
@@ -94,16 +98,16 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& buf, StrRef S) {
   }
 }
 
-[[noreturn]] void exi::fatal_alloc_error([[maybe_unused]] const char* msg) {
+[[noreturn]] void exi::fatal_alloc_error([[maybe_unused]] const char* Msg) {
 #if EXI_EXCEPTIONS
   throw std::bad_alloc();
 #else
-  if (msg == nullptr || msg[0] == '\0')
-    msg = "Allocation failed.";
+  if (Msg == nullptr || Msg[0] == '\0')
+    Msg = "Allocation failed.";
   
-  const char* oom = "ERROR: Out of memory.\n";
-  (void)::write(2, oom, std::strlen(oom));
-  (void)::write(2, msg, std::strlen(msg));
+  const char* OOM = "ERROR: Out of memory.\n";
+  (void)::write(2, OOM, std::strlen(OOM));
+  (void)::write(2, Msg, std::strlen(Msg));
   (void)::write(2, "\n", 1);
 
   std::abort();
@@ -111,18 +115,25 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& buf, StrRef S) {
 }
 
 [[noreturn]] void exi::exi_assert_impl(
- H::AssertionKind kind, const char* msg,
- const char* file, unsigned line
+ H::AssertionKind Kind, const char* Msg,
+ const char* File, unsigned Line
 ) {
-  auto* const pre = getAssertionMessage(kind);
-  if (file)
-    fmt::print(stderr, "\nAt \"{}:{}\":\n  ", file, line);
-  
-  if (msg && msg[0])
-    fmt::print(stderr, "{}: {}", pre, msg);
-  else
-    fmt::print(stderr, "{}", pre);
-    
+  constexpr auto kLoc = fmt::terminal_color::bright_yellow;
+  constexpr auto kErr = fmt::terminal_color::bright_red;
+  if (File) {
+    SmallStr<256> Buf;
+    wrap_stream(Buf) << format("\nAt \"{}:{}\"", File, Line);
+    fmt::print(stderr, "{}:\n  ",
+      fmt::styled(Buf.str(), fmt::fg(kLoc)));
+  }
+
+  auto* const Pre = getAssertionMessage(Kind);
+  if (Msg && Msg[0]) {
+    fmt::print(stderr, "{}: {}",
+      Pre, fmt::styled(Msg, fmt::fg(kErr)));
+  } else {
+    fmt::print(stderr, "{}", Pre);
+  }
   fmt::println(stderr, ".");
   TRAP_IF_DEBUGGING();
   std::abort();

@@ -37,21 +37,21 @@ class Twine;
 
 /// @brief Reports a fatal error.
 [[noreturn]] void report_fatal_error(
-  const char* msg, bool genCrashDiag = true);
+  const char* Msg, bool GenCrashDiag = true);
 /// @brief Reports a fatal error.
 [[noreturn]] void report_fatal_error(
-  StrRef msg, bool genCrashDiag = true);
+  StrRef Msg, bool GenCrashDiag = true);
 /// @brief Reports a fatal error.
 [[noreturn]] void report_fatal_error(
-  const Twine& msg, bool genCrashDiag = true);
+  const Twine& Msg, bool GenCrashDiag = true);
 
 /// @brief Reports a fatal allocation error.
 /// If exceptions are enabled, throws `std::bad_alloc`, otherwise aborts.
-[[noreturn]] void fatal_alloc_error(const char* msg);
+[[noreturn]] void fatal_alloc_error(const char* Msg);
 
 [[noreturn]] void exi_assert_impl(
- H::AssertionKind kind, const char* msg = nullptr,
- const char* file = nullptr, unsigned line = 0
+ H::AssertionKind Kind, const char* Msg = nullptr,
+ const char* File = nullptr, unsigned Line = 0
 );
 
 } // namespace exi
@@ -71,11 +71,27 @@ class Twine;
   } while(0)
 #endif
 
-#define exi_assert_(k, expr, ...) void(EXI_LIKELY((expr))                     \
+#define exi_assertRT_(k, expr, ...) void(EXI_LIKELY((expr))                   \
   ? (void(0))                                                                 \
   : (::exi::exi_assert_impl(::exi::H::k,                                      \
-      ("`" #expr "`. " __VA_OPT__("Reason: ") #__VA_ARGS__),  \
+      ("`" #expr "`" __VA_OPT__(". Reason: ") #__VA_ARGS__),                  \
       __FILE__, __LINE__)))
+
+#if defined(EXI_UNREACHABLE) && EXI_HAS_BUILTIN(__builtin_is_constant_evaluated)
+# define EXI_HAS_CTASSERT 1
+/// This version will have better error messages, as it uses unreachable instead
+/// of invoking a non-constexpr function.
+# define exi_assertCT_(expr)                                                  \
+  ((__builtin_is_constant_evaluated() && (!EXI_LIKELY(expr)))                 \
+    ? (EXI_UNREACHABLE) : (void(0)))
+#else
+# define exi_assertCT_(expr) (void(0))
+#endif
+
+#define exi_assert_(k, expr, ...) do {                                        \
+  exi_assertCT_(expr);                                                        \
+  exi_assertRT_(k, expr __VA_OPT__(,) __VA_ARGS__);                           \
+} while(0)
 
 #if !defined(NDEBUG) || EXI_INVARIANTS
 # define EXI_ASSERTS 1
@@ -83,7 +99,7 @@ class Twine;
 # define exi_assert(expr, ...) \
  exi_assert_(ASK_Assert, expr __VA_OPT__(,) __VA_ARGS__)
 #else
-# define exi_assert(expr, ...) (void(0))
+# define exi_assert(expr, ...) exi_assertCT_(expr)
 #endif
 
 #if EXI_INVARIANTS
@@ -92,5 +108,5 @@ class Twine;
  exi_assert_(ASK_Invariant, expr __VA_OPT__(,) __VA_ARGS__)
 #else
 /// Noop in this mode.
-# define exi_invariant(expr, ...) (void(0))
+# define exi_invariant(expr, ...) exi_assertCT_(expr)
 #endif
