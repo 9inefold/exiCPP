@@ -103,8 +103,8 @@ public:
   }
 
   /// Construct an ArrayRef from a SmallVec. This is templated in order to
-    /// avoid instantiating SmallVecTemplateCommon<T> whenever we
-    /// copy-construct an ArrayRef.
+  /// avoid instantiating SmallVecTemplateCommon<T> whenever we
+  /// copy-construct an ArrayRef.
   template <typename U>
   /*implicit*/ ArrayRef(const SmallVecTemplateCommon<T, U> &Vec)
     : Data(Vec.data()), Length(Vec.size()) {}
@@ -341,6 +341,13 @@ public:
   /// Construct a MutArrayRef from a pointer and length.
   /*implicit*/ MutArrayRef(T *data, usize length)
     : ArrayRef<T>(data, length) {}
+  
+  /// Construct an ArrayRef from a SmallVec. This is templated in order to
+  /// avoid instantiating SmallVecTemplateCommon<T> whenever we
+  /// copy-construct an ArrayRef.
+  template <typename U>
+  /*implicit*/ MutArrayRef(SmallVecTemplateCommon<T, U> &Vec)
+    : ArrayRef<T>(Vec.data(), Vec.size()) {}
 
   /// Construct a MutArrayRef from a range.
   MutArrayRef(T *begin, T *end) : ArrayRef<T>(begin, end) {}
