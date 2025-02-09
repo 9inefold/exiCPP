@@ -311,6 +311,9 @@ template <unsigned Bits> using ibit = NBitSInt<Bits>;
 /// An arbitrary bitness unsigned integer.
 template <unsigned Bits> using ubit = NBitUInt<Bits>;
 
+/// Single bit value, not convertible like `bool`.
+using safe_bool = ubit<1>;
+
 //////////////////////////////////////////////////////////////////////////
 // Streaming
 
