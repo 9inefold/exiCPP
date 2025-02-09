@@ -40,8 +40,7 @@
 #include <cstring>
 #include <type_traits>
 
-namespace exi {
-namespace support {
+namespace exi::support {
 
 // These are named values for common alignments.
 enum {aligned = 0, unaligned = 1};
@@ -501,5 +500,4 @@ inline void write64be(void *P, u64 V) {
 
 } // namespace endian
 
-} // namespace support
-} // namespace exi
+} // namespace exi::support
