@@ -347,6 +347,34 @@ static void printWordBits(u64 Block, unsigned Bits = 64) {
   }
 }
 
+static void printAPIntBinary(ArrayRef<u64> Arr, const char* Pre) {
+  if (Pre && *Pre)
+    fmt::print("{}: ", Pre);
+  
+  {
+    // printWordBits(Arr.back(), Bits);
+    printWordBits(Arr.back());
+    Arr = Arr.drop_back();
+    if (gPrintAPIntTail)
+      fmt::print("| ");
+  }
+
+  if (!gPrintAPIntTail) {
+    fmt::println("");
+    return;
+  }
+
+  while (!Arr.empty()) {
+    const u64 Curr = Arr.back();
+    printWordBits(Arr.back());
+    if (Arr.size() > 1)
+      fmt::print("| ");
+    Arr = Arr.drop_back();
+  }
+
+  fmt::println("");
+}
+
 static void printAPIntBinary(const APInt& AP, const char* Pre) {
   if (Pre && *Pre)
     fmt::print("{}: ", Pre);
@@ -415,7 +443,7 @@ static void ReadAPIntExi(const APInt& AP, SmallVecImpl<u8>& Out) {
 }
 
 static void BitStreamTests(int Argc, char* Argv[]) noexcept {
-  {
+  if (0) {
     u8 Data[4] {};
     BitStreamOut OS(Data);
 
@@ -439,17 +467,23 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
     exi_assert(IS.peekBits(12)   == 0b1011'1111'1110);
     exi_assert(IS.readBits64(12) == 0b1011'1111'1110);
     exi_assert(IS.readBit()      == 1);
-  } if (0) {
+  } {
     SmallVec<u64> Buf(5, 0x5F9C334508BB7DA4ull);
     constexpr usize kOff = 22;
+    constexpr usize kBack = bitsizeof_v<u64> - kOff;
     const usize Bits = (Buf.size_in_bytes() * kCHAR_BIT) - kOff;
 
     SmallVec<u8> U8Data;
-    ReadAPIntExi(APInt(Bits, Buf), U8Data);
+    U8Data.resize(Buf.capacity_in_bytes());
+    // ReadAPIntExi(APInt(Bits, Buf), U8Data);
+    {
+      BitStreamOut OS = BitStreamOut::New(U8Data);
+      OS.writeBits(APInt(Bits, Buf));
+    }
 
     auto GetNewStream = [kOff, &U8Data]() {
       BitStreamIn BSI(U8Data);
-      BSI.skip(kOff);
+      // BSI.skip(kOff);
       return BSI;
     };
 
@@ -467,8 +501,17 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
     APInt AP(Bits, Buf);
     APInt BSAP = IS.peekBits(Bits);
 
-    if (AP != BSAP)
+    if (AP != BSAP) {
+      {
+        ArrayRef U8Arr(U8Data);
+        BitStreamIn TIS(U8Arr.take_front(7));
+        fmt::println("AP: {}\nIS: {}\n",
+          AP.getData().back(),
+          TIS.peekBits64(kBack));
+      }
       CompareAPInts(AP, BSAP);
+      printAPIntBinary(Buf, "SV");
+    }
     exi_assert(IS.readBits(Bits) == AP);
   }
 
