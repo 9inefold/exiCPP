@@ -315,20 +315,30 @@ template <unsigned Bits> using ubit = NBitUInt<Bits>;
 using safe_bool = ubit<1>;
 
 //////////////////////////////////////////////////////////////////////////
-// Streaming
+// Printing
 
 template <unsigned Bits>
 inline raw_ostream& operator<<(
  raw_ostream& OS, ibit<Bits> I) noexcept {
-  APInt(I).print(OS, true);
-  return OS;
+  return OS << I.data();
 }
 
 template <unsigned Bits>
 inline raw_ostream& operator<<(
  raw_ostream& OS, ubit<Bits> I) noexcept {
-  APInt(I).print(OS, false);
-  return OS;
+  return OS << I.data();
+}
+
+template <unsigned Bits>
+inline H::NBitIntValueType<true>
+ format_as(ibit<Bits> I) noexcept {
+  return I.data();
+}
+
+template <unsigned Bits>
+inline H::NBitIntValueType<false>
+ format_as(ubit<Bits> I) noexcept {
+  return I.data();
 }
 
 //===----------------------------------------------------------------===//
