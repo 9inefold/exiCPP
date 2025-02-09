@@ -442,11 +442,14 @@ static void ReadAPIntExi(const APInt& AP, SmallVecImpl<u8>& Out) {
   Out.assign(Raw, Raw + Elts);
 }
 
+#define DUMP_STMT_FMT(FMT, ...) fmt::println("{}: " FMT, #__VA_ARGS__, (__VA_ARGS__))
+#define DUMP_STMT(...) DUMP_STMT_FMT("{}", __VA_ARGS__)
+
 static void BitStreamTests(int Argc, char* Argv[]) noexcept {
   if (0) {
     u8 Data[4] {};
-    BitStreamOut OS(Data);
 
+    BitStreamOut OS(Data);
     OS.writeBits64(0b1001, 4);
     OS.writeBits<3>(0b011);
     OS.writeBit(0);
@@ -456,7 +459,6 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
 
     BitStreamIn IS(Data);
     exi_assert(IS.bitPos() == 0, "Yeah.");
-
     exi_assert(IS.peekBit()      == 1);
     exi_assert(IS.peekBits64(4)  == 0b1001);
     exi_assert(IS.readBits<4>()  == 0b1001);
@@ -467,6 +469,40 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
     exi_assert(IS.peekBits(12)   == 0b1011'1111'1110);
     exi_assert(IS.readBits64(12) == 0b1011'1111'1110);
     exi_assert(IS.readBit()      == 1);
+  } {
+    u8 Data[4 * BitStreamBase::kWordSize] {};
+
+    BitStreamOut OS(Data);
+    OS.writeBit(1);
+    OS.writeBits64(0b1001, 64);
+    OS.writeBits64(0x123456789ABCDEFull, 64);
+    OS.writeBits64((1ull << 63ull), 64);
+    OS.writeBits64(123, 63);
+
+    {
+      BitStreamIn IS(Data);
+      auto printPos = [&IS] {
+        fmt::print("{: ^4}: ", IS.bitPos());
+      };
+
+      printPos();
+      DUMP_STMT(IS.readBit().data());
+      printPos();
+      DUMP_STMT_FMT("{:0b}", IS.readBits64(64));
+      printPos();
+      DUMP_STMT_FMT("{:0x}", IS.readBits64(64));
+      printPos();
+      DUMP_STMT_FMT("{:0b}", IS.readBits64(64));
+      printPos();
+      DUMP_STMT(IS.readBits64(63));
+    }
+
+    BitStreamIn IS(Data);
+    exi_assert(IS.readBit()      == 1);
+    exi_assert(IS.readBits64(64) == 0b1001);
+    exi_assert(IS.readBits64(64) == 0x123456789ABCDEF);
+    exi_assert(IS.readBits64(64) == (1ull << 63ull));
+    exi_assert(IS.readBits64(63) == 123);
   } {
     SmallVec<u64> Buf(5, 0x5F9C334508BB7DA4ull);
     constexpr usize kOff = 22;
