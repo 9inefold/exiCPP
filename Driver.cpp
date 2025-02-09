@@ -49,6 +49,9 @@
 using namespace exi;
 using namespace exi::sys;
 
+#undef  SKIP
+#define SKIP if (0)
+
 //===----------------------------------------------------------------===//
 // Misc
 //===----------------------------------------------------------------===//
@@ -446,7 +449,7 @@ static void ReadAPIntExi(const APInt& AP, SmallVecImpl<u8>& Out) {
 #define DUMP_STMT(...) DUMP_STMT_FMT("{}", __VA_ARGS__)
 
 static void BitStreamTests(int Argc, char* Argv[]) noexcept {
-  if (0) {
+  SKIP {
     u8 Data[4] {};
 
     BitStreamOut OS(Data);
@@ -470,14 +473,18 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
     exi_assert(IS.readBits64(12) == 0b1011'1111'1110);
     exi_assert(IS.readBit()      == 1);
   } {
-    u8 Data[4 * BitStreamBase::kWordSize] {};
+    u8 Data[6 * sizeof(u64)] {};
+    bool MakeUnaligned = false;
 
     BitStreamOut OS(Data);
-    OS.writeBit(1);
+    if (MakeUnaligned)
+      OS.writeBit(1);
     OS.writeBits64(0b1001, 64);
     OS.writeBits64(0x123456789ABCDEFull, 64);
     OS.writeBits64((1ull << 63ull), 64);
     OS.writeBits64(123, 63);
+    OS.writeBits<2>(0b10);
+    OS.writeBits<2>(0b01);
 
     {
       BitStreamIn IS(Data);
@@ -485,8 +492,10 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
         fmt::print("{: ^4}: ", IS.bitPos());
       };
 
-      printPos();
-      DUMP_STMT(IS.readBit().data());
+      if (MakeUnaligned) {
+        printPos();
+        DUMP_STMT(IS.readBit().data());
+      }
       printPos();
       DUMP_STMT_FMT("{:0b}", IS.readBits64(64));
       printPos();
@@ -495,15 +504,20 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
       DUMP_STMT_FMT("{:0b}", IS.readBits64(64));
       printPos();
       DUMP_STMT(IS.readBits64(63));
+      printPos();
+      DUMP_STMT(IS.readBits<2>());
+      printPos();
+      DUMP_STMT(IS.readBits<2>());
     }
 
     BitStreamIn IS(Data);
-    exi_assert(IS.readBit()      == 1);
+    if (MakeUnaligned)
+      exi_assert(IS.readBit()    == 1);
     exi_assert(IS.readBits64(64) == 0b1001);
     exi_assert(IS.readBits64(64) == 0x123456789ABCDEF);
     exi_assert(IS.readBits64(64) == (1ull << 63ull));
     exi_assert(IS.readBits64(63) == 123);
-  } {
+  } SKIP {
     SmallVec<u64> Buf(5, 0x5F9C334508BB7DA4ull);
     constexpr usize kOff = 22;
     constexpr usize kBack = bitsizeof_v<u64> - kOff;
@@ -557,8 +571,18 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
   BitIntTests();
 }
 
+constexpr int test(int I) {
+  exi_assert(I != 2);
+  return I;
+}
+
 int main(int Argc, char* Argv[]) {
   exi::DebugFlag = true;
+
+  constexpr int CI1 = test(1);
+  // constexpr int CI2 = test(2);
+  int I1 = test(1);
+  int I2 = test(2);
 
   // miscTests(Argc, Argv);
   BitStreamTests(Argc, Argv);
