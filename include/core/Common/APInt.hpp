@@ -658,8 +658,9 @@ public:
     // Some std::shuffle implementations still do self-assignment.
     if (this == &that)
       return *this;
-#endif
+#else
     exi_assert(this != &that, "Self-move not supported");
+#endif
     if (!isSingleWord())
       delete[] U.pVal;
 
