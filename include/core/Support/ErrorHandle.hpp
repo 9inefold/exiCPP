@@ -57,56 +57,83 @@ class Twine;
 } // namespace exi
 
 #ifndef NDEBUG
-# define exi_unreachable(msg) \
-  ::exi::exi_assert_impl(::exi::H::ASK_Unreachable, msg, __FILE__, __LINE__)
+# define exi_unreachable(MSG) \
+  ::exi::exi_assert_impl(::exi::H::ASK_Unreachable, MSG, __FILE__, __LINE__)
 #elif !defined(EXI_UNREACHABLE)
-# define exi_unreachable(msg) \
+# define exi_unreachable(MSG) \
   ::exi::exi_unreachable_impl(::exi::H::ASK_Unreachable)
 #elif !EXI_DEBUG
-# define exi_unreachable(msg) EXI_UNREACHABLE
+# define exi_unreachable(MSG) EXI_UNREACHABLE
 #else
-# define exi_unreachable(msg) do {  \
+# define exi_unreachable(MSG) do {  \
     EXI_TRAP;                       \
     EXI_UNREACHABLE;                \
   } while(0)
 #endif
 
-#define exi_assertRT_(k, expr, ...) void(EXI_LIKELY((expr))                   \
+/// Simplified assertion handler, provides required arguments for you.
+#define exi_fail(KIND, MSG) ::exi::exi_assert_impl(                           \
+  ::exi::H::KIND, MSG, __FILE__, __LINE__)
+
+/// Simplified assertion handler, provides required arguments for you.
+#define exi_fail_stringify(KIND, ...) exi_fail(KIND, "`" #__VA_ARGS__ "`")
+
+/// Provides runtime assertion checking for a generic kind.
+#define exi_assertRT_(KIND, EXPR, ...) void(EXI_LIKELY((EXPR))                \
   ? (void(0))                                                                 \
-  : (::exi::exi_assert_impl(::exi::H::k,                                      \
-      ("`" #expr "`" __VA_OPT__(". Reason: ") #__VA_ARGS__),                  \
-      __FILE__, __LINE__)))
+  : (exi_fail(KIND, ("`" #EXPR "`" __VA_OPT__(". Reason: ") #__VA_ARGS__))))
 
 #if defined(EXI_UNREACHABLE) && EXI_HAS_BUILTIN(__builtin_is_constant_evaluated)
 # define EXI_HAS_CTASSERT 1
 /// This version will have better error messages, as it uses unreachable instead
 /// of invoking a non-constexpr function.
-# define exi_assertCT_(expr)                                                  \
-  ((__builtin_is_constant_evaluated() && (!EXI_LIKELY(expr)))                 \
+# define exi_assertCT_(EXPR)                                                  \
+  ((__builtin_is_constant_evaluated() && (!EXI_LIKELY(EXPR)))                 \
     ? (EXI_UNREACHABLE) : (void(0)))
 #else
-# define exi_assertCT_(expr) (void(0))
+# define exi_assertCT_(EXPR) (void(0))
 #endif
 
-#define exi_assert_(k, expr, ...) do {                                        \
-  exi_assertCT_(expr);                                                        \
-  exi_assertRT_(k, expr __VA_OPT__(,) __VA_ARGS__);                           \
+#define exi_assert_(KIND, EXPR, ...) do {                                     \
+  exi_assertCT_(EXPR);                                                        \
+  exi_assertRT_(KIND, EXPR __VA_OPT__(,) __VA_ARGS__);                        \
 } while(0)
 
 #if !defined(NDEBUG) || EXI_INVARIANTS
 # define EXI_ASSERTS 1
 /// Takes `(condition, "message")`, asserts in debug mode.
-# define exi_assert(expr, ...) \
- exi_assert_(ASK_Assert, expr __VA_OPT__(,) __VA_ARGS__)
+# define exi_assert(EXPR, ...) \
+ exi_assert_(ASK_Assert, EXPR __VA_OPT__(,) __VA_ARGS__)
 #else
-# define exi_assert(expr, ...) exi_assertCT_(expr)
+# undef EXI_ASSERTS
+# define exi_assert(EXPR, ...) exi_assertCT_(EXPR)
+#endif
+
+#if EXI_ASSERTS
+# define exi_assert_eq(LHS, RHS, ...) do {                                    \
+  if EXI_UNLIKELY((LHS) != (RHS)) {                                           \
+    auto Str = fmt::format("`{}`. Reason: '{}' != '{}'" __VA_OPT__(" ({})"),  \
+      XSTRINGIFY(LHS == RHS), (LHS), (RHS) __VA_OPT__(,) __VA_ARGS__);        \
+    exi_fail(ASK_Assert, Str.c_str());                                        \
+  }                                                                           \
+} while(0)
+# define exi_assert_neq(LHS, RHS, ...) do {                                   \
+  if EXI_UNLIKELY((LHS) == (RHS)) {                                           \
+    auto Str = fmt::format("`{}`. Reason: '{}' == '{}'" __VA_OPT__(" ({})"),  \
+      XSTRINGIFY(LHS != RHS), (LHS), (RHS) __VA_OPT__(,) __VA_ARGS__);        \
+    exi_fail(ASK_Assert, Str.c_str());                                        \
+  }                                                                           \
+} while(0)
+#else
+# define exi_assert_eq(LHS, RHS, ...)  exi_assertCT_((LHS) == (RHS))
+# define exi_assert_neq(LHS, RHS, ...) exi_assertCT_((LHS) != (RHS))
 #endif
 
 #if EXI_INVARIANTS
 /// Takes `(condition, "message")`, checks when invariants on.
-# define exi_invariant(expr, ...) \
- exi_assert_(ASK_Invariant, expr __VA_OPT__(,) __VA_ARGS__)
+# define exi_invariant(EXPR, ...) \
+ exi_assert_(ASK_Invariant, EXPR __VA_OPT__(,) __VA_ARGS__)
 #else
 /// Noop in this mode.
-# define exi_invariant(expr, ...) exi_assertCT_(expr)
+# define exi_invariant(EXPR, ...) exi_assertCT_(EXPR)
 #endif
