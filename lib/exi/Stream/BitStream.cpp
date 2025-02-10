@@ -195,7 +195,8 @@ u64 BitStreamIn::peekBitsImpl(i64 Bits) const {
 
 u64 BitStreamIn::peekBits64(i64 Bits) const {
   exi_invariant(Bits >= 0 && Bits <= 64, "Invalid bit size!");
-  Bits = std::min(Bits, 64ll);
+  if EXI_UNLIKELY(Bits > 64)
+    Bits = 64;
   if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
     DEBUG_ONLY(dbgs() << "Unable to read " << Bits << " bits.\n");
     return 0;
@@ -218,6 +219,14 @@ APInt BitStreamIn::peekBits(i64 Bits) const {
   // Handle bits over a size of 64.
   // Copies and calls `readBits`.
   return PeekBitsAPImpl(*this, Bits);
+}
+
+u8 BitStreamIn::peekByte() const {
+  if EXI_UNLIKELY(!BaseType::canAccessBits(8)) {
+    DEBUG_ONLY(dbgs() << "Unable to read byte.\n");
+    return 0;
+  }
+  return peekBitsImpl(8);
 }
 
 u64 BitStreamIn::readBits64(i64 Bits) {
@@ -479,6 +488,15 @@ void BitStreamOut::writeBits(const APInt& AP, i64 Bits) {
   exi_assert(false, "TODO");
 }
 
+void BitStreamOut::writeByte(u8 Byte) {
+  if EXI_UNLIKELY(!BaseType::canAccessBits(8)) {
+    DEBUG_ONLY(dbgs() << "Unable to write byte.\n");
+    return;
+  }
+
+  writeSingleByte(Byte, 8);
+}
+
 void BitStreamOut::write(ArrayRef<u8> Bytes, i64 Len) {
   const i64 NBytes = CheckReadWriteSizes(Bytes.size(), Len);
   if EXI_UNLIKELY(!BaseType::canAccessBytes(NBytes)) {
@@ -500,4 +518,22 @@ void BitStreamOut::write(ArrayRef<u8> Bytes, i64 Len) {
     writeBitsImpl(Byte, kCHAR_BIT);
     BaseType::skipBytes(1);
   }
+}
+
+MutArrayRef<u8> BitStreamOut::getWrittenBytes() {
+  if (BaseType::isFull())
+    return BaseType::Stream;
+  // Mask current byte.
+  const usize N = BaseType::farBitOffsetInclusive();
+  const u8 Mask = (0xFF << N);
+  BaseType::getCurrentByte() &= Mask;
+
+  // Return the array being written.
+  const usize EndPos = BaseType::bytePos();
+  if (BaseType::isByteAligned()) {
+    // Return extra space if not byte aligned.
+    return BaseType::Stream
+      .take_front(EndPos + 1);
+  }
+  return BaseType::Stream.take_front(EndPos);
 }
