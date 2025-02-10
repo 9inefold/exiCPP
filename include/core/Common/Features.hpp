@@ -227,6 +227,10 @@
 
 #if EXI_HAS_CPPATTR(clang::lifetimebound)
 # define EXI_LIFETIMEBOUND [[clang::lifetimebound]]
+#elif EXI_HAS_CPPATTR(msvc::lifetimebound)
+# define EXI_LIFETIMEBOUND [[msvc::lifetimebound]]
+#elif EXI_HAS_CPPATTR(lifetimebound)
+# define EXI_LIFETIMEBOUND [[lifetimebound]]
 #else
 # define EXI_LIFETIMEBOUND
 #endif
