@@ -80,6 +80,8 @@ struct BitStreamBase {
   static constexpr size_type kMask = (kCHAR_BIT - 1ull);
 };
 
+// TODO: Add options for little endian?
+
 /// The interface for BitStream types. Provides a simple interface for reading
 /// the current position in bits and bytes, and wraps a "stream" buffer.
 template <class BufferT> class BitStreamCommon : public BitStreamBase {
