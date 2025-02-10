@@ -497,17 +497,17 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
         DUMP_STMT(IS.readBit().data());
       }
       printPos();
-      DUMP_STMT_FMT("{:0b}", IS.readBits64(64));
+      DUMP_STMT_FMT("{:#0b}", IS.readBits64(64));
       printPos();
-      DUMP_STMT_FMT("{:0x}", IS.readBits64(64));
+      DUMP_STMT_FMT("{:#0x}", IS.readBits64(64));
       printPos();
-      DUMP_STMT_FMT("{:0b}", IS.readBits64(64));
+      DUMP_STMT_FMT("{:#0b}", IS.readBits64(64));
       printPos();
       DUMP_STMT(IS.readBits64(63));
       printPos();
-      DUMP_STMT(IS.readBits<2>());
+      DUMP_STMT_FMT("{:#02b}", IS.readBits<2>());
       printPos();
-      DUMP_STMT(IS.readBits<2>());
+      DUMP_STMT_FMT("{:#02b}", IS.readBits<2>());
     }
 
     BitStreamIn IS(Data);
@@ -571,19 +571,38 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
   BitIntTests();
 }
 
-constexpr int test(int I) {
-  exi_assert(I != 2);
-  return I;
+//===----------------------------------------------------------------===//
+// APInt
+//===----------------------------------------------------------------===//
+
+static void APIntTests(int Argc, char* Argv[]) noexcept {
+  {
+    SmallVec<u64> Buf(5, 0x5F9C334508BB7DA4ull);
+    constexpr usize kOff = 22;
+    constexpr usize kBack = bitsizeof_v<u64> - kOff;
+    const usize Bits = (Buf.size_in_bytes() * kCHAR_BIT) - kOff;
+
+    APInt Big(Bits, Buf);
+    APInt Sml(22, 0x12345);
+    exi_assert(Big != Sml);
+  } {
+    APInt Big(63, 0x12345);
+    APInt Sml(22, 0x12345);
+    exi_assert(Big == Sml, "63:22");
+  } {
+    APInt Big(256, 0x12345);
+    APInt Sml(22,  0x12345);
+    exi_assert(Big == Sml, "256:22");
+  } {
+    APInt Big(320, 0x12345);
+    APInt Sml(192, 0x12345);
+    exi_assert(Big == Sml, "320:192");
+  }
 }
 
 int main(int Argc, char* Argv[]) {
   exi::DebugFlag = true;
-
-  constexpr int CI1 = test(1);
-  // constexpr int CI2 = test(2);
-  int I1 = test(1);
-  int I2 = test(2);
-
   // miscTests(Argc, Argv);
   BitStreamTests(Argc, Argv);
+  APIntTests(Argc, Argv);
 }
