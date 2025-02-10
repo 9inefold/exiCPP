@@ -396,7 +396,7 @@
 #elif defined(_MSC_VER)
 # define EXI_DBGTRAP __debugbreak()
 #else
-# define EXI_DBGTRAP
+# define EXI_DBGTRAP (void(0))
 #endif
 
 //////////////////////////////////////////////////////////////////////////
