@@ -15,6 +15,12 @@
 //     limitations under the License.
 //
 //===----------------------------------------------------------------===//
+///
+/// \file
+/// This file provides a "Multi Match" utility. Can make comparisons more
+/// consise, as it will convert any inputs to the base type.
+///
+//===----------------------------------------------------------------===//
 
 #pragma once
 
@@ -22,39 +28,57 @@
 #include <type_traits>
 
 namespace exi {
+namespace H {
+template <class T> struct SimplifyMMatch {
+  using type = std::add_const_t<T>;
+};
+template <class T> struct SimplifyMMatch<T&&> {
+  using type = typename SimplifyMMatch<T>::type;
+};
+
+template <class T> using simplify_mmatch_t
+  = typename SimplifyMMatch<T>::type;
+} // namespace H
 
 /// Match adaptor, simplifies some stuff.
 /// Use like `MMatch(V).is(arg1, arg2, ...)`.
-template <typename T> struct MMatch {
-  using Type = std::remove_cvref_t<T>;
-  constexpr MMatch(T V) : V(V) { }
+template <typename T> class MMatch {
 public:
-  constexpr bool is(auto&& R) const {
-    return (V == EXI_FWD(R));
+  using type = H::simplify_mmatch_t<T>;
+  using value_type = std::remove_cvref_t<T>;
+  explicit constexpr MMatch(T Value) : Data(EXI_FWD(Value)) {}
+public:
+  /// Checks if data is equal to a single input.
+  constexpr bool is(auto&& Value) const {
+    return (Data == EXI_FWD(Value));
   }
 
-  constexpr bool is(auto&& R, auto&&...RR) const
-   requires(sizeof...(RR) > 0) {
-    return (is(EXI_FWD(R)) || ... || is(EXI_FWD(RR)));
+  /// Checks if data is equal to any of the inputs.
+  constexpr bool is(auto&& First, auto&&...Rest) const
+   requires(sizeof...(Rest) > 0) {
+    return (is(EXI_FWD(First)) || ... || is(EXI_FWD(Rest)));
   }
 
-  inline constexpr bool isnt(auto&& R, auto&&...RR) const {
-    return !is(EXI_FWD(R), EXI_FWD(RR)...);
+  /// Checks if data is not equal to any of the inputs.
+  EXI_INLINE constexpr bool isnt(auto&& First, auto&&...Rest) const {
+    return !is(EXI_FWD(First), EXI_FWD(Rest)...);
   }
 
-  constexpr bool in(auto&& low, auto&& high) const {
-    return (EXI_FWD(low) <= V) && (V < EXI_FWD(high));
+  /// Checks if data is in the exclusive range of inputs.
+  constexpr bool in(auto&& Lo, auto&& Hi) const {
+    return (EXI_FWD(Lo) <= Data) && (Data < EXI_FWD(Hi));
   }
 
-  constexpr bool iin(auto&& low, auto&& high) const {
-    return (EXI_FWD(low) <= V) && (V <= EXI_FWD(high));
+  /// Checks if data is in the inclusive range of inputs.
+  constexpr bool iin(auto&& Lo, auto&& Hi) const {
+    return (EXI_FWD(Lo) <= Data) && (Data <= EXI_FWD(Hi));
   }
 
 public:
-  const T V;
+  type Data;
 };
 
-template <typename T> 
+template <typename T>
 MMatch(T&&) -> MMatch<T>;
 
 } // namespace exi
