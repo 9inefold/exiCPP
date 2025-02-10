@@ -41,6 +41,8 @@
 #include <cstring>
 #include <utility>
 
+// TODO: Make static functions pascal case?
+
 namespace exi {
 // class FoldingSetNodeID;
 class StrRef;
@@ -591,9 +593,7 @@ public:
     return &U.pVal[0];
   }
 
-  /// This function returns an `ArrayRef` to the internal storage of the APInt.
-  /// This is useful for writing out the APInt in binary form without any
-  /// conversions.
+  /// Same as `getRawData`, but instead returns an `ArrayRef`.
   ArrayRef<u64> getData() const;
 
   /// @}
@@ -1079,7 +1079,13 @@ public:
   /// Compares this APInt with RHS for the validity of the equality
   /// relationship.
   bool operator==(const APInt &RHS) const {
-    exi_assert(BitWidth == RHS.BitWidth, "Comparison requires equal bit widths");
+#if 0
+    exi_assert(BitWidth == RHS.BitWidth,
+      "Comparison requires equal bit widths");
+#else
+    if EXI_UNLIKELY(BitWidth != RHS.BitWidth)
+      return equalUneven(RHS);
+#endif
     if (isSingleWord())
       return U.VAL == RHS.U.VAL;
     return equalSlowCase(RHS);
@@ -1497,7 +1503,7 @@ public:
   /// Here one word's bitwidth equals to that of u64.
   ///
   /// \returns the number of words to hold the integer value of this APInt.
-  unsigned getNumWords() const { return getNumWords(BitWidth); }
+  EXI_INLINE unsigned getNumWords() const { return getNumWords(BitWidth); }
 
   /// Get the number of words.
   ///
@@ -1506,7 +1512,7 @@ public:
   /// \returns the number of words to hold the integer value with a given bit
   /// width.
   static unsigned getNumWords(unsigned BitWidth) {
-    return ((u64)BitWidth + kAPIntBitsPerWord - 1) / kAPIntBitsPerWord;
+    return (u64(BitWidth) + kAPIntBitsPerWord - 1) / kAPIntBitsPerWord;
   }
 
   /// Compute the number of active bits in the value
@@ -2037,6 +2043,31 @@ private:
                      const WordType *RHS, unsigned rhsWords, WordType *Quotient,
                      WordType *Remainder);
 
+  /// inline fast case for uneven operator== where `isSingleWord()` is `true`.
+  inline bool equalUnevenFastCase(const APInt &RHS) const {
+    exi_invariant(isSingleWord());
+    if (RHS.getActiveBits() <= BitWidth) {
+      const unsigned RHSWords = RHS.getNumWords();
+      return U.VAL == RHS.U.pVal[0];
+    }
+    // RHS has more active bits than we can represent.
+    return false;
+  }
+
+  /// inline case for uneven operator==
+  bool equalUneven(const APInt &RHS) const {
+    exi_invariant(BitWidth != RHS.BitWidth);
+    if (isSingleWord()) {
+      if (RHS.isSingleWord())
+        return U.VAL == RHS.U.VAL;
+      return this->equalUnevenFastCase(RHS);
+    }
+    // Here `LHSWords > 1` must be true.
+    if (RHS.isSingleWord())
+      return RHS.equalUnevenFastCase(*this);
+    return equalUnevenSlowCase(RHS);
+  }
+
   /// out-of-line slow case for inline constructor
   void initSlowCase(u64 val, bool isSigned);
 
@@ -2060,6 +2091,12 @@ private:
 
   /// out-of-line slow case for operator==
   bool equalSlowCase(const APInt &RHS) const EXI_READONLY;
+
+  /// out-of-line slow case for uneven operator==
+  bool equalUnevenSlowCase(const APInt &RHS) const EXI_READONLY;
+  /// out-of-line slow case for uneven operator==.
+  /// `RHS` must be larger than `this`.
+  bool equalUnevenSlowCaseEx(const APInt &RHS) const EXI_READONLY;
 
   /// out-of-line slow case for countLeadingZeros
   unsigned countLeadingZerosSlowCase() const EXI_READONLY;

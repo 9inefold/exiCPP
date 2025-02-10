@@ -35,6 +35,7 @@
 // #include <Common/FoldingSet.hpp>
 #include <Common/Hashing.hpp>
 #include <Common/SmallStr.hpp>
+#include <Common/SSelect.hpp>
 #include <Common/StrRef.hpp>
 #include <Common/bit.hpp>
 #include <Config/Config.inc>
@@ -302,6 +303,35 @@ APInt& APInt::operator*=(u64 RHS) {
 
 bool APInt::equalSlowCase(const APInt &RHS) const {
   return std::equal(U.pVal, U.pVal + getNumWords(), RHS.U.pVal);
+}
+
+bool APInt::equalUnevenSlowCaseEx(const APInt &RHS) const {
+  const unsigned LHSWords = getNumWords();
+  const unsigned RHSWords = RHS.getNumWords();
+  const auto* Data = RHS.U.pVal;
+  // Check high words haven't been set.
+  for (i64 Ix = LHSWords; Ix < RHSWords; ++Ix) {
+    if EXI_UNLIKELY(Data[Ix] != 0ull)
+      return false;
+  }
+  return std::equal(U.pVal, U.pVal + LHSWords, Data);
+}
+
+bool APInt::equalUnevenSlowCase(const APInt &RHS) const {
+  constexpr usize kLog2 = CTLog2<kAPIntBitsPerWord>();
+  constexpr unsigned kMask = maskLeadingZeros<unsigned>(kLog2);
+  const auto LHSRound = BitWidth & kMask;
+  const auto RHSRound = RHS.BitWidth & kMask;
+  if (LHSRound == RHSRound) {
+    // This is the "faster case" where we can directly compare words.
+    tail_return equalSlowCase(RHS);
+  }
+
+  // Otherwise we have to compare in two sections.
+  if (LHSRound < RHSRound)
+    tail_return equalUnevenSlowCaseEx(RHS);
+  else
+    tail_return RHS.equalUnevenSlowCaseEx(*this);
 }
 
 int APInt::compare(const APInt& RHS) const {
