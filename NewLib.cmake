@@ -42,9 +42,11 @@ include_items(EXICPP_CORE "lib/core"
 )
 
 include_items(EXICPP_SRC "lib/exi"
+  Basic/ErrorCodes.cpp
   Basic/NBitInt.cpp
 
-  Stream/BitStream.cpp
+  Stream/BitStreamIn.cpp
+  Stream/BitStreamOut.cpp
 )
 
 ##########################################################################
