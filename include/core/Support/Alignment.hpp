@@ -56,13 +56,13 @@ private:
                           /// ShiftValue is less than 64 by construction.
 
   friend struct MaybeAlign;
-  friend unsigned Log2(Align);
-  friend bool operator==(Align Lhs, Align Rhs);
-  friend bool operator!=(Align Lhs, Align Rhs);
-  friend bool operator<=(Align Lhs, Align Rhs);
-  friend bool operator>=(Align Lhs, Align Rhs);
-  friend bool operator<(Align Lhs, Align Rhs);
-  friend bool operator>(Align Lhs, Align Rhs);
+  friend constexpr unsigned Log2(Align);
+  friend constexpr bool operator==(Align Lhs, Align Rhs);
+  friend constexpr bool operator!=(Align Lhs, Align Rhs);
+  friend constexpr bool operator<=(Align Lhs, Align Rhs);
+  friend constexpr bool operator>=(Align Lhs, Align Rhs);
+  friend constexpr bool operator<(Align Lhs, Align Rhs);
+  friend constexpr bool operator>(Align Lhs, Align Rhs);
   friend unsigned encode(struct MaybeAlign A);
   friend struct MaybeAlign decodeMaybeAlign(unsigned Value);
 
@@ -85,10 +85,10 @@ public:
 
   /// This is a hole in the type system and should not be abused.
   /// Needed to interact with C for instance.
-  u64 value() const { return u64(1) << ShiftValue; }
+  constexpr u64 value() const { return u64(1) << ShiftValue; }
 
   // Returns the previous alignment.
-  Align previous() const {
+  constexpr Align previous() const {
     exi_assert(ShiftValue != 0, "Undefined operation");
     Align Out;
     Out.ShiftValue = ShiftValue - 1;
@@ -146,17 +146,17 @@ public:
 };
 
 /// Checks that SizeInBytes is a multiple of the alignment.
-inline bool isAligned(Align Lhs, u64 SizeInBytes) {
+inline constexpr bool isAligned(Align Lhs, u64 SizeInBytes) {
   return SizeInBytes % Lhs.value() == 0;
 }
 
 /// Checks that Addr is a multiple of the alignment.
-inline bool isAddrAligned(Align Lhs, const void *Addr) {
+inline constexpr bool isAddrAligned(Align Lhs, const void *Addr) {
   return isAligned(Lhs, reinterpret_cast<uintptr_t>(Addr));
 }
 
 /// Returns a multiple of A needed to store `Size` bytes.
-inline u64 alignTo(u64 Size, Align A) {
+inline constexpr u64 alignTo(u64 Size, Align A) {
   const u64 Value = A.value();
   // The following line is equivalent to `(Size + Value - 1) / Value * Value`.
 
@@ -181,7 +181,7 @@ inline u64 alignTo(u64 Size, Align A) {
 ///   alignTo(17, Align(8), 1) = 17
 ///   alignTo(~0LL, Align(8), 3) = 3
 /// \endcode
-inline u64 alignTo(u64 Size, Align A, u64 Skew) {
+inline constexpr u64 alignTo(u64 Size, Align A, u64 Skew) {
   const u64 Value = A.value();
   Skew %= Value;
   return alignTo(Size - Skew, A) + Skew;
@@ -197,7 +197,7 @@ inline uintptr_t alignAddr(const void *Addr, Align Alignment) {
 
 /// Returns the offset to the next integer (mod 2**64) that is greater than
 /// or equal to \p Value and is a multiple of \p Align.
-inline u64 offsetToAlignment(u64 Value, Align Alignment) {
+inline constexpr u64 offsetToAlignment(u64 Value, Align Alignment) {
   return alignTo(Value, Alignment) - Value;
 }
 
@@ -208,7 +208,7 @@ inline u64 offsetToAlignedAddr(const void *Addr, Align Alignment) {
 }
 
 /// Returns the log2 of the alignment.
-inline unsigned Log2(Align A) { return A.ShiftValue; }
+inline constexpr unsigned Log2(Align A) { return A.ShiftValue; }
 
 /// Returns the alignment that satisfies both alignments.
 /// Same semantic as MinAlign.
@@ -233,48 +233,48 @@ inline MaybeAlign decodeMaybeAlign(unsigned Value) {
 inline unsigned encode(Align A) { return encode(MaybeAlign(A)); }
 
 /// Comparisons between Align and scalars. Rhs must be positive.
-inline bool operator==(Align Lhs, u64 Rhs) {
+inline constexpr bool operator==(Align Lhs, u64 Rhs) {
   ALIGN_CHECK_ISPOSITIVE(Rhs);
   return Lhs.value() == Rhs;
 }
-inline bool operator!=(Align Lhs, u64 Rhs) {
+inline constexpr bool operator!=(Align Lhs, u64 Rhs) {
   ALIGN_CHECK_ISPOSITIVE(Rhs);
   return Lhs.value() != Rhs;
 }
-inline bool operator<=(Align Lhs, u64 Rhs) {
+inline constexpr bool operator<=(Align Lhs, u64 Rhs) {
   ALIGN_CHECK_ISPOSITIVE(Rhs);
   return Lhs.value() <= Rhs;
 }
-inline bool operator>=(Align Lhs, u64 Rhs) {
+inline constexpr bool operator>=(Align Lhs, u64 Rhs) {
   ALIGN_CHECK_ISPOSITIVE(Rhs);
   return Lhs.value() >= Rhs;
 }
-inline bool operator<(Align Lhs, u64 Rhs) {
+inline constexpr bool operator<(Align Lhs, u64 Rhs) {
   ALIGN_CHECK_ISPOSITIVE(Rhs);
   return Lhs.value() < Rhs;
 }
-inline bool operator>(Align Lhs, u64 Rhs) {
+inline constexpr bool operator>(Align Lhs, u64 Rhs) {
   ALIGN_CHECK_ISPOSITIVE(Rhs);
   return Lhs.value() > Rhs;
 }
 
 /// Comparisons operators between Align.
-inline bool operator==(Align Lhs, Align Rhs) {
+inline constexpr bool operator==(Align Lhs, Align Rhs) {
   return Lhs.ShiftValue == Rhs.ShiftValue;
 }
-inline bool operator!=(Align Lhs, Align Rhs) {
+inline constexpr bool operator!=(Align Lhs, Align Rhs) {
   return Lhs.ShiftValue != Rhs.ShiftValue;
 }
-inline bool operator<=(Align Lhs, Align Rhs) {
+inline constexpr bool operator<=(Align Lhs, Align Rhs) {
   return Lhs.ShiftValue <= Rhs.ShiftValue;
 }
-inline bool operator>=(Align Lhs, Align Rhs) {
+inline constexpr bool operator>=(Align Lhs, Align Rhs) {
   return Lhs.ShiftValue >= Rhs.ShiftValue;
 }
-inline bool operator<(Align Lhs, Align Rhs) {
+inline constexpr bool operator<(Align Lhs, Align Rhs) {
   return Lhs.ShiftValue < Rhs.ShiftValue;
 }
-inline bool operator>(Align Lhs, Align Rhs) {
+inline constexpr bool operator>(Align Lhs, Align Rhs) {
   return Lhs.ShiftValue > Rhs.ShiftValue;
 }
 
