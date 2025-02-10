@@ -29,7 +29,7 @@
 #include "core/Support/Limits.hpp"
 #include "exi/Basic/NBitInt.hpp"
 
-#define EXI_HAS_BITSTREAMOUT 0
+#define EXI_HAS_BITSTREAMOUT 1
 
 namespace exi {
 class APInt;
@@ -138,15 +138,15 @@ public:
   /// Checks if the current position is byte aligned.
   bool isByteAligned() const { return bitOffset() == 0; }
 
+  void setStream(BufferT NewStream) {
+    this->Stream = NewStream;
+    this->Position = 0;
+  }
+
 protected:
   BitStreamCommon(BufferT Stream) : Stream(Stream) {
     exi_assert(Stream.size() <= kMaxCapacity,
       "Stream size exceeds max capacity.");
-  }
-
-  void setStream(BufferT NewStream) {
-    this->Stream = NewStream;
-    this->Position = 0;
   }
 
   /// Aligns stream up to the next byte.
@@ -182,10 +182,12 @@ protected:
     return currentByteRef();
   }
 
+  /// Check if `N` bits can be read.
   inline bool canAccessBits(unsigned N) const {
     return EXI_LIKELY(Position + N <= capacity());
   }
 
+  /// Check if `N` bytes can be read.
   inline bool canAccessBytes(unsigned N) const {
     return canAccessBits(N * kCHAR_BIT);
   }
@@ -250,6 +252,8 @@ public:
     return ubit<Bits>::FromBits(peekBits64(Bits));
   }
 
+  u8 peekByte() const;
+
   /// Peeks a sequence of bytes.
   void peek(MutArrayRef<u8> Bytes, i64 Len = -1) const {
     BitStreamIn thiz(*this);
@@ -275,6 +279,12 @@ public:
   /// This means data is peeked, then the position is advanced.
   template <unsigned Bits> ubit<Bits> readBits() {
     return ubit<Bits>::FromBits(readBits64(Bits));
+  }
+
+  u8 readByte() {
+    const u8 Result = peekByte();
+    BaseType::skip(8);
+    return Result;
   }
 
   /// Reads a sequence of bytes.
@@ -337,7 +347,12 @@ public:
     writeBits64(Value.data(), Bits);
   }
 
+  /// Writes a single byte.
+  void writeByte(u8 Byte);
+  /// Writes an array of bytes with an optional length.
   void write(ArrayRef<u8> Bytes, i64 Len = -1);
+
+  MutArrayRef<u8> getWrittenBytes();
 
 private:
   using BaseType::getCurrentByte;
