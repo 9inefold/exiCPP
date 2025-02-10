@@ -6,6 +6,7 @@ include_items(EXICPP_CORE "lib/core"
   Common/Option.cpp
   Common/SmallVec.cpp
   Common/StringExtras.cpp
+  Common/StringMap.cpp
   Common/StrRef.cpp
   Common/Twine.cpp
 
@@ -36,6 +37,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/TokenizeCmd.cpp
   Support/VersionTuple.cpp
   Support/circular_raw_ostream.cpp
+  Support/rapidhash.cpp
   Support/raw_ostream.cpp
 )
 
