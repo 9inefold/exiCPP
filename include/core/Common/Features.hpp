@@ -40,6 +40,9 @@
 #define CAT3(a, b, c) CAT2_(a, b, c)
 #define CAT4(a, b, c, d) CAT2_(a, b, c, d)
 
+#define XSTRINGIFY(...) #__VA_ARGS__
+#define STRINGIFY(...) XSTRINGIFY(__VA_ARGS__)
+
 //======================================================================//
 // Setup
 //======================================================================//

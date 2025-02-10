@@ -384,6 +384,9 @@ inline raw_ostream &operator<<(raw_ostream &OS, const APSInt &I) {
   return OS;
 }
 
+// TODO: Replace this with something more general.
+std::string format_as(const APSInt& APS);
+
 #if EXI_HAS_DENSE_MAP
 /// Provide DenseMapInfo for APSInt, using the DenseMapInfo for APInt.
 template <> struct DenseMapInfo<APSInt, void> {

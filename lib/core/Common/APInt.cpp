@@ -2339,6 +2339,12 @@ void APInt::print(raw_ostream &OS, bool isSigned) const {
   OS << S;
 }
 
+std::string exi::format_as(const APInt& AP) {
+  SmallStr<40> Str;
+  AP.toString(Str, 10, true, /* formatAsCLiteral = */false);
+  return std::string(Str.begin(), Str.end());
+}
+
 // This implements a variety of operations on a representation of
 // arbitrary precision, two's-complement, bignum integer values.
 

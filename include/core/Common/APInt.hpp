@@ -39,6 +39,7 @@
 #include <Support/float128.hpp>
 #include <climits>
 #include <cstring>
+#include <string> // TODO: REMOVE
 #include <utility>
 
 // TODO: Make static functions pascal case?
@@ -2449,6 +2450,9 @@ APInt ScaleBitMask(const APInt &A, unsigned NewBitWidth,
 // See friend declaration above. This additional declaration is required in
 // order to compile LLVM with IBM xlC compiler.
 hash_code hash_value(const APInt &Arg);
+
+// TODO: Replace this with something more general.
+std::string format_as(const APInt& AP);
 
 /// StoreIntToMemory - Fills the StoreBytes bytes of memory starting from Dst
 /// with the integer held in IntVal.

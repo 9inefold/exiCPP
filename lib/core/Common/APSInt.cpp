@@ -33,6 +33,7 @@
 #include <Common/APSInt.hpp>
 // #include <Common/FoldingSet.hpp>
 #include <Common/StrRef.hpp>
+#include <Common/SmallStr.hpp>
 #include <cassert>
 
 using namespace exi;
@@ -60,3 +61,9 @@ APSInt::APSInt(StrRef Str) {
 //   ID.AddInteger((unsigned) (IsUnsigned ? 1 : 0));
 //   APInt::Profile(ID);
 // }
+
+std::string exi::format_as(const APSInt& APS) {
+  SmallStr<40> Str;
+  APS.toString(Str, 10, APS.isSigned(), /* formatAsCLiteral = */false);
+  return std::string(Str.begin(), Str.end());
+}

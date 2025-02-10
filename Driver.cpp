@@ -588,15 +588,15 @@ static void APIntTests(int Argc, char* Argv[]) noexcept {
   } {
     APInt Big(63, 0x12345);
     APInt Sml(22, 0x12345);
-    exi_assert(Big == Sml, "63:22");
+    exi_assert_eq(Big, Sml, "63:22");
   } {
     APInt Big(256, 0x12345);
     APInt Sml(22,  0x12345);
-    exi_assert(Big == Sml, "256:22");
+    exi_assert_eq(Big, Sml, "256:22");
   } {
     APInt Big(320, 0x12345);
     APInt Sml(192, 0x12345);
-    exi_assert(Big == Sml, "320:192");
+    exi_assert_eq(Big, Sml, "320:192");
   }
 }
 
