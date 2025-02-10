@@ -54,20 +54,26 @@ class Twine;
  const char* File = nullptr, unsigned Line = 0
 );
 
+[[noreturn]] inline void exi_unreachable_impl() {
+#ifdef EXI_UNREACHABLE
+  EXI_UNREACHABLE;
+#endif
+  EXI_DBGTRAP;
+}
+
 } // namespace exi
 
 #ifndef NDEBUG
-# define exi_unreachable(MSG) \
+# define exi_unreachable(MSG)                                                 \
   ::exi::exi_assert_impl(::exi::H::ASK_Unreachable, MSG, __FILE__, __LINE__)
 #elif !defined(EXI_UNREACHABLE)
-# define exi_unreachable(MSG) \
-  ::exi::exi_unreachable_impl(::exi::H::ASK_Unreachable)
+# define exi_unreachable(MSG) ::exi::exi_unreachable_impl()
 #elif !EXI_DEBUG
 # define exi_unreachable(MSG) EXI_UNREACHABLE
 #else
-# define exi_unreachable(MSG) do {  \
-    EXI_TRAP;                       \
-    EXI_UNREACHABLE;                \
+# define exi_unreachable(MSG) do {                                            \
+    EXI_TRAP;                                                                 \
+    EXI_UNREACHABLE;                                                          \
   } while(0)
 #endif
 
