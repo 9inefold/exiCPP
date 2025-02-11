@@ -24,7 +24,7 @@
 namespace exi {
 namespace H {
 
-enum AssertionKind : unsigned {
+enum AssertionKind : int {
   ASK_Assert,
   ASK_Invariant,
   ASK_Unreachable,
@@ -47,7 +47,7 @@ class Twine;
 
 /// @brief Reports a fatal allocation error.
 /// If exceptions are enabled, throws `std::bad_alloc`, otherwise aborts.
-[[noreturn]] void fatal_alloc_error(const char* Msg);
+[[noreturn]] void fatal_alloc_error(const char* Msg) EXI_NOEXCEPT;
 
 [[noreturn]] void exi_assert_impl(
  H::AssertionKind Kind, const char* Msg = nullptr,
@@ -68,7 +68,7 @@ class Twine;
   ::exi::exi_assert_impl(::exi::H::ASK_Unreachable, MSG, __FILE__, __LINE__)
 #elif !defined(EXI_UNREACHABLE)
 # define exi_unreachable(MSG) ::exi::exi_unreachable_impl()
-#elif !EXI_DEBUG
+#elif EXI_OPTIMIZE_UNREACHABLE && !EXI_DEBUG
 # define exi_unreachable(MSG) EXI_UNREACHABLE
 #else
 # define exi_unreachable(MSG) do {                                            \
@@ -137,7 +137,7 @@ class Twine;
 
 #if EXI_INVARIANTS
 /// Takes `(condition, "message")`, checks when invariants on.
-# define exi_invariant(EXPR, ...) \
+# define exi_invariant(EXPR, ...)                                             \
  exi_assert_(ASK_Invariant, EXPR __VA_OPT__(,) __VA_ARGS__)
 #else
 /// Noop in this mode.

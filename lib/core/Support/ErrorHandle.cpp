@@ -98,7 +98,8 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
   }
 }
 
-[[noreturn]] void exi::fatal_alloc_error([[maybe_unused]] const char* Msg) {
+[[noreturn]] void exi::fatal_alloc_error(
+ [[maybe_unused]] const char* Msg) EXI_NOEXCEPT {
 #if EXI_EXCEPTIONS
   throw std::bad_alloc();
 #else
