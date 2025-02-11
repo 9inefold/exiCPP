@@ -3,7 +3,7 @@ include_guard(DIRECTORY)
 
 project(
   exi-cpp
-  VERSION 0.6.14
+  VERSION 0.6.15
   LANGUAGES CXX C
 )
 
@@ -23,16 +23,20 @@ option(EXI_USE_EXIP     "Enables the old version of exicpp." OFF)
 option(EXI_DRIVER       "If the driver should be built (always ON at top level)." OFF)
 option(EXI_TESTS        "If tests should be run." OFF)
 
-option(EXI_USE_THREADS  "Enable multithreading?" OFF)
 option(EXI_EXCEPTIONS   "If exceptions should be enabled." OFF)
+option(EXI_USE_THREADS  "Enable multithreading?" OFF)
 option(EXI_USE_MIMALLOC "If allocation should be done through mimalloc" ON)
 
-option(EXI_INVARIANTS   "Adds extra invariant checking." ON)
 option(EXI_DEBUG        "If debug printing should be enabled." ON)
-option(EXI_FAST_DEBUG   "If parts of debug builds should be optimized." OFF)
-option(EXI_ANSI         "If ANSI should be enabled." ON) # DEPRECATED
-
+option(EXI_INVARIANTS   "Adds extra invariant checking." ON)
+option(EXI_LOGGING      "If logging should be enabled." ON)
 option(EXI_ENABLE_DUMP  "If dump methods shouldn't be stripped." OFF)
+
+option(EXI_FAST_DEBUG   "If parts of debug builds should be optimized." OFF)
+option(EXI_ENABLE_EXPENSIVE_CHECKS "If additional expensive checks should be enabled." OFF)
+option(EXI_OPTIMIZE_UNREACHABLE "If exi_unreachable should be undefined behaviour in release builds." ON)
+
+option(EXI_ANSI         "If ANSI should be enabled." ON) # DEPRECATED
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")
