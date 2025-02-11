@@ -77,7 +77,7 @@ struct BitStreamBase {
   static constexpr size_type kWordSize = sizeof(WordType);
   static constexpr size_type kBitsPerWord = bitsizeof_v<WordType>;
 
-  static constexpr size_type kMaxCapacity = max_v<size_type> / kCHAR_BIT;
+  static constexpr size_type kMaxCapacityBytes = max_v<size_type> / kCHAR_BIT;
   static constexpr size_type kMask = (kCHAR_BIT - 1ull);
 };
 
@@ -148,7 +148,7 @@ public:
 
 protected:
   BitStreamCommon(BufferT Stream) : Stream(Stream) {
-    exi_assert(Stream.size() <= kMaxCapacity,
+    exi_assert(Stream.size() <= kMaxCapacityBytes,
       "Stream size exceeds max capacity.");
   }
 

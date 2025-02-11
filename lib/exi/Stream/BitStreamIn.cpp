@@ -60,7 +60,7 @@ u64 BitStreamIn::readUnalignedBits() {
 
 safe_bool BitStreamIn::peekBit() const {
   if (BaseType::isFull()) {
-    DEBUG_ONLY(dbgs() << "Unable to read bit.\n");
+    LOG_WARN(dbgs() << "Unable to read bit.\n");
     return 0;
   }
 
@@ -129,7 +129,7 @@ u64 BitStreamIn::peekBits64(i64 Bits) const {
   if EXI_UNLIKELY(Bits > 64)
     Bits = 64;
   if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
-    DEBUG_ONLY(dbgs() << "Unable to read " << Bits << " bits.\n");
+    LOG_WARN(dbgs() << "Unable to read " << Bits << " bits.\n");
     return 0;
   }
 
@@ -139,7 +139,7 @@ u64 BitStreamIn::peekBits64(i64 Bits) const {
 APInt BitStreamIn::peekBits(i64 Bits) const {
   exi_invariant(Bits >= 0, "Invalid bit size!");
   if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
-    DEBUG_ONLY(dbgs() << "Unable to read " << Bits << " bits.\n");
+    LOG_WARN(dbgs() << "Unable to read " << Bits << " bits.\n");
     return APInt::getZero(0);
   }
 
@@ -154,7 +154,7 @@ APInt BitStreamIn::peekBits(i64 Bits) const {
 
 u8 BitStreamIn::peekByte() const {
   if EXI_UNLIKELY(!BaseType::canAccessBits(8)) {
-    DEBUG_ONLY(dbgs() << "Unable to read byte.\n");
+    LOG_WARN(dbgs() << "Unable to read byte.\n");
     return 0;
   }
   return peekBitsImpl(8);
@@ -199,7 +199,7 @@ APInt BitStreamIn::readBitsAPLarge(i64 Bits) {
 APInt BitStreamIn::readBits(i64 Bits) {
   exi_invariant(Bits >= 0, "Invalid bit size!");
   if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
-    DEBUG_ONLY(dbgs() << "Unable to read " << Bits << " bits.\n");
+    LOG_WARN(dbgs() << "Unable to read " << Bits << " bits.\n");
     return APInt(0, 0, false, true);
   }
 
@@ -216,7 +216,7 @@ APInt BitStreamIn::readBits(i64 Bits) {
 ExiError BitStreamIn::read(MutArrayRef<u8> Out, i64 Bytes) {
   const i64 NBytes = CheckReadWriteSizes(Out.size(), Bytes);
   if EXI_UNLIKELY(!BaseType::canAccessBytes(NBytes)) {
-    DEBUG_ONLY(dbgs() << "Unable to read " << NBytes << " bytes.\n");
+    LOG_WARN(dbgs() << "Unable to read " << NBytes << " bytes.\n");
     return ExiError::FULL;
   }
 

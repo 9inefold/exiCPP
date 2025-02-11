@@ -22,7 +22,7 @@
 //===----------------------------------------------------------------===//
 
 #include "BitStreamCommon.hpp"
-#include "core/Support/Debug.hpp"
+#include "core/Support/Logging.hpp"
 #include "core/Support/raw_ostream.hpp"
 
 #define DEBUG_TYPE "BitStream"
@@ -48,7 +48,7 @@ Option<BitStreamOut> BitStreamOut::New(WritableMemoryBuffer* MB) {
 
 ExiError BitStreamOut::writeBit(safe_bool Value) {
   if (BaseType::isFull()) {
-    DEBUG_ONLY(dbgs() << "Unable to write bit.\n");
+    LOG_WARN(dbgs() << "Unable to write bit.\n");
     return ExiError::FULL;
   }
 
@@ -157,7 +157,7 @@ void BitStreamOut::writeBitsImpl(u64 Value, i64 Bits) {
 ExiError BitStreamOut::writeBits64(u64 Value, i64 Bits) {
   exi_invariant(Bits >= 0 && Bits <= 64, "Invalid bit size!");
   if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
-    DEBUG_ONLY(dbgs() << "Unable to write " << Bits << " bits.\n");
+    LOG_WARN(dbgs() << "Unable to write " << Bits << " bits.\n");
     return ExiError::FULL;
   }
 
@@ -185,7 +185,7 @@ ExiError BitStreamOut::writeBitsAP(const APInt& AP, i64 Bits) {
 ExiError BitStreamOut::writeBits(const APInt& AP) {
   const i64 Bits = AP.getBitWidth();
   if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
-    DEBUG_ONLY(dbgs() << "Unable to write " << Bits << " bits.\n");
+    LOG_WARN(dbgs() << "Unable to write " << Bits << " bits.\n");
     return ExiError::FULL;
   }
 
@@ -200,7 +200,7 @@ ExiError BitStreamOut::writeBits(const APInt& AP) {
 ExiError BitStreamOut::writeBits(const APInt& AP, i64 Bits) {
   const i64 NBits = CheckReadWriteSizes(AP.getBitWidth(), Bits);
   if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
-    DEBUG_ONLY(dbgs() << "Unable to write " << Bits << " bits.\n");
+    LOG_WARN(dbgs() << "Unable to write " << Bits << " bits.\n");
     return ExiError::FULL;
   }
 
@@ -214,7 +214,7 @@ ExiError BitStreamOut::writeBits(const APInt& AP, i64 Bits) {
 
 ExiError BitStreamOut::writeByte(u8 Byte) {
   if EXI_UNLIKELY(!BaseType::canAccessBits(8)) {
-    DEBUG_ONLY(dbgs() << "Unable to write byte.\n");
+    LOG_WARN(dbgs() << "Unable to write byte.\n");
     return ExiError::FULL;
   }
 
@@ -225,7 +225,7 @@ ExiError BitStreamOut::writeByte(u8 Byte) {
 ExiError BitStreamOut::write(ArrayRef<u8> In, i64 Bytes) {
   const i64 NBytes = CheckReadWriteSizes(In.size(), Bytes);
   if EXI_UNLIKELY(!BaseType::canAccessBytes(NBytes)) {
-    DEBUG_ONLY(dbgs() << "Unable to write " << NBytes << " bytes.\n");
+    LOG_WARN(dbgs() << "Unable to write " << NBytes << " bytes.\n");
     return ExiError::FULL;
   }
 
