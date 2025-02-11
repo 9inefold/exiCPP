@@ -35,4 +35,4 @@
 #define EXI_HAS_RAW_FILE_STREAMS 1
 #define EXI_HAS_DBG_IMPL 1
 // TODO: Implement system headers
-#define EXI_HAS_SYS_IMPL 0
+#define EXI_HAS_SYS_IMPL EXI_ON_WIN32
