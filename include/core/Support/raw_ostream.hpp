@@ -72,6 +72,34 @@ public:
     OK_SVecStream,
   };
 
+  // color order matches ANSI escape sequence, don't change
+  enum class Colors {
+    BLACK = 0,
+    RED,
+    GREEN,
+    YELLOW,
+    BLUE,
+    MAGENTA,
+    CYAN,
+    WHITE,
+    BRIGHT_BLACK,
+    BRIGHT_RED,
+    BRIGHT_GREEN,
+    BRIGHT_YELLOW,
+    BRIGHT_BLUE,
+    BRIGHT_MAGENTA,
+    BRIGHT_CYAN,
+    BRIGHT_WHITE,
+    SAVEDCOLOR,
+    RESET,
+  };
+
+  using enum Colors;
+
+protected:
+  /// The two stored color types. Can be accessed by derived classes.
+  Option<Colors> FGColor, BGColor;
+
 private:
   OStreamKind Kind;
 
@@ -103,30 +131,6 @@ private:
   } BufferMode;
 
 public:
-  // color order matches ANSI escape sequence, don't change
-  enum class Colors {
-    BLACK = 0,
-    RED,
-    GREEN,
-    YELLOW,
-    BLUE,
-    MAGENTA,
-    CYAN,
-    WHITE,
-    BRIGHT_BLACK,
-    BRIGHT_RED,
-    BRIGHT_GREEN,
-    BRIGHT_YELLOW,
-    BRIGHT_BLUE,
-    BRIGHT_MAGENTA,
-    BRIGHT_CYAN,
-    BRIGHT_WHITE,
-    SAVEDCOLOR,
-    RESET,
-  };
-
-  using enum Colors;
-
   explicit raw_ostream(bool unbuffered = false,
                        OStreamKind K = OStreamKind::OK_OStream)
       : Kind(K), BufferMode(unbuffered ? BufferKind::Unbuffered
@@ -320,6 +324,11 @@ public:
   /// write_zeros - Insert 'NumZeros' nulls.
   raw_ostream &write_zeros(unsigned NumZeros);
 
+  /// Gets the stored color of the stream.
+  /// @param BG if true, get the background color.
+  /// @returns color if set, otherwise RESET.
+  virtual enum Colors getColor(bool BG = false) const;
+
   /// Changes the foreground color of text that will be output from this point
   /// forward.
   /// @param Color ANSI color to use, the special SAVEDCOLOR can be used to
@@ -390,6 +399,12 @@ protected:
   /// Return the beginning of the current stream buffer, or 0 if the stream is
   /// unbuffered.
   const char *getBufferStart() const { return OutBufStart; }
+
+  /// Sets the stored color of the stream.
+  /// @param Color ANSI color to use, the special SAVEDCOLOR can be used to
+  /// not change the value.
+  /// @param BG if true, set the background color.
+  virtual void setColor(enum Colors Color, bool BG = false);
 
   //===--------------------------------------------------------------------===//
   // Private Interface
@@ -568,7 +583,6 @@ public:
   ///
   void clear_error() { EC = std::error_code(); }
 
-#if 0
   /// Locks the underlying file.
   ///
   /// @returns RAII object that releases the lock upon leaving the scope, if the
@@ -591,6 +605,7 @@ public:
   ///   @endcode
   [[nodiscard]] Expected<sys::fs::FileLocker> lock();
 
+#if 0
   /// Tries to lock the underlying file within the specified period.
   ///
   /// @returns RAII object that releases the lock upon leaving the scope, if the
@@ -670,11 +685,6 @@ public:
   explicit raw_string_ostream(String &O) : OS(O) {
     SetUnbuffered();
   }
-
-  /// Returns the string's reference. In most cases it is better to simply use
-  /// the underlying String directly.
-  /// TODO: Consider removing this API.
-  String &str() { return OS; }
 
   void reserveExtraSpace(u64 ExtraSize) override {
     OS.reserve(tell() + ExtraSize);

@@ -524,19 +524,35 @@ bool raw_ostream::prepare_colors() {
   return true;
 }
 
-raw_ostream &raw_ostream::changeColor(enum Colors colors, bool bold, bool bg) {
+raw_ostream::Colors raw_ostream::getColor(bool BG) const {
+  const auto* Col = BG ? &BGColor : &FGColor;
+  return Col->value_or(RESET);
+}
+
+void raw_ostream::setColor(enum Colors Color, bool BG) {
+  if (Color == SAVEDCOLOR)
+    return;
+  auto* Col = BG ? &BGColor : &FGColor;
+  if (Color != RESET)
+    Col->emplace(Color);
+  else
+    Col->reset();
+}
+
+raw_ostream &raw_ostream::changeColor(enum Colors Color, bool Bold, bool BG) {
   if (!prepare_colors())
     return *this;
+  this->setColor(Color, BG);
 #if EXI_HAS_SYS_IMPL
   const char *colorcode =
-      (colors == SAVEDCOLOR)
-          ? sys::Process::OutputBold(bg)
-          : sys::Process::OutputColor(static_cast<char>(colors), bold, bg);
+      (Color == SAVEDCOLOR)
+          ? sys::Process::OutputBold(BG)
+          : sys::Process::OutputColor(static_cast<char>(Color), Bold, BG);
   if (colorcode)
     write(colorcode, std::strlen(colorcode));
 #else
-  (void)bold;
-  (void)bg;
+  (void)Bold;
+  (void)BG;
 #endif // EXI_HAS_SYS_IMPL
   return *this;
 }
@@ -544,6 +560,8 @@ raw_ostream &raw_ostream::changeColor(enum Colors colors, bool bold, bool bg) {
 raw_ostream &raw_ostream::resetColor() {
   if (!prepare_colors())
     return *this;
+  FGColor.reset();
+  BGColor.reset();
 #if EXI_HAS_SYS_IMPL
   if (const char *colorcode = sys::Process::ResetColor())
     write(colorcode, strlen(colorcode));
@@ -554,6 +572,7 @@ raw_ostream &raw_ostream::resetColor() {
 raw_ostream &raw_ostream::reverseColor() {
   if (!prepare_colors())
     return *this;
+  std::swap(FGColor, BGColor);
 #if EXI_HAS_SYS_IMPL
   if (const char *colorcode = sys::Process::OutputReverse())
     write(colorcode, strlen(colorcode));
@@ -580,7 +599,7 @@ void IFormatObject::home() {
 static int getFD(StrRef Filename, std::error_code &EC,
                  sys::fs::CreationDisposition Disp, sys::fs::FileAccess Access,
                  sys::fs::OpenFlags Flags) {
-  exi_assert((Access & sys::fs::FA_Write),
+  exi_assert(Access & sys::fs::FA_Write,
          "Cannot make a raw_ostream from a read-only descriptor!");
 
   // Handle "-" as stdout. Note that when we do this, we consider ourself
@@ -887,7 +906,6 @@ bool raw_fd_ostream::has_colors() const {
   return *HasColors;
 }
 
-#if 0
 Expected<sys::fs::FileLocker> raw_fd_ostream::lock() {
   std::error_code EC = sys::fs::lockFile(FD);
   if (!EC)
@@ -895,6 +913,7 @@ Expected<sys::fs::FileLocker> raw_fd_ostream::lock() {
   return errorCodeToError(EC);
 }
 
+#if 0
 Expected<sys::fs::FileLocker>
 raw_fd_ostream::tryLockFor(Duration const& Timeout) {
   std::error_code EC = sys::fs::tryLockFile(FD, Timeout.getDuration());
