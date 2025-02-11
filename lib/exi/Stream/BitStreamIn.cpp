@@ -25,7 +25,7 @@
 #include "core/Support/Debug.hpp"
 #include "core/Support/raw_ostream.hpp"
 
-#define DEBUG_TYPE "BitStreamIn"
+#define DEBUG_TYPE "BitStream"
 
 using namespace exi;
 
@@ -213,25 +213,27 @@ APInt BitStreamIn::readBits(i64 Bits) {
   return readBitsAPLarge(Bits);
 }
 
-void BitStreamIn::read(MutArrayRef<u8> Bytes, i64 Len) {
-  const i64 NBytes = CheckReadWriteSizes(Bytes.size(), Len);
+ExiError BitStreamIn::read(MutArrayRef<u8> Out, i64 Bytes) {
+  const i64 NBytes = CheckReadWriteSizes(Out.size(), Bytes);
   if EXI_UNLIKELY(!BaseType::canAccessBytes(NBytes)) {
     DEBUG_ONLY(dbgs() << "Unable to read " << NBytes << " bytes.\n");
-    return;
+    return ExiError::FULL;
   }
 
-  if (Bytes.empty())
-    return;
+  if (NBytes == 0)
+    return ExiError::OK;
   
   if (BaseType::isByteAligned()) {
     const u8* Ptr = BaseType::getCurrentBytePtr();
-    std::memcpy(Bytes.data(), Ptr, NBytes);
+    std::memcpy(Out.data(), Ptr, NBytes);
     BaseType::skipBytes(NBytes);
-    return;
+    return ExiError::OK;
   }
 
-  for (u8& Byte : Bytes) {
+  for (u8& Byte : Out) {
     Byte = peekBitsImpl(kCHAR_BIT);
     BaseType::skipBytes(1);
   }
+
+  return ExiError::OK;
 }

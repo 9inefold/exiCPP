@@ -453,12 +453,12 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
     u8 Data[4] {};
 
     BitStreamOut OS(Data);
-    OS.writeBits64(0b1001, 4);
-    OS.writeBits<3>(0b011);
-    OS.writeBit(0);
-    OS.writeBits64(0b1011, 4);
-    OS.writeBits64(0b1011'1111'1110, 12);
-    OS.writeBit(1);
+    (void) OS.writeBits64(0b1001, 4);
+    (void) OS.writeBits<3>(0b011);
+    (void) OS.writeBit(0);
+    (void) OS.writeBits64(0b1011, 4);
+    (void) OS.writeBits64(0b1011'1111'1110, 12);
+    (void) OS.writeBit(1);
 
     BitStreamIn IS(Data);
     exi_assert(IS.bitPos() == 0, "Yeah.");
@@ -478,13 +478,13 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
 
     BitStreamOut OS(Data);
     if (MakeUnaligned)
-      OS.writeBit(1);
-    OS.writeBits64(0b1001, 64);
-    OS.writeBits64(0x123456789ABCDEFull, 64);
-    OS.writeBits64((1ull << 63ull), 64);
-    OS.writeBits64(123, 63);
-    OS.writeBits<2>(0b10);
-    OS.writeBits<2>(0b01);
+      (void) OS.writeBit(1);
+    (void) OS.writeBits64(0b1001, 64);
+    (void) OS.writeBits64(0x123456789ABCDEFull, 64);
+    (void) OS.writeBits64((1ull << 63ull), 64);
+    (void) OS.writeBits64(123, 63);
+    (void) OS.writeBits<2>(0b10);
+    (void) OS.writeBits<2>(0b01);
 
     {
       BitStreamIn IS(Data);
@@ -528,7 +528,7 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
     // ReadAPIntExi(APInt(Bits, Buf), U8Data);
     {
       BitStreamOut OS = BitStreamOut::New(U8Data);
-      OS.writeBits(APInt(Bits, Buf));
+      (void) OS.writeBits(APInt(Bits, Buf));
     }
 
     auto GetNewStream = [kOff, &U8Data]() {
@@ -541,8 +541,8 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
     {
       OwningArrayRef<u8> U8Peek(U8Data.size());
       OwningArrayRef<u8> U8Read(U8Data.size());
-      IS.peek(U8Peek);
-      IS.read(U8Read);
+      (void) IS.peek(U8Peek);
+      (void) IS.read(U8Read);
       exi_assert(U8Data == U8Peek);
       exi_assert(U8Data == U8Read);
       IS = GetNewStream();
@@ -601,7 +601,7 @@ static void APIntTests(int Argc, char* Argv[]) noexcept {
 }
 
 int main(int Argc, char* Argv[]) {
-  exi::DebugFlag = true;
+  exi::DebugFlag = LogLevel::VERBOSE;
   // miscTests(Argc, Argv);
   BitStreamTests(Argc, Argv);
   APIntTests(Argc, Argv);

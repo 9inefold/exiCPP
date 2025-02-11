@@ -28,6 +28,7 @@
 #include "core/Support/ErrorHandle.hpp"
 #include "core/Support/Limits.hpp"
 #include "exi/Basic/NBitInt.hpp"
+#include "exi/Basic/ErrorCodes.hpp"
 
 #define EXI_HAS_BITSTREAMOUT 1
 
@@ -151,6 +152,12 @@ protected:
       "Stream size exceeds max capacity.");
   }
 
+  ExiError ec() const noexcept {
+    if EXI_UNLIKELY(isFull())
+      return ExiError::FULL;
+    return ExiError::OK;
+  }
+
   /// Aligns stream up to the next byte.
   /// @returns `false` if capacity is reached, `true` otherwise.
   template <bool CheckFull = false> bool align() {
@@ -254,12 +261,13 @@ public:
     return ubit<Bits>::FromBits(peekBits64(Bits));
   }
 
+  /// Peeks a single byte.
   u8 peekByte() const;
 
   /// Peeks a sequence of bytes.
-  void peek(MutArrayRef<u8> Bytes, i64 Len = -1) const {
+  ExiError peek(MutArrayRef<u8> Out, i64 Bytes = -1) const {
     BitStreamIn thiz(*this);
-    thiz.read(Bytes, Len);
+    return thiz.read(Out, Bytes);
   }
 
   /// Peeks a single bit.
@@ -290,7 +298,7 @@ public:
   }
 
   /// Reads a sequence of bytes.
-  void read(MutArrayRef<u8> Bytes, i64 Len = -1);
+  ExiError read(MutArrayRef<u8> Bytes, i64 Len = -1);
 
 private:
   using BaseType::getCurrentByte;
@@ -333,26 +341,27 @@ public:
   // Writing
 
   /// Writes a single bit.
-  void writeBit(safe_bool Value);
+  ExiError writeBit(safe_bool Value);
 
   /// Writes a variable number of bits (max of 64).
-  void writeBits64(u64 Value, i64 Bits);
+  ExiError writeBits64(u64 Value, i64 Bits);
 
   /// Writes a variable number of bits.
-  void writeBits(const APInt& AP);
+  ExiError writeBits(const APInt& AP);
   /// Writes a variable number of bits (specified).
-  void writeBits(const APInt& AP, i64 Bits);
+  ExiError writeBits(const APInt& AP, i64 Bits);
 
   /// Reads a static number of bits (max of 64).
   /// This means data is peeked, then the position is advanced.
-  template <unsigned Bits> void writeBits(ubit<Bits> Value) {
-    writeBits64(Value.data(), Bits);
+  template <unsigned Bits>
+  ExiError writeBits(ubit<Bits> Value) {
+    return writeBits64(Value.data(), Bits);
   }
 
   /// Writes a single byte.
-  void writeByte(u8 Byte);
+  ExiError writeByte(u8 Byte);
   /// Writes an array of bytes with an optional length.
-  void write(ArrayRef<u8> Bytes, i64 Len = -1);
+  ExiError write(ArrayRef<u8> In, i64 Bytes = -1);
 
   MutArrayRef<u8> getWrittenBytes();
 
@@ -363,7 +372,7 @@ private:
   void writeBitsImpl(u64 Value, i64 Bits);
   void writeBitsSlow(u64 Value, i64 Bits);
 
-  void writeBitsAP(const APInt& AP, i64 Bits);
+  ExiError writeBitsAP(const APInt& AP, i64 Bits);
 
   // u64 readUnalignedBits();
   // APInt readBitsAPLarge(i64 Bits);
