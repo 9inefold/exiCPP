@@ -61,8 +61,8 @@ using namespace exi;
 // Even though exicpp might be built with NDEBUG, define symbols that the code
 // built without NDEBUG can depend on via the llvm/Support/Debug.h header.
 namespace exi {
-/// Exported boolean set by the -debug option.
-bool DebugFlag = false;
+/// Exported flag set by the -debug option.
+LogLevelType DebugFlag = LogLevel::NONE;
 
 static ManagedStatic<Vec<String>> CurrentDebugType;
 
@@ -142,7 +142,7 @@ struct dbgstream {
   dbgstream()
       : Strm(errs(), "*** Debug Log Output ***\n",
              (!EnableDebugBuffering || !DebugFlag) ? 0 : *DebugBufferSize) {
-    if (EnableDebugBuffering && DebugFlag && *DebugBufferSize != 0)
+    if (EnableDebugBuffering && !!DebugFlag && *DebugBufferSize != 0)
       // TODO: Add a handler for SIGUSER1-type signals so the user can
       // force a debug dump.
       sys::AddSignalHandler(&debug_user_sig_handler, nullptr);
@@ -157,7 +157,7 @@ struct dbgstream {
 static void debug_user_sig_handler(void *Cookie) {
   // This is a bit sneaky.  Since this is under #if EXI_DEBUG, we
   // know that debug mode is enabled and dbgs() really is a
-  // circular_raw_ostream.  If EXI_DEBUG is defined, then dbgs() ==
+  // circular_raw_ostream. If EXI_DEBUG is defined, then dbgs() ==
   // errs() but this will never be invoked.
   exi::circular_raw_ostream &dbgout =
       static_cast<circular_raw_ostream &>(exi::dbgs());

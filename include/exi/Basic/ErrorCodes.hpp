@@ -92,7 +92,7 @@ enum class ErrorCode : i32 {
 };
 
 inline constexpr usize kErrorCodeMax = i32(ErrorCode::kERROR_LAST);
-StrRef get_error_message(ErrorCode E) noexcept;
+StrRef get_error_message(ErrorCode E) noexcept EXI_READONLY;
 
 /// Works like `Error`, returns `true` when a non-ok state is held.
 class [[nodiscard]] ExiError {
@@ -102,7 +102,7 @@ public:
   using enum ErrorCode;
 
   constexpr ExiError(ErrorCode E) : EC(E) {}
-  static ExiError New(ErrorCode E) noexcept;
+  static ExiError New(ErrorCode E) noexcept EXI_READONLY;
 
   static const ExiError OK;
   static const ExiError STOP;
@@ -115,12 +115,12 @@ public:
   // Observers
 
   ErrorCode ec() const { return EC; }
-  const char* what() const noexcept;
-  StrRef msg() const noexcept;
+  const char* what() const noexcept EXI_READONLY;
+  StrRef msg() const noexcept EXI_READONLY;
 
   explicit operator ErrorCode() const { return EC; }
   explicit operator bool() const {
-    return EC != ErrorCode::kSuccess;
+    return EXI_LIKELY(EC != ErrorCode::kSuccess);
   }
 
   friend bool operator==(const ExiError& LHS, const ExiError& RHS) {

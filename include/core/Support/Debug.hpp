@@ -46,6 +46,7 @@
 #pragma once
 
 #include <Config/Config.inc>
+#include <Support/LogLevel.hpp>
 
 namespace exi {
 
@@ -53,38 +54,38 @@ class raw_ostream;
 
 #if EXI_DEBUG
 
-/// isCurrentDebugType - Return true if the specified string is the debug type
+/// `isCurrentDebugType` - Return true if the specified string is the debug type
 /// specified on the command line, or if none was specified on the command line
-/// with the -debug-only=X option.
+/// with the `-debug-only=X` option.
 ///
 bool isCurrentDebugType(const char *Type);
 
-/// setCurrentDebugType - Set the current debug type, as if the -debug-only=X
-/// option were specified.  Note that DebugFlag also needs to be set to true for
-/// debug output to be produced.
+/// `setCurrentDebugType` - Set the current debug type, as if the `-debug-only=X`
+/// option were specified.  Note that `DebugFlag` also needs to be set to true
+/// for debug output to be produced.
 ///
 void setCurrentDebugType(const char *Type);
 
-/// setCurrentDebugTypes - Set the current debug type, as if the
-/// -debug-only=X,Y,Z option were specified. Note that DebugFlag
+/// `setCurrentDebugTypes` - Set the current debug type, as if the
+/// `-debug-only=X,Y,Z` option were specified. Note that DebugFlag
 /// also needs to be set to true for debug output to be produced.
 ///
 void setCurrentDebugTypes(const char **Types, unsigned Count);
 
-/// DEBUG_WITH_TYPE macro - This macro should be used by passes to emit debug
-/// information.  If the '-debug' option is specified on the commandline, and if
+/// `DEBUG_WITH_TYPE` macro - This macro should be used by passes to emit debug
+/// information. If the `-debug` option is specified on the commandline, and if
 /// this is a debug build, then the code specified as the option to the macro
-/// will be executed.  Otherwise it will not be.  Example:
+/// will be executed. Otherwise it will not be. Example:
 ///
 /// DEBUG_WITH_TYPE("bitset", dbgs() << "Bitset contains: " << Bitset << "\n");
 ///
-/// This will emit the debug information if -debug is present, and -debug-only
-/// is not specified, or is specified as "bitset".
-# define DEBUG_WITH_TYPE(TYPE, ...)                                            \
-do {                                                                           \
-  if (::exi::DebugFlag && ::exi::isCurrentDebugType(TYPE)) {                   \
-    __VA_ARGS__;                                                               \
-  }                                                                            \
+/// This will emit the debug information if `-debug` is present, and
+/// `-debug-only` is not specified, or is specified as `"bitset"`.
+# define DEBUG_WITH_TYPE(TYPE, ...)                                           \
+do {                                                                          \
+  if ((!!::exi::DebugFlag) && ::exi::isCurrentDebugType(TYPE)) {              \
+    __VA_ARGS__;                                                              \
+  }                                                                           \
 } while (false)
 
 #else
@@ -94,13 +95,33 @@ do {                                                                           \
 # define DEBUG_WITH_TYPE(TYPE, ...) do { } while (false)
 #endif
 
-/// This boolean is set to true if the '-debug' command line option
-/// is specified.  This should probably not be referenced directly, instead, use
-/// the DEBUG macro below.
+#if EXI_LOGGING
+/// `LOG_WITH_LEVEL` macro - This macro should be used to emit optional relevant
+/// information. If the `-verbose=...` option is specified on the commandline, 
+/// then the code specified as the option to the macro will be executed.
+/// Otherwise it will not be. Example:
 ///
-extern bool DebugFlag;
+/// LOG_WITH_LEVEL(WARN, dbgs() << "option " << Opt << " was not specified.\n");
+///
+/// This will emit the information if the logging level is at least
+/// `-verbose=WARN` (which means it will also be printed on `INFO`).
+# define LOG_WITH_LEVEL(LEVEL, ...)                                           \
+do {                                                                          \
+  if (hasLogLevel(::exi::LogLevel::LEVEL, ::exi::DebugFlag)) {                \
+    __VA_ARGS__;                                                              \
+  }                                                                           \
+} while (false)
+#else
+# define LOG_WITH_LEVEL(LEVEL, ...) do { } while(false)
+#endif
 
-/// EnableDebugBuffering - This defaults to false.  If true, the debug
+/// This boolean is set to true if the `-debug` command line option
+/// is specified.  This should probably not be referenced directly, instead, use
+/// the `DEBUG_ONLY` macro below.
+///
+extern LogLevelType DebugFlag;
+
+/// `EnableDebugBuffering` - This defaults to false.  If true, the debug
 /// stream will install signal handlers to dump any buffered debug
 /// output.  It allows clients to selectively allow the debug stream
 /// to install signal handlers if they are certain there will be no
@@ -108,18 +129,25 @@ extern bool DebugFlag;
 ///
 extern bool EnableDebugBuffering;
 
-/// dbgs() - This returns a reference to a raw_ostream for debugging
-/// messages.  If debugging is disabled it returns errs().  Use it
+/// `dbgs()` - This returns a reference to a `raw_ostream` for debugging
+/// messages.  If debugging is disabled it returns `errs()`.  Use it
 /// like: dbgs() << "foo" << "bar";
 raw_ostream &dbgs();
 
 // This macro should be used by passes to emit debug information.
-// If the '-debug' option is specified on the commandline, and if this is a
+// If the `-debug` option is specified on the commandline, and if this is a
 // debug build, then the code specified as the option to the macro will be
 // executed.  Otherwise it will not be.  Example:
 //
 // DEBUG_ONLY(dbgs() << "Bitset contains: " << Bitset << "\n");
 //
 #define DEBUG_ONLY(...) DEBUG_WITH_TYPE(DEBUG_TYPE, __VA_ARGS__)
+
+/// Same as `DEBUG_ONLY`, but if the log level is at least `ERROR`.
+#define ERROR_ONLY(...) LOG_WITH_LEVEL(ERROR, __VA_ARGS__)
+/// Same as `DEBUG_ONLY`, but if the log level is at least `WARN`.
+#define WARN_ONLY(...)  LOG_WITH_LEVEL(WARN,  __VA_ARGS__)
+/// Same as `DEBUG_ONLY`, but if the log level is at least `INFO`.
+#define INFO_ONLY(...)  LOG_WITH_LEVEL(INFO,  __VA_ARGS__)
 
 } // namespace exi
