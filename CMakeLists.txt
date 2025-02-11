@@ -25,11 +25,13 @@ option(EXI_TESTS        "If tests should be run." OFF)
 
 option(EXI_EXCEPTIONS   "If exceptions should be enabled." OFF)
 option(EXI_USE_THREADS  "Enable multithreading?" OFF)
-option(EXI_USE_MIMALLOC "If allocation should be done through mimalloc" ON)
+option(EXI_USE_MIMALLOC "If allocation should be done through mimalloc." ON)
 
 option(EXI_DEBUG        "If debug printing should be enabled." ON)
 option(EXI_INVARIANTS   "Adds extra invariant checking." ON)
 option(EXI_LOGGING      "If logging should be enabled." ON)
+
+option(EXI_ENABLE_NODISCARD "If nodiscard should be enabled." ON)
 option(EXI_ENABLE_DUMP  "If dump methods shouldn't be stripped." OFF)
 
 option(EXI_FAST_DEBUG   "If parts of debug builds should be optimized." OFF)

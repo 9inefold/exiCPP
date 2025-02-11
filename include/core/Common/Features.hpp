@@ -106,6 +106,12 @@
 # define EXI_NOEXCEPT noexcept
 #endif
 
+#if EXI_STRICT_NODISCARD
+# define EXI_NODISCARD [[nodiscard]]
+#else
+# define EXI_NODISCARD
+#endif
+
 //======================================================================//
 // Compiler Type
 //======================================================================//

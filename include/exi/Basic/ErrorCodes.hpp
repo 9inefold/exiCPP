@@ -95,7 +95,7 @@ inline constexpr usize kErrorCodeMax = i32(ErrorCode::kERROR_LAST);
 StrRef get_error_message(ErrorCode E) noexcept EXI_READONLY;
 
 /// Works like `Error`, returns `true` when a non-ok state is held.
-class [[nodiscard]] ExiError {
+class EXI_NODISCARD ExiError {
   ErrorCode EC;
   u32 Reserved = 0; // May add some custom error stuff in the future... maybe.
 public:
