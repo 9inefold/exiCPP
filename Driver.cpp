@@ -494,7 +494,7 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
 
       if (MakeUnaligned) {
         printPos();
-        DUMP_STMT(IS.readBit().data());
+        DUMP_STMT(IS.readBit());
       }
       printPos();
       DUMP_STMT_FMT("{:#0b}", IS.readBits64(64));

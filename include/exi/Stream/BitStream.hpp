@@ -245,50 +245,128 @@ public:
   static Option<BitStreamIn> New(const MemoryBuffer* MB);
 
   ////////////////////////////////////////////////////////////////////////
-  // Reading
+  // Peeking
 
   /// Peeks a single bit.
-  safe_bool peekBit() const;
+  ExiError peekBit(bool& Out) const;
+
+  /// Peeks a single bit.
+  /// @attention This function ignores errors.
+  bool peekBit() const {
+    bool Out;
+    (void) peekBit(Out);
+    return Out;
+  }
 
   /// Peeks a variable number of bits (max of 64).
-  u64 peekBits64(i64 Bits) const;
+  ExiError peekBits64(u64& Out, i64 Bits) const;
+
+  /// Peeks a variable number of bits (max of 64).
+  /// @attention This function ignores errors.
+  u64 peekBits64(i64 Bits) const {
+    u64 Out;
+    (void) peekBits64(Out, Bits);
+    return Out;
+  }
 
   /// Peeks a variable number of bits.
+  ExiError peekBits(APInt& AP, i64 Bits) const;
+
+  /// Peeks a variable number of bits.
+  /// @attention This function ignores errors.
   APInt peekBits(i64 Bits) const;
 
   /// Peeks a static number of bits (max of 64).
+  template <unsigned Bits>
+  ExiError peekBits(ubit<Bits>& Out) const {
+    u64 ProxyOut;
+    const ExiError Status
+      = peekBits64(ProxyOut, Bits);
+    Out = ubit<Bits>::FromBits(ProxyOut);
+    return Status;
+  }
+
+  /// Peeks a static number of bits (max of 64).
+  /// @attention This function ignores errors.
   template <unsigned Bits> ubit<Bits> peekBits() const {
     return ubit<Bits>::FromBits(peekBits64(Bits));
   }
 
   /// Peeks a single byte.
-  u8 peekByte() const;
+  ExiError peekByte(u8& Out) const;
 
-  /// Peeks a sequence of bytes.
+  /// Peeks a single byte.
+  /// @attention This function ignores errors.
+  u8 peekByte() const {
+    u8 Out;
+    (void) peekByte(Out);
+    return Out;
+  }
+
+  /// Peeks a sequence of bytes. This function has no returning variant.
   ExiError peek(MutArrayRef<u8> Out, i64 Bytes = -1) const {
     BitStreamIn thiz(*this);
     return thiz.read(Out, Bytes);
   }
 
+  ////////////////////////////////////////////////////////////////////////
+  // Reading
+
   /// Peeks a single bit.
-  safe_bool readBit() {
-    const safe_bool Result = peekBit();
+  ExiError readBit(bool& Out);
+
+  /// Peeks a single bit.
+  /// @attention This function ignores errors.
+  bool readBit() {
+    const bool Result = peekBit();
     BaseType::skip(1);
     return Result;
   }
 
   /// Reads a variable number of bits (max of 64).
   /// This means data is peeked, then the position is advanced.
-  u64 readBits64(i64 Bits);
+  ExiError readBits64(u64& Out, i64 Bits);
+
+  /// Reads a variable number of bits (max of 64).
+  /// This means data is peeked, then the position is advanced.
+  /// @attention This function ignores errors.
+  u64 readBits64(i64 Bits) {
+    const u64 Result = peekBits64(Bits);
+    BaseType::skip(Bits);
+    return Result;
+  }
 
   /// Reads a variable number of bits.
   /// This means data is peeked, then the position is advanced.
+  ExiError readBits(APInt& AP, i64 Bits);
+
+  /// Reads a variable number of bits.
+  /// This means data is peeked, then the position is advanced.
+  /// @attention This function ignores errors.
   APInt readBits(i64 Bits);
 
   /// Reads a static number of bits (max of 64).
   /// This means data is peeked, then the position is advanced.
+  template <unsigned Bits>
+  ExiError readBits(ubit<Bits>& Out) {
+    u64 ProxyOut;
+    const ExiError Status
+      = readBits64(ProxyOut, Bits);
+    Out = ubit<Bits>::FromBits(ProxyOut);
+    return Status;
+  }
+
+  /// Reads a static number of bits (max of 64).
+  /// This means data is peeked, then the position is advanced.
+  /// @attention This function ignores errors.
   template <unsigned Bits> ubit<Bits> readBits() {
     return ubit<Bits>::FromBits(readBits64(Bits));
+  }
+
+  ExiError readByte(u8& Out) {
+    const ExiError Status = peekByte(Out);
+    BaseType::skip(8);
+    return Status;
   }
 
   u8 readByte() {
@@ -305,7 +383,7 @@ private:
 
   u64 peekUnalignedBits() const;
   u64 peekBitsImpl(i64 Bits) const;
-  u64 peekBitsSlow(i64 Bits) const;
+  u64 peekBitsSlow(i64 Bits) const EXI_READONLY;
 
   u64 readUnalignedBits();
   APInt readBitsAPLarge(i64 Bits);

@@ -22,7 +22,7 @@
 //===----------------------------------------------------------------===//
 
 #include "BitStreamCommon.hpp"
-#include "core/Support/Debug.hpp"
+#include "core/Support/Logging.hpp"
 #include "core/Support/raw_ostream.hpp"
 
 #define DEBUG_TYPE "BitStream"
@@ -44,7 +44,7 @@ Option<BitStreamIn> BitStreamIn::New(const MemoryBuffer* MB) {
 }
 
 //////////////////////////////////////////////////////////////////////////
-// Reading
+// Peeking
 
 u64 BitStreamIn::peekUnalignedBits() const {
   const u64 Pos = BaseType::bitOffset();
@@ -52,21 +52,17 @@ u64 BitStreamIn::peekUnalignedBits() const {
   return Curr & (0xFF >> Pos);
 }
 
-u64 BitStreamIn::readUnalignedBits() {
-  const u64 Peeked = peekUnalignedBits();
-  BaseType::skip(BaseType::farBitOffsetInclusive());
-  return Peeked;
-}
-
-safe_bool BitStreamIn::peekBit() const {
+ExiError BitStreamIn::peekBit(bool& Out) const {
   if (BaseType::isFull()) {
-    LOG_WARN(dbgs() << "Unable to read bit.\n");
-    return 0;
+    LOG_WARN("Unable to peek bit.\n");
+    Out = false;
+    return ExiError::Full(1);
   }
 
   const u64 Pos = BaseType::farBitOffset() - 1;
   const u64 Curr = getCurrentByte();
-  return safe_bool::FromBits((Curr >> Pos) & 0x1);
+  Out = static_cast<bool>((Curr >> Pos) & 0x1);
+  return ExiError::OK;
 }
 
 u64 BitStreamIn::peekBitsSlow(i64 Bits) const {
@@ -124,22 +120,46 @@ u64 BitStreamIn::peekBitsImpl(i64 Bits) const {
   tail_return peekBitsSlow(Bits);
 }
 
-u64 BitStreamIn::peekBits64(i64 Bits) const {
+ExiError BitStreamIn::peekBits64(u64& Out, i64 Bits) const {
   exi_invariant(Bits >= 0 && Bits <= 64, "Invalid bit size!");
   if EXI_UNLIKELY(Bits > 64)
     Bits = 64;
+  
   if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
-    LOG_WARN(dbgs() << "Unable to read " << Bits << " bits.\n");
-    return 0;
+    LOG_WARN("Unable to peek {} bits.\n", Bits);
+    Out = 0;
+    return ExiError::Full(Bits);
   }
 
-  tail_return peekBitsImpl(Bits);
+  Out = peekBitsImpl(Bits);
+  return ExiError::OK;
 }
+
+ExiError BitStreamIn::peekBits(APInt& AP, i64 Bits) const {
+  exi_invariant(Bits >= 0, "Invalid bit size!");
+  if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
+    LOG_WARN("Unable to peek {} bits.\n", Bits);
+    AP = APInt::getZero(0);
+    return ExiError::Full(Bits);
+  }
+
+  if (Bits <= 64) {
+    // Handle small cases.
+    AP = APInt(Bits, peekBitsImpl(Bits), false, true);
+    return ExiError::OK;
+  }
+  
+  // Handle bits over a size of 64.
+  // Copies and calls `readBits`.
+  AP = PeekBitsAPImpl(*this, Bits);
+  return ExiError::OK;
+}
+
 
 APInt BitStreamIn::peekBits(i64 Bits) const {
   exi_invariant(Bits >= 0, "Invalid bit size!");
   if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
-    LOG_WARN(dbgs() << "Unable to read " << Bits << " bits.\n");
+    LOG_WARN("Unable to peek {} bits.\n", Bits);
     return APInt::getZero(0);
   }
 
@@ -152,18 +172,35 @@ APInt BitStreamIn::peekBits(i64 Bits) const {
   return PeekBitsAPImpl(*this, Bits);
 }
 
-u8 BitStreamIn::peekByte() const {
+ExiError BitStreamIn::peekByte(u8& Out) const {
   if EXI_UNLIKELY(!BaseType::canAccessBits(8)) {
-    LOG_WARN(dbgs() << "Unable to read byte.\n");
-    return 0;
+    LOG_WARN("Unable to peek byte.\n");
+    Out = 0;
+    return ExiError::Full(8);
   }
-  return peekBitsImpl(8);
+  Out = peekBitsImpl(8);
+  return ExiError::OK;
 }
 
-u64 BitStreamIn::readBits64(i64 Bits) {
-  const u64 Result = peekBits64(Bits);
+//////////////////////////////////////////////////////////////////////////
+// Reading
+
+u64 BitStreamIn::readUnalignedBits() {
+  const u64 Peeked = peekUnalignedBits();
+  BaseType::skip(BaseType::farBitOffsetInclusive());
+  return Peeked;
+}
+
+ExiError BitStreamIn::readBit(bool& Out) {
+  const ExiError Status = peekBit(Out);
+  BaseType::skip(1);
+  return Status;
+}
+
+ExiError BitStreamIn::readBits64(u64& Out, i64 Bits) {
+  const ExiError Status = peekBits64(Out, Bits);
   BaseType::skip(Bits);
-  return Result;
+  return Status;
 }
 
 /// For reading `APInts` on the slow path.
@@ -196,10 +233,29 @@ APInt BitStreamIn::readBitsAPLarge(i64 Bits) {
   return APInt(OldBits, ArrayRef(Buf).drop_front(SpareWords));
 }
 
+ExiError BitStreamIn::readBits(APInt& AP, i64 Bits) {
+  exi_invariant(Bits >= 0, "Invalid bit size!");
+  if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
+    LOG_WARN("Unable to read {} bits.\n", Bits);
+    AP = APInt(0, 0, false, true);
+    return ExiError::Full(Bits);
+  }
+
+  if (Bits <= 64) {
+    // Handle small cases.
+    AP = APInt(Bits, peekBitsImpl(Bits), false, true);
+    BaseType::skip(Bits);
+    return ExiError::OK;
+  }
+
+  AP = readBitsAPLarge(Bits);
+  return ExiError::OK;
+}
+
 APInt BitStreamIn::readBits(i64 Bits) {
   exi_invariant(Bits >= 0, "Invalid bit size!");
   if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
-    LOG_WARN(dbgs() << "Unable to read " << Bits << " bits.\n");
+    LOG_WARN("Unable to read {} bits.\n", Bits);
     return APInt(0, 0, false, true);
   }
 
@@ -216,8 +272,8 @@ APInt BitStreamIn::readBits(i64 Bits) {
 ExiError BitStreamIn::read(MutArrayRef<u8> Out, i64 Bytes) {
   const i64 NBytes = CheckReadWriteSizes(Out.size(), Bytes);
   if EXI_UNLIKELY(!BaseType::canAccessBytes(NBytes)) {
-    LOG_WARN(dbgs() << "Unable to read " << NBytes << " bytes.\n");
-    return ExiError::FULL;
+    LOG_WARN("Unable to read {} bytes.\n", NBytes);
+    return ExiError::Full(NBytes * kCHAR_BIT);
   }
 
   if (NBytes == 0)
