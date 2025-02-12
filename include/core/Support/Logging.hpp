@@ -41,7 +41,7 @@ LOG_WITH_LEVEL_AND_TYPE(LEVEL, TYPE, do {                                     \
 
 /// Format with the default debug type.
 # define LOG_FORMAT(LEVEL, COLOR, ...)                                        \
- LOG_FORMAT_WITH_TYPE(LEVEL, COLOR, __VA_ARGS__)
+ LOG_FORMAT_WITH(LEVEL, DEBUG_TYPE, COLOR, __VA_ARGS__)
 
 #else
 # define LOG_FORMAT_WITH(LEVEL, TYPE, COLOR, ...) do { } while(false)
