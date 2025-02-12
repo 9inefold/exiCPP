@@ -44,6 +44,8 @@ namespace exi {
 /// into SmallVecs, then inspected using ObjectFile (which takes a
 /// MemoryBuffer).
 class SmallVecMemoryBuffer : public MemoryBuffer {
+  SmallVec<char, 0> SV;
+  String BufferName;
 public:
   /// Construct a SmallVecMemoryBuffer from the given SmallVec r-value.
   SmallVecMemoryBuffer(SmallVecImpl<char> &&SV,
@@ -60,7 +62,7 @@ public:
       this->SV.push_back('\0');
       this->SV.pop_back();
     }
-    init(this->SV.begin(), this->SV.end(), false);
+    MemoryBuffer::init(this->SV.begin(), this->SV.end(), false);
   }
 
   // Key function.
@@ -69,10 +71,6 @@ public:
   StrRef getBufferIdentifier() const override { return BufferName; }
 
   BufferKind getBufferKind() const override { return MemoryBuffer_Malloc; }
-
-private:
-  SmallVec<char, 0> SV;
-  String BufferName;
 };
 
 } // namespace exi
