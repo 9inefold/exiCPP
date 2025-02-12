@@ -63,6 +63,13 @@ class Twine;
 
 } // namespace exi
 
+#define exi_try(...) do {                                                     \
+  auto&& _u_Err = (__VA_ARGS__);                                              \
+  if EXI_UNLIKELY(_u_Err) {                                                   \
+    return _u_Err;                                                            \
+  }                                                                           \
+} while(0)
+
 #ifndef NDEBUG
 # define exi_unreachable(MSG)                                                 \
   ::exi::exi_assert_impl(::exi::H::ASK_Unreachable, MSG, __FILE__, __LINE__)
