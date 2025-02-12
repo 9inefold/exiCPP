@@ -29,18 +29,43 @@
 # include <Support/raw_ostream.hpp>
 #endif
 
-#define LOG_FORMAT_WITH(LEVEL, COLOR, ...)                                    \
-LOG_WITH_LEVEL(LEVEL, do {                                                    \
+#if EXI_LOGGING
+
+/// Format with a specified debug type.
+# define LOG_FORMAT_WITH(LEVEL, TYPE, COLOR, ...)                             \
+LOG_WITH_LEVEL_AND_TYPE(LEVEL, TYPE, do {                                     \
   const auto _u_OldCol = dbgs().getColor();                                   \
   dbgs().changeColor(::exi::raw_ostream::COLOR)                               \
     << ::exi::format(__VA_ARGS__) << _u_OldCol;                               \
 } while(false))
 
+/// Format with the default debug type.
+# define LOG_FORMAT(LEVEL, COLOR, ...)                                        \
+ LOG_FORMAT_WITH_TYPE(LEVEL, COLOR, __VA_ARGS__)
+
+#else
+# define LOG_FORMAT_WITH(LEVEL, TYPE, COLOR, ...) do { } while(false)
+# define LOG_FORMAT(LEVEL, COLOR, ...) do { } while(false)
+#endif
+
 /// Formats to `dbgs()` if the log level is at least `ERROR`.
-#define LOG_ERROR(...) LOG_FORMAT_WITH(ERROR, BRIGHT_RED,     __VA_ARGS__)
+#define LOG_ERROR(...) LOG_FORMAT(ERROR, BRIGHT_RED,     __VA_ARGS__)
 /// Formats to `dbgs()` if the log level is at least `WARN`.
-#define LOG_WARN(...)  LOG_FORMAT_WITH(WARN,  BRIGHT_YELLOW,  __VA_ARGS__)
+#define LOG_WARN(...)  LOG_FORMAT(WARN,  BRIGHT_YELLOW,  __VA_ARGS__)
 /// Formats to `dbgs()` if the log level is at least `INFO`.
-#define LOG_INFO(...)  LOG_FORMAT_WITH(INFO,  BRIGHT_WHITE,   __VA_ARGS__)
+#define LOG_INFO(...)  LOG_FORMAT(INFO,  BRIGHT_WHITE,   __VA_ARGS__)
 /// Formats to `dbgs()` if the log level is `EXTRA` (on `-verbose`).
-#define LOG_EXTRA(...) LOG_FORMAT_WITH(EXTRA, BRIGHT_WHITE,   __VA_ARGS__)
+#define LOG_EXTRA(...) LOG_FORMAT(EXTRA, BRIGHT_WHITE,   __VA_ARGS__)
+
+/// Formats to `dbgs()` if the log level is at least `ERROR`.
+#define LOG_ERROR_WITH(TYPE, ...)                                             \
+ LOG_FORMAT_WITH(ERROR, TYPE, BRIGHT_RED, __VA_ARGS__)
+/// Formats to `dbgs()` if the log level is at least `WARN`.
+#define LOG_WARN_WITH(TYPE, ...)                                              \
+ LOG_FORMAT_WITH(WARN,  TYPE, BRIGHT_YELLOW, __VA_ARGS__)
+/// Formats to `dbgs()` if the log level is at least `INFO`.
+#define LOG_INFO_WITH(TYPE, ...)                                              \
+ LOG_FORMAT_WITH(INFO,  TYPE, BRIGHT_WHITE, __VA_ARGS__)
+/// Formats to `dbgs()` if the log level is `EXTRA` (on `-verbose`).
+#define LOG_EXTRA_WITH(TYPE, ...)                                             \
+ LOG_FORMAT_WITH(EXTRA, TYPE, BRIGHT_WHITE, __VA_ARGS__)

@@ -48,11 +48,17 @@
 #include <Config/Config.inc>
 #include <Support/LogLevel.hpp>
 
+#if EXI_DEBUG || EXI_LOGGING
+# define EXI_DEBUG_LOG 1
+#else
+# undef EXI_DEBUG_LOG
+#endif
+
 namespace exi {
 
 class raw_ostream;
 
-#if EXI_DEBUG
+#if EXI_DEBUG_LOG
 
 /// `isCurrentDebugType` - Return true if the specified string is the debug type
 /// specified on the command line, or if none was specified on the command line
@@ -72,6 +78,17 @@ void setCurrentDebugType(const char *Type);
 ///
 void setCurrentDebugTypes(const char **Types, unsigned Count);
 
+# define isCurrentDebugType(X) (::exi::isCurrentDebugType(X))
+# define setCurrentDebugType(X) (::exi::setCurrentDebugType(X))
+# define setCurrentDebugTypes(X, N) (::exi::setCurrentDebugTypes(X, N))
+#else
+# define isCurrentDebugType(X) (false)
+# define setCurrentDebugType(X) do { (void)(X); } while (false)
+# define setCurrentDebugTypes(X, N) do { (void)(X); (void)(N); } while (false)
+#endif
+
+#if EXI_DEBUG
+
 /// `DEBUG_WITH_TYPE` macro - This macro should be used by passes to emit debug
 /// information. If the `-debug` option is specified on the commandline, and if
 /// this is a debug build, then the code specified as the option to the macro
@@ -83,19 +100,26 @@ void setCurrentDebugTypes(const char **Types, unsigned Count);
 /// `-debug-only` is not specified, or is specified as `"bitset"`.
 # define DEBUG_WITH_TYPE(TYPE, ...)                                           \
 do {                                                                          \
-  if ((!!::exi::DebugFlag) && ::exi::isCurrentDebugType(TYPE)) {              \
+  if ((!!::exi::DebugFlag) && isCurrentDebugType(TYPE)) {                     \
     __VA_ARGS__;                                                              \
   }                                                                           \
 } while (false)
 
 #else
-# define isCurrentDebugType(X) (false)
-# define setCurrentDebugType(X) do { (void)(X); } while (false)
-# define setCurrentDebugTypes(X, N) do { (void)(X); (void)(N); } while (false)
 # define DEBUG_WITH_TYPE(TYPE, ...) do { } while (false)
 #endif
 
 #if EXI_LOGGING
+
+/// `LOG_WITH_LEVEL_AND_TYPE` macro - Same as `DEBUG_WITH_TYPE`, but with the
+/// logging level specified as well.
+# define LOG_WITH_LEVEL_AND_TYPE(LEVEL, TYPE, ...)                            \
+do {                                                                          \
+  if (hasLogLevel(LEVEL, ::exi::DebugFlag) && isCurrentDebugType(TYPE)) {     \
+    __VA_ARGS__;                                                              \
+  }                                                                           \
+} while (false)
+
 /// `LOG_WITH_LEVEL` macro - This macro should be used to emit optional relevant
 /// information. If the `-verbose=...` option is specified on the commandline, 
 /// then the code specified as the option to the macro will be executed.
@@ -106,12 +130,10 @@ do {                                                                          \
 /// This will emit the information if the logging level is at least
 /// `-verbose=WARN` (which means it will also be printed on `INFO`).
 # define LOG_WITH_LEVEL(LEVEL, ...)                                           \
-do {                                                                          \
-  if (hasLogLevel(::exi::LogLevel::LEVEL, ::exi::DebugFlag)) {                \
-    __VA_ARGS__;                                                              \
-  }                                                                           \
-} while (false)
+ LOG_WITH_LEVEL_AND_TYPE(LEVEL, DEBUG_TYPE, __VA_ARGS__)
+
 #else
+# define LOG_WITH_LEVEL_AND_TYPE(LEVEL, TYPE, ...) do { } while(false)
 # define LOG_WITH_LEVEL(LEVEL, ...) do { } while(false)
 #endif
 

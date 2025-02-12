@@ -43,9 +43,12 @@ struct LogLevel {
 
 #if EXI_LOGGING
 /// Checks if a value `VAL` can be printed under `LEVEL`.
-# define hasLogLevel(LEVEL, VAL) ((LEVEL) <= (VAL))
+# define hasLogLevelVal(LEVEL, VAL) ((LEVEL) <= (VAL))
+/// Checks if a type `TYPE` can be printed under `LEVEL`.
+# define hasLogLevel(TYPE, VAL) ((::exi::LogLevel::TYPE) <= (VAL))
 #else
-# define hasLogLevel(LEVEL, VAL) (false)
+# define hasLogLevelVal(LEVEL, VAL) (false)
+# define hasLogLevel(TYPE, VAL) (false)
 #endif
 
 } // namespace exi
