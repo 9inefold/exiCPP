@@ -32,6 +32,16 @@
 # include <cstring>
 #endif
 
+#if defined(EXPENSIVE_CHECKS) && EXI_USE_MIMALLOC
+# define EXI_CHECK_ALLOC_PTR(PTR, MSG) do {                                   \
+  if EXI_UNLIKELY(!::exi::exi_check_alloc(PTR)) {                             \
+    ::exi::fatal_alloc_error(MSG);                                            \
+  }                                                                           \
+} while(false)
+#else
+# define EXI_CHECK_ALLOC_PTR(PTR, MSG) do { } while(false)
+#endif
+
 namespace exi {
 
 // Only use the default allocator for now.
@@ -44,6 +54,18 @@ using Allocator = mi_stl_allocator<T>;
 template <typename T>
 using Allocator = std::allocator<T>;
 #endif
+
+/// @brief Reports a fatal allocation error.
+/// If exceptions are enabled, throws `std::bad_alloc`, otherwise aborts.
+[[noreturn]] void fatal_alloc_error(const char* Msg) EXI_NOEXCEPT;
+
+EXI_INLINE bool exi_check_alloc(const void* ptr) noexcept {
+#if EXI_USE_MIMALLOC
+  return ::mi_is_in_heap_region(ptr);
+#else
+  return true;
+#endif
+}
 
 EXI_RETURNS_NOALIAS EXI_INLINE
  void* exi_malloc(usize size) noexcept {
@@ -75,6 +97,7 @@ EXI_RETURNS_NOALIAS EXI_INLINE
 
 EXI_RETURNS_NOALIAS EXI_INLINE
  void* exi_realloc(void* ptr, usize newSize) noexcept {
+  EXI_CHECK_ALLOC_PTR(ptr, "Invalid pointer in exi_realloc");
 #if EXI_USE_MIMALLOC
   return ::mi_realloc(ptr, newSize);
 #else
@@ -83,18 +106,11 @@ EXI_RETURNS_NOALIAS EXI_INLINE
 }
 
 EXI_INLINE void exi_free(void* ptr) noexcept {
+  EXI_CHECK_ALLOC_PTR(ptr, "Invalid pointer in exi_realloc");
 #if EXI_USE_MIMALLOC
   ::mi_free(ptr);
 #else
   std::free(ptr);
-#endif
-}
-
-EXI_INLINE bool exi_check_alloc(const void* ptr) noexcept {
-#if EXI_USE_MIMALLOC
-  return ::mi_is_in_heap_region(ptr);
-#else
-  return true;
 #endif
 }
 
