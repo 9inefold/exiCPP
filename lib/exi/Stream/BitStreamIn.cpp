@@ -105,7 +105,7 @@ u64 BitStreamIn::peekBitsSlow(i64 Bits) const {
 
 /// Peeks without any extra checks. Those are assumed to have already been done.
 u64 BitStreamIn::peekBitsImpl(i64 Bits) const {
-  if EXI_UNLIKELY(Bits == 0)
+  if (Bits == 0)
     return 0;
 #if READ_FAST_PATH
   // Check if whole word can be read.
@@ -143,7 +143,10 @@ ExiError BitStreamIn::peekBits(APInt& AP, i64 Bits) const {
     return ExiError::Full(Bits);
   }
 
-  if (Bits <= 64) {
+  if EXI_UNLIKELY(Bits == 0) {
+    AP = APInt::getZero(0);
+    return ExiError::OK;
+  } else if (Bits <= 64) {
     // Handle small cases.
     AP = APInt(Bits, peekBitsImpl(Bits), false, true);
     return ExiError::OK;
@@ -163,7 +166,9 @@ APInt BitStreamIn::peekBits(i64 Bits) const {
     return APInt::getZero(0);
   }
 
-  if (Bits <= 64)
+  if EXI_UNLIKELY(Bits == 0)
+    return APInt::getZero(0);
+  else if (Bits <= 64)
     // Handle small cases.
     return APInt(Bits, peekBitsImpl(Bits), false, true);
   
