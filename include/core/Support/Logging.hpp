@@ -36,7 +36,7 @@
 LOG_WITH_LEVEL_AND_TYPE(LEVEL, TYPE, do {                                     \
   const auto _u_OldCol = dbgs().getColor();                                   \
   dbgs().changeColor(::exi::raw_ostream::COLOR)                               \
-    << ::exi::format(__VA_ARGS__) << _u_OldCol;                               \
+    << ::exi::format(__VA_ARGS__) << '\n' << _u_OldCol;                       \
 } while(false))
 
 /// Format with the default debug type.

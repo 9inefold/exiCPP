@@ -31,6 +31,10 @@ namespace exi {
 class raw_ostream;
 template <typename> class SmallVecImpl;
 
+enum class AlignKind : u8;
+class Preserve;
+enum class EventTerm : i32;
+
 enum class ErrorCode : i32 {
   kOk      = 0,
   kSuccess = 0,
@@ -91,10 +95,25 @@ enum class ErrorCode : i32 {
   ///    or when the EXI stream is a schema-less EXI stream.
 	/// 5) Presence Bit for EXI Options not set and no out-of-band options set.
 	kHeaderOptionsMismatch,
-	kERROR_LAST,
+	Last
 };
 
-inline constexpr usize kErrorCodeMax = i32(ErrorCode::kERROR_LAST);
+/// Suboptions for `InvalidEXIHeader` and `HeaderOptionsMismatch`.
+enum class InvalidHeaderCode : u8 {
+  kDefault = 0,         // Default, no specific code.
+  kCookie,              // Cookie is not `$EXI`
+  kDistinguishingBits,  // Bits are not `0b10`
+  kInvalidVersion,      // Version is not `Final Version 1`
+  
+  kMixedAlignment,      // Mixing alignment and compression
+  kStrictPreserved,     // `preserve.X` mixed with `strict`
+  kSelfContained,       // `selfContained` incompatible with options
+  kDatatypeMap,         // ...
+  kOutOfBandOpts,       // No options, but out-of-band not specified
+  Last
+};
+
+inline constexpr usize kErrorCodeCount = i32(ErrorCode::Last);
 StrRef get_error_name(ErrorCode E) noexcept EXI_READONLY;
 StrRef get_error_message(ErrorCode E) noexcept EXI_READONLY;
 
@@ -106,15 +125,8 @@ class EXI_NODISCARD ExiError {
   constexpr ExiError(ErrorCode E, u32 Extra) : EC(E), Extra(Extra) {}
 public:
   using enum ErrorCode;
+  static constexpr u32 Inval = u32(-1);
   static constexpr u32 Unset = u32(-1);
-
-  constexpr ExiError(ErrorCode E) : EC(E) {}
-  static ExiError New(ErrorCode E) noexcept EXI_READONLY;
-
-  constexpr static ExiError Full() {
-    return ExiError(kBufferEndReached, Unset);
-  }
-  static ExiError Full(i64 Bits) noexcept EXI_READONLY;
 
   static const ExiError OK;
   static const ExiError STOP;
@@ -122,6 +134,49 @@ public:
   static const ExiError FULL;
   static const ExiError TODO;
   static const ExiError OOB;
+
+  ////////////////////////////////////////////////////////////////////////
+  // Ctors
+
+  /// Construct an error from a code.
+  constexpr ExiError(ErrorCode E) : EC(E) {}
+  /// Construct an error from a code.
+  static ExiError New(ErrorCode E) noexcept EXI_READONLY;
+
+  /// Default full error code.
+  constexpr static ExiError Full() {
+    return ExiError(kBufferEndReached, Unset);
+  }
+  /// Create a full error code with the amount of bits read.
+  static ExiError Full(i64 Bits) noexcept EXI_READONLY;
+
+  /// Default invalid header error code.
+  constexpr static ExiError Header() noexcept {
+    return ExiError(kInvalidEXIHeader);
+  }
+  /// Default mismatch header error code.
+  constexpr static ExiError Mismatch() noexcept {
+    return ExiError(kHeaderOptionsMismatch);
+  }
+
+  /// Invalid character in EXI signature.
+  static ExiError HeaderSig(char C) noexcept EXI_READONLY;
+  /// Invalid distinguishing bits sequence.
+  static ExiError HeaderBits(u64 Bits) noexcept EXI_READONLY;
+  /// Invalid EXI Version - Preview.
+  static ExiError HeaderVer() noexcept EXI_READONLY;
+  /// Invalid EXI Version - Final.
+  static ExiError HeaderVer(u64 Version) noexcept EXI_READONLY;
+  /// Mismatched alignment settings.
+  static ExiError HeaderAlign(
+   AlignKind A, bool Compress = false) noexcept EXI_READONLY;
+  /// Mismatched Preserve settings.
+  static ExiError HeaderStrict(Preserve Opt) noexcept EXI_READONLY;
+  /// Mismatched Preserve settings.
+  static ExiError HeaderSelfContained(
+   AlignKind A, bool Strict = false) noexcept EXI_READONLY;
+  /// Mismatched Preserve settings.
+  static ExiError HeaderOutOfBand() noexcept EXI_READONLY;
 
   ////////////////////////////////////////////////////////////////////////
   // Observers
@@ -157,11 +212,11 @@ inline bool operator==(ErrorCode LHS, const ExiError& RHS) {
 raw_ostream& operator<<(raw_ostream& OS, ErrorCode Err);
 raw_ostream& operator<<(raw_ostream& OS, const ExiError& Err);
 
-EXI_CONST ExiError ExiError::OK   = ErrorCode::kOk;
-EXI_CONST ExiError ExiError::STOP = ErrorCode::kStop;
-EXI_CONST ExiError ExiError::DONE = ErrorCode::kParsingComplete;
+EXI_CONST ExiError ExiError::OK   = ExiError::kOk;
+EXI_CONST ExiError ExiError::STOP = ExiError::kStop;
+EXI_CONST ExiError ExiError::DONE = ExiError::kParsingComplete;
 EXI_CONST ExiError ExiError::FULL = ExiError::Full();
-EXI_CONST ExiError ExiError::TODO = ErrorCode::kUnimplemented;
-EXI_CONST ExiError ExiError::OOB  = ErrorCode::kOutOfBounds;
+EXI_CONST ExiError ExiError::TODO = ExiError::kUnimplemented;
+EXI_CONST ExiError ExiError::OOB  = ExiError::kOutOfBounds;
 
 } // namespace exi

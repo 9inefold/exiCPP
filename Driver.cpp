@@ -38,6 +38,8 @@
 #include <fmt/chrono.h>
 #include <fmt/ranges.h>
 
+#include <exi/Basic/ErrorCodes.hpp>
+#include <exi/Basic/ProcTypes.hpp>
 #include <exi/Stream/BitStream.hpp>
 
 #include <tuple>
@@ -575,7 +577,7 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
 // APInt
 //===----------------------------------------------------------------===//
 
-static void APIntTests(int Argc, char* Argv[]) noexcept {
+static void APIntTests(int, char*[]) noexcept {
   {
     SmallVec<u64> Buf(5, 0x5F9C334508BB7DA4ull);
     constexpr usize kOff = 22;
@@ -600,9 +602,42 @@ static void APIntTests(int Argc, char* Argv[]) noexcept {
   }
 }
 
+//===----------------------------------------------------------------===//
+// ExiError
+//===----------------------------------------------------------------===//
+
+#define TEST_EE(FUNC, ...) (outs() << ExiError::FUNC(__VA_ARGS__) << '\n')
+
+static void ExiErrorTests(int, char*[]) noexcept {
+  TEST_EE(Full);
+  TEST_EE(Header);
+  TEST_EE(Mismatch);
+
+  TEST_EE(Full, 0);
+  TEST_EE(Full, 999);
+
+  TEST_EE(HeaderSig, 'f');
+  TEST_EE(HeaderBits, 0b00);
+  TEST_EE(HeaderBits, 0b01);
+  TEST_EE(HeaderBits, 0b10);
+  TEST_EE(HeaderVer);
+  TEST_EE(HeaderVer, 14);
+  TEST_EE(HeaderAlign, AlignKind::BytePacked);
+  TEST_EE(HeaderAlign, AlignKind::BitPacked, true);
+  TEST_EE(HeaderStrict, Preserve::PIs);
+  TEST_EE(HeaderStrict, Preserve::All);
+  TEST_EE(HeaderSelfContained, AlignKind::PreCompression);
+  TEST_EE(HeaderSelfContained, AlignKind::None);
+  TEST_EE(HeaderSelfContained, AlignKind::None, true);
+  TEST_EE(HeaderOutOfBand);
+}
+
 int main(int Argc, char* Argv[]) {
   exi::DebugFlag = LogLevel::VERBOSE;
+  dbgs().enable_colors(true);
+
   // miscTests(Argc, Argv);
+  ExiErrorTests(Argc, Argv);
   BitStreamTests(Argc, Argv);
   APIntTests(Argc, Argv);
 }

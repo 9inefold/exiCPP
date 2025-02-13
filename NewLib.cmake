@@ -41,14 +41,6 @@ include_items(EXICPP_CORE "lib/core"
   Support/raw_ostream.cpp
 )
 
-include_items(EXICPP_SRC "lib/exi"
-  Basic/ErrorCodes.cpp
-  Basic/NBitInt.cpp
-
-  Stream/BitStreamIn.cpp
-  Stream/BitStreamOut.cpp
-)
-
 ##########################################################################
 
 add_library(exi-core STATIC ${EXICPP_CORE})
@@ -77,6 +69,14 @@ if(NOT EXI_EXCEPTIONS)
 endif()
 
 ##########################################################################
+
+include_items(EXICPP_SRC "lib/exi"
+  Basic/ErrorCodes.cpp
+  Basic/NBitInt.cpp
+
+  Stream/BitStreamIn.cpp
+  Stream/BitStreamOut.cpp
+)
 
 add_library(exicpp STATIC ${EXICPP_SRC})
 add_library(exi::exicpp ALIAS exicpp)
