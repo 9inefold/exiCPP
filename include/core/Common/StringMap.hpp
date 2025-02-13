@@ -139,11 +139,11 @@ public:
 /// keys that are "strings", which are basically ranges of bytes. This does some
 /// funky memory allocation and hashing things to make it extremely efficient,
 /// storing the string data *after* the value in the map.
-template <typename ValueTy, typename AllocatorTy = MallocAllocator>
+template <typename ValueTy, typename AllocatorT = MallocAllocator>
 class EXI_EMPTY_BASES StringMap
     : public StringMapImpl,
-      private H::AllocatorHolder<AllocatorTy> {
-  using AllocTy = H::AllocatorHolder<AllocatorTy>;
+      private H::AllocatorHolder<AllocatorT> {
+  using AllocTy = H::AllocatorHolder<AllocatorT>;
 
 public:
   using MapEntryTy = StringMapEntry<ValueTy>;
@@ -153,10 +153,10 @@ public:
   explicit StringMap(unsigned InitialSize)
       : StringMapImpl(InitialSize, static_cast<unsigned>(sizeof(MapEntryTy))) {}
 
-  explicit StringMap(AllocatorTy A)
+  explicit StringMap(AllocatorT A)
       : StringMapImpl(static_cast<unsigned>(sizeof(MapEntryTy))), AllocTy(A) {}
 
-  StringMap(unsigned InitialSize, AllocatorTy A)
+  StringMap(unsigned InitialSize, AllocatorT A)
       : StringMapImpl(InitialSize, static_cast<unsigned>(sizeof(MapEntryTy))),
         AllocTy(A) {}
 
