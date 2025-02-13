@@ -39,6 +39,9 @@
   (::exi::hasCRTPMethod(&BASE::FUNC, &SUPER::FUNC))
 #define EXI_CHECK_CRTP0(...) EXI_CHECK_CRTP1(__VA_ARGS__)
 
+#define EXI_CRTP_SUPER1(BASE, SUPER) EXI_CRTP_DEFINE_SUPER(SUPER)
+#define EXI_CRTP_SUPER0(...) EXI_CRTP_SUPER1(__VA_ARGS__)
+
 namespace exi {
 namespace H {
 template <class> struct CRTPTraits;
@@ -88,20 +91,21 @@ using swap_crtp_object_t
 
 /// Checks if methods have equal types excluding the object type.
 template <typename BaseM, typename SuperM>
-concept kHasDistinctMethodType = std::same_as<
+concept kHasSimilarMethodType = std::same_as<
   BaseM, H::swap_crtp_object_t<
     SuperM, H::crtp_object_t<BaseM>
   >
 >;
 
 /// Checks if a CRTP method has been implemented by the derived type.
-template <typename BaseM, typename SuperM>
+template <typename BaseM, typename SuperM, bool Strict = false>
 constexpr bool hasCRTPMethod(BaseM BM, SuperM SM) noexcept {
-  if constexpr (kHasDistinctMethodType<BaseM, SuperM>)
+  if constexpr (kHasSimilarMethodType<BaseM, SuperM>)
     // Same signature, check if the pointers differ.
     return (BM != SM);
   // Differing signatures, must have been implemented.
-  return true;
+  // Returns true if signatures do not need to match.
+  return not Strict;
 }
 
 } // namespace exi
@@ -120,7 +124,7 @@ constexpr bool hasCRTPMethod(BaseM BM, SuperM SM) noexcept {
 /// }
 /// #undef EXI_CRTP_TYPES
 ///
-#define EXI_CRTP_CHECK(FUNC) EXI_CHECK_CRTP0(   \
+#define EXI_CRTP_CHECK(FUNC) EXI_CHECK_CRTP0(                                 \
   EXI_CRTP_EXPAND(EXI_CRTP_TYPES), FUNC)
 
 /// This macro should be used to assert a CRTP derived class has implemented
@@ -129,16 +133,20 @@ constexpr bool hasCRTPMethod(BaseM BM, SuperM SM) noexcept {
 /// EXI_CRTP_ASSERT(foo, "Must implement foo!");
 /// EXI_CRTP_ASSERT(bar);
 ///
-#define EXI_CRTP_ASSERT(FUNC, ...)              \
-  static_assert(EXI_CRTP_CHECK(FUNC)            \
+#define EXI_CRTP_ASSERT(FUNC, ...)                                            \
+  static_assert(EXI_CRTP_CHECK(FUNC)                                          \
     __VA_OPT__(,) __VA_ARGS__)
 
 /// This macro should be used to implement `super()` for accesses of supertypes.
 ///
-#define EXI_CRTP_DEFINE_SUPER(SUPER)            \
-SUPER* super() {                                \
-  return static_cast<SUPER*>(this);             \
-}                                               \
-const SUPER* super() const {                    \
-  return static_cast<const SUPER*>(this);       \
+#define EXI_CRTP_DEFINE_SUPER(SUPER)                                          \
+ALWAYS_INLINE constexpr SUPER* super() {                                      \
+  return static_cast<SUPER*>(this);                                           \
+}                                                                             \
+ALWAYS_INLINE constexpr const SUPER* super() const {                          \
+  return static_cast<const SUPER*>(this);                                     \
 }
+
+/// This macro should be used to implement `super()` for `EXI_CRTP_TYPES`.
+///
+#define EXI_CRTP_SUPER() EXI_CRTP_SUPER0(EXI_CRTP_EXPAND(EXI_CRTP_TYPES))

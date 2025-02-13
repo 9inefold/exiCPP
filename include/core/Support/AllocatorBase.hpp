@@ -36,11 +36,14 @@
 
 #pragma once
 
+#include <Common/CRTPTraits.hpp>
 #include <Common/Fundamental.hpp>
 #include <Support/SafeAlloc.hpp>
 #include <type_traits>
 
 namespace exi {
+
+#define EXI_CRTP_TYPES (AllocatorBase, DerivedT)
 
 /// CRTP base class providing obvious overloads for the core \c
 /// Allocate() methods of LLVM-style allocators.
@@ -49,6 +52,7 @@ namespace exi {
 /// LLVM-style allocators, and redirects all of the overloads to a single core
 /// set of methods which the derived class must define.
 template <typename DerivedT> class AllocatorBase {
+  EXI_CRTP_DEFINE_SUPER(DerivedT)
 public:
   /// Allocate \a Size bytes of \a Alignment aligned memory. This method
   /// must be implemented by \c DerivedT.
@@ -61,7 +65,7 @@ public:
                   "Class derives from AllocatorBase without implementing the "
                   "core Allocate(usize, usize) overload!");
 #endif
-    return static_cast<DerivedT *>(this)->Allocate(Size, Alignment);
+    return super()->Allocate(Size, Alignment);
   }
 
   /// Deallocate \a Ptr to \a Size bytes of memory allocated by this
@@ -76,7 +80,7 @@ public:
         "Class derives from AllocatorBase without implementing the "
         "core Deallocate(void *) overload!");
 #endif
-    return static_cast<DerivedT *>(this)->Deallocate(Ptr, Size, Alignment);
+    return super()->Deallocate(Ptr, Size, Alignment);
   }
 
   // The rest of these methods are helpers that redirect to one of the above
@@ -94,6 +98,8 @@ public:
     Deallocate(static_cast<const void *>(Ptr), Num * sizeof(T), alignof(T));
   }
 };
+
+#undef EXI_CRTP_TYPES
 
 class MallocAllocator : public AllocatorBase<MallocAllocator> {
 public:
