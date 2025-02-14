@@ -679,6 +679,10 @@ public:
       this->grow(N);
   }
 
+  void reserve_back(usizeype N) {
+    this->reserve(this->size() + N);
+  }
+
   void pop_back_n(usizeype NumItems) {
     exi_assert(this->size() >= NumItems);
     truncate(this->size() - NumItems);
@@ -752,7 +756,8 @@ public:
     // Just cast away constness because this is a non-const member function.
     iterator I = const_cast<iterator>(CI);
 
-    exi_assert(this->isReferenceToStorage(CI), "Iterator to erase is out of bounds.");
+    exi_assert(this->isReferenceToStorage(CI),
+              "Iterator to erase is out of bounds.");
 
     iterator N = I;
     // Shift all elts down one.
@@ -767,7 +772,8 @@ public:
     iterator S = const_cast<iterator>(CS);
     iterator E = const_cast<iterator>(CE);
 
-    exi_assert(this->isRangeInStorage(S, E), "Range to erase is out of bounds.");
+    exi_assert(this->isRangeInStorage(S, E),
+              "Range to erase is out of bounds.");
 
     iterator N = S;
     // Shift all elts down.
@@ -833,7 +839,8 @@ public:
       return this->begin()+InsertElt;
     }
 
-    exi_assert(this->isReferenceToStorage(I), "Insertion iterator is out of bounds.");
+    exi_assert(this->isReferenceToStorage(I),
+              "Insertion iterator is out of bounds.");
 
     // Ensure there is enough space, and get the (maybe updated) address of
     // Elt.
@@ -895,7 +902,8 @@ public:
       return this->begin()+InsertElt;
     }
 
-    exi_assert(this->isReferenceToStorage(I), "Insertion iterator is out of bounds.");
+    exi_assert(this->isReferenceToStorage(I),
+              "Insertion iterator is out of bounds.");
 
     // Check that the reserve that follows doesn't invalidate the iterators.
     this->assertSafeToAddRange(From, To);
