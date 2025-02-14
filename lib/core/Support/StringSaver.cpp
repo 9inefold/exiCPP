@@ -47,15 +47,15 @@ StrRef StringSaver::save(const Twine &S) {
 }
 
 StrRef UniqueStringSaver::save(StrRef S) {
-  auto R = Unique.insert(S);
-  if (R.second) {               // cache miss, need to actually save the string
+  auto [It, CacheMiss] = Unique.insert(S);
+  if (CacheMiss) {               // cache miss, need to actually save the string
 #if EXI_HAS_DENSE_SET
-    *R.first = Strings.save(S); // safe replacement with equal value
+    *It = Strings.save(S); // safe replacement with equal value
 #else
-    Unique.emplace_hint(R.first, Strings.save(S));
+    Unique.emplace_hint(It, Strings.save(S));
 #endif
   }
-  return *R.first;
+  return *It;
 }
 
 StrRef UniqueStringSaver::save(const Twine &S) {
