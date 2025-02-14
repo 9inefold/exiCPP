@@ -32,6 +32,7 @@
 #if EXI_LOGGING
 
 /// Format with a specified debug type.
+/// TODO: Add source_location?
 # define LOG_FORMAT_WITH(LEVEL, TYPE, COLOR, ...)                             \
 LOG_WITH_LEVEL_AND_TYPE(LEVEL, TYPE, do {                                     \
   const auto _u_OldCol = dbgs().getColor();                                   \
