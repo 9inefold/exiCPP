@@ -45,7 +45,7 @@
 
 #include <Support/Debug.hpp>
 #include <Common/StrRef.hpp>
-#include <Common/Vec.hpp>
+#include <Common/SmallVec.hpp>
 #include <Support/ManagedStatic.hpp>
 #include <Support/Signals.hpp>
 #include <Support/circular_raw_ostream.hpp>
@@ -58,13 +58,15 @@
 
 using namespace exi;
 
+using DbgTVec = exi::SmallVec<exi::String, 1>;
+
 // Even though exicpp might be built with NDEBUG, define symbols that the code
 // built without NDEBUG can depend on via the llvm/Support/Debug.h header.
 namespace exi {
 /// Exported flag set by the -debug option.
 LogLevelType DebugFlag = LogLevel::NONE;
 
-static ManagedStatic<Vec<String>> CurrentDebugType;
+static ManagedStatic<DbgTVec> CurrentDebugType;
 
 static bool IsEmptyCStr(const char *Str) noexcept {
   if (Str == nullptr)
@@ -99,11 +101,12 @@ void setCurrentDebugType(const char *Type) {
 
 void setCurrentDebugTypes(const char **Types, unsigned Count) {
   CurrentDebugType->clear();
+  CurrentDebugType->reserve(Count);
   for (usize T = 0; T < Count; ++T) {
     const char *const Type = Types[T];
     if (IsEmptyCStr(Type))
       continue;
-    CurrentDebugType->push_back(Type);
+    CurrentDebugType->emplace_back(Type);
   }
 }
 
