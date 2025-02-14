@@ -63,10 +63,11 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/ConvertUTF.hpp>
+#include <Support/ErrorHandle.hpp>
 #ifdef CVTUTF_DEBUG
-# include <stdio.h>
+# include <Support/Logging.hpp>
+# define DEBUG_TYPE "ConvertUTF"
 #endif
-#include <assert.h>
 
 /*
  * This code extensively uses fall-through switches.
@@ -254,10 +255,10 @@ ConversionResult ConvertUTF16toUTF32 (
     *sourceStart = source;
     *targetStart = target;
 #ifdef CVTUTF_DEBUG
-if (result == sourceIllegal) {
-    fprintf(stderr, "ConvertUTF16toUTF32 illegal seq 0x%04x,%04x\n", ch, ch2);
-    fflush(stderr);
-}
+    if (result == sourceIllegal) {
+        LOG_ERROR("ConvertUTF16toUTF32 "
+                  "illegal sequence 0x{:04x},{:04x}", ch, ch2);
+    }
 #endif
     return result;
 }
@@ -451,7 +452,7 @@ findMaximalSubpartOfIllFormedUTF8Sequence(const UTF8 *source,
                                           const UTF8 *sourceEnd) {
   UTF8 b1, b2, b3;
 
-  assert(!isLegalUTF8Sequence(source, sourceEnd));
+  exi_invariant(!isLegalUTF8Sequence(source, sourceEnd));
 
   /*
    * Unicode 6.3.0, D93b:
@@ -529,7 +530,7 @@ findMaximalSubpartOfIllFormedUTF8Sequence(const UTF8 *source,
     return 1;
   }
 
-  assert((b1 >= 0x80 && b1 <= 0xC1) || b1 >= 0xF5);
+  exi_invariant((b1 >= 0x80 && b1 <= 0xC1) || b1 >= 0xF5);
   /*
    * There are no valid sequences that start with these bytes.  Maximal subpart
    * is defined to have length 1 in these cases.

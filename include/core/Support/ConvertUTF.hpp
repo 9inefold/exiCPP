@@ -106,12 +106,15 @@
 #pragma once
 
 #include <Common/Fundamental.hpp>
-#include <cstddef>
-#include <string>
-
+#include <Common/String.hpp>
 #ifdef _WIN32
 # include <system_error>
 #endif
+#if EXI_INVARIANTS
+# define CVTUTF_DEBUG 1
+#endif
+
+// TODO: simdutf?
 
 // Wrap everything in namespace exi so that programs can link with exi and
 // their own version of the unicode libraries.
@@ -126,10 +129,10 @@ namespace exi {
     bit mask & shift operations.
 ------------------------------------------------------------------------ */
 
-typedef unsigned int    UTF32;  /* at least 32 bits */
-typedef unsigned short  UTF16;  /* at least 16 bits */
-typedef unsigned char   UTF8;   /* typically 8 bits */
-typedef unsigned char   Boolean; /* 0 or 1 */
+typedef u32  UTF32;  /* at least 32 bits */
+typedef u16  UTF16;  /* at least 16 bits */
+typedef u8   UTF8;   /* typically 8 bits */
+typedef bool Boolean; /* 0 or 1 */
 
 /* Some fundamental constants */
 #define UNI_REPLACEMENT_CHAR (UTF32)0x0000FFFD
