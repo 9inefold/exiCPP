@@ -112,6 +112,15 @@
 # define EXI_NODISCARD
 #endif
 
+#if (__cplusplus >= 202600L)                        || \
+    (defined(__clang__) && __clang_major__ >= 17)   || \
+    (defined(__GNUC__)  && __GNUC__        >= 13)   || \
+    (defined(_MSC_VER)  && _MSC_VER        >= 1940)
+# define EXI_STATIC_ASSERT_FALSE 1
+#else
+# define EXI_STATIC_ASSERT_FALSE 0
+#endif
+
 //======================================================================//
 // Compiler Type
 //======================================================================//
@@ -495,6 +504,12 @@ void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 /// Defines a global constant
 #define EXI_CONST inline constexpr
 
+#if EXI_STATIC_ASSERT_FALSE
+/// Since P2593 - backported by the big 3.
+# define COMPILE_FAILURE(TYPE, ...)                                           \
+ static_assert(false __VA_OPT__(, "In "#TYPE": ") __VA_ARGS__);
+#else
+
 namespace exi {
 template <typename T>
 consteval bool exi_compile_failure() {
@@ -507,5 +522,8 @@ consteval bool exi_compile_failure() {
 }
 } // namespace exi
 
-#define COMPILE_FAILURE(ty, ...) static_assert( \
-  ::exi::exi_compile_failure<ty>() __VA_OPT__(, "In "#ty": ") __VA_ARGS__);
+/// Uses the pre P2593 workaround.
+# define COMPILE_FAILURE(TYPE, ...)                                           \
+  static_assert(::exi::exi_compile_failure<TYPE>()                            \
+    __VA_OPT__(, "In "#TYPE": ") __VA_ARGS__);
+#endif
