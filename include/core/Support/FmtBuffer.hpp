@@ -132,7 +132,7 @@ public:
 
   /// Resets all data.
   void clear() {
-    this->clear();
+    this->reset();
     this->Data = nullptr;
     this->Cap  = 0;
   }
