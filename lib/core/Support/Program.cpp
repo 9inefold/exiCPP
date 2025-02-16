@@ -61,7 +61,11 @@ int sys::ExecuteAndWait(StrRef Program, ArrayRef<StrRef> Args,
     if (ExecutionFailed)
       *ExecutionFailed = false;
     ProcessInfo Result = Wait(
-        PI, SecondsToWait == 0 ? std::nullopt : Option(SecondsToWait),
+        PI, SecondsToWait == 0
+          ? std::nullopt
+          // Even though P1814 was approved, the alias deduction does not work
+          // on clang, so we have to be explicit here.
+          : Option<unsigned>(SecondsToWait),
         ErrMsg, ProcStat);
     return Result.ReturnCode;
   }
