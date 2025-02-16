@@ -25,6 +25,7 @@
 #include <Support/Debug.hpp>
 #include <Support/Format.hpp>
 #include <Support/FmtBuffer.hpp>
+#include <Support/Signals.hpp>
 #include <Support/WindowsError.hpp>
 #include <Support/raw_ostream.hpp>
 #include <cstring>
@@ -89,6 +90,11 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
     formatFatalError(FullMsg, Msg.toStrRef(Buf));
   }
   (void)::write(2, FullMsg.data(), FullMsg.size());
+
+  // If we reached here, we are failing ungracefully. Run the interrupt handlers
+  // to make sure any special cleanups get done, in particular that we remove
+  // files registered with RemoveFileOnSignal.
+  sys::RunInterruptHandlers();
 
   if (GenCrashDiag) {
     std::abort();
