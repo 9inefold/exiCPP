@@ -270,10 +270,16 @@
 # define EXI_NODEBUG
 #endif
 
-#if EXI_HAS_ATTR(__preferred_name__)
+#if EXI_HAS_ATTR(preferred_name)
 # define EXI_PREFER_NAME(alias) __attribute__((__preferred_name__(alias)))
 #else
 # define EXI_PREFER_NAME(alias)
+#endif
+
+#if EXI_HAS_ATTR(preferred_type)
+#define EXI_PREFER_TYPE(T) __attribute__((preferred_type(T)))
+#else
+#define EXI_PREFER_TYPE(T)
 #endif
 
 #ifdef __GNUC__
