@@ -33,7 +33,7 @@
 #include <Common/StringExtras.hpp>
 #include <Support/ConvertUTF.hpp>
 #include <Support/Errc.hpp>
-#include <Support/FileSystem.hpp>
+#include <Support/Filesystem.hpp>
 #include <Support/Path.hpp>
 #include <Support/Windows/WindowsSupport.hpp>
 #include <Support/WindowsError.hpp>

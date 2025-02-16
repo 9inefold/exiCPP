@@ -30,7 +30,7 @@
 
 #include <Support/ConvertUTF.hpp>
 #include <Support/ExitCodes.hpp>
-#include <Support/FileSystem.hpp>
+#include <Support/Filesystem.hpp>
 #include <Support/Path.hpp>
 #include <Support/Process.hpp>
 #include <Support/WindowsError.hpp>

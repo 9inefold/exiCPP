@@ -37,7 +37,7 @@
 #if EXI_HAS_CRASHRECOVERYCONTEXT
 # include <Support/CrashRecoveryContext.hpp>
 #endif
-#include <Support/FileSystem.hpp>
+#include <Support/Filesystem.hpp>
 #include <Support/Path.hpp>
 #include <stdlib.h> // for _Exit
 #if EXI_USE_MIMALLOC
