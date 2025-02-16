@@ -53,6 +53,8 @@ namespace sys {
 template <typename Rep, typename Period>
 using StdTime = std::chrono::time_point<Rep, Period>;
 
+using SystemClock = std::chrono::system_clock;
+
 /// A time point on the system clock. This is provided for two reasons:
 /// - to insulate us against subtle differences in behavior to differences in
 ///   system clock precision (which is implementation-defined and differs
@@ -62,10 +64,19 @@ using StdTime = std::chrono::time_point<Rep, Period>;
 /// specify it explicitly. If unsure, use the default. If you need a time point
 /// on a clock other than the system_clock, use std::chrono directly.
 template <typename D = std::chrono::nanoseconds>
-using TimePoint = StdTime<std::chrono::system_clock, D>;
+using TimePoint = StdTime<SystemClock, D>;
+
+#if defined(__clang__)
+/// For some stupid reason, `chrono::utc_clock` isn't implemented on Clang.
+/// Because of this, we need to provide our own definition. Yay!!
+class UtcClock : public SystemClock {};
+#else
+/// This exists on every other compiler!!!
+using UtcClock = std::chrono::utc_clock;
+#endif
 
 template <typename D = std::chrono::nanoseconds>
-using UtcTime = StdTime<std::chrono::utc_clock, D>;
+using UtcTime = StdTime<UtcClock, D>;
 
 /// Convert a std::time_t to a UtcTime
 inline auto toUtcTime(std::time_t T) -> UtcTime<std::chrono::seconds> {
@@ -76,33 +87,33 @@ inline auto toUtcTime(std::time_t T) -> UtcTime<std::chrono::seconds> {
 /// Convert a TimePoint to std::time_t
 inline std::time_t toTimeT(TimePoint<> TP) {
   using namespace std::chrono;
-  return system_clock::to_time_t(
-      time_point_cast<system_clock::time_point::duration>(TP));
+  return SystemClock::to_time_t(
+      time_point_cast<SystemClock::time_point::duration>(TP));
 }
 
 /// Convert a UtcTime to std::time_t
 inline std::time_t toTimeT(UtcTime<> TP) {
   using namespace std::chrono;
-  return system_clock::to_time_t(time_point<system_clock, seconds>(
+  return SystemClock::to_time_t(time_point<SystemClock, seconds>(
       duration_cast<seconds>(TP.time_since_epoch())));
 }
 
 /// Convert a std::time_t to a TimePoint
 inline auto toTimePoint(std::time_t T) -> TimePoint<std::chrono::seconds> {
   using namespace std::chrono;
-  return time_point_cast<seconds>(system_clock::from_time_t(T));
+  return time_point_cast<seconds>(SystemClock::from_time_t(T));
 }
 
 /// Convert a std::time_t + nanoseconds to a TimePoint
 inline TimePoint<> toTimePoint(std::time_t T, uint32_t nsec) {
   using namespace std::chrono;
-  return time_point_cast<nanoseconds>(system_clock::from_time_t(T))
+  return time_point_cast<nanoseconds>(SystemClock::from_time_t(T))
     + nanoseconds(nsec);
 }
 
 /// Get the current time as a `TimePoint<>`.
 inline TimePoint<> now() noexcept {
-  return std::chrono::system_clock::now();
+  return SystemClock::now();
 }
 
 } // namespace sys
