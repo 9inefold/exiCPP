@@ -545,8 +545,8 @@ template <typename To, typename From>
   return CastInfo<To, const From>::isPossible(Val);
 }
 
-template <typename First, typename Second, typename... Rest, typename From>
-[[nodiscard]] inline bool isa(const From &Val) {
+template <typename First, typename Second, typename... Rest>
+[[nodiscard]] inline bool isa(const auto &Val) {
   const bool firstTwo = (isa<First>(Val) || isa<Second>(Val));
   return (firstTwo || ... || isa<Rest>(Val));
 }
