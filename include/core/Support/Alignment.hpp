@@ -151,7 +151,7 @@ inline constexpr bool isAligned(Align Lhs, u64 SizeInBytes) {
 }
 
 /// Checks that Addr is a multiple of the alignment.
-inline constexpr bool isAddrAligned(Align Lhs, const void *Addr) {
+inline bool isAddrAligned(Align Lhs, const void *Addr) {
   return isAligned(Lhs, reinterpret_cast<uintptr_t>(Addr));
 }
 
