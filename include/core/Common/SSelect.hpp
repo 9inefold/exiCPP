@@ -229,7 +229,7 @@ template <> class SSelect<0, false> {
     exi_invariant(Value == 0,
       "Value cannot be zero when ones indexed!");
   }
-private:
+protected:
   const u64 Data = 0;
 };
 
