@@ -25,14 +25,14 @@
 //===----------------------------------------------------------------===//
 
 #include <Common/StrRef.hpp>
-#if EXI_HAS_AP_SCALARS
-# include "llvm/ADT/APFloat.h"
-# include "llvm/ADT/APInt.h"
+#if EXI_HAS_AP_SCALARS == 2
+# include <Common/APFloat.hpp>
 #endif
+#include <Common/APInt.hpp>
 #include <Common/Hashing.hpp>
 #include <Common/StringExtras.hpp>
 #include <Common/edit_distance.hpp>
-// #include "llvm/Support/Error.h"
+#include <Support/Error.hpp>
 #include <bitset>
 
 using namespace exi;
@@ -560,8 +560,6 @@ bool exi::getAsSignedInteger(StrRef Str, unsigned Radix,
   return !Str.empty();
 }
 
-#if EXI_HAS_AP_SCALARS
-
 bool StrRef::consumeInteger(unsigned Radix, APInt &Result) {
   StrRef Str = *this;
 
@@ -653,6 +651,8 @@ bool StrRef::getAsInteger(unsigned Radix, APInt &Result) const {
   return !Str.empty();
 }
 
+#if EXI_HAS_AP_SCALARS == 2
+
 bool StrRef::getAsDouble(double &Result, bool AllowInexact) const {
   APFloat F(0.0);
   auto StatusOrErr = F.convertFromString(*this, APFloat::rmNearestTiesToEven);
@@ -675,3 +675,13 @@ bool StrRef::getAsDouble(double &Result, bool AllowInexact) const {
 hash_code exi::hash_value(StrRef Str) {
   return hash_combine_range(Str.begin(), Str.end());
 }
+
+#if EXI_HAS_DENSE_MAP
+unsigned DenseMapInfo<StrRef, void>::getHashValue(StrRef Val) {
+  exi_assert(Val.data() != getEmptyKey().data(),
+            "Cannot hash the empty key!");
+  exi_assert(Val.data() != getTombstoneKey().data(),
+            "Cannot hash the tombstone key!");
+  return (unsigned)(exi::hash_value(Val));
+}
+#endif

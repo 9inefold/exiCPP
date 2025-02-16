@@ -31,8 +31,7 @@
 
 #pragma once
 
-// TODO: Implement
-// #include "llvm/ADT/APSInt.h"
+#include <Common/APSInt.hpp>
 #include <Common/ArrayRef.hpp>
 #include <Common/Fundamental.hpp>
 #include <Common/SmallStr.hpp>

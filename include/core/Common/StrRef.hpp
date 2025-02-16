@@ -26,8 +26,8 @@
 
 #pragma once
 
-// #include "llvm/ADT/DenseMapInfo.h"
 #include <Common/_Str.hpp>
+#include <Common/DenseMapInfo.hpp>
 #include <Common/FunctionRef.hpp>
 #include <Common/Fundamental.hpp>
 #include <Common/iterator_range.hpp>
@@ -44,10 +44,9 @@
 
 namespace exi {
 
-#if EXI_HAS_AP_SCALARS
+#if EXI_HAS_AP_SCALARS == 1
 class APInt;
 #endif
-
 class hash_code;
 template <typename T> class SmallVecImpl;
 class StrRef;
@@ -539,7 +538,6 @@ public:
     return false;
   }
 
-#if EXI_HAS_AP_SCALARS
   /// Parse the current string as an integer of the specified \p Radix, or of
   /// an autosensed radix if the \p Radix given is 0.  The current value in
   /// \p Result is discarded, and the storage is changed to be wide enough to
@@ -563,6 +561,7 @@ public:
   /// is removed from the beginning of the string.
   bool consumeInteger(unsigned Radix, APInt &Result);
 
+#if EXI_HAS_AP_SCALARS == 2
   /// Parse the current string as an IEEE double-precision floating
   /// point value.  The string must be a well-formed double.
   ///
@@ -906,9 +905,6 @@ inline String &operator+=(String &buffer, StrRef string) {
 
 /// @}
 
-/// Compute a hash_code for a StrRef.
-[[nodiscard]] hash_code hash_value(StrRef Str);
-
 /// A wrapper around a string literal that serves as a proxy for constructing
 /// global tables of StringRefs with the length computed at compile time.
 /// In order to avoid the invocation of a global constructor, StringLiteral
@@ -939,22 +935,46 @@ DIAGNOSTIC_POP()
   }
 };
 
+/// Compute a hash_code for a StrRef.
+[[nodiscard]] hash_code hash_value(StrRef Str);
+
+#if EXI_HAS_DENSE_MAP
+// Provide DenseMapInfo for StrRef.
+template <> struct DenseMapInfo<StrRef, void> {
+  static inline StrRef getEmptyKey() {
+    return StrRef(
+        reinterpret_cast<const char *>(~static_cast<uptr>(0)), 0);
+  }
+
+  static inline StrRef getTombstoneKey() {
+    return StrRef(
+        reinterpret_cast<const char *>(~static_cast<uptr>(1)), 0);
+  }
+
+  static unsigned getHashValue(StrRef Val);
+
+  static bool isEqual(StrRef LHS, StrRef RHS) {
+    if (RHS.data() == getEmptyKey().data())
+      return LHS.data() == getEmptyKey().data();
+    if (RHS.data() == getTombstoneKey().data())
+      return LHS.data() == getTombstoneKey().data();
+    return LHS == RHS;
+  }
+};
+#endif
+
 } // namespace exi
 
 namespace fmt {
-
-FMT_FORMAT_AS(exi::StrRef, std::string_view);
-
+  FMT_FORMAT_AS(exi::StrRef, std::string_view);
 } // namespace fmt
 
 namespace std {
+  template <> struct hash<exi::StrRef> : hash<std::string_view> {
+    using hash<std::string_view>::operator();
+  };
 
-template <> struct hash<exi::StrRef> : hash<std::string_view> {
-  using hash<std::string_view>::operator();
-};
-
-template <> struct hash<exi::StringLiteral> : hash<exi::StrRef> {
-  using hash<exi::StrRef>::operator();
-};
-
+  template <> struct hash<exi::StringLiteral> : hash<exi::StrRef> {
+    using hash<exi::StrRef>::operator();
+  };
 } // namespace std

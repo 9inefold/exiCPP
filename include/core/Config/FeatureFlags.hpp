@@ -26,7 +26,8 @@
 
 #define EXI_CUSTOM_STRREF 1
 // TODO: Implement arbitrary precision scalars (APInt, APFloat)
-#define EXI_HAS_AP_SCALARS 0
+// 1 for just APInt, 2 for APInt and APFloat
+#define EXI_HAS_AP_SCALARS 1
 #define EXI_HAS_CRASHRECOVERYCONTEXT 0
 // TODO: Implement DenseSet
 #define EXI_HAS_DENSE_MAP 0
