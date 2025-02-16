@@ -31,7 +31,6 @@
 // TODO: Implement DenseSet
 #define EXI_HAS_DENSE_MAP 0
 #define EXI_HAS_DENSE_SET EXI_HAS_DENSE_MAP
-// TODO: Implement file streams (will be useful later...)
 #define EXI_HAS_RAW_FILE_STREAMS 1
 #define EXI_HAS_DBG_IMPL 1
 // TODO: Implement system headers

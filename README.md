@@ -22,13 +22,15 @@ and a lack of support for essential options (like compression).
 And while I *could* go through the whole codebase and fix all these issues,
 I wanted to write a safer and more efficient version from the start.
 
+You can find the new TODO list [here](TODO.md).
+
 ## Improvements
 
 With some changes to exip's lookup and allocation methods, as well as the new HashTable,
 large files can be encoded up to ***14400 times faster*** than the standalone library.
 You can read about my changes [here](old/doc/Changes.md#performance).
 
-## Todo
+## Todo (Old)
 
 In order:
 
