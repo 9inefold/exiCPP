@@ -264,12 +264,6 @@
 # define EXI_GSL_POINTER
 #endif
 
-#if EXI_HAS_ATTR(__nodebug__)
-# define EXI_NODEBUG __attribute__((__nodebug__))
-#else
-# define EXI_NODEBUG
-#endif
-
 #if EXI_HAS_ATTR(preferred_name)
 # define EXI_PREFER_NAME(alias) __attribute__((__preferred_name__(alias)))
 #else
