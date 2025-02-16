@@ -34,6 +34,7 @@
 
 #include <Common/Features.hpp>
 #include <Common/Option.hpp>
+#include <Config/FeatureFlags.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <Support/MathExtras.hpp>
 #include <Support/float128.hpp>
@@ -2462,7 +2463,6 @@ void StoreIntToMemory(const APInt &IntVal, u8 *Dst, unsigned StoreBytes);
 /// from Src into IntVal, which is assumed to be wide enough and to hold zero.
 void LoadIntFromMemory(APInt &IntVal, const u8 *Src, unsigned LoadBytes);
 
-#if EXI_HAS_DENSE_MAP
 /// Provide DenseMapInfo for APInt.
 template <> struct DenseMapInfo<APInt, void> {
   static inline APInt getEmptyKey() {
@@ -2483,6 +2483,5 @@ template <> struct DenseMapInfo<APInt, void> {
     return LHS.getBitWidth() == RHS.getBitWidth() && LHS == RHS;
   }
 };
-#endif // EXI_HAS_DENSE_MAP
 
 } // namespace exi

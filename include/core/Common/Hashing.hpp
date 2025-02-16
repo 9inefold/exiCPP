@@ -74,6 +74,7 @@
 #include <utility>
 
 namespace exi {
+template <typename T, typename Enable> struct DenseMapInfo;
 
 /// An opaque object representing a hash code.
 ///
@@ -666,7 +667,6 @@ template <typename T> hash_code hash_value(const Option<T> &arg) {
   return arg ? hash_combine(true, *arg) : hash_value(false);
 }
 
-/* TODO
 template <> struct DenseMapInfo<hash_code, void> {
   static inline hash_code getEmptyKey() { return hash_code(-1); }
   static inline hash_code getTombstoneKey() { return hash_code(-2); }
@@ -675,14 +675,13 @@ template <> struct DenseMapInfo<hash_code, void> {
   }
   static bool isEqual(hash_code LHS, hash_code RHS) { return LHS == RHS; }
 };
-*/
 
 } // namespace exi
 
 /// Implement std::hash so that hash_code can be used in STL containers.
 namespace std {
 
-template<>
+template <>
 struct hash<exi::hash_code> {
   usize operator()(const exi::hash_code& Val) const {
     return Val;

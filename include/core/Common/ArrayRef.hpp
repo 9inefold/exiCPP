@@ -585,4 +585,37 @@ inline bool operator!=(SmallVecImpl<T> &LHS, ArrayRef<T> RHS) {
 
 /// @}
 
+template <typename T> hash_code hash_value(ArrayRef<T> S) {
+  return hash_combine_range(S.begin(), S.end());
+}
+
+// Provide DenseMapInfo for ArrayRefs.
+template <typename T> struct DenseMapInfo<ArrayRef<T>, void> {
+  static inline ArrayRef<T> getEmptyKey() {
+    return ArrayRef<T>(
+      reinterpret_cast<const T*>(~uptr(0)), usize(0));
+  }
+
+  static inline ArrayRef<T> getTombstoneKey() {
+    return ArrayRef<T>(
+      reinterpret_cast<const T*>(~uptr(1)), usize(0));
+  }
+
+  static unsigned getHashValue(ArrayRef<T> Val) {
+    exi_assert(Val.data() != getEmptyKey().data(),
+              "Cannot hash the empty key!");
+    exi_assert(Val.data() != getTombstoneKey().data(),
+              "Cannot hash the tombstone key!");
+    return unsigned(hash_value(Val));
+  }
+
+  static bool isEqual(ArrayRef<T> LHS, ArrayRef<T> RHS) {
+    if (RHS.data() == getEmptyKey().data())
+      return LHS.data() == getEmptyKey().data();
+    if (RHS.data() == getTombstoneKey().data())
+      return LHS.data() == getTombstoneKey().data();
+    return LHS == RHS;
+  }
+};
+
 } // namespace exi

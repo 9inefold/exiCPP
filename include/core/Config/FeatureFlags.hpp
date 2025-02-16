@@ -30,8 +30,9 @@
 #define EXI_HAS_AP_SCALARS 1
 #define EXI_HAS_CRASHRECOVERYCONTEXT 0
 // TODO: Implement DenseSet
-#define EXI_HAS_DENSE_MAP 0
-#define EXI_HAS_DENSE_SET EXI_HAS_DENSE_MAP
+#define EXI_HAS_DENSE_MAP 1
+#define EXI_HAS_DENSE_SET 0
+
 #define EXI_HAS_RAW_FILE_STREAMS 1
 #define EXI_HAS_DBG_IMPL 1
 // TODO: Implement system headers

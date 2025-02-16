@@ -98,7 +98,7 @@ public:
 };
 
 class BitVector {
-  using BitWord = uintptr_t;
+  using BitWord = uptr;
   static constexpr unsigned kBitwordSize = bitsizeof_v<BitWord>; 
 
   static_assert(kBitwordSize == 64 || kBitwordSize == 32,
@@ -853,7 +853,6 @@ inline BitVector::size_type capacity_in_bytes(const BitVector &X) {
   return X.getMemorySize();
 }
 
-#if EXI_HAS_DENSE_MAP
 template <> struct DenseMapInfo<BitVector> {
   static inline BitVector getEmptyKey() { return {}; }
   static inline BitVector getTombstoneKey() {
@@ -862,7 +861,7 @@ template <> struct DenseMapInfo<BitVector> {
     return V;
   }
   static unsigned getHashValue(const BitVector &V) {
-    return DenseMapInfo<std::pair<BitVector::size_type, ArrayRef<uintptr_t>>>::
+    return DenseMapInfo<std::pair<BitVector::size_type, ArrayRef<uptr>>>::
         getHashValue(std::make_pair(V.size(), V.getData()));
   }
   static bool isEqual(const BitVector &LHS, const BitVector &RHS) {
@@ -871,7 +870,6 @@ template <> struct DenseMapInfo<BitVector> {
     return LHS == RHS;
   }
 };
-#endif
 
 } // namespace exi
 
