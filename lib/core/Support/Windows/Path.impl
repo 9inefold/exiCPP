@@ -1267,7 +1267,7 @@ Expected<file_t> openNativeFile(const Twine &Name, CreationDisposition Disp,
 
 std::error_code openFile(const Twine &Name, int &ResultFD,
                          CreationDisposition Disp, FileAccess Access,
-                         OpenFlags Flags, unsigned int Mode) {
+                         OpenFlags Flags, unsigned Mode) {
   Expected<file_t> Result = openNativeFile(Name, Disp, Access, Flags);
   if (!Result)
     return errorToErrorCode(Result.takeError());
