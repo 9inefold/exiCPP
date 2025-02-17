@@ -153,7 +153,7 @@ inline ArrayRef<CharT> arrayRefFromStringRef(StrRef Input) {
 /// value.
 ///
 /// If \p C is not a valid hex digit, -1U is returned.
-inline unsigned hexDigitValue(char C) {
+EXI_READONLY inline unsigned hexDigitValue(char C) {
   /* clang-format off */
   static const i16 LUT[256] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -178,26 +178,28 @@ inline unsigned hexDigitValue(char C) {
 }
 
 /// Checks if character \p C is one of the 10 decimal digits.
-inline bool isDigit(char C) { return C >= '0' && C <= '9'; }
+EXI_READNONE inline bool isDigit(char C) { return C >= '0' && C <= '9'; }
 
 /// Checks if character \p C is a hexadecimal numeric character.
-inline bool isHexDigit(char C) { return hexDigitValue(C) != ~0U; }
+EXI_READONLY inline bool isHexDigit(char C) { return hexDigitValue(C) != ~0U; }
 
 /// Checks if character \p C is a lowercase letter as classified by "C" locale.
-inline bool isLower(char C) { return 'a' <= C && C <= 'z'; }
+EXI_READNONE inline bool isLower(char C) { return 'a' <= C && C <= 'z'; }
 
 /// Checks if character \p C is a uppercase letter as classified by "C" locale.
-inline bool isUpper(char C) { return 'A' <= C && C <= 'Z'; }
+EXI_READNONE inline bool isUpper(char C) { return 'A' <= C && C <= 'Z'; }
 
 /// Checks if character \p C is a valid letter as classified by "C" locale.
-inline bool isAlpha(char C) { return isLower(C) || isUpper(C); }
+EXI_READNONE inline bool isAlpha(char C) { return isLower(C) || isUpper(C); }
 
 /// Checks whether character \p C is either a decimal digit or an uppercase or
 /// lowercase letter as classified by "C" locale.
-inline bool isAlnum(char C) { return isAlpha(C) || isDigit(C); }
+EXI_READNONE inline bool isAlnum(char C) { return isAlpha(C) || isDigit(C); }
 
 /// Checks whether character \p C is valid ASCII (high bit is zero).
-inline bool isASCII(char C) { return static_cast<unsigned char>(C) <= 127; }
+EXI_READNONE inline bool isASCII(char C) {
+  return static_cast<unsigned char>(C) <= 127;
+}
 
 /// Checks whether all characters in Str are ASCII.
 inline bool isASCII(StrRef Str) {
@@ -211,7 +213,7 @@ inline bool isASCII(StrRef Str) {
 ///
 /// Locale-independent version of the C standard library isprint whose results
 /// may differ on different platforms.
-inline bool isPrint(char C) {
+EXI_READNONE inline bool isPrint(char C) {
   unsigned char UC = static_cast<unsigned char>(C);
   return (0x20 <= UC) && (UC <= 0x7E);
 }
@@ -230,7 +232,7 @@ inline bool isPunct(char C) {
 /// Checks whether character \p C is whitespace in the "C" locale.
 ///
 /// Locale-independent version of the C standard library isspace.
-inline bool isSpace(char C) {
+EXI_READNONE inline bool isSpace(char C) {
   return C == ' ' || C == '\f' || C == '\n' || C == '\r' || C == '\t' ||
          C == '\v';
 }
