@@ -34,12 +34,12 @@
 
 
 #include <Common/ADL.hpp>
-// #include "exi/ADT/Hashing.h"
+#include <Common/Hashing.hpp>
 #include <Common/EnumTraits.hpp>
 #include <Common/FunctionRef.hpp>
 #include <Common/iterator.hpp>
 #include <Common/iterator_range.hpp>
-// #include "exi/Config/abi-breaking.h"
+#include <Config/ABIBreak.inc>
 #include <Support/ErrorHandle.hpp>
 #include <algorithm>
 #include <cassert>
@@ -55,8 +55,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
-
-#if 0 && defined(EXPENSIVE_CHECKS)
+#if defined(EXPENSIVE_CHECKS)
 # include <random> // for std::mt19937
 #endif
 
@@ -1668,7 +1667,7 @@ inline void array_pod_sort(
   // behavior with an empty sequence.
   auto NElts = End - Start;
   if (NElts <= 1) return;
-#if 0 && defined(EXPENSIVE_CHECKS)
+#if defined(EXPENSIVE_CHECKS)
   H::presortShuffle<IteratorTy>(Start, End);
 #endif
   qsort(&*Start, NElts, sizeof(*Start),
@@ -1693,7 +1692,7 @@ inline void sort(IteratorTy Start, IteratorTy End) {
     // amount of code bloat for a minor performance hit.
     array_pod_sort(Start, End);
   } else {
-#if 0 && defined(EXPENSIVE_CHECKS)
+#if defined(EXPENSIVE_CHECKS)
     H::presortShuffle<IteratorTy>(Start, End);
 #endif
     std::sort(Start, End);
@@ -1706,7 +1705,7 @@ template <typename Container> inline void sort(Container &&C) {
 
 template <typename IteratorTy, typename Compare>
 inline void sort(IteratorTy Start, IteratorTy End, Compare Comp) {
-#if 0 && defined(EXPENSIVE_CHECKS)
+#if defined(EXPENSIVE_CHECKS)
   H::presortShuffle<IteratorTy>(Start, End);
 #endif
   std::sort(Start, End, Comp);
