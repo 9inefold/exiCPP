@@ -9,6 +9,7 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## In Progress
 
+- `DenseMap` and friends
 - Produce event codes
 - `*BitStream` implementation
 - `ErrorCode` customization
@@ -19,7 +20,6 @@ This is a TODO list for the C++ version of exiCPP.
 - Little endian read/write for `BitStream`
 - `sys::` implementation on linux
 - `CrashRecoveryContext`
-- `DenseMap` and friends
 - Schema parser
 - Better `Chrono` and add `Duration`??
 - Real tests for `core`
@@ -27,5 +27,6 @@ This is a TODO list for the C++ version of exiCPP.
   
 ## Stretch Goals
 
-- Schema to C++ transpiler
 - Custom XML parser (I hate the stupid trees)
+- Schema to C++ transpiler
+- Fuzzing
