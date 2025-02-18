@@ -31,11 +31,8 @@
 
 #include <Common/StringMap.hpp>
 #include <Support/MathExtras.hpp>
-// #include <Support/ReverseIteration.hpp>
+#include <Support/ReverseIteration.hpp>
 #include <Support/rapidhash.hpp>
-
-// TODO: Necessary?
-#define shouldReverseIterate() false
 
 using namespace exi;
 
