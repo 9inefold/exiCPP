@@ -24,7 +24,7 @@
 #pragma once
 
 #include <Support/Alloc.hpp>
-#include <Common/_CheckAlloc.hpp>
+#include <Common/D/CheckAlloc.hpp>
 
 namespace exi {
 

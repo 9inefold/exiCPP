@@ -19,7 +19,7 @@
 #pragma once
 
 #include <Config/FeatureFlags.hpp>
-#include <Common/_Str.hpp>
+#include <Common/D/Str.hpp>
 #include <string_view>
 #if EXI_CUSTOM_STRREF
 # include <Common/StrRef.hpp>

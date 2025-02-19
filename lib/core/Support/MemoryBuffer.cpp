@@ -32,6 +32,7 @@
 #include <Common/STLExtras.hpp>
 #include <Common/SmallStr.hpp>
 #include <Config/Config.inc>
+#include <Support/D/IO.hpp>
 #include <Support/Alignment.hpp>
 #include <Support/Errc.hpp>
 #include <Support/Error.hpp>
@@ -41,7 +42,6 @@
 #include <Support/Program.hpp>
 #include <Support/Alloc.hpp>
 #include <Support/SmallVecMemoryBuffer.hpp>
-#include <Support/_IO.hpp>
 #include <algorithm>
 #include <cstring>
 #include <new>
