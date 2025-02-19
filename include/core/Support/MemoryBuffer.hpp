@@ -86,6 +86,17 @@ public:
     return StrRef(BufferStart, getBufferSize());
   }
 
+  /// Checks if a pointer `Ptr` is located in this buffer.
+  bool isInBuffer(const char* Ptr) const {
+    return (Ptr >= BufferStart) && (Ptr < BufferEnd);
+  }
+  /// Gets the offset of a pointer in this buffer, otherwise `-1`.
+  usize getBufferOffset(const char* Ptr) const {
+    if EXI_UNLIKELY(!isInBuffer(Ptr))
+      return usize(-1);
+    return (Ptr - BufferStart);
+  }
+
   /// Return an identifier for this buffer, typically the filename it was read
   /// from.
   virtual StrRef getBufferIdentifier() const { return "Unknown buffer"; }
@@ -217,6 +228,11 @@ public:
   static ErrorOr<Box<WritableMemoryBuffer>>
   getFile(const Twine &Filename, bool IsVolatile = false,
           Option<Align> Alignment = nullopt);
+  
+  static ErrorOr<Box<WritableMemoryBuffer>>
+  getFileEx(const Twine &Filename,
+            bool RequiresNullTerminator = true, bool IsVolatile = false,
+            Option<Align> Alignment = nullopt);
 
   /// Map a subrange of the specified file as a WritableMemoryBuffer.
   static ErrorOr<Box<WritableMemoryBuffer>>

@@ -314,6 +314,15 @@ WritableMemoryBuffer::getFile(const Twine &Filename, bool IsVolatile,
 }
 
 ErrorOr<Box<WritableMemoryBuffer>>
+WritableMemoryBuffer::getFileEx(const Twine &Filename,
+                                bool RequiresNullTerminator, bool IsVolatile,
+                                Option<Align> Alignment) {
+  return getFileAux<WritableMemoryBuffer>(
+      Filename, /*MapSize=*/-1, /*Offset=*/0, /*IsText=*/false,
+      RequiresNullTerminator, IsVolatile, Alignment);
+}
+
+ErrorOr<Box<WritableMemoryBuffer>>
 WritableMemoryBuffer::getFileSlice(const Twine &Filename, u64 MapSize,
                                    u64 Offset, bool IsVolatile,
                                    Option<Align> Alignment) {
