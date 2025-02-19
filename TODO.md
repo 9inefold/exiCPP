@@ -10,6 +10,7 @@ This is a TODO list for the C++ version of exiCPP.
 ## In Progress
 
 - `DenseMap` and friends
+- Update rapidxml
 - Produce event codes
 - `*BitStream` implementation
 - `ErrorCode` customization
