@@ -86,7 +86,7 @@ target_link_libraries(exicpp PUBLIC exi::core rapidxml::rapidxml)
 target_compile_options(exicpp PRIVATE ${EXI_WARNING_FLAGS})
 
 if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
-  add_executable(exi-driver Driver.cpp)
+  add_executable(exi-driver Driver.cpp DriverTests.cpp)
   target_link_libraries(exi-driver exi::exicpp)
   exi_minject(exi-driver CLASSIC BACKUP)
 endif()
