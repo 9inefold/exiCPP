@@ -258,6 +258,17 @@ public:
     return Out;
   }
 
+  /// Peeks a single byte.
+  ExiError peekByte(u8& Out) const;
+
+  /// Peeks a single byte.
+  /// @attention This function ignores errors.
+  u8 peekByte() const {
+    u8 Out;
+    (void) peekByte(Out);
+    return Out;
+  }
+
   /// Peeks a variable number of bits (max of 64).
   ExiError peekBits64(u64& Out, i64 Bits) const;
 
@@ -292,17 +303,6 @@ public:
     return ubit<Bits>::FromBits(peekBits64(Bits));
   }
 
-  /// Peeks a single byte.
-  ExiError peekByte(u8& Out) const;
-
-  /// Peeks a single byte.
-  /// @attention This function ignores errors.
-  u8 peekByte() const {
-    u8 Out;
-    (void) peekByte(Out);
-    return Out;
-  }
-
   /// Peeks a sequence of bytes. This function has no returning variant.
   ExiError peek(MutArrayRef<u8> Out, i64 Bytes = -1) const {
     BitStreamIn thiz(*this);
@@ -320,6 +320,21 @@ public:
   bool readBit() {
     const bool Result = peekBit();
     BaseType::skip(1);
+    return Result;
+  }
+
+  /// Reads a single byte.
+  ExiError readByte(u8& Out) {
+    const ExiError Status = peekByte(Out);
+    BaseType::skip(8);
+    return Status;
+  }
+
+  /// Reads a single byte.
+  /// @attention This function ignores errors.
+  u8 readByte() {
+    const u8 Result = peekByte();
+    BaseType::skip(8);
     return Result;
   }
 
@@ -361,18 +376,6 @@ public:
   /// @attention This function ignores errors.
   template <unsigned Bits> ubit<Bits> readBits() {
     return ubit<Bits>::FromBits(readBits64(Bits));
-  }
-
-  ExiError readByte(u8& Out) {
-    const ExiError Status = peekByte(Out);
-    BaseType::skip(8);
-    return Status;
-  }
-
-  u8 readByte() {
-    const u8 Result = peekByte();
-    BaseType::skip(8);
-    return Result;
   }
 
   /// Reads a sequence of bytes.
@@ -420,6 +423,8 @@ public:
 
   /// Writes a single bit.
   ExiError writeBit(safe_bool Value);
+  /// Writes a single byte.
+  ExiError writeByte(u8 Byte);
 
   /// Writes a variable number of bits (max of 64).
   ExiError writeBits64(u64 Value, i64 Bits);
@@ -436,11 +441,9 @@ public:
     return writeBits64(Value.data(), Bits);
   }
 
-  /// Writes a single byte.
-  ExiError writeByte(u8 Byte);
   /// Writes an array of bytes with an optional length.
   ExiError write(ArrayRef<u8> In, i64 Bytes = -1);
-
+  /// Gets all the written bytes from the buffer.
   MutArrayRef<u8> getWrittenBytes();
 
 private:
@@ -451,9 +454,6 @@ private:
   void writeBitsSlow(u64 Value, i64 Bits);
 
   ExiError writeBitsAP(const APInt& AP, i64 Bits);
-
-  // u64 readUnalignedBits();
-  // APInt readBitsAPLarge(i64 Bits);
 };
 
 } // namespace exi
