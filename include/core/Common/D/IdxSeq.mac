@@ -85,7 +85,10 @@ gen_idxseq_from(7, 0, 1, 2, 3, 4, 5, 6)
 gen_idxseq_from(8, 0, 1, 2, 3, 4, 5, 6, 7)
 
 template <usize N> struct From {
+  /// `0 -> Min`, `N -> Max`
+  /// Dist: `Max - Min`, Off: `Dist / 2`
   static constexpr usize Off = (N / 2);
+  /// `&<Min, from<Off>> + &<Min + Off, from<Dist - Off>>`
   using type = join<
     from<Off>,
     offset<Off, from<N - Off>>
