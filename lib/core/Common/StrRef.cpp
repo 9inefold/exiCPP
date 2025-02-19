@@ -155,7 +155,7 @@ public:
   ReferenceTy operator*() const { return F(*this->I); }
 
 private:
-  typename H::CallbackType<FuncTy>::value_type F{};
+  typename CallbackTraits<FuncTy>::value_type F{};
 };
 
 template <class ItTy, class FuncTy>
