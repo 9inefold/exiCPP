@@ -70,7 +70,7 @@ using ref_or_value_t = typename H::RefOrValue<T>::type;
 //======================================================================//
 
 /// The base for BitStream types. Provides common definitions.
-struct BitStreamBase {
+struct StreamBase {
   using size_type = u64;
   using WordType  = u64;
 
@@ -85,7 +85,7 @@ struct BitStreamBase {
 
 /// The interface for BitStream types. Provides a simple interface for reading
 /// the current position in bits and bytes, and wraps a "stream" buffer.
-template <class BufferT> class BitStreamCommon : public BitStreamBase {
+template <class BufferT> class BitStreamCommon : public StreamBase {
   static_assert(sizeof(typename BufferT::value_type) == 1,
     "BufferT::value_type must be bytes!");
   static_assert(std::is_pointer_v<typename BufferT::iterator>,

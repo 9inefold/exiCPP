@@ -33,7 +33,7 @@
 
 namespace exi {
 
-using WordT = BitStreamBase::WordType;
+using WordT = StreamBase::WordType;
 static constexpr auto kEndianness = endianness::big;
 
 template <typename IntT = WordT>
