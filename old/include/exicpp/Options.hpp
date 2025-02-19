@@ -36,7 +36,7 @@ enum class EnumOpt : unsigned char {
   Alignment       = 0b11000000,
 };
 
-enum class Align : unsigned char {
+enum class AlignOpt : unsigned char {
   BitPacked       = 0b00000000,
   BytePacked      = 0b01000000,
   ByteAlignment   = BytePacked,
@@ -54,7 +54,7 @@ enum class Preserve : unsigned char {
 };
 
 EXICPP_MARK_BITWISE(EnumOpt)
-EXICPP_MARK_BITWISE(Align)
+EXICPP_MARK_BITWISE(AlignOpt)
 EXICPP_MARK_BITWISE(Preserve)
 
 class Options : COptions {
@@ -82,11 +82,11 @@ public:
     return *this;
   }
 
-  Options& set(Align A) {
-    if (A != Align::BitPacked)
+  Options& set(AlignOpt A) {
+    if (A != AlignOpt::BitPacked)
       BaseType::preserve |= Underlying(A);
     else
-      BaseType::preserve &= Underlying(~Align::ByteAlignment);
+      BaseType::preserve &= Underlying(~AlignOpt::ByteAlignment);
     return *this;
   }
 
@@ -97,15 +97,15 @@ public:
 
   bool isSet(EnumOpt O) const {
     if (O == EnumOpt::Alignment)
-      return anySet(Align::ByteAlignment, Align::PreCompression);
+      return anySet(AlignOpt::ByteAlignment, AlignOpt::PreCompression);
     return Options::HasFlags(getEnumOpt(), O);
   }
 
-  bool isSet(Align A) const {
+  bool isSet(AlignOpt A) const {
     const auto V = getAlign();
-    if (A == Align::BitPacked) {
-      const auto masked = V & Align::ByteAlignment;
-      return (masked == Align::BitPacked);
+    if (A == AlignOpt::BitPacked) {
+      const auto masked = V & AlignOpt::ByteAlignment;
+      return (masked == AlignOpt::BitPacked);
     }
     return Options::HasFlags(V, A);
   }
@@ -139,9 +139,9 @@ public:
     return static_cast<EnumOpt>(V);
   }
 
-  Align getAlign() const {
+  AlignOpt getAlign() const {
     const auto V = getEnumOpt() & EnumOpt::Alignment;
-    return static_cast<Align>(V);
+    return static_cast<AlignOpt>(V);
   }
 
   Preserve getPreserved() const {
