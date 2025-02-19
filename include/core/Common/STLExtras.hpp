@@ -36,6 +36,7 @@
 #include <Common/ADL.hpp>
 #include <Common/Hashing.hpp>
 #include <Common/EnumTraits.hpp>
+#include <Common/FunctionTraits.hpp>
 #include <Common/FunctionRef.hpp>
 #include <Common/iterator.hpp>
 #include <Common/iterator_range.hpp>
@@ -92,51 +93,6 @@ struct detector<std::void_t<Op<Args...>>, Op, Args...> {
 ///   bool fooHasCopyAssign = is_detected<has_copy_assign_t, FooClass>::value;
 template <template <class...> class Op, class... Args>
 using is_detected = typename H::detector<void, Op, Args...>::value_t;
-
-/// This class provides various trait information about a callable object.
-///   * To access the number of arguments: Traits::num_args
-///   * To access the type of an argument: Traits::arg_t<Index>
-///   * To access the type of the result:  Traits::result_t
-template <typename T, bool isClass = std::is_class<T>::value>
-struct function_traits : public function_traits<decltype(&T::operator())> {};
-
-/// Overload for class function types.
-template <typename ClassType, typename ReturnType, typename... Args>
-struct function_traits<ReturnType (ClassType::*)(Args...) const, false> {
-  /// The number of arguments to this function.
-  enum { num_args = sizeof...(Args) };
-
-  /// The result type of this function.
-  using result_t = ReturnType;
-
-  /// The type of an argument to this function.
-  template <size_t Index>
-  using arg_t = std::tuple_element_t<Index, std::tuple<Args...>>;
-};
-/// Overload for class function types.
-template <typename ClassType, typename ReturnType, typename... Args>
-struct function_traits<ReturnType (ClassType::*)(Args...), false>
-    : public function_traits<ReturnType (ClassType::*)(Args...) const> {};
-/// Overload for non-class function types.
-template <typename ReturnType, typename... Args>
-struct function_traits<ReturnType (*)(Args...), false> {
-  /// The number of arguments to this function.
-  enum { num_args = sizeof...(Args) };
-
-  /// The result type of this function.
-  using result_t = ReturnType;
-
-  /// The type of an argument to this function.
-  template <size_t i>
-  using arg_t = std::tuple_element_t<i, std::tuple<Args...>>;
-};
-template <typename ReturnType, typename... Args>
-struct function_traits<ReturnType (*const)(Args...), false>
-    : public function_traits<ReturnType (*)(Args...)> {};
-/// Overload for non-class function type references.
-template <typename ReturnType, typename... Args>
-struct function_traits<ReturnType (&)(Args...), false>
-    : public function_traits<ReturnType (*)(Args...)> {};
 
 /// traits class for checking whether type T is one of any of the given
 /// types in the variadic list.
