@@ -90,9 +90,9 @@ namespace rapidxml
     //! Counts children of node. Time complexity is O(n).
     //! \return Number of children of node
     template<class Ch>
-    inline std::size_t count_children(xml_node<Ch> *node)
+    inline std::size_t count_children(XMLNode<Ch> *node)
     {
-        xml_node<Ch> *child = node->first_node();
+        XMLNode<Ch> *child = node->first_node();
         std::size_t count = 0;
         while (child)
         {
@@ -105,9 +105,9 @@ namespace rapidxml
     //! Counts attributes of node. Time complexity is O(n).
     //! \return Number of attributes of node
     template<class Ch>
-    inline std::size_t count_attributes(xml_node<Ch> *node)
+    inline std::size_t count_attributes(XMLNode<Ch> *node)
     {
-        xml_attribute<Ch> *attr = node->first_attribute();
+        XMLAttribute<Ch> *attr = node->first_attribute();
         std::size_t count = 0;
         while (attr)
         {

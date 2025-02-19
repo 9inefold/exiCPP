@@ -11,16 +11,16 @@
 namespace rapidxml
 {
 
-    //! Iterator of child nodes of xml_node
+    //! Iterator of child nodes of XMLNode
     template<class Ch>
     class node_iterator
     {
     
     public:
 
-        typedef typename xml_node<Ch> value_type;
-        typedef typename xml_node<Ch> &reference;
-        typedef typename xml_node<Ch> *pointer;
+        typedef typename XMLNode<Ch> value_type;
+        typedef typename XMLNode<Ch> &reference;
+        typedef typename XMLNode<Ch> *pointer;
         typedef std::ptrdiff_t difference_type;
         typedef std::bidirectional_iterator_tag iterator_category;
         
@@ -29,7 +29,7 @@ namespace rapidxml
         {
         }
 
-        node_iterator(xml_node<Ch> *node)
+        node_iterator(XMLNode<Ch> *node)
             : m_node(node->first_node())
         {
         }
@@ -86,20 +86,20 @@ namespace rapidxml
 
     private:
 
-        xml_node<Ch> *m_node;
+        XMLNode<Ch> *m_node;
 
     };
 
-    //! Iterator of child attributes of xml_node
+    //! Iterator of child attributes of XMLNode
     template<class Ch>
     class attribute_iterator
     {
     
     public:
 
-        typedef typename xml_attribute<Ch> value_type;
-        typedef typename xml_attribute<Ch> &reference;
-        typedef typename xml_attribute<Ch> *pointer;
+        typedef typename XMLAttribute<Ch> value_type;
+        typedef typename XMLAttribute<Ch> &reference;
+        typedef typename XMLAttribute<Ch> *pointer;
         typedef std::ptrdiff_t difference_type;
         typedef std::bidirectional_iterator_tag iterator_category;
         
@@ -108,7 +108,7 @@ namespace rapidxml
         {
         }
 
-        attribute_iterator(xml_node<Ch> *node)
+        attribute_iterator(XMLNode<Ch> *node)
             : m_attribute(node->first_attribute())
         {
         }
@@ -165,7 +165,7 @@ namespace rapidxml
 
     private:
 
-        xml_attribute<Ch> *m_attribute;
+        XMLAttribute<Ch> *m_attribute;
 
     };
 
