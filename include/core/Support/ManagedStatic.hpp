@@ -128,8 +128,8 @@ public:
 /// exi_shutdown - Deallocate and destroy all ManagedStatic variables.
 void exi_shutdown();
 
-/// llvm_shutdown_obj - This is a simple helper class that calls
-/// llvm_shutdown() when it is destroyed.
+/// exi_shutdown_obj - This is a simple helper class that calls
+/// exi_shutdown() when it is destroyed.
 struct exi_shutdown_obj {
   exi_shutdown_obj() = default;
   ~exi_shutdown_obj() { exi_shutdown(); }
