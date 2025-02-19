@@ -1,0 +1,108 @@
+//===- Common/D/IdxSeq.mac ------------------------------------------===//
+//
+// Copyright (C) 2024 Eightfold
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+//     limitations under the License.
+//
+//===----------------------------------------------------------------===//
+///
+/// \file
+/// This file implements make_idxseq when no builtins are available.
+///
+//===----------------------------------------------------------------===//
+
+// include <Common/Fundamental.hpp>
+
+#undef gen_idxseq_from
+#define gen_idxseq_from(N, ...)                                               \
+ template <> struct From<N> { using type = idxseq<__VA_ARGS__>; };
+
+namespace idxseq_detail {
+
+/// This implementation is useful for compilers where `std::make_index_sequence`
+/// is NOT implemented with builtins. This is fairly uncommon in the modern day,
+/// but is supported nonetheless.
+///
+/// Using this key:
+/// - `[Min, Max) -> {#Dist, #Off}`
+/// - `<...>`: idxseq<...>
+/// - `&<...>`: offset<...>
+/// - `<...> + <...>`: join<<...>, <...>>
+///
+/// Here are some examples of the general algorithm:
+///   [1, 2) -> {#1, #0}
+///   &<1, from<#0>> + &<1 + #0, from<#1 - #0>>
+///   &<1, <>> + &<1, <0>>
+///   <> + <1> = <1>
+/// 
+///   [2, 6) -> {#4, #2}
+///   &<2, from<#2>> + &<2 + #2, from<#4 - #2>>
+///   &<2, <0, 1>> + &<4, <0, 1>>
+///   <2, 3> + <4, 5> = <2, 3, 4, 5>
+/// 
+///   [1, 8) -> {#7, #3}
+///   &<1, from<#3>> + &<1 + #3, from<#7 - #3>>
+///   &<1, <0, 1, 2>> + &<4, <0, 1, 2, 3>>
+///   <1, 2, 3> + <4, 5, 6, 7> = <1, 2, 3, 4, 5, 6, 7>
+///
+/// Of course, the final algorithm is simpler than this, as all productions
+/// start at 0; but it shows the algorithm can be expanded.
+
+template <usize N> struct From;
+template <class LHS, class RHS> struct Join;
+template <usize N, class Seq> struct Offset;
+
+template <usize N>
+using from = typename From<N>::type;
+
+template <class LHS, class RHS>
+using join = typename Join<LHS, RHS>::type;
+
+template <usize N, class Seq>
+using offset = typename Offset<N, Seq>::type;
+
+//////////////////////////////////////////////////////////////////////////
+// Implementation
+
+gen_idxseq_from(0)
+gen_idxseq_from(1, 0)
+gen_idxseq_from(2, 0, 1)
+gen_idxseq_from(3, 0, 1, 2)
+gen_idxseq_from(4, 0, 1, 2, 3)
+gen_idxseq_from(5, 0, 1, 2, 3, 4)
+gen_idxseq_from(6, 0, 1, 2, 3, 4, 5)
+gen_idxseq_from(7, 0, 1, 2, 3, 4, 5, 6)
+gen_idxseq_from(8, 0, 1, 2, 3, 4, 5, 6, 7)
+
+template <usize N> struct From {
+  static constexpr usize Off = (N / 2);
+  using type = join<
+    from<Off>,
+    offset<Off, from<N - Off>>
+  >;
+};
+
+template <usize...LHS, usize...RHS>
+struct Join<idxseq<LHS...>, idxseq<RHS...>> {
+  using type = idxseq<LHS..., RHS...>;
+};
+
+template <usize N, usize...II>
+struct Offset<N, idxseq<II...>> {
+  using type = idxseq<(II + N)...>;
+};
+
+} // namespace idxseq_detail
+
+#undef idxseq
+#undef gen_idxseq_from
