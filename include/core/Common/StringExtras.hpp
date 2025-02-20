@@ -51,7 +51,7 @@ namespace H {
 template <typename T>
 concept is_char_kind
   = std::same_as<T, char>
-#if 0 && defined(__cpp_char8_t)
+#if defined(__cpp_char8_t)
   || std::same_as<T, char8_t>
 #endif
   || std::same_as<T, signed char>
