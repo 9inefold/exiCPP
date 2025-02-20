@@ -29,6 +29,12 @@
 
 namespace exi {
 
+/// Used when expanding packs to get a sequence of type T.
+/// Eg.
+///    void Foo(Unfold<T, II>... Args);
+template <typename T, usize>
+using Unfold = T;
+
 //======================================================================//
 // TypePackElement
 //======================================================================//
