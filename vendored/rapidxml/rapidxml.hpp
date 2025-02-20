@@ -44,7 +44,7 @@ do {                                                                           \
 } while(false)
 
 namespace xml {
-//! When exceptions are disabled by defining RAPIDXML_NO_EXCEPTIONS,
+//! When exceptions are disabled by defining `RAPIDXML_NO_EXCEPTIONS`,
 //! this function is called to notify user about the error.
 //! It must be defined by the user.
 //! <br><br>
@@ -52,10 +52,9 @@ namespace xml {
 //! <br><br>
 //! A very simple definition might look like that:
 //! <pre>
-//! void %xml::%parse_error_handler(const char *what, void *where)
-//! {
-//!     std::cout << "Parse error: " << what << "\n";
-//!     std::abort();
+//! void %xml::%parse_error_handler(const char *what, void *where) {
+//!   outs() << "Parse error: " << what << "\n";
+//!   std::abort();
 //! }
 //! </pre>
 //! \param what Human readable description of the error.
@@ -80,12 +79,12 @@ namespace xml {
 //! Use what() function to get human-readable error message.
 //! Use where() function to get a pointer to position within source Text where
 //! error was detected. <br><br> If throwing exceptions by the parser is
-//! undesirable, it can be disabled by defining RAPIDXML_NO_EXCEPTIONS macro
+//! undesirable, it can be disabled by defining `RAPIDXML_NO_EXCEPTIONS` macro
 //! before rapidxml.hpp is included. This will cause the parser to call
-//! xml::parse_error_handler() function instead of throwing an exception.
+//! `xml::parse_error_handler()` function instead of throwing an exception.
 //! This function must be defined by the user.
 //! <br><br>
-//! This class derives from <Code>std::exception</Code> class.
+//! This class derives from `std::exception` class.
 class parse_error : public std::exception {
 
 public:
@@ -143,6 +142,12 @@ extern bool use_exceptions_anyway;
 # define RAPIDXML_ALIGNMENT sizeof(void*)
 #endif
 
+#define RAPIDXML_ALIASES(TYPE)                                                \
+using StrRefT  = ::xml::internal::string_type_t<TYPE>;                        \
+using NodeType = ::xml::XMLNode<TYPE>;                                        \
+using AttrType = ::xml::XMLAttribute<TYPE>;                                   \
+using DocType  = ::xml::XMLDocument<TYPE>;
+
 namespace xml {
 // Forward declarations
 template <class Ch> class XMLNode;
@@ -162,8 +167,11 @@ enum NodeKind {
   node_pi           //!< A PI node. Name contains target. Value contains instructions.
 };
 
+using XMLBumpAllocator = exi::BumpPtrAllocator;
+
 inline constexpr usize kPoolSize = RAPIDXML_DYNAMIC_POOL_SIZE;
-inline constexpr exi::Align kAlign(RAPIDXML_ALIGNMENT);
+inline constexpr usize kAlignVal = RAPIDXML_ALIGNMENT;
+inline constexpr exi::Align kAlign(kAlignVal);
 
 ///////////////////////////////////////////////////////////////////////
 // Parsing flags
@@ -318,6 +326,23 @@ namespace internal {
     static const u8 upcase[256];                // To uppercase conversion table for ASCII characters
   };
 
+  template <class Ch> struct string_type {
+    using type = std::basic_string_view<Ch>;
+  };
+
+  template <> struct string_type<char> {
+    using type = exi::StrRef;
+  };
+
+#if defined(__cpp_char8_t)
+  template <> struct string_type<char8_t> {
+    using type = exi::StrRef;
+  };
+#endif
+
+  template <class Ch>
+  using string_type_t = typename string_type<char>::type;
+
   // Find length of the string
   template <class Ch> inline usize measure(const Ch* p) {
     return std::char_traits<Ch>::length(p);
@@ -326,10 +351,10 @@ namespace internal {
   // Compare strings for equality
   template <class Ch>
   inline bool compare(const Ch* p1, usize size1, const Ch* p2, usize size2,
-                      bool case_sensitive) {
+                      bool CaseInsensitive) {
     if (size1 != size2)
       return false;
-    if (case_sensitive) {
+    if (CaseInsensitive) {
       for (const Ch* end = p1 + size1; p1 < end; ++p1, ++p2)
         if (*p1 != *p2)
           return false;
@@ -341,60 +366,73 @@ namespace internal {
     }
     return true;
   }
+
+  template <class Ch>
+  inline bool compare(std::basic_string_view<Ch> Str1,
+                      std::basic_string_view<Ch> Str2, bool CaseInsensitive) {
+    return internal::compare(
+      Str1.data(), Str1.size(),
+      Str2.data(), Str2.size(), CaseInsensitive);
+  }
+
+  inline bool compare(exi::StrRef Str1, exi::StrRef Str2, bool CaseInsensitive) {
+    if (not CaseInsensitive)
+      return Str1.compare(Str2) == 0;
+    return internal::compare(
+      Str1.data(), Str1.size(),
+      Str2.data(), Str2.size(), true);
+  }
 } // namespace internal
 //! \endcond
 
 ///////////////////////////////////////////////////////////////////////
 // Memory pool
 
-using MemoryPoolBumpAllocator
-  = exi::BumpPtrAllocatorImpl<exi::MallocAllocator, kPoolSize>;
-
 //! This class is used by the parser to create new nodes and attributes, without
 //! overheads of dynamic memory allocation. In most cases, you will not need to
 //! use this class directly. However, if you need to create nodes manually or
 //! modify names/values of nodes, you are encouraged to use MemoryPool of
 //! relevant XMLDocument to allocate the memory. Not only is this faster than
-//! allocating them by using <Code>new</Code> operator, but also their lifetime
+//! allocating them by using `new` operator, but also their lifetime
 //! will be tied to the lifetime of document, possibly simplyfing memory
 //! management. <br><br> Call allocate_node() or allocate_attribute() functions
 //! to obtain new nodes or attributes from the pool. You can also call
 //! allocString() function to allocate strings. Such strings can then be
 //! used as names or values of nodes without worrying about their lifetime. Note
-//! that there is no <Code>free()</Code> function -- all allocations are freed
+//! that there is no `free()` function -- all allocations are freed
 //! at once when clear() function is called, or when the pool is destroyed.
 //! <br><br>
 //! It is also possible to create a standalone MemoryPool, and use it
 //! to allocate nodes, whose lifetime will not be tied to any document.
 //! <br><br>
-//! Pool maintains <Code>RAPIDXML_STATIC_POOL_SIZE</Code> bytes of statically
+//! Pool maintains `RAPIDXML_STATIC_POOL_SIZE` bytes of statically
 //! allocated memory. Until static memory is exhausted, no dynamic memory
 //! allocations are done. When static memory is exhausted, pool allocates
-//! additional blocks of memory of size <Code>RAPIDXML_DYNAMIC_POOL_SIZE</Code>
-//! each, by using global <Code>new[]</Code> and <Code>delete[]</Code>
+//! additional blocks of memory of size `RAPIDXML_DYNAMIC_POOL_SIZE`
+//! each, by using global `new[]` and `delete[]`
 //! operators. This behaviour can be changed by setting custom allocation
 //! routines. Use set_allocator() function to set them. <br><br> Allocations for
-//! nodes, attributes and strings are aligned at <Code>RAPIDXML_ALIGNMENT</Code>
+//! nodes, attributes and strings are aligned at `RAPIDXML_ALIGNMENT`
 //! bytes. This value defaults to the size of pointer on target architecture.
 //! <br><br>
 //! To obtain absolutely top performance from the parser,
 //! it is important that all nodes are allocated from a single, contiguous block
 //! of memory. Otherwise, cache misses when jumping between two (or more)
 //! disjoint blocks of memory can slow down parsing quite considerably. If
-//! required, you can tweak <Code>RAPIDXML_STATIC_POOL_SIZE</Code>,
-//! <Code>RAPIDXML_DYNAMIC_POOL_SIZE</Code> and <Code>RAPIDXML_ALIGNMENT</Code>
+//! required, you can tweak `RAPIDXML_STATIC_POOL_SIZE`,
+//! `RAPIDXML_DYNAMIC_POOL_SIZE` and `RAPIDXML_ALIGNMENT`
 //! to obtain best wasted memory to performance compromise.
 //! To do it, define their values before rapidxml.hpp file is included.
 //! \param Ch Character type of created nodes.
 template <class Ch = char> class MemoryPool {
   using TraitsT = std::char_traits<Ch>;
   // TODO: Make this less sucky
-  exi::PointerIntPair<MemoryPoolBumpAllocator*, 1, bool> AllocBase;
+  exi::PointerIntPair<XMLBumpAllocator*, 1, bool> AllocBase;
 public:
   //! Constructs empty pool.
-  MemoryPool() : AllocBase(new MemoryPoolBumpAllocator, true) {}
+  MemoryPool() : AllocBase(new XMLBumpAllocator, true) {}
   //! Constructs pool from input allocator.
-  explicit MemoryPool(MemoryPoolBumpAllocator& A) : AllocBase(&A, false) { }
+  explicit MemoryPool(XMLBumpAllocator& A) : AllocBase(&A, false) { }
 
   //! Destroys pool and frees all the memory.
   //! This causes memory occupied by nodes allocated by the pool to be freed.
@@ -405,19 +443,20 @@ public:
       delete AllocBase.getPointer();
   }
 
-  //! Allocates a new node from the pool, and optionally assigns name and value
-  //! to it. If the allocation request cannot be accomodated, this function will
-  //! throw <Code>std::bad_alloc</Code>. If exceptions are disabled by defining
-  //! RAPIDXML_NO_EXCEPTIONS, this function will call
-  //! xml::parse_error_handler() function. \param type Type of node to
-  //! create. \param name Name to assign to the node, or 0 to assign no name.
-  //! \param value Value to assign to the node, or 0 to assign no value.
-  //! \param name_size Size of name to assign, or 0 to automatically calculate
-  //! size from name string. \param value_size Size of value to assign, or 0 to
-  //! automatically calculate size from value string. \return Pointer to
-  //! allocated node. This pointer will never be NULL.
-  XMLNode<Ch>* allocate_node(NodeKind Kind, const Ch* Name = 0, const Ch* Value = 0,
-                              usize NameLen = 0, usize ValueLen = 0) {
+  //! Allocates a new attribute from the pool, and optionally assigns name and
+  //! value to it. If the allocation request cannot be accomodated, this
+  //! function will throw `std::bad_alloc`. If exceptions are
+  //! disabled by defining `RAPIDXML_NO_EXCEPTIONS`, this function will call
+  //! `xml::parse_error_handler()` function.
+  //! \param type Type of node to create.
+  //! \param name Name to assign to the attribute, or 0 to assign no name.
+  //! \param value Value to assign to the attribute, or 0 to assign no value.
+  //! \param name_size Size of name to assign, or 0 to automatically calculate size from name string.
+  //! \param value_size Size of value to assign, or 0 to automatically calculate size from value string.
+  //! \return Pointer to allocated attribute. This pointer will never be NULL.
+  EXI_RETURNS_NONNULL XMLNode<Ch>*
+      allocate_node(NodeKind Kind, const Ch* Name = 0, const Ch* Value = 0,
+                    usize NameLen = 0, usize ValueLen = 0) {
     auto* Node = new (Alloc()) XMLNode<Ch>(Kind);
     if (Name) {
       if (NameLen > 0)
@@ -434,17 +473,22 @@ public:
     return Node;
   }
 
+  EXI_RETURNS_NONNULL ALWAYS_INLINE XMLNode<Ch>*
+      allocate_node(NodeKind Kind, StrRefT Name, StrRefT Value) {
+    return allocate_attribute(Kind, Name.data(), Value.data(),
+                                    Name.size(), Value.size());
+  }
+
   //! Allocates a new attribute from the pool, and optionally assigns name and
   //! value to it. If the allocation request cannot be accomodated, this
-  //! function will throw <Code>std::bad_alloc</Code>. If exceptions are
-  //! disabled by defining RAPIDXML_NO_EXCEPTIONS, this function will call
-  //! xml::parse_error_handler() function. \param name Name to assign to
-  //! the attribute, or 0 to assign no name. \param value Value to assign to the
-  //! attribute, or 0 to assign no value. \param name_size Size of name to
-  //! assign, or 0 to automatically calculate size from name string. \param
-  //! value_size Size of value to assign, or 0 to automatically calculate size
-  //! from value string. \return Pointer to allocated attribute. This pointer
-  //! will never be NULL.
+  //! function will throw `std::bad_alloc`. If exceptions are
+  //! disabled by defining `RAPIDXML_NO_EXCEPTIONS`, this function will call
+  //! `xml::parse_error_handler()` function.
+  //! \param name Name to assign to the attribute, or 0 to assign no name.
+  //! \param value Value to assign to the attribute, or 0 to assign no value.
+  //! \param name_size Size of name to assign, or 0 to automatically calculate size from name string.
+  //! \param value_size Size of value to assign, or 0 to automatically calculate size from value string.
+  //! \return Pointer to allocated attribute. This pointer will never be NULL.
   EXI_RETURNS_NONNULL XMLAttribute<Ch>*
                      allocate_attribute(const Ch* Name = 0, const Ch* Value = 0,
                                         usize NameLen = 0,  usize ValueLen = 0) {
@@ -464,11 +508,17 @@ public:
     return Attr;
   }
 
+  EXI_RETURNS_NONNULL ALWAYS_INLINE XMLAttribute<Ch>*
+      allocate_attribute(StrRefT Name, StrRefT Value) {
+    return allocate_attribute(Name.data(), Value.data(),
+                              Name.size(), Value.size());
+  }
+
   //! Allocates a char array of given size from the pool, and optionally copies
   //! a given string to it. If the allocation request cannot be accomodated,
-  //! this function will throw <Code>std::bad_alloc</Code>. If exceptions are
-  //! disabled by defining RAPIDXML_NO_EXCEPTIONS, this function will call
-  //! xml::parse_error_handler() function.
+  //! this function will throw `std::bad_alloc`. If exceptions are
+  //! disabled by defining `RAPIDXML_NO_EXCEPTIONS`, this function will call
+  //! `xml::parse_error_handler()` function.
   //! \param Src String to initialize the allocated memory with, or 0 to not initialize it.
   //! \param Size Number of characters to allocate, or zero to calculate it
   //! automatically from source string length; if size is 0, source string must
@@ -494,7 +544,7 @@ public:
   //! \param result Node to put results in, or 0 to automatically allocate result node
   //! \return Pointer to cloned node. This pointer will never be NULL.
   EXI_RETURNS_NONNULL XMLNode<Ch>* clone_node(const XMLNode<Ch>* Src, 
-                                               XMLNode<Ch>* Out = nullptr) {
+                                               XMLNode<Ch>* Out = nullptr) {  
     // Prepare result node
     if (Out) {
       Out->remove_all_attributes();
@@ -522,7 +572,8 @@ public:
   //! This causes memory occupied by nodes allocated by the pool to be freed.
   //! Any nodes or strings allocated from the pool will no longer be valid.
   void clear() {
-    Alloc().Reset();
+    if (AllocBase.getInt())
+      AllocBase->Reset();
   }
 
 private:
@@ -531,22 +582,22 @@ private:
     return reinterpret_cast<char*>(Raw);
   }
 
-  MemoryPoolBumpAllocator& Alloc() {
+  XMLBumpAllocator& Alloc() {
     auto* const AllocPtr = AllocBase.getPointer();
     exi_invariant(AllocPtr != nullptr);
     return *AllocPtr;
   }
 
   char* allocRaw(usize Size) {
-    void* Mem = Alloc().Allocate(Size, 1);
+    void* Mem = AllocBase->Allocate(Size, 1);
     return static_cast<char*>(Mem);
   }
 
   void* allocAligned(usize Size) {
-    return Alloc().Allocate(Size, kAlign);
+    return AllocBase->Allocate(Size, kAlign);
   }
 
-  static Ch* AllocString(MemoryPoolBumpAllocator& Alloc, usize Size) {
+  static Ch* AllocString(XMLBumpAllocator& Alloc, usize Size) {
     const usize TrueSize = Size * sizeof(Ch);
     void* Mem = Alloc.Allocate(TrueSize, kAlign);
     return static_cast<Ch*>(Mem);
@@ -560,8 +611,10 @@ private:
 //! name(), name_size(), value(), value_size() and parent().
 //! \param Ch Character type to use
 template <class Ch = char>
-class alignas(RAPIDXML_ALIGNMENT) XMLBase {
+class alignas(kAlignVal) XMLBase {
+  RAPIDXML_ALIASES(Ch)
 public:
+
   ///////////////////////////////////////////////////////////////////////////
   // Construction & destruction
 
@@ -578,7 +631,16 @@ public:
   //! <br><br>
   //! Use name_size() function to determine length of the name.
   //! \return Name of node, or empty string if node has no name.
-  Ch* name() const { return m_name ? m_name : nullstr(); }
+  StrRefT name() const { return StrRefT(name_data(), name_size()); }
+
+  //! Gets name of the node.
+  //! Interpretation of name depends on type of node.
+  //! Note that name will not be zero-terminated if
+  //! xml::parse_no_string_terminators option was selected during parse.
+  //! <br><br>
+  //! Use name_size() function to determine length of the name.
+  //! \return Name of node, or empty string if node has no name.
+  Ch* name_data() const { return m_name ? m_name : nullstr(); }
 
   //! Gets size of node name, not including terminator character.
   //! This function works correctly irrespective of whether name is or is not
@@ -592,7 +654,16 @@ public:
   //! <br><br>
   //! Use value_size() function to determine length of the value.
   //! \return Value of node, or empty string if node has no value.
-  Ch* value() const { return m_value ? m_value : nullstr(); }
+  StrRefT value() const { return StrRefT(value_data(), value_size()); }
+
+  //! Gets value of node.
+  //! Interpretation of value depends on type of node.
+  //! Note that value will not be zero-terminated if
+  //! xml::parse_no_string_terminators option was selected during parse.
+  //! <br><br>
+  //! Use value_size() function to determine length of the value.
+  //! \return Value of node, or empty string if node has no value.
+  Ch* value_data() const { return m_value ? m_value : nullstr(); }
 
   //! Gets size of node value, not including terminator character.
   //! This function works correctly irrespective of whether value is or is not
@@ -625,7 +696,7 @@ public:
   //! Sets name of node to a zero-terminated string.
   //! See also \ref ownership_of_strings and XMLNode::name(const Ch*, usize).
   //! \param Name Name of node to set. Must be zero terminated.
-  void name(const Ch* Name) { this->name(Name, internal::measure(Name)); }
+  void name(StrRefT Str) { this->name(Str.data(), Str.size()); }
 
   //! Sets value of node to a non zero-terminated string.
   //! See \ref ownership_of_strings.
@@ -651,16 +722,16 @@ public:
   }
 
   //! Sets value of node to a zero-terminated string.
-  //! See also \ref ownership_of_strings and XMLNode::value(const Ch *,
-  //! usize). \param value Vame of node to set. Must be zero terminated.
-  void value(const Ch* value) { this->value(value, internal::measure(value)); }
+  //! See also \ref ownership_of_strings and XMLNode::value(const Ch *, usize).
+  //! \param value Vame of node to set. Must be zero terminated.
+  void value(StrRefT Str) { this->name(Str.data(), Str.size()); }
 
   ///////////////////////////////////////////////////////////////////////////
   // Related nodes access
 
   //! Gets node parent.
   //! \return Pointer to parent node, or 0 if there is no parent.
-  XMLNode<Ch>* parent() const { return m_parent; }
+  NodeType* parent() const { return m_parent; }
 
 protected:
   // Return empty string
@@ -669,11 +740,11 @@ protected:
     return &zero;
   }
 
-  Ch* m_name;               // Name of node, or 0 if no name
-  Ch* m_value;              // Value of node, or 0 if no value
+  Ch* m_name;         // Name of node, or 0 if no name
+  Ch* m_value;        // Value of node, or 0 if no value
   usize m_name_size;  // Length of node name, or undefined of no name
   usize m_value_size; // Length of node value, or undefined if no value
-  XMLNode<Ch>* m_parent;   // Pointer to parent node, or 0 if none
+  NodeType* m_parent; // Pointer to parent node, or 0 if none
 };
 
 //! Class representing attribute node of XML document.
@@ -683,8 +754,9 @@ protected:
 //! Text used for parsing. Thus, this Text must persist in memory for the
 //! lifetime of attribute. \param Ch Character type to use.
 template <class Ch = char>
-class alignas(RAPIDXML_ALIGNMENT) XMLAttribute : public XMLBase<Ch> {
+class alignas(kAlignVal) XMLAttribute : public XMLBase<Ch> {
   friend class XMLNode<Ch>;
+  RAPIDXML_ALIASES(Ch)
 public:
   ///////////////////////////////////////////////////////////////////////////
   // Construction & destruction
@@ -700,55 +772,60 @@ public:
   //! Gets document of which attribute is a child.
   //! \return Pointer to document that contains this attribute, or 0 if there is
   //! no parent document.
-  XMLDocument<Ch>* document() const {
-    if (XMLNode<Ch>* node = this->parent()) {
+  DocType* document() const {
+    if (NodeType* node = this->parent()) {
       while (node->parent())
         node = node->parent();
-      return node->type() == node_document ? static_cast<XMLDocument<Ch>*>(node) : 0;
-    } else
-      return 0;
+      if EXI_LIKELY(node->type() == node_document)
+        return static_cast<DocType*>(node);
+    }
+    return nullptr;
   }
 
   //! Gets previous attribute, optionally matching attribute name.
   //! \param name Name of attribute to find, or 0 to return previous attribute
   //! regardless of its name; this string doesn't have to be zero-terminated if
-  //! name_size is non-zero \param name_size Size of name, in characters, or 0
-  //! to have size calculated automatically from string \param case_sensitive
-  //! Should name comparison be case-sensitive; non case-sensitive comparison
-  //! works properly only for ASCII characters \return Pointer to found
-  //! attribute, or 0 if not found.
-  XMLAttribute<Ch>* previous_attribute(const Ch* name = 0, usize name_size = 0,
-                                        bool case_sensitive = true) const {
-    if (name) {
-      if (name_size == 0)
-        name_size = internal::measure(name);
-      for (XMLAttribute<Ch>* attribute = m_prev_attribute; attribute;
-           attribute = attribute->m_prev_attribute)
-        if (internal::compare(attribute->name(), attribute->name_size(), name, name_size,
-                              case_sensitive))
-          return attribute;
-      return 0;
-    } else
-      return this->m_parent ? m_prev_attribute : 0;
+  //! name_size is non-zero
+  //! \param name_size Size of name, in characters, or 0 to have size calculated automatically from string
+  //! \param CaseInsensitive Should name comparison be case-sensitive; non case-sensitive comparison
+  //! works properly only for ASCII characters
+  //! \return Pointer to found attribute, or 0 if not found.
+  AttrType* previous_attribute(const Ch* name = nullptr, usize name_size = 0,
+                               bool CaseInsensitive = true) const {
+    if (!name) {
+      if (this->m_parent)
+        return m_prev_attribute;
+      return nullptr;
+    }
+    if (name_size == 0)
+      name_size = internal::measure(name);
+    
+    for (AttrType* attribute = m_prev_attribute; attribute;
+         attribute = attribute->m_prev_attribute) {
+      if (internal::compare(attribute->name(), StrRefT(name, name_size),
+                            CaseInsensitive))
+        return attribute;
+    }
+    return nullptr;
   }
 
   //! Gets next attribute, optionally matching attribute name.
   //! \param name Name of attribute to find, or 0 to return next attribute
   //! regardless of its name; this string doesn't have to be zero-terminated if
   //! name_size is non-zero \param name_size Size of name, in characters, or 0
-  //! to have size calculated automatically from string \param case_sensitive
+  //! to have size calculated automatically from string \param CaseInsensitive
   //! Should name comparison be case-sensitive; non case-sensitive comparison
   //! works properly only for ASCII characters \return Pointer to found
   //! attribute, or 0 if not found.
-  XMLAttribute<Ch>* next_attribute(const Ch* name = 0, usize name_size = 0,
-                                    bool case_sensitive = true) const {
+  AttrType* next_attribute(const Ch* name = 0, usize name_size = 0,
+                                    bool CaseInsensitive = true) const {
     if (name) {
       if (name_size == 0)
         name_size = internal::measure(name);
-      for (XMLAttribute<Ch>* attribute = m_next_attribute; attribute;
+      for (AttrType* attribute = m_next_attribute; attribute;
            attribute = attribute->m_next_attribute)
         if (internal::compare(attribute->name(), attribute->name_size(), name, name_size,
-                              case_sensitive))
+                              CaseInsensitive))
           return attribute;
       return 0;
     } else
@@ -756,10 +833,8 @@ public:
   }
 
 private:
-  XMLAttribute<Ch>* m_prev_attribute; // Pointer to previous sibling of attribute, or 0 if
-                                       // none; only valid if parent is non-zero
-  XMLAttribute<Ch>* m_next_attribute; // Pointer to next sibling of attribute, or 0 if none;
-                                       // only valid if parent is non-zero
+  AttrType* m_prev_attribute; // Pointer to previous sibling of attribute, or 0 if none; only valid if parent is non-zero
+  AttrType* m_next_attribute; // Pointer to next sibling of attribute, or 0 if none; only valid if parent is non-zero
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -774,7 +849,8 @@ private:
 //! must persist in the memory for the lifetime of node. \param Ch Character
 //! type to use.
 template <class Ch = char>
-class alignas(RAPIDXML_ALIGNMENT) XMLNode : public XMLBase<Ch> {
+class alignas(kAlignVal) XMLNode : public XMLBase<Ch> {
+  RAPIDXML_ALIASES(Ch)
 public:
   ///////////////////////////////////////////////////////////////////////////
   // Construction & destruction
@@ -797,32 +873,32 @@ public:
   //! Gets document of which node is a child.
   //! \return Pointer to document that contains this node, or 0 if there is no
   //! parent document.
-  XMLDocument<Ch>* document() const {
-    XMLNode<Ch>* node = const_cast<XMLNode<Ch>*>(this);
+  DocType* document() const {
+    NodeType* node = const_cast<NodeType*>(this);
     while (node->parent())
       node = node->parent();
-    return node->type() == node_document ? static_cast<XMLDocument<Ch>*>(node) : 0;
+    return node->type() == node_document ? static_cast<DocType*>(node) : 0;
   }
 
   //! Gets first child node, optionally matching node name.
   //! \param name Name of child to find, or 0 to return first child regardless
   //! of its name; this string doesn't have to be zero-terminated if name_size
   //! is non-zero \param name_size Size of name, in characters, or 0 to have
-  //! size calculated automatically from string \param case_sensitive Should
+  //! size calculated automatically from string \param CaseInsensitive Should
   //! name comparison be case-sensitive; non case-sensitive comparison works
   //! properly only for ASCII characters \return Pointer to found child, or 0 if
   //! not found.
-  XMLNode<Ch>* first_node(const Ch* name = 0, usize name_size = 0,
-                           bool case_sensitive = true) const {
-    if (name) {
-      if (name_size == 0)
-        name_size = internal::measure(name);
-      for (XMLNode<Ch>* child = m_first_node; child; child = child->next_sibling())
-        if (internal::compare(child->name(), child->name_size(), name, name_size, case_sensitive))
-          return child;
-      return 0;
-    } else
+  NodeType* first_node(const Ch* name = 0, usize name_size = 0,
+                           bool CaseInsensitive = true) const {
+    if (!name)
       return m_first_node;
+    if (name_size == 0)
+      name_size = internal::measure(name);
+    for (NodeType* child = m_first_node; child; child = child->next_sibling()) {
+      if (internal::compare(child->name(), StrRefT(name, name_size), CaseInsensitive))
+        return child;
+    }
+    return nullptr;
   }
 
   //! Gets last child node, optionally matching node name.
@@ -831,18 +907,18 @@ public:
   //! \param name Name of child to find, or 0 to return last child regardless of
   //! its name; this string doesn't have to be zero-terminated if name_size is
   //! non-zero \param name_size Size of name, in characters, or 0 to have size
-  //! calculated automatically from string \param case_sensitive Should name
+  //! calculated automatically from string \param CaseInsensitive Should name
   //! comparison be case-sensitive; non case-sensitive comparison works properly
   //! only for ASCII characters \return Pointer to found child, or 0 if not
   //! found.
-  XMLNode<Ch>* last_node(const Ch* name = 0, usize name_size = 0,
-                          bool case_sensitive = true) const {
+  NodeType* last_node(const Ch* name = 0, usize name_size = 0,
+                          bool CaseInsensitive = true) const {
     assert(m_first_node); // Cannot query for last child if node has no children
     if (name) {
       if (name_size == 0)
         name_size = internal::measure(name);
-      for (XMLNode<Ch>* child = m_last_node; child; child = child->previous_sibling())
-        if (internal::compare(child->name(), child->name_size(), name, name_size, case_sensitive))
+      for (NodeType* child = m_last_node; child; child = child->previous_sibling())
+        if (internal::compare(child->name(), child->name_size(), name, name_size, CaseInsensitive))
           return child;
       return 0;
     } else
@@ -855,19 +931,19 @@ public:
   //! \param name Name of sibling to find, or 0 to return previous sibling
   //! regardless of its name; this string doesn't have to be zero-terminated if
   //! name_size is non-zero \param name_size Size of name, in characters, or 0
-  //! to have size calculated automatically from string \param case_sensitive
+  //! to have size calculated automatically from string \param CaseInsensitive
   //! Should name comparison be case-sensitive; non case-sensitive comparison
   //! works properly only for ASCII characters \return Pointer to found sibling,
   //! or 0 if not found.
-  XMLNode<Ch>* previous_sibling(const Ch* name = 0, usize name_size = 0,
-                                 bool case_sensitive = true) const {
+  NodeType* previous_sibling(const Ch* name = 0, usize name_size = 0,
+                                 bool CaseInsensitive = true) const {
     assert(this->m_parent); // Cannot query for siblings if node has no parent
     if (name) {
       if (name_size == 0)
         name_size = internal::measure(name);
-      for (XMLNode<Ch>* sibling = m_prev_sibling; sibling; sibling = sibling->m_prev_sibling)
+      for (NodeType* sibling = m_prev_sibling; sibling; sibling = sibling->m_prev_sibling)
         if (internal::compare(sibling->name(), sibling->name_size(), name, name_size,
-                              case_sensitive))
+                              CaseInsensitive))
           return sibling;
       return 0;
     } else
@@ -880,21 +956,22 @@ public:
   //! \param name Name of sibling to find, or 0 to return next sibling
   //! regardless of its name; this string doesn't have to be zero-terminated if
   //! name_size is non-zero \param name_size Size of name, in characters, or 0
-  //! to have size calculated automatically from string \param case_sensitive
+  //! to have size calculated automatically from string \param CaseInsensitive
   //! Should name comparison be case-sensitive; non case-sensitive comparison
   //! works properly only for ASCII characters \return Pointer to found sibling,
   //! or 0 if not found.
-  XMLNode<Ch>* next_sibling(const Ch* name = 0, usize name_size = 0,
-                             bool case_sensitive = true) const {
+  NodeType* next_sibling(const Ch* name = 0, usize name_size = 0,
+                             bool CaseInsensitive = true) const {
     assert(this->m_parent); // Cannot query for siblings if node has no parent
     if (name) {
       if (name_size == 0)
         name_size = internal::measure(name);
-      for (XMLNode<Ch>* sibling = m_next_sibling; sibling; sibling = sibling->m_next_sibling)
-        if (internal::compare(sibling->name(), sibling->name_size(), name, name_size,
-                              case_sensitive))
+      for (NodeType* sibling = m_next_sibling; sibling; sibling = sibling->m_next_sibling) {
+        if (internal::compare(sibling->name(), StrRefT(name, name_size),
+                              CaseInsensitive))
           return sibling;
-      return 0;
+      }
+      return nullptr;
     } else
       return m_next_sibling;
   }
@@ -903,21 +980,22 @@ public:
   //! \param name Name of attribute to find, or 0 to return first attribute
   //! regardless of its name; this string doesn't have to be zero-terminated if
   //! name_size is non-zero \param name_size Size of name, in characters, or 0
-  //! to have size calculated automatically from string \param case_sensitive
+  //! to have size calculated automatically from string \param CaseInsensitive
   //! Should name comparison be case-sensitive; non case-sensitive comparison
   //! works properly only for ASCII characters \return Pointer to found
   //! attribute, or 0 if not found.
   XMLAttribute<Ch>* first_attribute(const Ch* name = 0, usize name_size = 0,
-                                     bool case_sensitive = true) const {
+                                     bool CaseInsensitive = true) const {
     if (name) {
       if (name_size == 0)
         name_size = internal::measure(name);
       for (XMLAttribute<Ch>* attribute = m_first_attribute; attribute;
-           attribute = attribute->m_next_attribute)
-        if (internal::compare(attribute->name(), attribute->name_size(), name, name_size,
-                              case_sensitive))
+           attribute = attribute->m_next_attribute) {
+        if (internal::compare(attribute->name(), StrRefT(name, name_size),
+                              CaseInsensitive))
           return attribute;
-      return 0;
+      }
+      return nullptr;
     } else
       return m_first_attribute;
   }
@@ -926,21 +1004,22 @@ public:
   //! \param name Name of attribute to find, or 0 to return last attribute
   //! regardless of its name; this string doesn't have to be zero-terminated if
   //! name_size is non-zero \param name_size Size of name, in characters, or 0
-  //! to have size calculated automatically from string \param case_sensitive
+  //! to have size calculated automatically from string \param CaseInsensitive
   //! Should name comparison be case-sensitive; non case-sensitive comparison
   //! works properly only for ASCII characters \return Pointer to found
   //! attribute, or 0 if not found.
   XMLAttribute<Ch>* last_attribute(const Ch* name = 0, usize name_size = 0,
-                                    bool case_sensitive = true) const {
+                                    bool CaseInsensitive = true) const {
     if (name) {
       if (name_size == 0)
         name_size = internal::measure(name);
       for (XMLAttribute<Ch>* attribute = m_last_attribute; attribute;
-           attribute = attribute->m_prev_attribute)
-        if (internal::compare(attribute->name(), attribute->name_size(), name, name_size,
-                              case_sensitive))
+           attribute = attribute->m_prev_attribute) {
+        if (internal::compare(attribute->name(), StrRefT(name, name_size),
+                              CaseInsensitive))
           return attribute;
-      return 0;
+      }
+      return nullptr;
     } else
       return m_first_attribute ? m_last_attribute : 0;
   }
@@ -1028,7 +1107,7 @@ public:
   //! Use first_node() to test if node has children.
   void remove_last_node() {
     assert(first_node());
-    XMLNode<Ch>* child = m_last_node;
+    NodeType* child = m_last_node;
     if (child->m_prev_sibling) {
       m_last_node = child->m_prev_sibling;
       child->m_prev_sibling->m_next_sibling = 0;
@@ -1039,7 +1118,7 @@ public:
 
   //! Removes specified child from the node
   // \param where Pointer to child to be removed.
-  void remove_node(XMLNode<Ch>* where) {
+  void remove_node(NodeType* where) {
     assert(where && where->parent() == this);
     assert(first_node());
     if (where == m_first_node)
@@ -1055,14 +1134,14 @@ public:
 
   //! Removes all child nodes (but not attributes).
   void remove_all_nodes() {
-    for (XMLNode<Ch>* node = first_node(); node; node = node->m_next_sibling)
+    for (NodeType* node = first_node(); node; node = node->m_next_sibling)
       node->m_parent = 0;
     m_first_node = 0;
   }
 
   //! Prepends a new attribute to the node.
   //! \param attribute Attribute to prepend.
-  void prepend_attribute(XMLAttribute<Ch>* attribute) {
+  void prepend_attribute(AttrType* attribute) {
     assert(attribute && !attribute->parent());
     if (first_attribute()) {
       attribute->m_next_attribute = m_first_attribute;
@@ -1078,7 +1157,7 @@ public:
 
   //! Appends a new attribute to the node.
   //! \param attribute Attribute to append.
-  void append_attribute(XMLAttribute<Ch>* attribute) {
+  void append_attribute(AttrType* attribute) {
     assert(attribute && !attribute->parent());
     if (first_attribute()) {
       attribute->m_prev_attribute = m_last_attribute;
@@ -1096,7 +1175,7 @@ public:
   //! All attributes after and including the specified attribute are moved one
   //! position back. \param where Place where to insert the attribute, or 0 to
   //! insert at the back. \param attribute Attribute to insert.
-  void insert_attribute(XMLAttribute<Ch>* where, XMLAttribute<Ch>* attribute) {
+  void insert_attribute(AttrType* where, AttrType* attribute) {
     assert(!where || where->parent() == this);
     assert(attribute && !attribute->parent());
     if (where == m_first_attribute)
@@ -1117,7 +1196,7 @@ public:
   //! Use first_attribute() to test if node has attributes.
   void remove_first_attribute() {
     assert(first_attribute());
-    XMLAttribute<Ch>* attribute = m_first_attribute;
+    AttrType* attribute = m_first_attribute;
     if (attribute->m_next_attribute) {
       attribute->m_next_attribute->m_prev_attribute = 0;
     } else
@@ -1131,7 +1210,7 @@ public:
   //! Use first_attribute() to test if node has attributes.
   void remove_last_attribute() {
     assert(first_attribute());
-    XMLAttribute<Ch>* attribute = m_last_attribute;
+    AttrType* attribute = m_last_attribute;
     if (attribute->m_prev_attribute) {
       attribute->m_prev_attribute->m_next_attribute = 0;
       m_last_attribute = attribute->m_prev_attribute;
@@ -1142,7 +1221,7 @@ public:
 
   //! Removes specified attribute from node.
   //! \param where Pointer to attribute to be removed.
-  void remove_attribute(XMLAttribute<Ch>* where) {
+  void remove_attribute(AttrType* where) {
     assert(first_attribute() && where->parent() == this);
     if (where == m_first_attribute)
       remove_first_attribute();
@@ -1157,7 +1236,7 @@ public:
 
   //! Removes all attributes of node.
   void remove_all_attributes() {
-    for (XMLAttribute<Ch>* attribute = first_attribute(); attribute;
+    for (AttrType* attribute = first_attribute(); attribute;
          attribute = attribute->m_next_attribute)
       attribute->m_parent = 0;
     m_first_attribute = 0;
@@ -1210,14 +1289,16 @@ private:
 //! functions of XMLDocument, which are inherited from MemoryPool. To access
 //! root node of the document, use the document itself, as if it was an
 //! XMLNode. \param Ch Character type to use.
-template <class Ch = char> class alignas(RAPIDXML_ALIGNMENT) XMLDocument
-                        : public XMLNode<Ch>, public MemoryPool<Ch> {
+template <class Ch = char>
+class alignas(kAlignVal) XMLDocument
+                : public XMLNode<Ch>, public MemoryPool<Ch> {
+  RAPIDXML_ALIASES(Ch)
 public:
   //! Constructs empty XML document
-  XMLDocument() : XMLNode<Ch>(node_document), MemoryPool<Ch>() {}
+  XMLDocument() : NodeType(node_document), MemoryPool<Ch>() {}
   //! Constructs pool from input allocator.
-  explicit XMLDocument(MemoryPoolBumpAllocator& A EXI_LIFETIMEBOUND) :
-   XMLNode<Ch>(node_document), MemoryPool<Ch>(A) {
+  explicit XMLDocument(XMLBumpAllocator& A EXI_LIFETIMEBOUND) :
+   NodeType(node_document), MemoryPool<Ch>(A) {
   }
 
   //! Parses zero-terminated XML string according to given flags.
@@ -1251,7 +1332,7 @@ public:
       // Parse and append new child
       if (*Text == Ch('<')) {
         ++Text; // Skip '<'
-        if (XMLNode<Ch>* node = parse_node<Flags>(Text))
+        if (NodeType* node = parse_node<Flags>(Text))
           this->append_node(node);
       } else
         RAPIDXML_PARSE_ERROR("expected <", Text);
@@ -1540,7 +1621,7 @@ private:
   }
 
   // Parse XML declaration (<?xml...)
-  template <int Flags> XMLNode<Ch>* parse_xml_declaration(Ch*& Text) {
+  template <int Flags> NodeType* parse_xml_declaration(Ch*& Text) {
     // If parsing of declaration is disabled
     if (!(Flags & parse_declaration_node)) {
       // Skip until end of declaration
@@ -1554,7 +1635,7 @@ private:
     }
 
     // Create declaration
-    auto* Decl = this->allocate_node(node_declaration);
+    NodeType* Decl = this->allocate_node(node_declaration);
 
     // Skip whitespace before attributes or ?>
     skip<whitespace_pred, Flags>(Text);
@@ -1571,7 +1652,7 @@ private:
   }
 
   // Parse XML comment (<!--...)
-  template <int Flags> XMLNode<Ch>* parse_comment(Ch*& Text) {
+  template <int Flags> NodeType* parse_comment(Ch*& Text) {
     // If parsing of comments is disabled
     if (!(Flags & parse_comment_nodes)) {
       // Skip until end of comment
@@ -1595,7 +1676,7 @@ private:
     }
 
     // Create comment node
-    XMLNode<Ch>* comment = this->allocate_node(node_comment);
+    NodeType* comment = this->allocate_node(node_comment);
     comment->value(value, Text - value);
 
     // Place zero terminator after comment value
@@ -1607,7 +1688,7 @@ private:
   }
 
   // Parse DOCTYPE
-  template <int Flags> XMLNode<Ch>* parse_doctype(Ch*& Text) {
+  template <int Flags> NodeType* parse_doctype(Ch*& Text) {
     // Remember value start
     Ch* value = Text;
 
@@ -1643,7 +1724,7 @@ private:
     // If DOCTYPE nodes enabled
     if (Flags & parse_doctype_node) {
       // Create a new doctype node
-      XMLNode<Ch>* doctype = this->allocate_node(node_doctype);
+      NodeType* doctype = this->allocate_node(node_doctype);
       doctype->value(value, Text - value);
 
       // Place zero terminator after value
@@ -1659,11 +1740,11 @@ private:
   }
 
   // Parse PI
-  template <int Flags> XMLNode<Ch>* parse_pi(Ch*& Text) {
+  template <int Flags> NodeType* parse_pi(Ch*& Text) {
     // If creation of PI nodes is enabled
     if (Flags & parse_pi_nodes) {
       // Create pi node
-      XMLNode<Ch>* pi = this->allocate_node(node_pi);
+      NodeType* pi = this->allocate_node(node_pi);
 
       // Extract PI target name
       Ch* name = Text;
@@ -1691,8 +1772,8 @@ private:
 
       // Place zero terminator after name and value
       if (!(Flags & parse_no_string_terminators)) {
-        pi->name()[pi->name_size()] = Ch('\0');
-        pi->value()[pi->value_size()] = Ch('\0');
+        pi->name_data()[pi->name_size()] = Ch('\0');
+        pi->value_data()[pi->value_size()] = Ch('\0');
       }
 
       Text += 2; // Skip '?>'
@@ -1714,7 +1795,7 @@ private:
   // This is necessary because this character might have been overwritten by a
   // terminating 0
   template <int Flags>
-  Ch parse_and_append_data(XMLNode<Ch>* node, Ch*& Text, Ch* contents_start) {
+  Ch parse_and_append_data(NodeType* node, Ch*& Text, Ch* contents_start) {
     // Backup to contents start if whitespace trimming is disabled
     if (!(Flags & parse_trim_whitespace))
       Text = contents_start;
@@ -1744,14 +1825,14 @@ private:
     // If characters are still left between end and value (this test is only
     // necessary if normalization is enabled) Create new data node
     if (!(Flags & parse_no_data_nodes)) {
-      XMLNode<Ch>* data = this->allocate_node(node_data);
+      NodeType* data = this->allocate_node(node_data);
       data->value(value, end - value);
       node->append_node(data);
     }
 
     // Add data to parent node if no data exists yet
     if (!(Flags & parse_no_element_values))
-      if (*node->value() == Ch('\0'))
+      if (*node->value_data() == Ch('\0'))
         node->value(value, end - value);
 
     // Place zero terminator after value
@@ -1767,7 +1848,7 @@ private:
   }
 
   // Parse CDATA
-  template <int Flags> XMLNode<Ch>* parse_cdata(Ch*& Text) {
+  template <int Flags> NodeType* parse_cdata(Ch*& Text) {
     // If CDATA is disabled
     if (Flags & parse_no_data_nodes) {
       // Skip until end of cdata
@@ -1789,7 +1870,7 @@ private:
     }
 
     // Create new cdata node
-    XMLNode<Ch>* cdata = this->allocate_node(node_cdata);
+    NodeType* cdata = this->allocate_node(node_cdata);
     cdata->value(value, Text - value);
 
     // Place zero terminator after value
@@ -1801,9 +1882,9 @@ private:
   }
 
   // Parse element node
-  template <int Flags> XMLNode<Ch>* parse_element(Ch*& Text) {
+  template <int Flags> NodeType* parse_element(Ch*& Text) {
     // Create element node
-    XMLNode<Ch>* element = this->allocate_node(node_element);
+    NodeType* element = this->allocate_node(node_element);
 
     // Extract element name
     Ch* name = Text;
@@ -1832,14 +1913,14 @@ private:
 
     // Place zero terminator after name
     if (!(Flags & parse_no_string_terminators))
-      element->name()[element->name_size()] = Ch('\0');
+      element->name_data()[element->name_size()] = Ch('\0');
 
     // Return parsed element
     return element;
   }
 
   // Determine node type, and parse it
-  template <int Flags> XMLNode<Ch>* parse_node(Ch*& Text) {
+  template <int Flags> NodeType* parse_node(Ch*& Text) {
     // Parse proper node type
     switch (Text[0]) {
 
@@ -1911,7 +1992,7 @@ private:
   }
 
   // Parse contents of the node - children, data etc.
-  template <int Flags> void parse_node_contents(Ch*& Text, XMLNode<Ch>* node) {
+  template <int Flags> void parse_node_contents(Ch*& Text, NodeType* node) {
     // For all children and Text
     while (1) {
       // Skip whitespace between > and node contents
@@ -1937,8 +2018,8 @@ private:
             // Skip and validate closing tag name
             Ch* closing_name = Text;
             skip<node_name_pred, Flags>(Text);
-            if (!internal::compare(node->name(), node->name_size(), closing_name,
-                                   Text - closing_name, true))
+            if (!internal::compare(node->name(),
+                StrRefT(closing_name, Text - closing_name), true))
               RAPIDXML_PARSE_ERROR("invalid closing tag name", Text);
           } else {
             // No validation, just skip name
@@ -1953,7 +2034,7 @@ private:
         } else {
           // Child node
           ++Text; // Skip '<'
-          if (XMLNode<Ch>* child = parse_node<Flags>(Text))
+          if (NodeType* child = parse_node<Flags>(Text))
             node->append_node(child);
         }
         break;
@@ -1970,7 +2051,7 @@ private:
   }
 
   // Parse XML attributes of the node
-  template <int Flags> void parse_node_attributes(Ch*& Text, XMLNode<Ch>* node) {
+  template <int Flags> void parse_node_attributes(Ch*& Text, NodeType* node) {
     // For all attributes
     while (attribute_name_pred::test(*Text)) {
       // Extract attribute name
@@ -1995,7 +2076,7 @@ private:
 
       // Add terminating zero after name
       if (!(Flags & parse_no_string_terminators))
-        attribute->name()[attribute->name_size()] = 0;
+        attribute->name_data()[attribute->name_size()] = 0;
 
       // Skip whitespace after =
       skip<whitespace_pred, Flags>(Text);
@@ -2027,7 +2108,7 @@ private:
 
       // Add terminating zero after value
       if (!(Flags & parse_no_string_terminators))
-        attribute->value()[attribute->value_size()] = 0;
+        attribute->value_data()[attribute->value_size()] = 0;
 
       // Skip whitespace after attribute value
       skip<whitespace_pred, Flags>(Text);

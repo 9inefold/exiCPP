@@ -74,7 +74,7 @@ public:
 char XMLErrorInfo::ID = 0;
 } // namespace `anonymous`
 
-static Box<XMLDocument> CreateXMLDoc(xml::MemoryPoolBumpAllocator* Alloc) {
+static Box<XMLDocument> CreateXMLDoc(xml::XMLBumpAllocator* Alloc) {
   if (Alloc == nullptr)
     return std::make_unique<XMLDocument>();
   else
@@ -83,7 +83,7 @@ static Box<XMLDocument> CreateXMLDoc(xml::MemoryPoolBumpAllocator* Alloc) {
 
 static Expected<Box<XMLDocument>>
  ParseXMLFromMemoryBuffer(WritableMemoryBuffer& MB,
-                          xml::MemoryPoolBumpAllocator* Alloc = nullptr) {
+                          xml::XMLBumpAllocator* Alloc = nullptr) {
   ScopedSave S(xml::use_exceptions_anyway, true);
   outs() << "Reading file \'" << MB.getBufferIdentifier() << "\'\n";
   try {
@@ -124,8 +124,6 @@ int main(int Argc, char* Argv[]) {
     ParseXMLFromMemoryBuffer(*MB));
   outs() << raw_ostream::BRIGHT_GREEN
     << "Read success!\n" << raw_ostream::RESET;
-  
-  
 
   // tests_main(Argc, Argv);
 }
