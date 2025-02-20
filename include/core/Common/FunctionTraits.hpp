@@ -33,30 +33,37 @@ namespace H {
 
 /// Handles removing `noexcept` from function types.
 template <typename T>
-struct RemoveNoexcept { using type = T; };
+struct RemoveNoexcept : std::false_type { using type = T; };
+/// Overload for const types.
+/// Handles removing `noexcept` from function types.
+template <typename T>
+struct RemoveNoexcept<const T> : RemoveNoexcept<T> {
+  using type = std::add_const_t<typename RemoveNoexcept<T>::type>;
+};
 /// Overload for raw non-class function types.
 template <typename ReturnT, typename...Args>
-struct RemoveNoexcept<ReturnT(Args...) noexcept> {
+struct RemoveNoexcept<ReturnT(Args...) noexcept> : std::true_type {
   using type = ReturnT(Args...);
 };
 /// Overload for non-class function type pointers.
 template <typename ReturnT, typename...Args>
-struct RemoveNoexcept<ReturnT(*)(Args...) noexcept> {
+struct RemoveNoexcept<ReturnT(*)(Args...) noexcept> : std::true_type {
   using type = ReturnT(*)(Args...);
 };
 /// Overload for non-class function type references.
 template <typename ReturnT, typename...Args>
-struct RemoveNoexcept<ReturnT(&)(Args...) noexcept> {
+struct RemoveNoexcept<ReturnT(&)(Args...) noexcept> : std::true_type {
   using type = ReturnT(*)(Args...);
 };
 /// Overload for class function types.
 template <typename ReturnT, class ClassT, typename...Args>
-struct RemoveNoexcept<ReturnT(ClassT::*)(Args...) noexcept> {
+struct RemoveNoexcept<ReturnT(ClassT::*)(Args...) noexcept> : std::true_type {
   using type = ReturnT(ClassT::*)(Args...);
 };
 /// Overload for const noexcept class function types.
 template <typename ReturnT, typename ClassT, typename...Args>
-struct RemoveNoexcept<ReturnT(ClassT::*)(Args...) const noexcept> {
+struct RemoveNoexcept<ReturnT(ClassT::*)(Args...) const noexcept>
+                    : std::true_type {
   using type = ReturnT(ClassT::*)(Args...) const;
 };
 
@@ -83,7 +90,11 @@ struct IsMethodPtr<ReturnT(ClassT::*)(Args...)> : std::true_type {};
 
 /// Removes the `noexcept` qualifier from function types.
 template <typename FuncT>
-using remove_noexcept_t = H::RemoveNoexcept<FuncT>;
+using remove_noexcept_t = typename H::RemoveNoexcept<FuncT>::type;
+
+/// If a type is `noexcept` qualified.
+template <typename FuncT>
+concept has_noexcept_v = H::RemoveNoexcept<FuncT>::value;
 
 /// Checks if type is a free function.
 template <typename FuncT>
@@ -112,6 +123,8 @@ struct FunctionTraits : public FunctionTraits<decltype(&T::operator())> {};
 /// Overload for class function types.
 template <typename ReturnT, class ClassT, typename...Args>
 struct FunctionTraits<ReturnT(ClassT::*)(Args...) const, false> {
+  using type = ReturnT(ClassT::*)(Args...) const;
+
   /// The number of arguments to this function.
   static constexpr usize num_args = sizeof...(Args);
 
@@ -125,11 +138,15 @@ struct FunctionTraits<ReturnT(ClassT::*)(Args...) const, false> {
 /// Overload for class function types.
 template <typename ReturnT, class ClassT, typename...Args>
 struct FunctionTraits<ReturnT(ClassT::*)(Args...), false>
-    : public FunctionTraits<ReturnT(ClassT::*)(Args...) const> {};
+    : public FunctionTraits<ReturnT(ClassT::*)(Args...) const> {
+  using type = ReturnT(ClassT::*)(Args...);
+};
 
 /// Overload for non-class function types.
 template <typename ReturnT, typename...Args>
 struct FunctionTraits<ReturnT(*)(Args...), false> {
+  using type = ReturnT(Args...);
+
   /// The number of arguments to this function.
   static constexpr usize num_args = sizeof...(Args);
 
@@ -213,7 +230,7 @@ struct ICallbackTraits<CallbackT, true> {
   using UType = std::remove_pointer_t<CallbackT>;
   using value_type = UType*;
 
-  static uptr GetStorage(UType* callable) {
+  static uptr ToStorage(UType* callable) {
     return reinterpret_cast<uptr>(callable);
   }
   static UType& FromStorage(uptr storage) {
