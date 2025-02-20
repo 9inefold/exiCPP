@@ -87,7 +87,12 @@
 #endif
 
 #if defined(__cplusplus) && defined(__has_cpp_attribute)
-# define EXI_HAS_CPPATTR(x) __has_cpp_attribute(x)
+# ifdef __INTELLISENSE__
+/// Always true because intellisense messes up here lol
+#  define EXI_HAS_CPPATTR(x) 1
+# else
+#  define EXI_HAS_CPPATTR(x) __has_cpp_attribute(x)
+# endif
 #else
 # define EXI_HAS_CPPATTR(x) 0
 #endif
@@ -355,6 +360,8 @@
 # define EXI_HAS_MUSTTAIL 0
 # define EXI_MUSTTAIL 
 #endif
+/// Forces and verifies tail calls (even in debug) if supported.
+#define tail_return EXI_MUSTTAIL return
 
 #if EXI_HAS_CPPATTR(clang::always_inline)
 # define EXI_HAS_INLINE_STMT 1
@@ -363,14 +370,10 @@
 # define EXI_HAS_INLINE_STMT 0
 # define EXI_INLINE_STMT
 #endif
-
 /// Forces inlining for a statement.
 /// Eg.
 ///    `INLINE_STMT Val = Call(...);`
 #define INLINE_STMT EXI_INLINE_STMT
-
-/// Forces and verifies tail calls (even in debug) if supported.
-#define tail_return EXI_MUSTTAIL return
 
 //////////////////////////////////////////////////////////////////////////
 // Builtins
