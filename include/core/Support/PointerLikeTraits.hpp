@@ -32,6 +32,7 @@
 
 #pragma once
 
+#include <Common/ConstexprLists.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <cassert>
 #include <type_traits>
@@ -44,10 +45,9 @@ template <typename T> struct PointerLikeTypeTraits;
 
 namespace H {
 /// A tiny meta function to compute the log2 of a compile time constant.
-template <size_t N>
-struct ConstantLog2
-    : std::integral_constant<size_t, ConstantLog2<N / 2>::value + 1> {};
-template <> struct ConstantLog2<1> : std::integral_constant<size_t, 0> {};
+template <usize N>
+struct ConstantLog2 : idx_c<ConstantLog2<N / 2>::value + 1> {};
+template <> struct ConstantLog2<1> : idx_c<0> {};
 
 // Provide a trait to check if T is pointer-like.
 template <typename T, typename U = void> struct HasPointerLikeTypeTraits {
@@ -70,6 +70,23 @@ template <typename T> struct IsPointerLike<T *> {
 };
 
 } // namespace H
+
+/// This concept checks if `PointerLikeTypeTraits` has been specialized for `T`.
+template <typename T>
+concept has_pointerlike_type_traits = H::HasPointerLikeTypeTraits<T>::value;
+
+/// This concept checks if `T` is a pointer OR has traits.
+template <typename T>
+concept is_pointerlike = H::IsPointerLike<T>::value;
+
+/// This concept checks if `T` is a pointer OR has traits, but is not a `uptr.
+/// This is useful knowledge when you are accepting arbitrary objects, but don't
+/// want to randomly convert integers to `void*`.
+template <typename T>
+concept is_pointerlike_and_not_uptr
+  = !std::same_as<std::remove_const_t<T>, uptr> && is_pointerlike<T>;
+
+//////////////////////////////////////////////////////////////////////////
 
 // Provide PointerLikeTypeTraits for non-cvr pointers.
 template <typename T> struct PointerLikeTypeTraits<T *> {
