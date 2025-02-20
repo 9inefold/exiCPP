@@ -418,7 +418,7 @@
 /// This is an extension explicitly supported by Clang.
 #  define EXI_FOLD_CXPR(...)                                                  \
   (EXI_CONSTANT_P(__VA_ARGS__) ? (__VA_ARGS__) : (__VA_ARGS__))
-/// "Illegal" constant folds supported.
+/// "Illegal" constant folds supported (clang only?).
 #  define illegal_constexpr constexpr
 #endif // __clang__
 #else
