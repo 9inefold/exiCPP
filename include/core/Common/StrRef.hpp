@@ -116,10 +116,27 @@ public:
                               : 0) {
   }
 
+#if defined(__cpp_char8_t)
+  /// Construct a string ref from a utf8*.
+  ALWAYS_INLINE /*implicit*/ illegal_constexpr
+    StrRef(const char8_t* Str EXI_LIFETIMEBOUND) :
+   StrRef(FOLD_CXPR(reinterpret_cast<const char*>(Str))) {
+  }
+#endif
+
   /// Construct a string ref from a pointer and length.
   /*implicit*/ constexpr StrRef(const char *data EXI_LIFETIMEBOUND,
-                                   usize length)
+                                      usize length)
       : Data(data), Length(length) {}
+
+#if defined(__cpp_char8_t)
+  /// Construct a string ref from a utf8* and length.
+  ALWAYS_INLINE /*implicit*/ illegal_constexpr StrRef(
+    const char8_t* data EXI_LIFETIMEBOUND,
+             usize length) :
+   StrRef(FOLD_CXPR(reinterpret_cast<const char*>(data)), length) {
+  }
+#endif
 
   /// Construct a string ref from a String.
   /*implicit*/ StrRef(const String &Str)
@@ -128,6 +145,14 @@ public:
   /// Construct a string ref from an std::string_view.
   /*implicit*/ constexpr StrRef(std::string_view Str)
       : Data(Str.data()), Length(Str.size()) {}
+  
+#if defined(__cpp_char8_t)
+  /// Construct a string ref from an std::string_view.
+  ALWAYS_INLINE /*implicit*/ illegal_constexpr StrRef(std::u8string_view Str) : 
+   Data(FOLD_CXPR(reinterpret_cast<const char*>(Str.data()))),
+   Length(Str.size()) {
+  }
+#endif
 
   /// @}
   /// @name Iterators
