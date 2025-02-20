@@ -18,12 +18,12 @@
 
 #undef RAPIDXML_NO_EXCEPTIONS
 #include <Common/SmallStr.hpp>
+#include <Common/PointerIntPair.hpp>
 #include <Support/Filesystem.hpp>
 #include <Support/Logging.hpp>
 #include <Support/MemoryBuffer.hpp>
 #include <Support/MemoryBufferRef.hpp>
 #include <Support/Process.hpp>
-#include <Support/Signals.hpp>
 #include <Support/ScopedSave.hpp>
 #include <Support/raw_ostream.hpp>
 #include <rapidxml.hpp>
@@ -36,7 +36,15 @@ using XMLDocument  = xml::XMLDocument<Char>;
 using XMLAttribute = xml::XMLAttribute<Char>;
 using XMLBase      = xml::XMLBase<Char>;
 using XMLNode      = xml::XMLNode<Char>;
-using XMLType      = xml::NodeKind;
+using xml::NodeKind;
+
+enum NodeDataKind {
+  NDK_None    = 0b000,
+  NDK_Nest    = 0b001,
+  NDK_Unnest  = 0b010,
+};
+
+using EmbeddedNode = PointerIntPair<XMLNode*, 3, NodeDataKind>;
 
 namespace {
 class XMLErrorInfo : public ErrorInfo<XMLErrorInfo> {
@@ -66,14 +74,22 @@ public:
 char XMLErrorInfo::ID = 0;
 } // namespace `anonymous`
 
+static Box<XMLDocument> CreateXMLDoc(xml::MemoryPoolBumpAllocator* Alloc) {
+  if (Alloc == nullptr)
+    return std::make_unique<XMLDocument>();
+  else
+    return std::make_unique<XMLDocument>(*Alloc);
+}
+
 static Expected<Box<XMLDocument>>
- ParseXMLFromMemoryBuffer(WritableMemoryBuffer& MB) {
+ ParseXMLFromMemoryBuffer(WritableMemoryBuffer& MB,
+                          xml::MemoryPoolBumpAllocator* Alloc = nullptr) {
   ScopedSave S(xml::use_exceptions_anyway, true);
   outs() << "Reading file \'" << MB.getBufferIdentifier() << "\'\n";
   try {
     static constexpr int ParseRules
       = xml::parse_declaration_node | xml::parse_all;
-    auto Doc = std::make_unique<XMLDocument>();
+    auto Doc = CreateXMLDoc(Alloc);
     exi_assert(Doc.get() != nullptr);
     Doc->parse<ParseRules>(MB.getBufferStart());
     return std::move(Doc);
@@ -91,20 +107,8 @@ static Expected<Box<XMLDocument>>
   }
 }
 
-static void SignalHandler(std::atomic<int>* I) {
-  const int Val = I->exchange(1, std::memory_order_relaxed);
-  outs().flush();
-  errs() << "Old val: " << Val << '\n';
-}
-
-static void SignalHandlerRef(std::atomic<int>& I) { SignalHandler(&I); }
-
 int tests_main(int Argc, char* Argv[]);
 int main(int Argc, char* Argv[]) {
-  static std::atomic<int> Atomic(0);
-  sys::WrapSignalHandler<&SignalHandler>(&Atomic);
-  sys::RunSignalHandlers();
-
   exi::DebugFlag = LogLevel::WARN;
   outs().enable_colors(true);
   dbgs().enable_colors(true);
@@ -114,11 +118,14 @@ int main(int Argc, char* Argv[]) {
   sys::fs::make_absolute(Path);
 
   Box<WritableMemoryBuffer> MB = ExitOnErr(
-    errorOrToExpected(WritableMemoryBuffer::getFile(Path)));
+    errorOrToExpected(WritableMemoryBuffer::getFileEx(
+      Path, true, false, /*UTF32*/ Align::Constant<4>())));
   Box<XMLDocument> Doc = ExitOnErr(
     ParseXMLFromMemoryBuffer(*MB));
   outs() << raw_ostream::BRIGHT_GREEN
     << "Read success!\n" << raw_ostream::RESET;
+  
+  
 
   // tests_main(Argc, Argv);
 }

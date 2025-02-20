@@ -17,6 +17,8 @@
 
 #include <Common/Fundamental.hpp>
 #include <Common/Option.hpp>
+#include <Common/StrRef.hpp>
+#include <Common/PointerIntPair.hpp>
 #include <Support/Allocator.hpp>
 #include <Support/Alignment.hpp>
 #include <Support/ErrorHandle.hpp>
@@ -386,16 +388,22 @@ using MemoryPoolBumpAllocator
 //! \param Ch Character type of created nodes.
 template <class Ch = char> class MemoryPool {
   using TraitsT = std::char_traits<Ch>;
-  MemoryPoolBumpAllocator Alloc;
-
+  // TODO: Make this less sucky
+  exi::PointerIntPair<MemoryPoolBumpAllocator*, 1, bool> AllocBase;
 public:
   //! Constructs empty pool.
-  MemoryPool() = default;
+  MemoryPool() : AllocBase(new MemoryPoolBumpAllocator, true) {}
+  //! Constructs pool from input allocator.
+  explicit MemoryPool(MemoryPoolBumpAllocator& A) : AllocBase(&A, false) { }
 
   //! Destroys pool and frees all the memory.
   //! This causes memory occupied by nodes allocated by the pool to be freed.
   //! Nodes allocated from the pool are no longer valid.
-  ~MemoryPool() { clear(); }
+  ~MemoryPool() {
+    this->clear();
+    if (AllocBase.getInt())
+      delete AllocBase.getPointer();
+  }
 
   //! Allocates a new node from the pool, and optionally assigns name and value
   //! to it. If the allocation request cannot be accomodated, this function will
@@ -410,7 +418,7 @@ public:
   //! allocated node. This pointer will never be NULL.
   XMLNode<Ch>* allocate_node(NodeKind Kind, const Ch* Name = 0, const Ch* Value = 0,
                               usize NameLen = 0, usize ValueLen = 0) {
-    auto* Node = new (Alloc) XMLNode<Ch>(Kind);
+    auto* Node = new (Alloc()) XMLNode<Ch>(Kind);
     if (Name) {
       if (NameLen > 0)
         Node->name(Name, NameLen);
@@ -440,7 +448,7 @@ public:
   EXI_RETURNS_NONNULL XMLAttribute<Ch>*
                      allocate_attribute(const Ch* Name = 0, const Ch* Value = 0,
                                         usize NameLen = 0,  usize ValueLen = 0) {
-    auto* Attr = new (Alloc) XMLAttribute<Ch>();
+    auto* Attr = new (Alloc()) XMLAttribute<Ch>();
     if (Name) {
       if (NameLen > 0)
         Attr->name(Name, NameLen);
@@ -470,7 +478,7 @@ public:
     assert(Src || Size); // Either source or size (or both) must be specified
     if (Size == 0)
       Size = internal::measure(Src) + 1;
-    Ch* Out = AllocString(Alloc, Size);
+    Ch* Out = AllocString(Alloc(), Size);
     if (Src)
       TraitsT::copy(Out, Src, Size);
     return Out;
@@ -513,7 +521,9 @@ public:
   //! Clears the pool.
   //! This causes memory occupied by nodes allocated by the pool to be freed.
   //! Any nodes or strings allocated from the pool will no longer be valid.
-  void clear() { Alloc.Reset(); }
+  void clear() {
+    Alloc().Reset();
+  }
 
 private:
   static char* align(char* Ptr) {
@@ -521,13 +531,19 @@ private:
     return reinterpret_cast<char*>(Raw);
   }
 
+  MemoryPoolBumpAllocator& Alloc() {
+    auto* const AllocPtr = AllocBase.getPointer();
+    exi_invariant(AllocPtr != nullptr);
+    return *AllocPtr;
+  }
+
   char* allocRaw(usize Size) {
-    void* Mem = Alloc.Allocate(Size, 1);
+    void* Mem = Alloc().Allocate(Size, 1);
     return static_cast<char*>(Mem);
   }
 
   void* allocAligned(usize Size) {
-    return Alloc.Allocate(Size, kAlign);
+    return Alloc().Allocate(Size, kAlign);
   }
 
   static Ch* AllocString(MemoryPoolBumpAllocator& Alloc, usize Size) {
@@ -543,7 +559,8 @@ private:
 //! Base class for XMLNode and XMLAttribute implementing common functions:
 //! name(), name_size(), value(), value_size() and parent().
 //! \param Ch Character type to use
-template <class Ch = char> class XMLBase {
+template <class Ch = char>
+class alignas(RAPIDXML_ALIGNMENT) XMLBase {
 public:
   ///////////////////////////////////////////////////////////////////////////
   // Construction & destruction
@@ -596,18 +613,19 @@ public:
   //! automatically freed. <br><br> Size of name must be specified separately,
   //! because name does not have to be zero terminated. Use name(const Ch *)
   //! function to have the length automatically calculated (string must be zero
-  //! terminated). \param name Name of node to set. Does not have to be zero
-  //! terminated. \param size Size of name, in characters. This does not include
-  //! zero terminator, if one is present.
-  void name(const Ch* name, usize size) {
-    m_name = const_cast<Ch*>(name);
-    m_name_size = size;
+  //! terminated).
+  //! \param Name Name of node to set. Does not have to be zero terminated. 
+  //! \param Size Size of name, in characters. This does not include zero
+  //! terminator, if one is present.
+  void name(const Ch* Name, usize Size) {
+    m_name = const_cast<Ch*>(Name);
+    m_name_size = Size;
   }
 
   //! Sets name of node to a zero-terminated string.
-  //! See also \ref ownership_of_strings and XMLNode::name(const Ch *,
-  //! usize). \param name Name of node to set. Must be zero terminated.
-  void name(const Ch* name) { this->name(name, internal::measure(name)); }
+  //! See also \ref ownership_of_strings and XMLNode::name(const Ch*, usize).
+  //! \param Name Name of node to set. Must be zero terminated.
+  void name(const Ch* Name) { this->name(Name, internal::measure(Name)); }
 
   //! Sets value of node to a non zero-terminated string.
   //! See \ref ownership_of_strings.
@@ -664,7 +682,8 @@ protected:
 //! parse, both name and value of attribute will point to interior of source
 //! Text used for parsing. Thus, this Text must persist in memory for the
 //! lifetime of attribute. \param Ch Character type to use.
-template <class Ch = char> class XMLAttribute : public XMLBase<Ch> {
+template <class Ch = char>
+class alignas(RAPIDXML_ALIGNMENT) XMLAttribute : public XMLBase<Ch> {
   friend class XMLNode<Ch>;
 public:
   ///////////////////////////////////////////////////////////////////////////
@@ -754,7 +773,8 @@ private:
 //! any, will point interior of source Text used for parsing. Thus, this Text
 //! must persist in the memory for the lifetime of node. \param Ch Character
 //! type to use.
-template <class Ch = char> class XMLNode : public XMLBase<Ch> {
+template <class Ch = char>
+class alignas(RAPIDXML_ALIGNMENT) XMLNode : public XMLBase<Ch> {
 public:
   ///////////////////////////////////////////////////////////////////////////
   // Construction & destruction
@@ -1190,11 +1210,15 @@ private:
 //! functions of XMLDocument, which are inherited from MemoryPool. To access
 //! root node of the document, use the document itself, as if it was an
 //! XMLNode. \param Ch Character type to use.
-template <class Ch = char> class XMLDocument
+template <class Ch = char> class alignas(RAPIDXML_ALIGNMENT) XMLDocument
                         : public XMLNode<Ch>, public MemoryPool<Ch> {
 public:
   //! Constructs empty XML document
-  XMLDocument() : XMLNode<Ch>(node_document) {}
+  XMLDocument() : XMLNode<Ch>(node_document), MemoryPool<Ch>() {}
+  //! Constructs pool from input allocator.
+  explicit XMLDocument(MemoryPoolBumpAllocator& A EXI_LIFETIMEBOUND) :
+   XMLNode<Ch>(node_document), MemoryPool<Ch>(A) {
+  }
 
   //! Parses zero-terminated XML string according to given flags.
   //! Passed string will be modified by the parser, unless
@@ -2015,7 +2039,7 @@ private:
 namespace internal {
 
   // Whitespace (space \n \r \t)
-  template<int Dummy>
+  template <int Dummy>
   inline constexpr u8 LookupTables<Dummy>::whitespace[256] = {
   // 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
      0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  0,  0,  1,  0,  0,  // 0
@@ -2037,7 +2061,7 @@ namespace internal {
   };
 
   // Node name (anything but space \n \r \t / > ? \0)
-  template<int Dummy>
+  template <int Dummy>
   inline constexpr u8 LookupTables<Dummy>::node_name[256] = {
   // 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
      0,  1,  1,  1,  1,  1,  1,  1,  1,  0,  0,  1,  1,  0,  1,  1,  // 0
@@ -2059,7 +2083,7 @@ namespace internal {
   };
 
   // Text (i.e. PCDATA) (anything but < \0)
-  template<int Dummy>
+  template <int Dummy>
   inline constexpr u8 LookupTables<Dummy>::Text[256] = {
   // 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
      0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  // 0
@@ -2082,7 +2106,7 @@ namespace internal {
 
   // Text (i.e. PCDATA) that does not require processing when ws normalization is disabled 
   // (anything but < \0 &)
-  template<int Dummy>
+  template <int Dummy>
   inline constexpr u8 LookupTables<Dummy>::text_pure_no_ws[256] = {
   // 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
      0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  // 0
@@ -2105,7 +2129,7 @@ namespace internal {
 
   // Text (i.e. PCDATA) that does not require processing when ws normalizationis is enabled
   // (anything but < \0 & space \n \r \t)
-  template<int Dummy>
+  template <int Dummy>
   inline constexpr u8 LookupTables<Dummy>::text_pure_with_ws[256] = {
   // 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
      0,  1,  1,  1,  1,  1,  1,  1,  1,  0,  0,  1,  1,  0,  1,  1,  // 0
@@ -2127,7 +2151,7 @@ namespace internal {
   };
 
   // Attribute name (anything but space \n \r \t / < > = ? ! \0)
-  template<int Dummy>
+  template <int Dummy>
   inline constexpr u8 LookupTables<Dummy>::attribute_name[256] = {
   // 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
      0,  1,  1,  1,  1,  1,  1,  1,  1,  0,  0,  1,  1,  0,  1,  1,  // 0
@@ -2149,7 +2173,7 @@ namespace internal {
   };
 
   // Attribute data with single quote (anything but ' \0)
-  template<int Dummy>
+  template <int Dummy>
   inline constexpr u8 LookupTables<Dummy>::attribute_data_1[256] = {
   // 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
      0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  // 0
@@ -2171,7 +2195,7 @@ namespace internal {
   };
 
   // Attribute data with single quote that does not require processing (anything but ' \0 &)
-  template<int Dummy>
+  template <int Dummy>
   inline constexpr u8 LookupTables<Dummy>::attribute_data_1_pure[256] = {
   // 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
      0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  // 0
@@ -2193,7 +2217,7 @@ namespace internal {
   };
 
   // Attribute data with double quote (anything but " \0)
-  template<int Dummy>
+  template <int Dummy>
   inline constexpr u8 LookupTables<Dummy>::attribute_data_2[256] = {
   // 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
      0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  // 0
@@ -2215,7 +2239,7 @@ namespace internal {
   };
 
   // Attribute data with double quote that does not require processing (anything but " \0 &)
-  template<int Dummy>
+  template <int Dummy>
   inline constexpr u8 LookupTables<Dummy>::attribute_data_2_pure[256] = {
   // 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
      0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  // 0
@@ -2237,7 +2261,7 @@ namespace internal {
   };
 
   // Digits (dec and hex, 255 denotes end of numeric character reference)
-  template<int Dummy>
+  template <int Dummy>
   inline constexpr u8 LookupTables<Dummy>::digits[256] = {
   // 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
      255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,  // 0
@@ -2259,7 +2283,7 @@ namespace internal {
   };
 
   // Upper case conversion
-  template<int Dummy>
+  template <int Dummy>
   inline constexpr u8 LookupTables<Dummy>::upcase[256] = {
   // 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  A   B   C   D   E   F
      0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,   // 0
