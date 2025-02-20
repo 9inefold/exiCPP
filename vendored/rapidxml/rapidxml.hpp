@@ -984,12 +984,12 @@ public:
   //! Should name comparison be case-sensitive; non case-sensitive comparison
   //! works properly only for ASCII characters \return Pointer to found
   //! attribute, or 0 if not found.
-  XMLAttribute<Ch>* first_attribute(const Ch* name = 0, usize name_size = 0,
+  AttrType* first_attribute(const Ch* name = 0, usize name_size = 0,
                                      bool CaseInsensitive = true) const {
     if (name) {
       if (name_size == 0)
         name_size = internal::measure(name);
-      for (XMLAttribute<Ch>* attribute = m_first_attribute; attribute;
+      for (AttrType* attribute = m_first_attribute; attribute;
            attribute = attribute->m_next_attribute) {
         if (internal::compare(attribute->name(), StrRefT(name, name_size),
                               CaseInsensitive))
@@ -1008,12 +1008,12 @@ public:
   //! Should name comparison be case-sensitive; non case-sensitive comparison
   //! works properly only for ASCII characters \return Pointer to found
   //! attribute, or 0 if not found.
-  XMLAttribute<Ch>* last_attribute(const Ch* name = 0, usize name_size = 0,
+  AttrType* last_attribute(const Ch* name = 0, usize name_size = 0,
                                     bool CaseInsensitive = true) const {
     if (name) {
       if (name_size == 0)
         name_size = internal::measure(name);
-      for (XMLAttribute<Ch>* attribute = m_last_attribute; attribute;
+      for (AttrType* attribute = m_last_attribute; attribute;
            attribute = attribute->m_prev_attribute) {
         if (internal::compare(attribute->name(), StrRefT(name, name_size),
                               CaseInsensitive))
@@ -1037,7 +1037,7 @@ public:
   //! Prepends a new child node.
   //! The prepended child becomes the first child, and all existing children are
   //! moved one position back. \param child Node to prepend.
-  void prepend_node(XMLNode<Ch>* child) {
+  void prepend_node(NodeType* child) {
     assert(child && !child->parent() && child->type() != node_document);
     if (first_node()) {
       child->m_next_sibling = m_first_node;
@@ -1054,7 +1054,7 @@ public:
   //! Appends a new child node.
   //! The appended child becomes the last child.
   //! \param child Node to append.
-  void append_node(XMLNode<Ch>* child) {
+  void append_node(NodeType* child) {
     assert(child && !child->parent() && child->type() != node_document);
     if (first_node()) {
       child->m_prev_sibling = m_last_node;
@@ -1072,7 +1072,7 @@ public:
   //! All children after and including the specified node are moved one position
   //! back. \param where Place where to insert the child, or 0 to insert at the
   //! back. \param child Node to insert.
-  void insert_node(XMLNode<Ch>* where, XMLNode<Ch>* child) {
+  void insert_node(NodeType* where, NodeType* child) {
     assert(!where || where->parent() == this);
     assert(child && !child->parent() && child->type() != node_document);
     if (where == m_first_node)
@@ -1093,7 +1093,7 @@ public:
   //! Use first_node() to test if node has children.
   void remove_first_node() {
     assert(first_node());
-    XMLNode<Ch>* child = m_first_node;
+    NodeType* child = m_first_node;
     m_first_node = child->m_next_sibling;
     if (child->m_next_sibling)
       child->m_next_sibling->m_prev_sibling = 0;
@@ -1266,17 +1266,12 @@ private:
   // otherwise they contain garbage
 
   NodeKind m_type;           // Type of node; always valid
-  XMLNode<Ch>* m_first_node; // Pointer to first child node, or 0 if none; always valid
-  XMLNode<Ch>* m_last_node;  // Pointer to last child node, or 0 if none; this
-                              // value is only valid if m_first_node is non-zero
-  XMLAttribute<Ch>* m_first_attribute; // Pointer to first attribute of node,
-                                        // or 0 if none; always valid
-  XMLAttribute<Ch>* m_last_attribute; // Pointer to last attribute of node, or 0 if none; this
-                                       // value is only valid if m_first_attribute is non-zero
-  XMLNode<Ch>* m_prev_sibling; // Pointer to previous sibling of node, or 0 if none; this
-                                // value is only valid if m_parent is non-zero
-  XMLNode<Ch>* m_next_sibling; // Pointer to next sibling of node, or 0 if none; this
-                                // value is only valid if m_parent is non-zero
+  NodeType* m_first_node; // Pointer to first child node, or 0 if none; always valid
+  NodeType* m_last_node;  // Pointer to last child node, or 0 if none; this value is only valid if m_first_node is non-zero
+  AttrType* m_first_attribute; // Pointer to first attribute of node, or 0 if none; always valid
+  AttrType* m_last_attribute; // Pointer to last attribute of node, or 0 if none; this value is only valid if m_first_attribute is non-zero
+  NodeType* m_prev_sibling; // Pointer to previous sibling of node, or 0 if none; this value is only valid if m_parent is non-zero
+  NodeType* m_next_sibling; // Pointer to next sibling of node, or 0 if none; this value is only valid if m_parent is non-zero
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -2062,7 +2057,7 @@ private:
         RAPIDXML_PARSE_ERROR("expected attribute name", name);
 
       // Create new attribute
-      XMLAttribute<Ch>* attribute = this->allocate_attribute();
+      AttrType* attribute = this->allocate_attribute();
       attribute->name(name, Text - name);
       node->append_attribute(attribute);
 
