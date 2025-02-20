@@ -167,11 +167,12 @@ enum NodeKind {
   node_pi           //!< A PI node. Name contains target. Value contains instructions.
 };
 
-using XMLBumpAllocator = exi::BumpPtrAllocator;
-
 inline constexpr usize kPoolSize = RAPIDXML_DYNAMIC_POOL_SIZE;
 inline constexpr usize kAlignVal = RAPIDXML_ALIGNMENT;
 inline constexpr exi::Align kAlign(kAlignVal);
+
+using XMLBumpAllocator = exi::BumpPtrAllocatorImpl<
+  exi::MallocAllocator, kPoolSize, kPoolSize, 32>;
 
 ///////////////////////////////////////////////////////////////////////
 // Parsing flags
