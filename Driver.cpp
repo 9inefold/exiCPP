@@ -23,6 +23,7 @@
 #include <Support/MemoryBuffer.hpp>
 #include <Support/MemoryBufferRef.hpp>
 #include <Support/Process.hpp>
+#include <Support/Signals.hpp>
 #include <Support/ScopedSave.hpp>
 #include <Support/raw_ostream.hpp>
 #include <rapidxml.hpp>
@@ -90,8 +91,20 @@ static Expected<Box<XMLDocument>>
   }
 }
 
+static void SignalHandler(std::atomic<int>* I) {
+  const int Val = I->exchange(1, std::memory_order_relaxed);
+  outs().flush();
+  errs() << "Old val: " << Val << '\n';
+}
+
+static void SignalHandlerRef(std::atomic<int>& I) { SignalHandler(&I); }
+
 int tests_main(int Argc, char* Argv[]);
 int main(int Argc, char* Argv[]) {
+  static std::atomic<int> Atomic(0);
+  sys::WrapSignalHandler<&SignalHandler>(&Atomic);
+  sys::RunSignalHandlers();
+
   exi::DebugFlag = LogLevel::WARN;
   outs().enable_colors(true);
   dbgs().enable_colors(true);
