@@ -32,6 +32,7 @@
 #pragma once
 
 #include <Common/D/Str.hpp>
+#include <Common/WrapCall.hpp>
 #include <cstdint>
 
 namespace exi {
@@ -82,6 +83,21 @@ using SignalHandlerCallback = void (*)(void *);
 /// process. The handler can have a cookie passed to it to identify what
 /// instance of the handler it is.
 void AddSignalHandler(SignalHandlerCallback FnPtr, void *Cookie = nullptr);
+
+/// Wraps a function to be called when an abort/kill signal is delivered.
+/// Eg.
+///   void SignalHandler(MyData* Ptr);
+///   void SignalHandlerV();
+/// Can be wrapped like:
+///   WrapSignalHandler<&SignalHandler>(Ptr);
+///   WrapSignalHandler<&SignalHandlerV>();
+template <auto Func>
+inline void WrapSignalHandler(auto&&...Args) {
+  using WrapT = WrapOpaqueCall<Func, void>;
+  static_assert(WrapT::Wrapper::num_args == sizeof...(Args));
+  void* Cookie = WrapT::wrap(Args...);
+  AddSignalHandler(&WrapT::call, Cookie);
+}
 
 /// This function registers a function to be called when the user "interrupts"
 /// the program (typically by pressing ctrl-c).  When the user interrupts the
