@@ -8,167 +8,120 @@
 
 #include "rapidxml.hpp"
 
-namespace rapidxml
-{
+namespace rapidxml {
 
-    //! Iterator of child nodes of XMLNode
-    template<class Ch>
-    class node_iterator
-    {
-    
-    public:
+//! Iterator of child nodes of XMLNode
+template <class Ch> class node_iterator {
 
-        typedef typename XMLNode<Ch> value_type;
-        typedef typename XMLNode<Ch> &reference;
-        typedef typename XMLNode<Ch> *pointer;
-        typedef std::ptrdiff_t difference_type;
-        typedef std::bidirectional_iterator_tag iterator_category;
-        
-        node_iterator()
-            : m_node(0)
-        {
-        }
+public:
+  typedef typename XMLNode<Ch> value_type;
+  typedef typename XMLNode<Ch>& reference;
+  typedef typename XMLNode<Ch>* pointer;
+  typedef std::ptrdiff_t difference_type;
+  typedef std::bidirectional_iterator_tag iterator_category;
 
-        node_iterator(XMLNode<Ch> *node)
-            : m_node(node->first_node())
-        {
-        }
-        
-        reference operator *() const
-        {
-            assert(m_node);
-            return *m_node;
-        }
+  node_iterator() : m_node(0) {}
 
-        pointer operator->() const
-        {
-            assert(m_node);
-            return m_node;
-        }
+  node_iterator(XMLNode<Ch>* node) : m_node(node->first_node()) {}
 
-        node_iterator& operator++()
-        {
-            assert(m_node);
-            m_node = m_node->next_sibling();
-            return *this;
-        }
+  reference operator*() const {
+    assert(m_node);
+    return *m_node;
+  }
 
-        node_iterator operator++(int)
-        {
-            node_iterator tmp = *this;
-            ++this;
-            return tmp;
-        }
+  pointer operator->() const {
+    assert(m_node);
+    return m_node;
+  }
 
-        node_iterator& operator--()
-        {
-            assert(m_node && m_node->previous_sibling());
-            m_node = m_node->previous_sibling();
-            return *this;
-        }
+  node_iterator& operator++() {
+    assert(m_node);
+    m_node = m_node->next_sibling();
+    return *this;
+  }
 
-        node_iterator operator--(int)
-        {
-            node_iterator tmp = *this;
-            ++this;
-            return tmp;
-        }
+  node_iterator operator++(int) {
+    node_iterator tmp = *this;
+    ++this;
+    return tmp;
+  }
 
-        bool operator ==(const node_iterator<Ch> &rhs)
-        {
-            return m_node == rhs.m_node;
-        }
+  node_iterator& operator--() {
+    assert(m_node && m_node->previous_sibling());
+    m_node = m_node->previous_sibling();
+    return *this;
+  }
 
-        bool operator !=(const node_iterator<Ch> &rhs)
-        {
-            return m_node != rhs.m_node;
-        }
+  node_iterator operator--(int) {
+    node_iterator tmp = *this;
+    ++this;
+    return tmp;
+  }
 
-    private:
+  bool operator==(const node_iterator<Ch>& rhs) { return m_node == rhs.m_node; }
 
-        XMLNode<Ch> *m_node;
+  bool operator!=(const node_iterator<Ch>& rhs) { return m_node != rhs.m_node; }
 
-    };
+private:
+  XMLNode<Ch>* m_node;
+};
 
-    //! Iterator of child attributes of XMLNode
-    template<class Ch>
-    class attribute_iterator
-    {
-    
-    public:
+//! Iterator of child attributes of XMLNode
+template <class Ch> class attribute_iterator {
 
-        typedef typename XMLAttribute<Ch> value_type;
-        typedef typename XMLAttribute<Ch> &reference;
-        typedef typename XMLAttribute<Ch> *pointer;
-        typedef std::ptrdiff_t difference_type;
-        typedef std::bidirectional_iterator_tag iterator_category;
-        
-        attribute_iterator()
-            : m_attribute(0)
-        {
-        }
+public:
+  typedef typename XMLAttribute<Ch> value_type;
+  typedef typename XMLAttribute<Ch>& reference;
+  typedef typename XMLAttribute<Ch>* pointer;
+  typedef std::ptrdiff_t difference_type;
+  typedef std::bidirectional_iterator_tag iterator_category;
 
-        attribute_iterator(XMLNode<Ch> *node)
-            : m_attribute(node->first_attribute())
-        {
-        }
-        
-        reference operator *() const
-        {
-            assert(m_attribute);
-            return *m_attribute;
-        }
+  attribute_iterator() : m_attribute(0) {}
 
-        pointer operator->() const
-        {
-            assert(m_attribute);
-            return m_attribute;
-        }
+  attribute_iterator(XMLNode<Ch>* node) : m_attribute(node->first_attribute()) {}
 
-        attribute_iterator& operator++()
-        {
-            assert(m_attribute);
-            m_attribute = m_attribute->next_attribute();
-            return *this;
-        }
+  reference operator*() const {
+    assert(m_attribute);
+    return *m_attribute;
+  }
 
-        attribute_iterator operator++(int)
-        {
-            attribute_iterator tmp = *this;
-            ++this;
-            return tmp;
-        }
+  pointer operator->() const {
+    assert(m_attribute);
+    return m_attribute;
+  }
 
-        attribute_iterator& operator--()
-        {
-            assert(m_attribute && m_attribute->previous_attribute());
-            m_attribute = m_attribute->previous_attribute();
-            return *this;
-        }
+  attribute_iterator& operator++() {
+    assert(m_attribute);
+    m_attribute = m_attribute->next_attribute();
+    return *this;
+  }
 
-        attribute_iterator operator--(int)
-        {
-            attribute_iterator tmp = *this;
-            ++this;
-            return tmp;
-        }
+  attribute_iterator operator++(int) {
+    attribute_iterator tmp = *this;
+    ++this;
+    return tmp;
+  }
 
-        bool operator ==(const attribute_iterator<Ch> &rhs)
-        {
-            return m_attribute == rhs.m_attribute;
-        }
+  attribute_iterator& operator--() {
+    assert(m_attribute && m_attribute->previous_attribute());
+    m_attribute = m_attribute->previous_attribute();
+    return *this;
+  }
 
-        bool operator !=(const attribute_iterator<Ch> &rhs)
-        {
-            return m_attribute != rhs.m_attribute;
-        }
+  attribute_iterator operator--(int) {
+    attribute_iterator tmp = *this;
+    ++this;
+    return tmp;
+  }
 
-    private:
+  bool operator==(const attribute_iterator<Ch>& rhs) { return m_attribute == rhs.m_attribute; }
 
-        XMLAttribute<Ch> *m_attribute;
+  bool operator!=(const attribute_iterator<Ch>& rhs) { return m_attribute != rhs.m_attribute; }
 
-    };
+private:
+  XMLAttribute<Ch>* m_attribute;
+};
 
-}
+} // namespace rapidxml
 
 #endif
