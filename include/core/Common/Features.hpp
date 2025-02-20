@@ -409,6 +409,28 @@
 # define EXI_UNREACHABLE __assume(0)
 #endif
 
+#if EXI_HAS_BUILTIN(__builtin_constant_p)
+# define EXI_CONSTANT_P(...) (__builtin_constant_p(__VA_ARGS__))
+# ifdef __clang__
+/// This is an extension explicitly supported by Clang.
+#  define EXI_FOLD_CXPR(...)                                                  \
+  (EXI_CONSTANT_P(__VA_ARGS__) ? (__VA_ARGS__) : (__VA_ARGS__))
+/// "Illegal" constant folds supported.
+#  define illegal_constexpr constexpr
+#endif // __clang__
+#else
+# define EXI_CONSTANT_P(...) (false)
+#endif
+#ifndef EXI_FOLD_CXPR
+/// Constant folding extension not supported.
+# define EXI_FOLD_CXPR(...) (__VA_ARGS__)
+/// "Illegal" constant folds not supported.
+# define illegal_constexpr
+#endif
+/// If "illegal" constant folds are supported, this can be used to do limited
+/// `reinterpret_cast`s in `constexpr` contexts.
+#define FOLD_CXPR(...) EXI_FOLD_CXPR(__VA_ARGS__)
+
 /// Returns a pointer with an assumed alignment.
 #if EXI_HAS_BUILTIN(__builtin_assume_aligned) || defined(__GNUC__)
 # define EXI_ASSUME_ALIGNED(p, a) __builtin_assume_aligned(p, a)
