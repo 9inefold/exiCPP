@@ -425,6 +425,7 @@ namespace internal {
 //! To do it, define their values before rapidxml.hpp file is included.
 //! \param Ch Character type of created nodes.
 template <class Ch = char> class MemoryPool {
+  RAPIDXML_ALIASES(Ch)
   using TraitsT = std::char_traits<Ch>;
   // TODO: Make this less sucky
   exi::PointerIntPair<XMLBumpAllocator*, 1, bool> AllocBase;
@@ -454,10 +455,10 @@ public:
   //! \param name_size Size of name to assign, or 0 to automatically calculate size from name string.
   //! \param value_size Size of value to assign, or 0 to automatically calculate size from value string.
   //! \return Pointer to allocated attribute. This pointer will never be NULL.
-  EXI_RETURNS_NONNULL XMLNode<Ch>*
+  EXI_RETURNS_NONNULL NodeType*
       allocate_node(NodeKind Kind, const Ch* Name = 0, const Ch* Value = 0,
                     usize NameLen = 0, usize ValueLen = 0) {
-    auto* Node = new (Alloc()) XMLNode<Ch>(Kind);
+    auto* Node = new (Alloc()) NodeType(Kind);
     if (Name) {
       if (NameLen > 0)
         Node->name(Name, NameLen);
@@ -473,7 +474,7 @@ public:
     return Node;
   }
 
-  EXI_RETURNS_NONNULL ALWAYS_INLINE XMLNode<Ch>*
+  EXI_RETURNS_NONNULL ALWAYS_INLINE NodeType*
       allocate_node(NodeKind Kind, StrRefT Name, StrRefT Value) {
     return allocate_attribute(Kind, Name.data(), Value.data(),
                                     Name.size(), Value.size());
@@ -489,10 +490,10 @@ public:
   //! \param name_size Size of name to assign, or 0 to automatically calculate size from name string.
   //! \param value_size Size of value to assign, or 0 to automatically calculate size from value string.
   //! \return Pointer to allocated attribute. This pointer will never be NULL.
-  EXI_RETURNS_NONNULL XMLAttribute<Ch>*
+  EXI_RETURNS_NONNULL AttrType*
                      allocate_attribute(const Ch* Name = 0, const Ch* Value = 0,
                                         usize NameLen = 0,  usize ValueLen = 0) {
-    auto* Attr = new (Alloc()) XMLAttribute<Ch>();
+    auto* Attr = new (Alloc()) AttrType();
     if (Name) {
       if (NameLen > 0)
         Attr->name(Name, NameLen);
@@ -508,7 +509,7 @@ public:
     return Attr;
   }
 
-  EXI_RETURNS_NONNULL ALWAYS_INLINE XMLAttribute<Ch>*
+  EXI_RETURNS_NONNULL ALWAYS_INLINE AttrType*
       allocate_attribute(StrRefT Name, StrRefT Value) {
     return allocate_attribute(Name.data(), Value.data(),
                               Name.size(), Value.size());
