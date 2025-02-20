@@ -52,26 +52,25 @@ template <typename Ptr> struct PunnedPointer {
   static_assert(std::is_trivially_copy_constructible<Ptr>::value);
   static_assert(std::is_trivially_move_constructible<Ptr>::value);
 
-  explicit constexpr PunnedPointer(iptr I = 0) { *this = I; }
-
-  constexpr iptr asInt() const {
-    iptr R = 0;
-    std::memcpy(&R, Data, sizeof(R));
-    return R;
-  }
-
-  constexpr operator iptr() const { return asInt(); }
+  explicit constexpr PunnedPointer(iptr I = 0) : Data(I) {}
 
   constexpr PunnedPointer &operator=(iptr V) {
-    std::memcpy(Data, &V, sizeof(Data));
+    Data = V;
     return *this;
   }
 
-  Ptr *getPointerAddress() { return reinterpret_cast<Ptr *>(Data); }
-  const Ptr *getPointerAddress() const { return reinterpret_cast<Ptr *>(Data); }
+  constexpr iptr asInt() const { return Data; }
+  constexpr operator iptr() const { return asInt(); }
+
+  Ptr *getPointerAddress() {
+    return reinterpret_cast<Ptr *>(&Data);
+  }
+  illegal_constexpr const Ptr *getPointerAddress() const {
+    return FOLD_CXPR(reinterpret_cast<const Ptr *>(&Data));
+  }
 
 private:
-  alignas(Ptr) unsigned char Data[sizeof(Ptr)];
+  alignas(Ptr) iptr Data;
 };
 } // namespace H
 
@@ -112,6 +111,12 @@ public:
   PointerTy getPointer() const { return Info::getPointer(Value); }
 
   IntType getInt() const { return (IntType)Info::getInt(Value); }
+
+  inline PointerTy operator->() const {
+    const PointerTy Ptr = Info::getPointer(Value); 
+    exi_invariant(PtrTraits::getAsVoidPointer(Ptr) != nullptr);
+    return Ptr;
+  }
 
   void setPointer(PointerTy PtrVal) & {
     Value = Info::updatePointer(Value, PtrVal);
