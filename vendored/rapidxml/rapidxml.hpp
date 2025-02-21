@@ -441,7 +441,7 @@ public:
   //! Nodes allocated from the pool are no longer valid.
   ~MemoryPool() {
     this->clear();
-    if (AllocBase.getInt())
+    if (owns_allocator())
       delete AllocBase.getPointer();
   }
 
@@ -570,11 +570,18 @@ public:
     return Out;
   }
 
+  //! Checks if the pool owns the data.
+  bool owns_allocator() const {
+    return AllocBase.getInt();
+  }
+
   //! Clears the pool.
   //! This causes memory occupied by nodes allocated by the pool to be freed.
   //! Any nodes or strings allocated from the pool will no longer be valid.
   void clear() {
-    if (AllocBase.getInt())
+    // TODO: Save and Deallocate on pages.
+    if (owns_allocator())
+      // If it owns the data, reset it.
       AllocBase->Reset();
   }
 
@@ -616,12 +623,11 @@ template <class Ch = char>
 class alignas(kAlignVal) XMLBase {
   RAPIDXML_ALIASES(Ch)
 public:
-
   ///////////////////////////////////////////////////////////////////////////
   // Construction & destruction
 
   // Construct a base with empty name, value and parent
-  XMLBase() : m_name(0), m_value(0), m_parent(0) {}
+  XMLBase() = default;
 
   ///////////////////////////////////////////////////////////////////////////
   // Node data access
@@ -742,11 +748,11 @@ protected:
     return &zero;
   }
 
-  Ch* m_name;         // Name of node, or 0 if no name
-  Ch* m_value;        // Value of node, or 0 if no value
-  usize m_name_size;  // Length of node name, or undefined of no name
-  usize m_value_size; // Length of node value, or undefined if no value
-  NodeType* m_parent; // Pointer to parent node, or 0 if none
+  Ch* m_name = nullptr;   // Name of node, or 0 if no name
+  usize m_name_size = 0;  // Length of node name, or undefined of no name
+  Ch* m_value = nullptr;  // Value of node, or 0 if no value
+  usize m_value_size = 0; // Length of node value, or undefined if no value
+  NodeType* m_parent = 0; // Pointer to parent node, or 0 if none
 };
 
 //! Class representing attribute node of XML document.
@@ -1393,22 +1399,22 @@ private:
   // Detect attribute value character
   template <Ch Quote> struct attribute_value_pred {
     static u8 test(Ch ch) {
-      if (Quote == Ch('\''))
+      if constexpr (Quote == Ch('\''))
         return internal::LookupTables<0>::attribute_data_1[u8(ch)];
-      if (Quote == Ch('\"'))
+      if constexpr (Quote == Ch('\"'))
         return internal::LookupTables<0>::attribute_data_2[u8(ch)];
-      return 0; // Should never be executed, to avoid warnings on Comeau
+      exi_unreachable("Invalid attribute_value_pred");
     }
   };
 
   // Detect attribute value character
   template <Ch Quote> struct attribute_value_pure_pred {
     static u8 test(Ch ch) {
-      if (Quote == Ch('\''))
+      if constexpr (Quote == Ch('\''))
         return internal::LookupTables<0>::attribute_data_1_pure[u8(ch)];
-      if (Quote == Ch('\"'))
+      if constexpr (Quote == Ch('\"'))
         return internal::LookupTables<0>::attribute_data_2_pure[u8(ch)];
-      return 0; // Should never be executed, to avoid warnings on Comeau
+      exi_unreachable("Invalid attribute_value_pure_pred");
     }
   };
 
