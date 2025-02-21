@@ -1,4 +1,4 @@
-//===- Config/XML.inc -----------------------------------------------===//
+//===- exi/Basic/XMLHandler.hpp -------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -15,16 +15,17 @@
 //     limitations under the License.
 //
 //===----------------------------------------------------------------===//
+///
+/// \file
+/// This file defines a handler for xml files.
+///
+//===----------------------------------------------------------------===//
 
 #pragma once
 
-#cmakedefine01 EXI_EXCEPTIONS
-#cmakedefine EXI_XML_EXCEPTIONS EXI_EXCEPTIONS
+#include "core/Common/Fundamental.hpp"
+#include "core/Common/EnumTraits.hpp"
 
-#if defined(EXI_XML_EXCEPTIONS) && !EXI_XML_EXCEPTIONS
-# define RAPIDXML_NO_EXCEPTIONS 1
-#elif !EXI_EXCEPTIONS
-# define RAPIDXML_NO_EXCEPTIONS 1
-#else
-# define RAPIDXML_NO_EXCEPTIONS 0
-#endif
+namespace exi {
+
+} // namespace exi

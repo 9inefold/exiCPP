@@ -36,44 +36,12 @@
 ///////////////////////////////////////////////////////////////////////////
 // RAPIDXML_PARSE_ERROR
 
-#ifdef RAPIDXML_NO_EXCEPTIONS
-
-# define RAPIDXML_PARSE_ERROR(what, where)                                     \
-do {                                                                           \
-  parse_error_handler(what, where);                                            \
-  exi_unreachable("'parse_error_handler' returned!");                          \
-} while(false)
-
-namespace xml {
-//! When exceptions are disabled by defining `RAPIDXML_NO_EXCEPTIONS`,
-//! this function is called to notify user about the error.
-//! It must be defined by the user.
-//! <br><br>
-//! This function cannot return. If it does, the results are undefined.
-//! <br><br>
-//! A very simple definition might look like that:
-//! <pre>
-//! void %xml::%parse_error_handler(const char *what, void *where) {
-//!   outs() << "Parse error: " << what << "\n";
-//!   std::abort();
-//! }
-//! </pre>
-//! \param what Human readable description of the error.
-//! \param where Pointer to character data where error was detected.
-void parse_error_handler(const char* what, void* where);
-
-//! Forces the use of exceptions. Useful for testing.
-extern bool use_exceptions_anyway;
-
-} // namespace xml
-
-#else
+#if EXI_EXCEPTIONS
 
 # include <exception> // For std::exception
 
-# define RAPIDXML_PARSE_ERROR(what, where) throw parse_error(what, where)
-
 namespace xml {
+# if !RAPIDXML_NO_EXCEPTIONS
 
 //! Parse error exception.
 //! This exception is thrown by the parser when an error occurs.
@@ -107,12 +75,51 @@ private:
   void* m_where;
 };
 
+# endif // !RAPIDXML_NO_EXCEPTIONS
+} // namespace xml
+
+#endif // EXI_EXCEPTIONS
+
+namespace xml {
+
+#ifdef RAPIDXML_NO_EXCEPTIONS
+
+# define RAPIDXML_PARSE_ERROR(what, where)                                     \
+do {                                                                           \
+  parse_error_handler(what, where);                                            \
+  exi_unreachable("'parse_error_handler' returned!");                          \
+} while(false)
+
+//! When exceptions are disabled by defining `RAPIDXML_NO_EXCEPTIONS`,
+//! this function is called to notify user about the error.
+//! It must be defined by the user.
+//! <br><br>
+//! This function cannot return. If it does, the results are undefined.
+//! <br><br>
+//! A very simple definition might look like that:
+//! <pre>
+//! void %xml::%parse_error_handler(const char *what, void *where) {
+//!   outs() << "Parse error: " << what << "\n";
+//!   std::abort();
+//! }
+//! </pre>
+//! \param what Human readable description of the error.
+//! \param where Pointer to character data where error was detected.
+void parse_error_handler(const char* what, void* where);
+
+//! Forces the use of exceptions. Useful for testing.
+extern bool use_exceptions_anyway;
+
+#else
+
+# define RAPIDXML_PARSE_ERROR(what, where) throw parse_error(what, where)
+
 //! Does nothing in this mode.
 extern bool use_exceptions_anyway;
 
-} // namespace xml
+#endif // RAPIDXML_NO_EXCEPTIONS
 
-#endif
+} // namespace xml
 
 ///////////////////////////////////////////////////////////////////////////
 // Pool sizes

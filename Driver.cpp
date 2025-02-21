@@ -16,8 +16,8 @@
 //
 //===----------------------------------------------------------------===//
 
-#undef RAPIDXML_NO_EXCEPTIONS
 #include <Common/SmallStr.hpp>
+#include <Common/IntrusiveRefCntPtr.hpp>
 #include <Common/PointerIntPair.hpp>
 #include <Support/Filesystem.hpp>
 #include <Support/Logging.hpp>
@@ -94,7 +94,7 @@ static Expected<Box<XMLDocument>>
     Doc->parse<ParseRules>(MB.getBufferStart());
     return std::move(Doc);
   } catch (const std::exception& Ex) {
-#ifndef RAPIDXML_NO_EXCEPTIONS
+#if !RAPIDXML_NO_EXCEPTIONS
     LOG_ERROR("Failed to read file '{}'", MB.getBufferIdentifier());
     /// Check if it's rapidxml's wee type
     if (auto* PEx = dynamic_cast<const xml::parse_error*>(&Ex)) {
@@ -143,13 +143,27 @@ int main(int Argc, char* Argv[]) {
   // tests_main(Argc, Argv);
 }
 
-#ifdef RAPIDXML_NO_EXCEPTIONS
+#if RAPIDXML_NO_EXCEPTIONS
+
+/// Handles throwing in different modes.
+static void Throw([[maybe_unused]] const char* what,
+                  [[maybe_unused]] void* where) EXI_NOEXCEPT {
+#if EXI_EXCEPTIONS
+# if !RAPIDXML_NO_EXCEPTIONS
+  throw xml::parse_error(what, where);
+# else
+  throw std::runtime_error(what);
+# endif
+#endif
+} 
+
 void xml::parse_error_handler(const char* what, void* where) {
   if (xml::use_exceptions_anyway)
-    throw xml::parse_error(what, where);
+    Throw(what, where);
   errs() << "Uhhhh... " << what << '\n';
   sys::Process::Exit(1);
 }
+
 #endif // RAPIDXML_NO_EXCEPTIONS
 
 bool xml::use_exceptions_anyway = false;
