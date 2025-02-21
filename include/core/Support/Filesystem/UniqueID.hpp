@@ -31,7 +31,7 @@
 
 #pragma once
 
-// #include "llvm/ADT/DenseMapInfo.h"
+#include <Common/DenseMapInfo.hpp>
 #include <Common/Fundamental.hpp>
 #include <Common/Hashing.hpp>
 #include <utility>
@@ -66,7 +66,6 @@ public:
 
 } // namespace sys::fs
 
-/* TODO
 // Support UniqueIDs as DenseMap keys.
 template <> struct DenseMapInfo<exi::sys::fs::UniqueID> {
   static inline exi::sys::fs::UniqueID getEmptyKey() {
@@ -89,6 +88,5 @@ template <> struct DenseMapInfo<exi::sys::fs::UniqueID> {
     return LHS == RHS;
   }
 };
-*/
 
 } // namespace exi
