@@ -8,22 +8,13 @@
 // Revision $DateTime: 2009/05/13 01:46:17 $
 //! \file rapidxml.hpp This file contains xml parser and DOM implementation
 
-// If standard library is disabled, user must provide implementations of
-// required functions and typedefs
-#if !defined(RAPIDXML_NO_STDLIB)
-# include <cassert> // For assert
-# include <new>     // For placement new
-#endif
-
 #include <Common/Fundamental.hpp>
 #include <Common/Option.hpp>
 #include <Common/StrRef.hpp>
 #include <Common/PointerIntPair.hpp>
-#include <Config/XML.inc>
-#include <Support/Allocator.hpp>
-#include <Support/Alignment.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <string>
+#include "rapidxml_fwd.hpp"
 
 // On MSVC, disable "conditional expression is constant" warning (level 4).
 // This warning is almost impossible to avoid with certain types of templated
@@ -121,35 +112,6 @@ extern bool use_exceptions_anyway;
 
 } // namespace xml
 
-///////////////////////////////////////////////////////////////////////////
-// Pool sizes
-
-#ifndef RAPIDXML_STATIC_POOL_SIZE
-// Size of static memory block of MemoryPool.
-// Define RAPIDXML_STATIC_POOL_SIZE before including rapidxml.hpp if you want to
-// override the default value. No dynamic memory allocations are performed by
-// MemoryPool until static memory is exhausted.
-# define RAPIDXML_STATIC_POOL_SIZE (64 * 1024)
-#endif
-
-#ifndef RAPIDXML_DYNAMIC_POOL_SIZE
-// Size of dynamic memory block of MemoryPool.
-// Define RAPIDXML_DYNAMIC_POOL_SIZE before including rapidxml.hpp if you want
-// to override the default value. After the static block is exhausted, dynamic
-// blocks with approximately this size are allocated by MemoryPool.
-# define RAPIDXML_DYNAMIC_POOL_SIZE (64 * 1024)
-#endif
-
-#ifndef RAPIDXML_ALIGNMENT
-// Memory allocation alignment.
-// Define RAPIDXML_ALIGNMENT before including rapidxml.hpp if you want to
-// override the default value, which is the size of pointer. All memory
-// allocations for nodes, attributes and strings will be aligned to this value.
-// This must be a power of 2 and at least 1, otherwise MemoryPool will not
-// work.
-# define RAPIDXML_ALIGNMENT sizeof(void*)
-#endif
-
 #define RAPIDXML_ALIASES(TYPE)                                                \
 using StrRefT  = ::xml::internal::string_type_t<TYPE>;                        \
 using NodeType = ::xml::XMLNode<TYPE>;                                        \
@@ -157,14 +119,10 @@ using AttrType = ::xml::XMLAttribute<TYPE>;                                   \
 using DocType  = ::xml::XMLDocument<TYPE>;
 
 namespace xml {
-// Forward declarations
-template <class Ch> class XMLNode;
-template <class Ch> class XMLAttribute;
-template <class Ch> class XMLDocument;
 
 //! Enumeration listing all node types produced by the parser.
 //! Use XMLNode::type() function to query node type.
-enum NodeKind {
+enum NodeKind : int {
   node_document,    //!< A document node. Name and value are empty.
   node_element,     //!< An element node. Name contains element name. Value contains Text of first data node.
   node_data,        //!< A data node. Name is empty. Value contains data Text.
@@ -174,13 +132,6 @@ enum NodeKind {
   node_doctype,     //!< A DOCTYPE node. Name is empty. Value contains DOCTYPE Text.
   node_pi           //!< A PI node. Name contains target. Value contains instructions.
 };
-
-inline constexpr usize kPoolSize = RAPIDXML_DYNAMIC_POOL_SIZE;
-inline constexpr usize kAlignVal = RAPIDXML_ALIGNMENT;
-inline constexpr exi::Align kAlign(kAlignVal);
-
-using XMLBumpAllocator = exi::BumpPtrAllocatorImpl<
-  exi::MallocAllocator, kPoolSize, kPoolSize, 32>;
 
 ///////////////////////////////////////////////////////////////////////
 // Parsing flags
@@ -2402,6 +2353,7 @@ namespace internal {
 
 // Undefine internal macros
 #undef RAPIDXML_PARSE_ERROR
+#undef RAPIDXML_ALIASES
 
 // On MSVC, restore warnings state
 #ifdef _MSC_VER
