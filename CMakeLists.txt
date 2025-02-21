@@ -43,13 +43,13 @@ option(EXI_ANSI         "If ANSI should be enabled." ON) # DEPRECATED
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")
 else()
-  set(EXI_FLAGS $<$<NOT:$<CONFIG:Debug>>:"-ftrivial-auto-var-init=zero">)
   # TODO: Add function for this?
   set(EXI_WARNING_FLAGS -Wall -Wextra
     -Wno-unused-variable -Wno-unused-function
     -Wno-unused-parameter)
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GCC")
-    set(EXI_FLAGS "${EXI_FLAGS} -Wuninitialized=precise")
+    set(EXI_FLAGS "${EXI_FLAGS} -Wuninitialized=precise
+      $<$<NOT:$<CONFIG:Debug>>:\"-ftrivial-auto-var-init=zero\">")
   endif()
 endif()
 
