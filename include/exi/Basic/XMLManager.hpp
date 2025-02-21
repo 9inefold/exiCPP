@@ -1,4 +1,4 @@
-//===- exi/Basic/XMLHandler.hpp -------------------------------------===//
+//===- exi/Basic/XMLManager.hpp -------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -25,6 +25,7 @@
 
 #include "core/Common/Fundamental.hpp"
 #include "core/Common/EnumTraits.hpp"
+#include "rapidxml_fwd.hpp"
 
 namespace exi {
 
