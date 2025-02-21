@@ -24,6 +24,7 @@ option(EXI_DRIVER       "If the driver should be built (always ON at top level).
 option(EXI_TESTS        "If tests should be run." OFF)
 
 option(EXI_EXCEPTIONS   "If exceptions should be enabled." OFF)
+option(EXI_XML_EXCEPTIONS "If rapidxml exceptions should be enabled." ON)
 option(EXI_USE_THREADS  "Enable multithreading?" OFF)
 option(EXI_USE_MIMALLOC "If allocation should be done through mimalloc." ON)
 

@@ -65,7 +65,6 @@ endif()
 if(NOT EXI_EXCEPTIONS)
   target_compile_definitions(exi-core PUBLIC
     EXI_NO_EXCEPTIONS=1
-    RAPIDXML_NO_EXCEPTIONS=1
   )
 endif()
 

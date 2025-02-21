@@ -19,6 +19,7 @@
 #include <Common/Option.hpp>
 #include <Common/StrRef.hpp>
 #include <Common/PointerIntPair.hpp>
+#include <Config/XML.inc>
 #include <Support/Allocator.hpp>
 #include <Support/Alignment.hpp>
 #include <Support/ErrorHandle.hpp>
