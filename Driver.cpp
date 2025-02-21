@@ -53,10 +53,19 @@ class XMLErrorInfo : public ErrorInfo<XMLErrorInfo> {
 
   String Msg;
   usize Offset = 0;
+  std::error_code EC;
 public:
   XMLErrorInfo(const Twine& Msg,
                usize Offset = usize(-1)) :
-   Msg(Msg.str()), Offset(Offset) {}
+   XMLErrorInfo(std::errc::illegal_byte_sequence, Msg, Offset) {}
+  
+  XMLErrorInfo(std::error_code EC, const Twine& Msg,
+               usize Offset = usize(-1)) :
+   Msg(Msg.str()), Offset(Offset), EC(EC) {}
+  
+  XMLErrorInfo(std::errc Errc, const Twine& Msg,
+               usize Offset = usize(-1)) :
+   XMLErrorInfo(std::make_error_code(Errc), Msg, Offset) {}
 
   void log(raw_ostream& OS) const override {
     OS << "XML Error";
@@ -66,9 +75,7 @@ public:
       OS << ": " << Msg;
   }
 
-  std::error_code convertToErrorCode() const override {
-    return std::error_code(); // ?
-  }
+  std::error_code convertToErrorCode() const override { return EC; }
 };
 
 char XMLErrorInfo::ID = 0;
