@@ -107,6 +107,17 @@ static Expected<Box<XMLDocument>>
   }
 }
 
+Box<WritableMemoryBuffer> getFromPath(
+    ExitOnError& OnErrHandler, const Twine& Path) {
+  SmallStr<80> UsePath;
+  Path.toVector(UsePath);
+  sys::fs::make_absolute(UsePath);
+
+  return OnErrHandler(
+    errorOrToExpected(WritableMemoryBuffer::getFileEx(
+      UsePath, true, false, /*UTF32*/ Align::Constant<4>())));
+}
+
 int tests_main(int Argc, char* Argv[]);
 int main(int Argc, char* Argv[]) {
   exi::DebugFlag = LogLevel::WARN;
@@ -114,14 +125,18 @@ int main(int Argc, char* Argv[]) {
   dbgs().enable_colors(true);
 
   ExitOnError ExitOnErr("exicpp: ");
-  SmallStr<80> Path("examples/Namespace.xml");
-  sys::fs::make_absolute(Path);
 
-  Box<WritableMemoryBuffer> MB = ExitOnErr(
-    errorOrToExpected(WritableMemoryBuffer::getFileEx(
-      Path, true, false, /*UTF32*/ Align::Constant<4>())));
-  Box<XMLDocument> Doc = ExitOnErr(
-    ParseXMLFromMemoryBuffer(*MB));
+  Box<WritableMemoryBuffer> MBA = getFromPath(
+    ExitOnErr, "examples/Namespace.xml");
+  Box<XMLDocument> DocA = ExitOnErr(
+    ParseXMLFromMemoryBuffer(*MBA));
+  outs() << raw_ostream::BRIGHT_GREEN
+    << "Read success!\n" << raw_ostream::RESET;
+  
+  Box<WritableMemoryBuffer> MBB = getFromPath(
+    ExitOnErr, "large-examples/treebank_e.xml");
+  Box<XMLDocument> DocB = ExitOnErr(
+    ParseXMLFromMemoryBuffer(*MBB));
   outs() << raw_ostream::BRIGHT_GREEN
     << "Read success!\n" << raw_ostream::RESET;
 
