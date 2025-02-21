@@ -15,6 +15,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/Alloc.cpp
   Support/Allocator.cpp
   Support/AutoConvert.cpp
+  Support/BuryPointer.cpp
   Support/Chrono.cpp
   Support/ConvertUTF.cpp
   Support/ConvertUTFWrappers.cpp
