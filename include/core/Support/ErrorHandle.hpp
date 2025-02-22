@@ -150,3 +150,12 @@ class Twine;
 /// Noop in this mode.
 # define exi_invariant(EXPR, ...) exi_assertCT_(EXPR)
 #endif
+
+#ifdef EXPENSIVE_CHECKS
+/// Takes `(condition, "message")`, checks when `EXPENSIVE_CHECKS` are on.
+# define exi_expensive_invariant(EXPR, ...)                                   \
+ exi_assert_(ASK_Invariant, EXPR __VA_OPT__(,) __VA_ARGS__)
+#else
+/// Noop in this mode.
+# define exi_invariant(EXPR, ...) (void(0))
+#endif
