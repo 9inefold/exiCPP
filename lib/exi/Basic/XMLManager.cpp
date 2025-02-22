@@ -1,4 +1,4 @@
-//===- exi/Basic/XMLManager.hpp -------------------------------------===//
+//===- exi/Basic/XMLManager.cpp -------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -23,24 +23,23 @@
 
 #pragma once
 
-#include "core/Common/EnumTraits.hpp"
-#include "exi/Basic/FileManager.hpp"
-#include "rapidxml_fwd.hpp"
+#include "exi/Basic/XMLManager.hpp"
+#include "core/Support/ErrorHandle.hpp"
+#include "rapidxml.hpp"
 
-namespace exi {
+using namespace exi;
 
-class XMLManager : public RefCountedBase<XMLManager> {
-	FileManager& FS;
-	xml::XMLBumpAllocator Alloc; // Shared allocator for XML files.
+#define DEBUG_TYPE "XMLManager"
 
-	EXI_PREFER_TYPE(bool)
-	unsigned Immutable : 1; // If the source text will be modified.
+#ifndef NDEBUG
+static int kValidate = xml::parse_validate_closing_tags;
+#else
+static int kValidate = 0;
+#endif
 
-	EXI_PREFER_TYPE(bool)
-	unsigned Strict : 1; // Disables comment, DOCTYPE, and PI parsing.
+static int kDefault 	= xml::parse_no_entity_translation
+											| xml::parse_no_data_nodes
+											| kValidate;
 
-public:
-	XMLManager() = default;
-};
-
-} // namespace exi
+static int kImmutable = kkDefault
+											| xml::parse_non_destructive;

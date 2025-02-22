@@ -23,10 +23,41 @@
 
 #pragma once
 
+#include "core/Common/Box.hpp"
 #include "core/Common/Fundamental.hpp"
-#include "core/Common/EnumTraits.hpp"
+#include "core/Common/IntrusiveRefCntPtr.hpp"
+#include "core/Common/StrRef.hpp"
 
 namespace exi {
 class MemoryBuffer;
+
+// TODO: Add vfs wrapper
+
+class CachedFile {
+	/// The actual buffer containing the input.
+	mutable Box<MemoryBuffer> TheBuffer;
+
+public:
+	/// Original filename of the cached file.
+	StrRef Filename;
+
+	/// If the buffer was a `WritableMemoryBuffer`.
+	EXI_PREFER_TYPE(bool)
+	unsigned IsMutable : 1;
+
+	/// If the file may change between stat invocations.
+	EXI_PREFER_TYPE(bool)
+	unsigned IsVolatile : 1;
+
+	/// If the buffer original contents were overridden.
+	EXI_PREFER_TYPE(bool)
+	unsigned BufferOverridden : 1;
+
+	/// If the buffer content has changed.
+	EXI_PREFER_TYPE(bool)
+	mutable unsigned IsDirty : 1;
+};
+
+class FileManager;
 
 } // namespace exi
