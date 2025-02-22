@@ -21,13 +21,13 @@
 ///
 //===----------------------------------------------------------------===//
 
-#include "exi/Stream/BitStream.hpp"
-#include "core/Common/APInt.hpp"
-#include "core/Common/SmallVec.hpp"
-#include "core/Common/StrRef.hpp"
-#include "core/Common/STLExtras.hpp"
-#include "core/Support/Endian.hpp"
-#include "core/Support/MemoryBuffer.hpp"
+#include <exi/Stream/BitStream.hpp>
+#include <core/Common/APInt.hpp>
+#include <core/Common/SmallVec.hpp>
+#include <core/Common/StrRef.hpp>
+#include <core/Common/STLExtras.hpp>
+#include <core/Support/Endian.hpp>
+#include <core/Support/MemoryBuffer.hpp>
 
 #define READ_FAST_PATH 0
 

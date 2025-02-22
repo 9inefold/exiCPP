@@ -23,9 +23,9 @@
 
 #pragma once
 
-#include "core/Common/APInt.hpp"
-#include "core/Common/Fundamental.hpp"
-#include "core/Support/MathExtras.hpp"
+#include <core/Common/APInt.hpp>
+#include <core/Common/Fundamental.hpp>
+#include <core/Support/MathExtras.hpp>
 
 #define EXI_BITINT_ALLDATA 1
 

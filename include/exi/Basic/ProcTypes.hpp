@@ -23,8 +23,8 @@
 
 #pragma once
 
-#include "core/Common/Fundamental.hpp"
-#include "core/Common/EnumTraits.hpp"
+#include <core/Common/Fundamental.hpp>
+#include <core/Common/EnumTraits.hpp>
 
 namespace exi {
 

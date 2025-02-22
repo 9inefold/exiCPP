@@ -23,8 +23,8 @@
 
 #pragma once
 
-#include "core/Common/Fundamental.hpp"
-#include "core/Common/StrRef.hpp"
+#include <core/Common/Fundamental.hpp>
+#include <core/Common/StrRef.hpp>
 
 namespace exi {
 

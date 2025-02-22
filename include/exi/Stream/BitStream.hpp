@@ -23,12 +23,12 @@
 
 #pragma once
 
-#include "core/Common/ArrayRef.hpp"
-#include "core/Common/Option.hpp"
-#include "core/Support/ErrorHandle.hpp"
-#include "core/Support/Limits.hpp"
-#include "exi/Basic/NBitInt.hpp"
-#include "exi/Basic/ErrorCodes.hpp"
+#include <core/Common/ArrayRef.hpp>
+#include <core/Common/Option.hpp>
+#include <core/Support/ErrorHandle.hpp>
+#include <core/Support/Limits.hpp>
+#include <exi/Basic/NBitInt.hpp>
+#include <exi/Basic/ErrorCodes.hpp>
 
 #define EXI_HAS_BITSTREAMOUT 1
 

@@ -23,9 +23,9 @@
 
 #pragma once
 
-#include "core/Common/EnumTraits.hpp"
-#include "exi/Basic/FileManager.hpp"
-#include "rapidxml_fwd.hpp"
+#include <core/Common/EnumTraits.hpp>
+#include <exi/Basic/FileManager.hpp>
+#include <rapidxml_fwd.hpp>
 
 namespace exi {
 
