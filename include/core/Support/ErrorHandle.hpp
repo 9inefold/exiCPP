@@ -157,5 +157,5 @@ class Twine;
  exi_assert_(ASK_Invariant, EXPR __VA_OPT__(,) __VA_ARGS__)
 #else
 /// Noop in this mode.
-# define exi_invariant(EXPR, ...) (void(0))
+# define exi_expensive_invariant(EXPR, ...) (void(0))
 #endif
