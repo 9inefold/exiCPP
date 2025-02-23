@@ -29,7 +29,7 @@
 /// either defined by sysexits.h if it is supported, or defined here if
 /// sysexits.h is not supported.
 ///
-//===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------===//
 
 #pragma once
 
