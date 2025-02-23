@@ -22,6 +22,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/Debug.cpp
   Support/Error.cpp
   Support/ErrorHandle.cpp
+  Support/ExtensibleRTTI.cpp
   Support/FmtBuffer.cpp
   Support/Format.cpp
   Support/ManagedStatic.cpp
