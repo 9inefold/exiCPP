@@ -16,9 +16,11 @@
 //
 //===----------------------------------------------------------------===//
 
+#include <Common/AlignedInt.hpp>
 #include <Common/APSInt.hpp>
 #include <Common/Box.hpp>
 #include <Common/Map.hpp>
+#include <Common/PointerUnion.hpp>
 #include <Common/String.hpp>
 #include <Common/SmallStr.hpp>
 #include <Common/SmallVec.hpp>
@@ -632,6 +634,29 @@ static void ExiErrorTests(int, char*[]) noexcept {
   TEST_EE(HeaderSelfContained, AlignKind::None);
   TEST_EE(HeaderSelfContained, AlignKind::None, true);
   TEST_EE(HeaderOutOfBand);
+}
+
+//===----------------------------------------------------------------===//
+// Pointer*
+//===----------------------------------------------------------------===//
+
+void PointerUnionTests(int, char*[]) noexcept {
+  PointerUnion<ia8*, ia16*, ia32*, ia64*> AnyInt;
+  {
+    ia8 Val = 0;
+    AnyInt = &Val;
+    *cast<ia8*>(AnyInt) = 77;
+    assert(Val == 77);
+    AnyInt = nullptr; 
+  }
+  {
+    ia32 Val = 44;
+    AnyInt = &Val;
+    assert(dyn_cast<ia8*>(AnyInt) == nullptr);
+    *cast<ia32*>(AnyInt) = 44;
+    assert(Val == 44);
+    AnyInt = nullptr; 
+  }
 }
 
 void tests_main(int Argc, char* Argv[]) {
