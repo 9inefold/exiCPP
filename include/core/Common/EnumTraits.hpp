@@ -57,13 +57,18 @@
 namespace exi {
 
 template <typename T>
-concept is_integral = std::is_integral_v<T>;
+concept is_integral = std::integral<T>;
 
 template <typename T>
 concept is_enum = std::is_enum_v<T>;
 
 template <typename T>
 concept is_integral_ex = is_integral<T> || is_enum<T>;
+
+using std::integral;
+
+template <typename T>
+concept integral_ex = is_integral_ex<T>;
 
 //////////////////////////////////////////////////////////////////////////
 // UnderlyingType
