@@ -24,6 +24,7 @@
 #pragma once
 
 #include <Common/Fundamental.hpp>
+#include <concepts>
 #include <type_traits>
 
 /// Defines common bitwise operations for types.
@@ -81,13 +82,13 @@ struct TUnderlyingType {
 };
 
 template <typename T>
-requires is_integral<T>
+requires exi::is_integral<T>
 struct TUnderlyingType<T> {
   using type = T;
 };
 
 template <typename T>
-requires is_enum<T>
+requires exi::is_enum<T>
 struct TUnderlyingType<T> {
   using type = std::underlying_type_t<T>;
 };
