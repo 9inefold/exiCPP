@@ -94,7 +94,7 @@ template <typename IntT> struct DenseMapInfo<AlignedInt<IntT>> {
   static inline Ty getEmptyKey() { return InfoT::getEmptyKey(); }
   static inline Ty getTombstoneKey() { return InfoT::getTombstoneKey(); }
 
-  static Ty getHashValue(const Ty& Val) {
+  static unsigned getHashValue(const Ty& Val) {
     return InfoT::getHashValue(Val.Data);
   }
 
