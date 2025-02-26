@@ -26,6 +26,7 @@
 #include <Support/Process.hpp>
 #include <Support/ScopedSave.hpp>
 #include <Support/raw_ostream.hpp>
+#include <exi/Basic/FileManager.hpp>
 #include <rapidxml.hpp>
 
 #define DEBUG_TYPE "__DRIVER__"
@@ -125,6 +126,29 @@ Box<WritableMemoryBuffer> getFromPath(
       UsePath, true, false, /*UTF32*/ Align::Constant<4>())));
 }
 
+static Error loadWritable(FileManager& FS, FileEntryRef FileRef) {
+  return FS.loadBufferForFile<WritableMemoryBuffer>(FileRef);
+}
+
+static Expected<WritableMemoryBuffer&> getFromPath(
+    FileManager& FS, const Twine& Path, bool IsVolatile = false) {
+  SmallStr<80> UsePath;
+  Expected<FileEntryRef> FileRef = FS.getFileRef(
+    Path.toStrRef(UsePath), true,
+    /*CacheFailures=*/true, /*IsText=*/true);
+  
+  if (Error E = FileRef.takeError())
+    return std::move(E);
+  
+  if (Error E = loadWritable(FS, *FileRef))
+    return std::move(E);
+  
+  return FileRef->getFileEntry()
+    .getWriteBufferIfLoaded()
+    .expect("Invalid entry in FileManager.");
+}
+
+
 int tests_main(int Argc, char* Argv[]);
 int main(int Argc, char* Argv[]) {
   exi::DebugFlag = LogLevel::WARN;
@@ -133,17 +157,19 @@ int main(int Argc, char* Argv[]) {
 
   ExitOnError ExitOnErr("exicpp: ");
 
-  Box<WritableMemoryBuffer> MBA = getFromPath(
-    ExitOnErr, "examples/Namespace.xml");
+  FileManager FS({});
+
+  WritableMemoryBuffer& MBA = ExitOnErr(
+    getFromPath(FS, "examples/Namespace.xml"));
   Box<XMLDocument> DocA = ExitOnErr(
-    ParseXMLFromMemoryBuffer(*MBA));
+    ParseXMLFromMemoryBuffer(MBA));
   outs() << raw_ostream::BRIGHT_GREEN
     << "Read success!\n" << raw_ostream::RESET;
   
-  Box<WritableMemoryBuffer> MBB = getFromPath(
-    ExitOnErr, "large-examples/treebank_e.xml");
+  WritableMemoryBuffer& MBB = ExitOnErr(
+    getFromPath(FS, "large-examples/treebank_e.xml"));
   Box<XMLDocument> DocB = ExitOnErr(
-    ParseXMLFromMemoryBuffer(*MBB));
+    ParseXMLFromMemoryBuffer(MBB));
   outs() << raw_ostream::BRIGHT_GREEN
     << "Read success!\n" << raw_ostream::RESET;
 
