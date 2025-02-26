@@ -21,11 +21,9 @@
 ///
 //===----------------------------------------------------------------===//
 
-#pragma once
-
-#include "exi/Basic/XMLManager.hpp"
-#include "core/Support/ErrorHandle.hpp"
-#include "rapidxml.hpp"
+#include <exi/Basic/XMLManager.hpp>
+#include <core/Support/ErrorHandle.hpp>
+#include <rapidxml.hpp>
 
 using namespace exi;
 
@@ -37,9 +35,9 @@ static int kValidate = xml::parse_validate_closing_tags;
 static int kValidate = 0;
 #endif
 
-static int kDefault 	= xml::parse_no_entity_translation
-											| xml::parse_no_data_nodes
-											| kValidate;
+static int kDefault = xml::parse_no_entity_translation
+										| xml::parse_no_data_nodes
+										| kValidate;
 
-static int kImmutable = kkDefault
+static int kImmutable = kDefault
 											| xml::parse_non_destructive;

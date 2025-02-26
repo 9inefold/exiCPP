@@ -30,8 +30,9 @@
 namespace exi {
 
 class XMLManager : public RefCountedBase<XMLManager> {
+public: // TODO: REMOVE!! BUT HERE TO SHUT UP THE WARNINGS!!
 	FileManager& FS;
-	xml::XMLBumpAllocator Alloc; // Shared allocator for XML files.
+	xml::XMLBumpAllocator SchemaAlloc; // Shared allocator for Schema files.
 
 	EXI_PREFER_TYPE(bool)
 	unsigned Immutable : 1; // If the source text will be modified.
@@ -40,7 +41,7 @@ class XMLManager : public RefCountedBase<XMLManager> {
 	unsigned Strict : 1; // Disables comment, DOCTYPE, and PI parsing.
 
 public:
-	XMLManager() = default;
+	XMLManager(FileManager& FS) : FS(FS), Immutable(false), Strict(false) {}
 };
 
 } // namespace exi

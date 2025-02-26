@@ -15,10 +15,10 @@
 
 #pragma once
 
+#include <Common/Option.hpp>
 #include <Support/type_traits.hpp>
 #include <cassert>
 #include <memory>
-#include <optional>
 
 namespace exi {
 
@@ -259,8 +259,8 @@ struct CastIsPossible {
 // over. In fact, some of the isa_impl templates should be moved over to
 // CastIsPossible.
 template <typename To, typename From>
-struct CastIsPossible<To, std::optional<From>> {
-  static inline bool isPossible(const std::optional<From> &f) {
+struct CastIsPossible<To, Option<From>> {
+  static inline bool isPossible(const Option<From> &f) {
     assert(f && "CastIsPossible::isPossible called on a nullopt!");
     return isa_impl_wrap<
         To, const From,
@@ -354,18 +354,18 @@ struct UniquePtrCast : public CastIsPossible<To, From *> {
   }
 };
 
-/// This cast trait provides std::optional<T> casting. This means that if you
+/// This cast trait provides Option<T> casting. This means that if you
 /// have a value type, you can cast it to another value type and have dyn_cast
-/// return an std::optional<T>.
+/// return an Option<T>.
 template <typename To, typename From, typename Derived = void>
 struct OptionalValueCast
     : public CastIsPossible<To, From>,
       public DefaultDoCastIfPossible<
-          std::optional<To>, From,
+          Option<To>, From,
           H::SelfType<Derived, OptionalValueCast<To, From>>> {
-  static inline std::optional<To> castFailed() { return std::optional<To>{}; }
+  static inline Option<To> castFailed() { return Option<To>{}; }
 
-  static inline std::optional<To> doCast(const From &f) { return To(f); }
+  static inline Option<To> doCast(const From &f) { return To(f); }
 };
 
 /// Provides a cast trait that strips `const` from types to make it easier to
@@ -528,11 +528,11 @@ struct CastInfo<To, From, std::enable_if_t<!is_simple_type<From>::value>> {
 template <typename To, typename From>
 struct CastInfo<To, std::unique_ptr<From>> : public UniquePtrCast<To, From> {};
 
-/// Provide a CastInfo specialized for std::optional<From>. It's assumed that if
-/// the input is std::optional<From> that the output can be std::optional<To>.
+/// Provide a CastInfo specialized for Option<From>. It's assumed that if
+/// the input is Option<From> that the output can be Option<To>.
 /// If that's not the case, specialize CastInfo for your use case.
 template <typename To, typename From>
-struct CastInfo<To, std::optional<From>> : public OptionalValueCast<To, From> {
+struct CastInfo<To, Option<From>> : public OptionalValueCast<To, From> {
 };
 
 /// isa<X> - Return true if the parameter to the template is an instance of one
@@ -603,12 +603,12 @@ template <typename T, typename Enable = void> struct ValueIsPresent {
 };
 
 // Optional provides its own way to check if something is present.
-template <typename T> struct ValueIsPresent<std::optional<T>> {
+template <typename T> struct ValueIsPresent<Option<T>> {
   using UnwrappedType = T;
-  static inline bool isPresent(const std::optional<T> &t) {
+  static inline bool isPresent(const Option<T> &t) {
     return t.has_value();
   }
-  static inline decltype(auto) unwrapValue(std::optional<T> &t) { return *t; }
+  static inline decltype(auto) unwrapValue(Option<T> &t) { return *t; }
 };
 
 // If something is "nullable" then we just compare it to nullptr to see if it

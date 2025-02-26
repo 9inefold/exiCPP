@@ -251,7 +251,9 @@ public:
   /// The returned value is negative iff the object is inside a custom-size
   /// slab.
   /// Returns an empty optional if the pointer is not found in the allocator.
-  Option<i64> identifyObject(const void *Ptr) {
+  Option<i64> identifyObject(const void *Ptr) const {
+    if (!Ptr)
+      return std::nullopt;
     const char *P = static_cast<const char *>(Ptr);
     i64 InSlabIdx = 0;
     for (usize Idx = 0, E = Slabs.size(); Idx < E; Idx++) {
@@ -277,7 +279,7 @@ public:
   /// the object is indeed within the allocator.
   /// \return An index uniquely and reproducibly identifying
   /// an input pointer \p Ptr in the given allocator.
-  i64 identifyKnownObject(const void *Ptr) {
+  i64 identifyKnownObject(const void *Ptr) const {
     Option<i64> Out = identifyObject(Ptr);
     exi_assert(Out, "Wrong allocator used");
     return *Out;
@@ -294,7 +296,7 @@ public:
   /// different from the ones produced by identifyObject and
   /// identifyAlignedObject.
   template <typename T>
-  i64 identifyKnownAlignedObject(const void *Ptr) {
+  i64 identifyKnownAlignedObject(const void *Ptr) const {
     i64 Out = identifyKnownObject(Ptr);
     exi_assert(Out % alignof(T) == 0, "Wrong alignment information");
     return Out / alignof(T);
@@ -456,7 +458,7 @@ public:
   /// \return An index uniquely and reproducibly identifying
   /// an input pointer \p Ptr in the given allocator.
   /// Returns an empty optional if the pointer is not found in the allocator.
-  Option<i64> identifyObject(const void *Ptr) {
+  Option<i64> identifyObject(const void *Ptr) const {
     return Allocator.identifyObject(Ptr);
   }
 };

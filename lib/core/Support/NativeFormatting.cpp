@@ -145,7 +145,7 @@ void exi::write_integer(raw_ostream &S, long long N, usize MinDigits,
 }
 
 void exi::write_hex(raw_ostream &S, u64 N, HexPrintStyle Style,
-                     std::optional<usize> Width) {
+                    Option<usize> Width) {
   constexpr usize kMaxWidth = 128u;
 
   usize W = std::min(kMaxWidth, Width.value_or(0u));
@@ -175,7 +175,7 @@ void exi::write_hex(raw_ostream &S, u64 N, HexPrintStyle Style,
 }
 
 void exi::write_double(raw_ostream &S, double N, FloatStyle Style,
-                        std::optional<usize> Precision) {
+                       Option<usize> Precision) {
   usize Prec = Precision.value_or(getDefaultPrecision(Style));
 
   if (std::isnan(N)) {

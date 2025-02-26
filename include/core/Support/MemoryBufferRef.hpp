@@ -35,6 +35,27 @@
 namespace exi {
 
 class MemoryBuffer;
+class WritableMemoryBuffer;
+
+namespace H {
+
+template <typename MB>
+struct MemoryBufferClassImpl {
+  COMPILE_FAILURE(MemoryBufferClassImpl,
+    "Invalid MemoryBufferClass, must be [Writable]MemoryBuffer!");
+};
+
+template <>
+struct MemoryBufferClassImpl<MemoryBuffer> {
+  static constexpr bool is_mutable = false;
+};
+
+template <>
+struct MemoryBufferClassImpl<WritableMemoryBuffer> {
+  static constexpr bool is_mutable = true;
+};
+
+} // namespace H
 
 class MemoryBufferRef {
   StrRef Buffer;
@@ -67,5 +88,9 @@ public:
     return !(LHS == RHS);
   }
 };
+
+template <typename MB>
+inline constexpr bool kMemoryBufferMutability
+    = H::MemoryBufferClassImpl<MB>::is_mutable;
 
 } // namespace exi

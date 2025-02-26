@@ -233,6 +233,11 @@ public:
   getFileEx(const Twine &Filename,
             bool RequiresNullTerminator = true, bool IsVolatile = false,
             Option<Align> Alignment = nullopt);
+  
+  static ErrorOr<Box<WritableMemoryBuffer>>
+  getOpenFile(sys::fs::file_t FD, const Twine &Filename, u64 FileSize,
+              bool RequiresNullTerminator = true, bool IsVolatile = false,
+              Option<Align> Alignment = nullopt);
 
   /// Map a subrange of the specified file as a WritableMemoryBuffer.
   static ErrorOr<Box<WritableMemoryBuffer>>
@@ -259,7 +264,7 @@ public:
 private:
   // Hide these base class factory function so one can't write
   //   WritableMemoryBuffer::getXXX()
-  // and be surprised that he got a read-only Buffer.
+  // and be surprised that they got a read-only Buffer.
   using MemoryBuffer::getFileAsStream;
   using MemoryBuffer::getFileOrSTDIN;
   using MemoryBuffer::getMemBuffer;

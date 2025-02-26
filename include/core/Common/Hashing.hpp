@@ -74,6 +74,7 @@
 #include <utility>
 
 namespace exi {
+template <typename T> class Option;
 template <typename T, typename Enable> struct DenseMapInfo;
 
 /// An opaque object representing a hash code.
@@ -663,8 +664,8 @@ hash_code hash_value(const std::basic_string<T> &arg) {
   return hash_combine_range(arg.begin(), arg.end());
 }
 
-template <typename T> hash_code hash_value(const Option<T> &arg) {
-  return arg ? hash_combine(true, *arg) : hash_value(false);
+template <typename T> hash_code hash_value(const Option<T>& O) {
+  return O ? hash_combine(true, *O) : hash_value(false);
 }
 
 template <> struct DenseMapInfo<hash_code, void> {

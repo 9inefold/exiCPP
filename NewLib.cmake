@@ -38,6 +38,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/StringSaver.cpp
   Support/TokenizeCmd.cpp
   Support/VersionTuple.cpp
+  Support/VirtualFilesystem.cpp
   Support/circular_raw_ostream.cpp
   Support/rapidhash.cpp
   Support/raw_ostream.cpp
@@ -73,7 +74,11 @@ endif()
 
 include_items(EXICPP_SRC "lib/exi"
   Basic/ErrorCodes.cpp
+  Basic/FileEntry.cpp
+  Basic/FileManager.cpp
+  Basic/FilesystemStatCache.cpp
   Basic/NBitInt.cpp
+  Basic/XMLManager.cpp
 
   Stream/BitStreamIn.cpp
   Stream/BitStreamOut.cpp

@@ -64,8 +64,8 @@ public:
   /// success for directories (not files).  On a successful file lookup, the
   /// implementation can optionally fill in \p F with a valid \p File object and
   /// the client guarantees that it will close it.
-  static std::error_code get(StrRef Path, vfs::Status& Status,
-                             bool isFile, Box<vfs::File>* F,
+  static std::error_code Get(StrRef Path, vfs::Status& Status,
+                             bool isFile, Option<Box<vfs::File>&> F,
                              FileSystemStatCache* Cache,
                              vfs::FileSystem& FS, bool IsText = true);
 
@@ -75,7 +75,7 @@ protected:
   // Optional needs some work to support references so this isn't possible yet.
   virtual std::error_code getStat(StrRef Path, vfs::Status& Status,
                                   bool isFile,
-                                  Box<vfs::File>* F,
+                                  Option<Box<vfs::File>&> F,
                                   vfs::FileSystem& FS) = 0;
 };
 
@@ -96,7 +96,7 @@ public:
 
   std::error_code getStat(StrRef Path, vfs::Status& Status,
                           bool isFile,
-                          Box<vfs::File>* F,
+                          Option<Box<vfs::File>&> F,
                           vfs::FileSystem& FS) override;
 };
 

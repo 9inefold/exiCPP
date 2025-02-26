@@ -40,7 +40,7 @@ using namespace exi;
 
 void FileSystemStatCache::anchor() {}
 
-/// FileSystemStatCache::get - Get the 'stat' information for the specified
+/// FileSystemStatCache::Get - Get the 'stat' information for the specified
 /// path, using the cache to accelerate it if possible.  This returns true if
 /// the path does not exist or false if it exists.
 ///
@@ -49,9 +49,9 @@ void FileSystemStatCache::anchor() {}
 /// success for directories (not files).  On a successful file lookup, the
 /// implementation can optionally fill in FileDescriptor with a valid
 /// descriptor and the client guarantees that it will close it.
-std::error_code FileSystemStatCache::get(StrRef Path,
+std::error_code FileSystemStatCache::Get(StrRef Path,
                                          vfs::Status& Status, bool isFile,
-                                         Box<vfs::File>* F,
+                                         Option<Box<vfs::File>&> F,
                                          FileSystemStatCache* Cache,
                                          vfs::FileSystem& FS,
                                          bool IsText) {
@@ -110,7 +110,7 @@ std::error_code FileSystemStatCache::get(StrRef Path,
   if (Status.isDirectory() != isForDir) {
     // If not, close the file if opened.
     if (F)
-      *F = nullptr;
+      F->reset();
     return std::make_error_code(
         Status.isDirectory() ?
             std::errc::is_a_directory : std::errc::not_a_directory);
@@ -122,14 +122,13 @@ std::error_code FileSystemStatCache::get(StrRef Path,
 std::error_code
  MemorizeStatCalls::getStat(StrRef Path, vfs::Status& Status,
                             bool isFile,
-                            Box<vfs::File>* F,
+                            Option<Box<vfs::File>&> F,
                             vfs::FileSystem& FS) {
-  auto err = get(Path, Status, isFile, F, nullptr, FS);
+  auto err = FileSystemStatCache::Get(
+    Path, Status, isFile, F, nullptr, FS);
   if (err) {
     // Do not cache failed stats, it is easy to construct common inconsistent
-    // situations if we do, and they are not important for PCH performance
-    // (which currently only needs the stats to construct the initial
-    // FileManager entries).
+    // situations if we do, and they are not important for performance..
     return err;
   }
 

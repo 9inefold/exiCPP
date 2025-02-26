@@ -9,11 +9,13 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## In Progress
 
-- `DenseMap` and friends
-- Update rapidxml
+- VFS
+- XML/File manager
 - Produce event codes
+- Update rapidxml
 - `*BitStream` implementation
 - `ErrorCode` customization
+- `DenseMap` and friends
 
 ## Unfinished
 

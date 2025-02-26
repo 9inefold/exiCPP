@@ -86,7 +86,7 @@ class Twine;
 
 /// Simplified assertion handler, provides required arguments for you.
 #define exi_fail(KIND, MSG) ::exi::exi_assert_impl(                           \
-  ::exi::H::KIND, MSG, __FILE__, __LINE__)
+  ::exi::H::KIND, MSG, EXI_FUNCTION, __LINE__)
 
 /// Simplified assertion handler, provides required arguments for you.
 #define exi_fail_stringify(KIND, ...) exi_fail(KIND, "`" #__VA_ARGS__ "`")

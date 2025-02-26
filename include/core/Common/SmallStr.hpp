@@ -284,6 +284,11 @@ public:
     return this->data();
   }
 
+  /// Null terminates and returns a str().
+  [[nodiscard]] StrRef n_str() {
+    return StrRef(this->c_str(), this->size());
+  }
+
   /// Implicit conversion to StrRef.
   operator StrRef() const { return str(); }
 

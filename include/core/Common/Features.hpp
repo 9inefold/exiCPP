@@ -284,10 +284,10 @@
 # define EXI_PREFER_NAME(alias)
 #endif
 
-#if EXI_HAS_ATTR(preferred_type)
-#define EXI_PREFER_TYPE(T) __attribute__((preferred_type(T)))
+#if defined(__clang_major__) && (__clang_major__ >= 18)
+#define EXI_PREFER_TYPE(...) [[clang::preferred_type(__VA_ARGS__)]]
 #else
-#define EXI_PREFER_TYPE(T)
+#define EXI_PREFER_TYPE(...)
 #endif
 
 #ifdef __GNUC__
@@ -379,7 +379,7 @@
 // Builtins
 
 #ifdef __GNUC__
-# define EXI_FUNCTION __PRETTY_FUNCTION__
+# define EXI_FUNCTION __extension__ __PRETTY_FUNCTION__
 #elif EXI_MSVC
 # define EXI_FUNCTION __FUNCSIG__
 #else

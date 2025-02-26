@@ -87,7 +87,7 @@ public:
   template <class E>
   ErrorOr(E ErrorCode,
           std::enable_if_t<std::is_error_code_enum<E>::value ||
-                               std::is_error_condition_enum<E>::value,
+                           std::is_error_condition_enum<E>::value,
                            void *> = nullptr)
       : HasError(true) {
     new (getErrorStorage()) std::error_code(make_error_code(ErrorCode));

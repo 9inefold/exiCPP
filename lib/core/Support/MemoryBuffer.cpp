@@ -582,6 +582,15 @@ MemoryBuffer::getOpenFile(sys::fs::file_t FD, const Twine &Filename,
                                        Alignment);
 }
 
+ErrorOr<Box<WritableMemoryBuffer>>
+WritableMemoryBuffer::getOpenFile(sys::fs::file_t FD, const Twine &Filename,
+                                  u64 FileSize, bool RequiresNullTerminator,
+                                  bool IsVolatile, Option<Align> Alignment) {
+  return getOpenFileImpl<WritableMemoryBuffer>(FD, Filename, FileSize, FileSize,
+                                               0, RequiresNullTerminator,
+                                               IsVolatile, Alignment);
+}
+
 ErrorOr<Box<MemoryBuffer>> MemoryBuffer::getOpenFileSlice(
     sys::fs::file_t FD, const Twine &Filename, u64 MapSize, i64 Offset,
     bool IsVolatile, Option<Align> Alignment) {
