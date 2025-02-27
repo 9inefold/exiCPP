@@ -6,11 +6,10 @@ This is a TODO list for the C++ version of exiCPP.
 
 - `core` in a usable state
 - `NBitInt`
+- XML/File manager
 
 ## In Progress
 
-- VFS
-- XML/File manager
 - Produce event codes
 - Update rapidxml
 - `*BitStream` implementation
@@ -30,6 +29,7 @@ This is a TODO list for the C++ version of exiCPP.
   
 ## Stretch Goals
 
-- Custom XML parser (I hate the stupid trees)
-- Schema to C++ transpiler
 - Fuzzing
+- VFS
+- Schema to C++ transpiler
+- Custom XML parser (I hate the stupid trees)
