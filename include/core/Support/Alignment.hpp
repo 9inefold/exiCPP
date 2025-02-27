@@ -52,8 +52,8 @@ namespace exi {
 /// It is suitable for use as static global constants.
 struct Align {
 private:
-  uint8_t ShiftValue = 0; /// The log2 of the required alignment.
-                          /// ShiftValue is less than 64 by construction.
+  u8 ShiftValue = 0; /// The log2 of the required alignment.
+                     /// ShiftValue is less than 64 by construction.
 
   friend struct MaybeAlign;
   friend constexpr unsigned Log2(Align);
@@ -65,6 +65,9 @@ private:
   friend constexpr bool operator>(Align Lhs, Align Rhs);
   friend unsigned encode(struct MaybeAlign A);
   friend struct MaybeAlign decodeMaybeAlign(unsigned Value);
+
+  struct LogValue { u8 ShiftValue; };
+  constexpr Align(LogValue Val) : ShiftValue(Val.ShiftValue) {}
 
 public:
   /// Default is byte-aligned.
@@ -97,7 +100,7 @@ public:
 
   /// Allow constructions of constexpr Align.
   template <usize kValue> constexpr static Align Constant() {
-    return Align{CTLog2<kValue>()};
+    return LogValue{CTLog2<kValue>()};
   }
 
   /// Allow constructions of constexpr Align from types.
