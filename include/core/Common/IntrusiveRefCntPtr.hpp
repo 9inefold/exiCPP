@@ -326,9 +326,15 @@ template <class T> struct simplify_type<const IntrusiveRefCntPtr<T>> {
 };
 
 /// Factory function for creating intrusive ref counted pointers.
-template <typename T, typename... Args>
-IntrusiveRefCntPtr<T> makeIntrusiveRefCnt(Args &&...A) {
-  return IntrusiveRefCntPtr<T>(new T(std::forward<Args>(A)...));
+template <typename T>
+IntrusiveRefCntPtr<T> makeIntrusiveRefCnt(auto&&...Args) {
+  return IntrusiveRefCntPtr<T>(new T(EXI_FWD(Args)...));
+}
+
+/// Factory function for creating intrusive ref counted pointers.
+template <typename T>
+IntrusiveRefCntPtr<T> make_refcounted(auto&&...Args) {
+  return IntrusiveRefCntPtr<T>(new T(EXI_FWD(Args)...));
 }
 
 } // namespace exi
