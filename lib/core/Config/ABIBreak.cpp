@@ -20,7 +20,7 @@
 // TODO: Get this working
 // #include <mimalloc-new-delete.h>
 
-namespace exi {
+namespace exi::abi_detail {
 #if EXI_INVARIANTS
 char debugModeEnabled;
 #else
@@ -32,4 +32,10 @@ char mimallocEnabled;
 #else
 char mimallocDisabled;
 #endif // EXI_USE_MIMALLOC
-} // namespace exi
+
+#if EXI_USE_THREADS
+char threadingEnabled;
+#else
+char threadingDisabled;
+#endif // EXI_USE_MIMALLOC
+} // namespace exi::abi_detail

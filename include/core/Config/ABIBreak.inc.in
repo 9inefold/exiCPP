@@ -29,7 +29,8 @@
 # define EXI_STR_(s) #s
 # define EXI_STR(s)  EXI_STR_(EXI_STR)
 # pragma detect_mismatch("EXI_INVARIANTS", EXI_STR(EXI_INVARIANTS))
-# pragma detect_mismatch("EXIP_USE_MIMALLOC", EXI_STR(EXIP_USE_MIMALLOC))
+# pragma detect_mismatch("EXI_USE_MIMALLOC", EXI_STR(EXI_USE_MIMALLOC))
+# pragma detect_mismatch("EXI_USE_THREADS", EXI_STR(EXI_USE_THREADS))
 # undef EXI_STR
 # undef EXI_STR_
 #else
@@ -43,7 +44,7 @@
 #  define EXI_HIDDEN
 #  define EXI_WEAK __attribute__((weak))
 # endif
-namespace exi {
+namespace exi::abi_detail {
 // Check if invariants enabled
 # if EXI_INVARIANTS
 extern char debugModeEnabled;
@@ -64,7 +65,17 @@ extern char mimallocDisabled;
 EXI_HIDDEN EXI_WEAK
   char* VerifyMimallocOnLink = &mimallocDisabled;
 # endif // EXI_USE_MIMALLOC
-} // namespace exi
+// Check if threading enabled
+# if EXI_USE_THREADS
+extern char threadingEnabled;
+EXI_HIDDEN EXI_WEAK
+  char* VerifyThreadingOnLink = &threadingEnabled;
+# else
+extern char threadingDisabled;
+EXI_HIDDEN EXI_WEAK
+  char* VerifyThreadingOnLink = &threadingDisabled;
+# endif // EXI_USE_THREADS
+} // namespace exi::abi_detail
 # undef EXI_WEAK
 # undef EXI_HIDDEN
 #endif
