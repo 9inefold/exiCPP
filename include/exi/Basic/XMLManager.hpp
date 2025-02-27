@@ -23,25 +23,52 @@
 
 #pragma once
 
+#include <core/Common/Box.hpp>
 #include <core/Common/EnumTraits.hpp>
-#include <exi/Basic/FileManager.hpp>
-#include <rapidxml_fwd.hpp>
+#include <core/Common/IntrusiveRefCntPtr.hpp>
+#include <core/Common/Option.hpp>
+#include <core/Common/StringMap.hpp>
+#include <core/Support/Error.hpp>
+// #include <exi/Basic/FileManager.hpp>
+#include <exi/Basic/XML.hpp>
 
 namespace exi {
 
-class XMLManager : public RefCountedBase<XMLManager> {
-public: // TODO: REMOVE!! BUT HERE TO SHUT UP THE WARNINGS!!
-	FileManager& FS;
-	xml::XMLBumpAllocator SchemaAlloc; // Shared allocator for Schema files.
+class MemoryBuffer;
+class WritableMemoryBuffer;
+class XMLContainer;
+class raw_ostream;
 
-	EXI_PREFER_TYPE(bool)
-	unsigned Immutable : 1; // If the source text will be modified.
+class XMLManager : public ThreadSafeRefCountedBase<XMLManager> {
+  Option<XMLOptions> DefaultOpts;
+  SpecificBumpPtrAllocator<XMLContainer> FilesAlloc;
 
-	EXI_PREFER_TYPE(bool)
-	unsigned Strict : 1; // Disables comment, DOCTYPE, and PI parsing.
+  xml::XMLBumpAllocator SharedDocAlloc;
+  StringMap<XMLContainer*, BumpPtrAllocator> SeenFiles;
+
+  /// Allocates the base container with `FilesAlloc`.
+  XMLContainer* allocateContainer(bool SharedAlloc = true);
+
+  Expected<XMLDocument&> getXMLDocumentImpl(StrRef Filepath,
+                                            bool IsVolatile = false);
 
 public:
-	XMLManager(FileManager& FS) : FS(FS), Immutable(false), Strict(false) {}
+  XMLManager(Option<XMLOptions> Opts = std::nullopt);
+  ~XMLManager();
+
+  Expected<XMLDocument&> getXMLDocument(const Twine& Filepath,
+                                        bool IsVolatile = false);
+  
+  /// Get a `XMLDocument&` if it exists, printing to `OS` on error.
+  Option<XMLDocument&>
+   getOptionalXMLDocument(const Twine& Filepath, raw_ostream& OS);
+
+  /// Get a `XMLDocument&` if it exists, without doing anything on error.
+  Option<XMLDocument&>
+   getOptionalXMLDocument(const Twine& Filepath) {
+    return expectedToOptional(
+      getXMLDocument(Filepath, false));
+  }
 };
 
 } // namespace exi

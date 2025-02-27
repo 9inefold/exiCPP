@@ -98,17 +98,14 @@ do {                                                                           \
 //! \param where Pointer to character data where error was detected.
 void parse_error_handler(const char* what, void* where);
 
-//! Forces the use of exceptions. Useful for testing.
-extern bool use_exceptions_anyway;
-
 #else
-
 # define RAPIDXML_PARSE_ERROR(what, where) throw parse_error(what, where)
-
-//! Does nothing in this mode.
-extern bool use_exceptions_anyway;
-
 #endif // RAPIDXML_NO_EXCEPTIONS
+
+//! Forces the use of exceptions if `RAPIDXML_NO_EXCEPTIONS` is defined.
+//! Useful for testing.
+// FIXME: Use `std::atomic`, may multithread.
+extern bool use_exceptions_anyway;
 
 } // namespace xml
 
@@ -393,7 +390,11 @@ public:
   //! Constructs empty pool.
   MemoryPool() : AllocBase(new XMLBumpAllocator, true) {}
   //! Constructs pool from input allocator.
-  explicit MemoryPool(XMLBumpAllocator& A) : AllocBase(&A, false) { }
+  explicit MemoryPool(exi::Option<XMLBumpAllocator&> A) : AllocBase() {
+    const bool ShouldOwn = !A.has_value();
+    XMLBumpAllocator* Ptr = ShouldOwn ? new XMLBumpAllocator : &*A;
+    AllocBase.setPointerAndInt(Ptr, ShouldOwn);
+  }
 
   //! Destroys pool and frees all the memory.
   //! This causes memory occupied by nodes allocated by the pool to be freed.
@@ -1259,7 +1260,7 @@ public:
   //! Constructs empty XML document
   XMLDocument() : NodeType(node_document), MemoryPool<Ch>() {}
   //! Constructs pool from input allocator.
-  explicit XMLDocument(XMLBumpAllocator& A EXI_LIFETIMEBOUND) :
+  explicit XMLDocument(exi::Option<XMLBumpAllocator&> A) :
    NodeType(node_document), MemoryPool<Ch>(A) {
   }
 

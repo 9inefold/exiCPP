@@ -25,19 +25,14 @@
 #include <Support/MemoryBufferRef.hpp>
 #include <Support/Process.hpp>
 #include <Support/ScopedSave.hpp>
+#include <Support/Signals.hpp>
 #include <Support/raw_ostream.hpp>
-#include <exi/Basic/FileManager.hpp>
+#include <exi/Basic/XMLManager.hpp>
 #include <rapidxml.hpp>
 
 #define DEBUG_TYPE "__DRIVER__"
 
 using namespace exi;
-
-using XMLDocument  = xml::XMLDocument<Char>;
-using XMLAttribute = xml::XMLAttribute<Char>;
-using XMLBase      = xml::XMLBase<Char>;
-using XMLNode      = xml::XMLNode<Char>;
-using xml::NodeKind;
 
 enum NodeDataKind {
   NDK_None    = 0b000,
@@ -82,11 +77,8 @@ public:
 char XMLErrorInfo::ID = 0;
 } // namespace `anonymous`
 
-static Box<XMLDocument> CreateXMLDoc(xml::XMLBumpAllocator* Alloc) {
-  if (Alloc == nullptr)
-    return std::make_unique<XMLDocument>();
-  else
-    return std::make_unique<XMLDocument>(*Alloc);
+static Box<XMLDocument> CreateXMLDoc(Option<xml::XMLBumpAllocator&> Alloc) {
+  return std::make_unique<XMLDocument>(Alloc);
 }
 
 static Expected<Box<XMLDocument>>
@@ -115,39 +107,18 @@ static Expected<Box<XMLDocument>>
   }
 }
 
-Box<WritableMemoryBuffer> getFromPath(
-    ExitOnError& OnErrHandler, const Twine& Path) {
+Expected<Box<WritableMemoryBuffer>> getFromPath(const Twine& Path) {
   SmallStr<80> UsePath;
   Path.toVector(UsePath);
   sys::fs::make_absolute(UsePath);
 
-  return OnErrHandler(
-    errorOrToExpected(WritableMemoryBuffer::getFileEx(
-      UsePath, true, false, /*UTF32*/ Align::Constant<4>())));
+  return errorOrToExpected(WritableMemoryBuffer::getFileEx(
+    UsePath, true, false, /*UTF32*/ Align::Constant<4>()));
 }
 
-static Error loadWritable(FileManager& FS, FileEntryRef FileRef) {
-  return FS.loadBufferForFile<WritableMemoryBuffer>(FileRef);
+static Option<XMLDocument&> TryLoad(XMLManager& M, const Twine& Filepath) {
+  return M.getOptionalXMLDocument("examples/Namespace.xml", errs());
 }
-
-static Expected<WritableMemoryBuffer&> getFromPath(
-    FileManager& FS, const Twine& Path, bool IsVolatile = false) {
-  SmallStr<80> UsePath;
-  Expected<FileEntryRef> FileRef = FS.getFileRef(
-    Path.toStrRef(UsePath), true,
-    /*CacheFailures=*/true, /*IsText=*/true);
-  
-  if (Error E = FileRef.takeError())
-    return std::move(E);
-  
-  if (Error E = loadWritable(FS, *FileRef))
-    return std::move(E);
-  
-  return FileRef->getFileEntry()
-    .getWriteBufferIfLoaded()
-    .expect("Invalid entry in FileManager.");
-}
-
 
 int tests_main(int Argc, char* Argv[]);
 int main(int Argc, char* Argv[]) {
@@ -155,48 +126,30 @@ int main(int Argc, char* Argv[]) {
   outs().enable_colors(true);
   dbgs().enable_colors(true);
 
+  IntrusiveRefCntPtr<XMLManager> Manager = make_refcounted<XMLManager>();
+  if (auto Opt = TryLoad(*Manager, "examples/Namespace.xml"))
+    outs() << raw_ostream::BRIGHT_GREEN
+      << "Read success!\n" << raw_ostream::RESET;
+  if (auto Opt = TryLoad(*Manager, "large-examples/treebank_e.xml"))
+    outs() << raw_ostream::BRIGHT_GREEN
+      << "Read success!\n" << raw_ostream::RESET;
+  /*
   ExitOnError ExitOnErr("exicpp: ");
 
-  FileManager FS({});
-
-  WritableMemoryBuffer& MBA = ExitOnErr(
-    getFromPath(FS, "examples/Namespace.xml"));
+  Box<WritableMemoryBuffer> MBA = ExitOnErr(
+    getFromPath("examples/Namespace.xml"));
   Box<XMLDocument> DocA = ExitOnErr(
-    ParseXMLFromMemoryBuffer(MBA));
+    ParseXMLFromMemoryBuffer(*MBA));
   outs() << raw_ostream::BRIGHT_GREEN
     << "Read success!\n" << raw_ostream::RESET;
   
-  WritableMemoryBuffer& MBB = ExitOnErr(
-    getFromPath(FS, "large-examples/treebank_e.xml"));
+  Box<WritableMemoryBuffer> MBB = ExitOnErr(
+    getFromPath("large-examples/treebank_e.xml"));
   Box<XMLDocument> DocB = ExitOnErr(
-    ParseXMLFromMemoryBuffer(MBB));
+    ParseXMLFromMemoryBuffer(*MBB));
   outs() << raw_ostream::BRIGHT_GREEN
     << "Read success!\n" << raw_ostream::RESET;
+  */
 
   // tests_main(Argc, Argv);
 }
-
-#if RAPIDXML_NO_EXCEPTIONS
-
-/// Handles throwing in different modes.
-static void Throw([[maybe_unused]] const char* what,
-                  [[maybe_unused]] void* where) EXI_NOEXCEPT {
-#if EXI_EXCEPTIONS
-# if !RAPIDXML_NO_EXCEPTIONS
-  throw xml::parse_error(what, where);
-# else
-  throw std::runtime_error(what);
-# endif
-#endif
-} 
-
-void xml::parse_error_handler(const char* what, void* where) {
-  if (xml::use_exceptions_anyway)
-    Throw(what, where);
-  errs() << "Uhhhh... " << what << '\n';
-  sys::Process::Exit(1);
-}
-
-#endif // RAPIDXML_NO_EXCEPTIONS
-
-bool xml::use_exceptions_anyway = false;
