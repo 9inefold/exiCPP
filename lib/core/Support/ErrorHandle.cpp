@@ -66,7 +66,7 @@ static const char* getAssertionMessage(H::AssertionKind Kind) {
 }
 
 static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
-  const auto Out = Buf.format("EXICPP ERROR: {}\n", Str);
+  const auto Out = Buf.format("exicpp error: {}\n", Str);
   if (Out != FmtBuffer::FullWrite)
     return Buf.setLast('\n');
   return Out;
@@ -95,13 +95,12 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
   // to make sure any special cleanups get done, in particular that we remove
   // files registered with RemoveFileOnSignal.
   sys::RunInterruptHandlers();
+  TRAP_IF_DEBUGGING();
 
-  if (GenCrashDiag) {
+  if (GenCrashDiag)
     std::abort();
-  } else {
-    TRAP_IF_DEBUGGING();
+  else
     std::exit(1);
-  }
 }
 
 [[noreturn]] void exi::fatal_alloc_error(
