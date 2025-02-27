@@ -26,6 +26,8 @@
 
 #include <Common/Twine.hpp>
 #include <Common/SmallStr.hpp>
+#include <Support/Debug.hpp>
+#include <Support/Format.hpp>
 #include <Support/raw_ostream.hpp>
 
 using namespace exi;
@@ -34,6 +36,11 @@ String Twine::str() const {
   // If we're storing only a String, just return it.
   if (LHSKind == StdStringKind && RHSKind == EmptyKind)
     return *LHS.stdString;
+
+  // If we're storing a formatv_object, we can avoid an extra copy by formatting
+  // it immediately and returning the result.
+  if (LHSKind == FormatObjectKind && RHSKind == EmptyKind)
+    return LHS.formatObject->str();
 
   // Otherwise, flatten and copy the contents first.
   SmallStr<256> Vec;
@@ -89,6 +96,9 @@ void Twine::printOneChild(raw_ostream &OS, Child Ptr,
   case Twine::StringLiteralKind:
     OS << StrRef(Ptr.ptrAndLength.ptr, Ptr.ptrAndLength.length);
     break;
+  case Twine::FormatObjectKind:
+    OS << *Ptr.formatObject;
+    break;
   case Twine::CharKind:
     OS << Ptr.character;
     break;
@@ -143,6 +153,9 @@ void Twine::printOneChildRepr(raw_ostream &OS, Child Ptr,
     OS << "constexprPtrAndLength:\""
        << StrRef(Ptr.ptrAndLength.ptr, Ptr.ptrAndLength.length) << "\"";
     break;
+  case Twine::FormatObjectKind:
+    OS << "formatObject:\"" << *Ptr.formatObject << "\"";
+    break;
   case Twine::CharKind:
     OS << "char:\"" << Ptr.character << "\"";
     break;
@@ -182,3 +195,13 @@ void Twine::printRepr(raw_ostream &OS) const {
   printOneChildRepr(OS, RHS, getRHSKind());
   OS << ")";
 }
+
+#if !defined(NDEBUG) || defined(EXI_ENABLE_DUMP)
+EXI_DUMP_METHOD void Twine::dump() const {
+  print(dbgs());
+}
+
+EXI_DUMP_METHOD void Twine::dumpRepr() const {
+  printRepr(dbgs());
+}
+#endif

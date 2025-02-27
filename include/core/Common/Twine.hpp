@@ -31,8 +31,6 @@
 
 #pragma once
 
-// TODO: IFormatObject
-
 #include <Common/Fundamental.hpp>
 #include <Common/SmallVec.hpp>
 #include <Common/String.hpp>
@@ -40,6 +38,7 @@
 
 namespace exi {
 
+class IFormatObject;
 class raw_ostream;
 
 /// Twine - A lightweight data structure for efficiently representing the
@@ -126,6 +125,9 @@ class Twine {
     /// Guaranteed to be constructed from a compile-time string literal.
     StringLiteralKind,
 
+    /// A pointer to an IFormatObject instance.
+    FormatObjectKind,
+
     /// A char value, to render as a character.
     CharKind,
 
@@ -163,6 +165,7 @@ class Twine {
       const char *ptr;
       size_t length;
     } ptrAndLength;
+    const IFormatObject *formatObject;
     char character;
     unsigned int decUI;
     int decI;
@@ -341,14 +344,12 @@ public:
     exi_assert(isValid(), "Invalid twine!");
   }
 
-#if 0
   /// Construct from a formatv_object_base.
-  /*implicit*/ Twine(const formatv_object_base &Fmt)
-      : LHSKind(FormatvObjectKind) {
-    LHS.formatvObject = &Fmt;
+  /*implicit*/ Twine(const IFormatObject &Fmt)
+      : LHSKind(FormatObjectKind) {
+    LHS.formatObject = &Fmt;
     exi_assert(isValid(), "Invalid twine!");
   }
-#endif
 
   /// Construct from a char.
   explicit Twine(char Val) : LHSKind(CharKind) {
@@ -529,6 +530,14 @@ public:
 
   /// Write the representation of this twine to the stream \p OS.
   void printRepr(raw_ostream &OS) const;
+
+#if !defined(NDEBUG) || defined(EXI_ENABLE_DUMP)
+  /// Dump the concatenated string represented by this twine to stderr.
+  void dump() const;
+
+  /// Dump the representation of this twine to stderr.
+  void dumpRepr() const;
+#endif
 
   /// @}
 };
