@@ -74,7 +74,7 @@ static void Throw([[maybe_unused]] const char* what,
 } 
 
 void xml::parse_error_handler(const char* what, void* where) {
-  if (xml::use_exceptions_anyway)
+  if (xml::using_exceptions())
     Throw(what, where);
   errs() << "xml parse error:" << what << '\n';
   sys::Process::Exit(1); // TODO: No cleanup?
@@ -82,4 +82,4 @@ void xml::parse_error_handler(const char* what, void* where) {
 
 #endif // RAPIDXML_NO_EXCEPTIONS
 
-bool xml::use_exceptions_anyway = false;
+volatile std::atomic<bool> xml::use_exceptions_anyway = false;

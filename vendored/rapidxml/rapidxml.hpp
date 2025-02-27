@@ -13,6 +13,7 @@
 #include <Common/StrRef.hpp>
 #include <Common/PointerIntPair.hpp>
 #include <Support/ErrorHandle.hpp>
+#include <atomic>
 #include <string>
 #include "rapidxml_fwd.hpp"
 
@@ -104,8 +105,11 @@ void parse_error_handler(const char* what, void* where);
 
 //! Forces the use of exceptions if `RAPIDXML_NO_EXCEPTIONS` is defined.
 //! Useful for testing.
-// FIXME: Use `std::atomic`, may multithread.
-extern bool use_exceptions_anyway;
+extern volatile std::atomic<bool> use_exceptions_anyway;
+
+ALWAYS_INLINE bool using_exceptions() {
+  return use_exceptions_anyway.load();
+}
 
 } // namespace xml
 
