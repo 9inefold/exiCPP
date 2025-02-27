@@ -70,7 +70,7 @@ protected:
   }
 
   StringMapImpl(unsigned InitSize, unsigned ItemSize);
-  ~StringMapImpl() { free(TheTable); }
+  ~StringMapImpl() { exi::exi_free(TheTable); }
   unsigned RehashTable(unsigned BucketNo = 0);
 
   /// LookupBucketFor - Look up the bucket that the specified string should end
