@@ -72,8 +72,8 @@ public:
     return exi::hash_value(&Ref.getDirEntry());
   }
 
-	/// The value type of the StringMap.
-	using MapStore = ErrorOr<DirectoryEntry&>;
+  /// The value type of the StringMap.
+  using MapStore = ErrorOr<DirectoryEntry&>;
   using MapEntry = StringMapEntry<MapStore>;
   const MapEntry& getMapEntry() const { return *ME; }
 
@@ -84,10 +84,10 @@ public:
   explicit DirectoryEntryRef(const MapEntry &ME) : ME(&ME) {}
 
 private:
-	friend class file_detail::MapEntryOptionStorage<DirectoryEntryRef>;
-	struct optional_none_tag {};
+  friend class file_detail::MapEntryOptionStorage<DirectoryEntryRef>;
+  struct optional_none_tag {};
 
-	// Private constructor for use by OptionStorage.
+  // Private constructor for use by OptionStorage.
   DirectoryEntryRef(optional_none_tag) : ME(nullptr) {}
   bool hasOptionalValue() const { return ME; }
 

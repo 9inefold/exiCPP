@@ -34,31 +34,31 @@ FileEntry::~FileEntry() = default;
 void FileEntry::closeFile() const { TheFile.release(); }
 
 Option<MemoryBufferRef> FileEntry::getBufferIfLoaded() const {
-	if (TheBuffer)
-		return TheBuffer->getMemBufferRef();
-	return std::nullopt;
+  if (TheBuffer)
+    return TheBuffer->getMemBufferRef();
+  return std::nullopt;
 }
 
 WritableMemoryBuffer* FileEntry::getMutBuffer() const {
-	exi_assert(TheBuffer && IsMutable);
-	auto* Buf = dynamic_cast<WritableMemoryBuffer*>(&*TheBuffer);
-	return EXI_LIKELY(Buf) ? Buf : nullptr;
+  exi_assert(TheBuffer && IsMutable);
+  auto* Buf = dynamic_cast<WritableMemoryBuffer*>(&*TheBuffer);
+  return EXI_LIKELY(Buf) ? Buf : nullptr;
 }
 
 Option<WritableMemoryBuffer&> FileEntry::getWriteBufferIfLoaded() const {
-	if (!TheBuffer || !IsMutable)
-		return std::nullopt;
-	if (auto* Buf = this->getMutBuffer())
-		return *Buf;
-	return std::nullopt;
+  if (!TheBuffer || !IsMutable)
+    return std::nullopt;
+  if (auto* Buf = this->getMutBuffer())
+    return *Buf;
+  return std::nullopt;
 }
 
 void FileEntry::setBuffer(Box<MemoryBuffer> Buffer) {
-	IsMutable = false;
-	TheBuffer = std::move(Buffer);
+  IsMutable = false;
+  TheBuffer = std::move(Buffer);
 }
 
 void FileEntry::setBuffer(Box<WritableMemoryBuffer> Buffer) {
-	IsMutable = true;
-	TheBuffer = std::move(Buffer);
+  IsMutable = true;
+  TheBuffer = std::move(Buffer);
 }

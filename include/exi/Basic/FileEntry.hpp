@@ -44,73 +44,73 @@ class File;
 
 /// Cached information about a file (either on disk or in the VFS).
 class alignas(8) FileEntry {
-	friend class FileManager;
-	FileEntry();
+  friend class FileManager;
+  FileEntry();
   FileEntry(const FileEntry&) = delete;
   FileEntry& operator=(const FileEntry&) = delete;
 
-	/// "Real" path of the file, may not exist.
-	String ExternalName;
-	/// The size of the original file.
-	off_t Size = 0;
-	/// The directory the file resides in.
-	const DirectoryEntry* Dir = nullptr;
-	/// The file's unique identifier.
-	sys::fs::UniqueID UniqueID;
-	bool IsNamedPipe = false;
+  /// "Real" path of the file, may not exist.
+  String ExternalName;
+  /// The size of the original file.
+  off_t Size = 0;
+  /// The directory the file resides in.
+  const DirectoryEntry* Dir = nullptr;
+  /// The file's unique identifier.
+  sys::fs::UniqueID UniqueID;
+  bool IsNamedPipe = false;
 
-	/// The open file, if owned by the cache.
-	mutable Box<vfs::File> TheFile;
-	/// The actual buffer containing the input.
-	mutable Box<MemoryBuffer> TheBuffer;
-
-public:
-	/// If the buffer was a `WritableMemoryBuffer`.
-	EXI_PREFER_TYPE(bool)
-	unsigned IsMutable : 1;
-
-	/// If the file may change between stat invocations.
-	EXI_PREFER_TYPE(bool)
-	unsigned IsVolatile : 1;
-
-	/// If the buffer original contents were overridden.
-	EXI_PREFER_TYPE(bool)
-	unsigned BufferOverridden : 1;
-
-	/// If the buffer content has changed, but the buffer remains the same.
-	EXI_PREFER_TYPE(bool)
-	mutable unsigned IsDirty : 1;
+  /// The open file, if owned by the cache.
+  mutable Box<vfs::File> TheFile;
+  /// The actual buffer containing the input.
+  mutable Box<MemoryBuffer> TheBuffer;
 
 public:
-	~FileEntry();
+  /// If the buffer was a `WritableMemoryBuffer`.
+  EXI_PREFER_TYPE(bool)
+  unsigned IsMutable : 1;
 
-	StrRef getFilename() const { return ExternalName; }
-	off_t getSize() const { return Size; }
-	/// Size may change due to a UTF conversion.
-	void setSize(off_t NewSize) { Size = NewSize; }
-	const sys::fs::UniqueID& getUniqueID() const { return UniqueID; }
+  /// If the file may change between stat invocations.
+  EXI_PREFER_TYPE(bool)
+  unsigned IsVolatile : 1;
 
-	/// Get the directory the file resides in.
-	const DirectoryEntry* getDir() const { return Dir; }
+  /// If the buffer original contents were overridden.
+  EXI_PREFER_TYPE(bool)
+  unsigned BufferOverridden : 1;
 
-	/// Check whether the file is a named pipe (and thus can't be opened by
+  /// If the buffer content has changed, but the buffer remains the same.
+  EXI_PREFER_TYPE(bool)
+  mutable unsigned IsDirty : 1;
+
+public:
+  ~FileEntry();
+
+  StrRef getFilename() const { return ExternalName; }
+  off_t getSize() const { return Size; }
+  /// Size may change due to a UTF conversion.
+  void setSize(off_t NewSize) { Size = NewSize; }
+  const sys::fs::UniqueID& getUniqueID() const { return UniqueID; }
+
+  /// Get the directory the file resides in.
+  const DirectoryEntry* getDir() const { return Dir; }
+
+  /// Check whether the file is a named pipe (and thus can't be opened by
   /// the native FileManager methods).
   bool isNamedPipe() const { return IsNamedPipe; }
 
-	/// Close the VFS file, if it exists.
-	void closeFile() const;
+  /// Close the VFS file, if it exists.
+  void closeFile() const;
 
-	/// Return the buffer, if loaded.
-	Option<MemoryBufferRef> getBufferIfLoaded() const;
+  /// Return the buffer, if loaded.
+  Option<MemoryBufferRef> getBufferIfLoaded() const;
 
-	/// Return a mutable reference to the buffer, if loaded.
-	Option<WritableMemoryBuffer&> getWriteBufferIfLoaded() const;
+  /// Return a mutable reference to the buffer, if loaded.
+  Option<WritableMemoryBuffer&> getWriteBufferIfLoaded() const;
 
-	void setBuffer(Box<MemoryBuffer> Buffer);
-	void setBuffer(Box<WritableMemoryBuffer> Buffer);
+  void setBuffer(Box<MemoryBuffer> Buffer);
+  void setBuffer(Box<WritableMemoryBuffer> Buffer);
 
 private:
-	WritableMemoryBuffer* getMutBuffer() const;
+  WritableMemoryBuffer* getMutBuffer() const;
 };
 
 /// A reference to a `FileEntry` that includes the name of the file
@@ -121,7 +121,7 @@ public:
   /// remappings for VFS 'use-external-name'.
   StrRef getName() const { return ME->first(); }
 
-	/// The name of this FileEntry. If a VFS uses 'use-external-name', this is
+  /// The name of this FileEntry. If a VFS uses 'use-external-name', this is
   /// the redirected name. See getName().
   StrRef getNameFromBase() const { return getBaseMapEntry().first(); }
 
@@ -132,8 +132,8 @@ public:
   /// This function is used if the buffer size needs to be updated
   /// due to potential UTF conversions.
   void updateFileEntryBufferSize(unsigned BufferSize) {
-		cast<FileEntry*>(getBaseMapEntry().second->V)->setSize(BufferSize);
-	}
+    cast<FileEntry*>(getBaseMapEntry().second->V)->setSize(BufferSize);
+  }
 
   DirectoryEntryRef getDir() const { return ME->second->Dir; }
 
@@ -207,21 +207,21 @@ public:
   const MapEntry& getBaseMapEntry() const {
     const MapEntry* Base = ME;
     while (const auto* Next
-				= dyn_cast<const MapEntry*>(Base->second->V)) {
+        = dyn_cast<const MapEntry*>(Base->second->V)) {
       Base = Next;
-		}
+    }
     return *Base;
   }
 
 private:
-	friend class file_detail::MapEntryOptionStorage<FileEntryRef>;
-	struct optional_none_tag {};
+  friend class file_detail::MapEntryOptionStorage<FileEntryRef>;
+  struct optional_none_tag {};
 
-	// Private constructor for use by OptionStorage.
+  // Private constructor for use by OptionStorage.
   FileEntryRef(optional_none_tag) : ME(nullptr) {}
   bool hasOptionalValue() const { return ME; }
 
-	friend struct DenseMapInfo<FileEntryRef>;
+  friend struct DenseMapInfo<FileEntryRef>;
   struct dense_map_empty_tag {};
   struct dense_map_tombstone_tag {};
 
@@ -239,7 +239,7 @@ private:
 };
 
 static_assert(sizeof(FileEntryRef) == sizeof(const FileEntry*),
-						 "FileEntryRef must avoid size overhead");
+             "FileEntryRef must avoid size overhead");
 
 //////////////////////////////////////////////////////////////////////////
 // Option Specialization

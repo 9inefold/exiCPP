@@ -42,25 +42,25 @@ namespace exi {
 class XMLManager;
 
 struct FileSystemOptions {
-	Option<String> WorkingDir;
+  Option<String> WorkingDir;
 };
 
 /// Implements support for file system lookup, file system caching,
 /// and directory search management.
 class FileManager : public RefCountedBase<FileManager> {
-	friend class XMLManager;
-	IntrusiveRefCntPtr<vfs::FileSystem> FS;
-	FileSystemOptions FileSystemOpts;
-	SpecificBumpPtrAllocator<FileEntry> FilesAlloc;
-	SpecificBumpPtrAllocator<DirectoryEntry> DirsAlloc;
+  friend class XMLManager;
+  IntrusiveRefCntPtr<vfs::FileSystem> FS;
+  FileSystemOptions FileSystemOpts;
+  SpecificBumpPtrAllocator<FileEntry> FilesAlloc;
+  SpecificBumpPtrAllocator<DirectoryEntry> DirsAlloc;
 
-	/// Cache for existing real directories.
+  /// Cache for existing real directories.
   DenseMap<sys::fs::UniqueID, DirectoryEntry*> UniqueRealDirs;
 
   /// Cache for existing real files.
   DenseMap<sys::fs::UniqueID, FileEntry*> UniqueRealFiles;
 
-	/// The virtual directories that we have allocated.
+  /// The virtual directories that we have allocated.
   ///
   /// For each virtual file (e.g. foo/bar/baz.cpp), we add all of its parent
   /// directories (foo/ and foo/bar/) here.
@@ -68,9 +68,9 @@ class FileManager : public RefCountedBase<FileManager> {
   /// The virtual files that we have allocated.
   SmallVec<FileEntry*, 4> VirtualFileEntries;
 
-	/// A cache that maps paths to directory entries (either real or virtual)
-	/// we have looked up, or an error that occurred when we looked up
-	/// the directory.
+  /// A cache that maps paths to directory entries (either real or virtual)
+  /// we have looked up, or an error that occurred when we looked up
+  /// the directory.
   ///
   /// The actual Entries for real directories/files are
   /// owned by `UniqueRealDirs`/`UniqueRealFiles` above, while the Entries
@@ -79,47 +79,47 @@ class FileManager : public RefCountedBase<FileManager> {
   StringMap<DirectoryEntryRef::MapStore, BumpPtrAllocator> SeenDirEntries;
 
   /// A cache that maps paths to file entries (either real or virtual) 
-	/// we have looked up, or an error that occurred when we looked up the file.
+  /// we have looked up, or an error that occurred when we looked up the file.
   ///
   /// @see SeenDirEntries
   StringMap<ErrorOr<FileEntryRef::MapValue>, BumpPtrAllocator> SeenFileEntries;
 
-	/// Statistics gathered during the lifetime of the FileManager.
+  /// Statistics gathered during the lifetime of the FileManager.
   unsigned NDirLookups = 0;
   unsigned NFileLookups = 0;
   unsigned NDirCacheMisses = 0;
   unsigned NFileCacheMisses = 0;
 
-	// Caching.
+  // Caching.
   Box<FileSystemStatCache> StatCache;
 
-	Expected<FileEntryRef>
-	 getFileRefEx(StrRef Filename, bool OpenFile,
-	 							bool CacheFailures, bool IsText, bool RemapExtern);
+  Expected<FileEntryRef>
+   getFileRefEx(StrRef Filename, bool OpenFile,
+                 bool CacheFailures, bool IsText, bool RemapExtern);
 
-	std::error_code getStatValue(StrRef Path, vfs::Status& Status,
+  std::error_code getStatValue(StrRef Path, vfs::Status& Status,
                                bool isFile, Option<Box<vfs::File>&> F,
                                bool IsText = true);
-	
-	/// Add single path as a virtual directory. Returns `true` if in cache.
-	bool addAsVirtualDir(StrRef DirName);
+  
+  /// Add single path as a virtual directory. Returns `true` if in cache.
+  bool addAsVirtualDir(StrRef DirName);
 
-	/// Add all ancestors of the given path (pointing to either a file
+  /// Add all ancestors of the given path (pointing to either a file
   /// or a directory) as virtual directories.
   void addAncestorsAsVirtualDirs(StrRef Path);
 
   /// Fills the Filename in file entry.
   void fillAbsolutePathName(FileEntry* UFE, StrRef FileName);
-	
+  
 public:
-	/// Create a FileManager with an optional VFS.
-	/// If no VFS is provided, the `RealFileSystem` will be used.
-	FileManager(const FileSystemOptions& Opts,
-							IntrusiveRefCntPtr<vfs::FileSystem> VFS = nullptr);
-	~FileManager();
+  /// Create a FileManager with an optional VFS.
+  /// If no VFS is provided, the `RealFileSystem` will be used.
+  FileManager(const FileSystemOptions& Opts,
+              IntrusiveRefCntPtr<vfs::FileSystem> VFS = nullptr);
+  ~FileManager();
 
-	/// Returns the number of unique real file entries cached by the file manager.
-	usize getNumUniqueRealFiles() const { return UniqueRealFiles.size(); }
+  /// Returns the number of unique real file entries cached by the file manager.
+  usize getNumUniqueRealFiles() const { return UniqueRealFiles.size(); }
 
   /// Lookup, cache, and verify the specified directory (real or virtual).
   ///
@@ -162,7 +162,7 @@ public:
     return expectedToOptional(getFileRef(Filename, OpenFile, CacheFailures));
   }
 
-	/// Lookup, cache, and verify the specified file (real or virtual). Return the
+  /// Lookup, cache, and verify the specified file (real or virtual). Return the
   /// reference to the file entry together with the exact path that was used to
   /// access a file by a particular call to getFileRef. If the underlying VFS is
   /// a redirecting VFS that uses external file names, the returned FileEntryRef
@@ -177,59 +177,59 @@ public:
   /// @param CacheFailures If true and the file does not exist, we'll cache
   /// the failure to find this file.
   Expected<FileEntryRef> getExternalFileRef(StrRef Filename,
-                                    		    bool OpenFile = false,
-                                    		    bool CacheFailures = true,
-                                    		    bool IsText = true);
+                                            bool OpenFile = false,
+                                            bool CacheFailures = true,
+                                            bool IsText = true);
 
   /// Get a `FileEntryRef` if it exists, without doing anything on error.
   OptionalFileEntryRef getOptionalExternalFileRef(StrRef Filename,
-                                          		    bool OpenFile = false,
-                                          		    bool CacheFailures = true) {
+                                                  bool OpenFile = false,
+                                                  bool CacheFailures = true) {
     return expectedToOptional(
-			getExternalFileRef(Filename, OpenFile, CacheFailures));
+      getExternalFileRef(Filename, OpenFile, CacheFailures));
   }
 
-	vfs::FileSystem& getVirtualFileSystem() const { return *FS; }
-	IntrusiveRefCntPtr<vfs::FileSystem>
-	 getVirtualFileSystemPtr() const { return FS; }
+  vfs::FileSystem& getVirtualFileSystem() const { return *FS; }
+  IntrusiveRefCntPtr<vfs::FileSystem>
+   getVirtualFileSystemPtr() const { return FS; }
 
-	void setVirtualFileSystem(IntrusiveRefCntPtr<vfs::FileSystem> VFS) {
-		this->FS = std::move(VFS);
-	}
+  void setVirtualFileSystem(IntrusiveRefCntPtr<vfs::FileSystem> VFS) {
+    this->FS = std::move(VFS);
+  }
 
-	ErrorOr<Box<MemoryBuffer>>
+  ErrorOr<Box<MemoryBuffer>>
    getBufferForFile(FileEntryRef FE, bool isVolatile = false,
-	 									bool RequiresNullTerminator = true,
-										Option<i64> MaybeLimit = std::nullopt,
-										bool IsText = true);
-	
-	template <typename MB = MemoryBuffer>
-	Error loadBufferForFile(FileEntryRef FE, bool isVolatile = false,
-			 									  bool RequiresNullTerminator = true,
-			 									  Option<i64> MaybeLimit = std::nullopt,
-			 									  bool IsText = true) {
-		return loadBufferForFileImpl(FE, isVolatile,
-			RequiresNullTerminator, MaybeLimit, IsText,
-			kMemoryBufferMutability<MB>);
-	}
+                     bool RequiresNullTerminator = true,
+                    Option<i64> MaybeLimit = std::nullopt,
+                    bool IsText = true);
+  
+  template <typename MB = MemoryBuffer>
+  Error loadBufferForFile(FileEntryRef FE, bool isVolatile = false,
+                           bool RequiresNullTerminator = true,
+                           Option<i64> MaybeLimit = std::nullopt,
+                           bool IsText = true) {
+    return loadBufferForFileImpl(FE, isVolatile,
+      RequiresNullTerminator, MaybeLimit, IsText,
+      kMemoryBufferMutability<MB>);
+  }
 
 private:
   ErrorOr<Box<MemoryBuffer>>
    getBufferForFileImpl(StrRef Filename, i64 FileSize, bool isVolatile,
                         bool RequiresNullTerminator,
-												bool IsText, bool IsMutable = false) const;
-	
-	Error loadBufferForFileImpl(FileEntryRef FE, bool isVolatile = false,
-	 											 			bool RequiresNullTerminator = true,
-												 			Option<i64> MaybeLimit = std::nullopt,
-												 			bool IsText = true, bool IsMutable = false);
+                        bool IsText, bool IsMutable = false) const;
+  
+  Error loadBufferForFileImpl(FileEntryRef FE, bool isVolatile = false,
+                                bool RequiresNullTerminator = true,
+                               Option<i64> MaybeLimit = std::nullopt,
+                               bool IsText = true, bool IsMutable = false);
 
-	Option<FileEntry&> getOptionalRef(const FileEntry* Entry) const;
+  Option<FileEntry&> getOptionalRef(const FileEntry* Entry) const;
   DirectoryEntry*& getRealDirEntry(const vfs::Status& Status);
 
 public:
 
-	/// If path is not absolute and FileSystemOptions set the working
+  /// If path is not absolute and FileSystemOptions set the working
   /// directory, the path is modified to be relative to the given
   /// working directory.
   /// @return true if `Path` changed.

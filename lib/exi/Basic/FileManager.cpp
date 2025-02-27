@@ -54,14 +54,14 @@ constexpr int kMaxVirtualDirDepth = 126; // May change...
 } // namespace `anonymous`
 
 FileManager::FileManager(const FileSystemOptions& Opts,
-												 IntrusiveRefCntPtr<vfs::FileSystem> VFS) :
+                         IntrusiveRefCntPtr<vfs::FileSystem> VFS) :
  FS(std::move(VFS)), FileSystemOpts(Opts),
  SeenDirEntries(kStartingCacheSize),
  SeenFileEntries(kStartingCacheSize)
 {
-	if (!this->FS)
-		// Get the default real filesystem.
-		this->FS = vfs::getRealFileSystem();
+  if (!this->FS)
+    // Get the default real filesystem.
+    this->FS = vfs::getRealFileSystem();
 }
 
 FileManager::~FileManager() = default;
@@ -103,10 +103,10 @@ DirectoryEntry*& FileManager::getRealDirEntry(const vfs::Status& Status) {
 }
 
 bool FileManager::addAsVirtualDir(StrRef DirName) {
-	if (DirName.empty())
-  	DirName = ".";
-	
-	auto& NamedDirEnt = *SeenDirEntries.insert(
+  if (DirName.empty())
+    DirName = ".";
+  
+  auto& NamedDirEnt = *SeenDirEntries.insert(
         {DirName, std::errc::no_such_file_or_directory}).first;
 
   /// Already in cache, exit early.
@@ -129,33 +129,33 @@ bool FileManager::addAsVirtualDir(StrRef DirName) {
     NamedDirEnt.second = *UDE;
   }
 
-	return false;
+  return false;
 }
 
 /// Add all ancestors of the given path (pointing to either a file or
 /// a directory) as virtual directories.
 void FileManager::addAncestorsAsVirtualDirs(StrRef Path) {
-	int DirDepth = 0;
+  int DirDepth = 0;
   while (true) {
-		StrRef DirName = sys::path::parent_path(Path);
-		// When caching a virtual directory, we always cache its ancestors
-  	// at the same time.  Therefore, if DirName is already in the cache,
-  	// we don't need to recurse as its ancestors must also already be in
-  	// the cache (or it's a known non-virtual directory).
-		if (addAsVirtualDir(DirName))
-			return;
+    StrRef DirName = sys::path::parent_path(Path);
+    // When caching a virtual directory, we always cache its ancestors
+    // at the same time.  Therefore, if DirName is already in the cache,
+    // we don't need to recurse as its ancestors must also already be in
+    // the cache (or it's a known non-virtual directory).
+    if (addAsVirtualDir(DirName))
+      return;
 
-		// This is unlikely because most file structures will
-		// never reach this depth. If they do, there's probably something wrong.
-		// The bailout depth is 126 by default, but this can be changed.
-		if EXI_UNLIKELY(++DirDepth > kMaxVirtualDirDepth)
-			break;
-		Path = DirName;
-	}
+    // This is unlikely because most file structures will
+    // never reach this depth. If they do, there's probably something wrong.
+    // The bailout depth is 126 by default, but this can be changed.
+    if EXI_UNLIKELY(++DirDepth > kMaxVirtualDirDepth)
+      break;
+    Path = DirName;
+  }
 
-	// This will rarely be reached.
-	LOG_WARN("Virtual path bailout depth of {} reached: {}",
-					 kMaxVirtualDirDepth, Path);
+  // This will rarely be reached.
+  LOG_WARN("Virtual path bailout depth of {} reached: {}",
+           kMaxVirtualDirDepth, Path);
 }
 
 Expected<DirectoryEntryRef>
@@ -220,10 +220,10 @@ Expected<DirectoryEntryRef>
 }
 
 Expected<FileEntryRef> FileManager::getFileRefEx(StrRef Filename,
-																								 bool OpenFile,
-	 												 											 bool CacheFailures,
-																								 bool IsText,
-																								 bool RemapExtern) {
+                                                 bool OpenFile,
+                                                   bool CacheFailures,
+                                                 bool IsText,
+                                                 bool RemapExtern) {
   ++NFileLookups;
 
   // See if there is already an entry in the map.
@@ -289,7 +289,7 @@ Expected<FileEntryRef> FileManager::getFileRefEx(StrRef Filename,
   if (!UFE)
     UFE = new (FilesAlloc.Allocate()) FileEntry();
 
-	const bool ShouldRemap = (RemapExtern && Status.HasExternalVFSPath);
+  const bool ShouldRemap = (RemapExtern && Status.HasExternalVFSPath);
   if (!ShouldRemap || Status.getName() == Filename) {
     // Use the requested name. Set the FileEntry.
     NamedFileEnt->second = FileEntryRef::MapValue(*UFE, DirInfo);
@@ -304,8 +304,8 @@ Expected<FileEntryRef> FileManager::getFileRefEx(StrRef Filename,
     // the VFS (in debug info and dependency '.d' files).
     //
     // FIXME: This is pretty complex and has some very complicated interactions.
-		// It's also inconsistent with how "real" filesystems behave and confuses
-		// parts that expect to see the name-as-accessed on the FileEntryRef.
+    // It's also inconsistent with how "real" filesystems behave and confuses
+    // parts that expect to see the name-as-accessed on the FileEntryRef.
     //
     // A potential plan to remove this is as follows -
     //   - Update the VFS to always return the requested name. This could also
@@ -323,9 +323,9 @@ Expected<FileEntryRef> FileManager::getFileRefEx(StrRef Filename,
              .insert({Status.getName(), FileEntryRef::MapValue(*UFE, DirInfo)})
              .first;
     exi_assert(isa<FileEntry*>(Redirection.second->V),
-           		"filename redirected to a non-canonical filename?");
+               "filename redirected to a non-canonical filename?");
     exi_assert(cast<FileEntry*>(Redirection.second->V) == UFE,
-           		"filename from getStatValue() refers to wrong file");
+               "filename from getStatValue() refers to wrong file");
 
     // Cache the redirection in the previously-inserted entry, still available
     // in the tentative return value.
@@ -344,10 +344,10 @@ Expected<FileEntryRef> FileManager::getFileRefEx(StrRef Filename,
   UFE->IsNamedPipe = Status.getType() == sys::fs::file_type::fifo_file;
   UFE->TheFile = std::move(F);
 
-	UFE->IsMutable = false;
-	UFE->IsVolatile = false;
-	UFE->BufferOverridden = false;
-	UFE->IsDirty = false;
+  UFE->IsMutable = false;
+  UFE->IsVolatile = false;
+  UFE->BufferOverridden = false;
+  UFE->IsDirty = false;
 
   if (UFE->TheFile) {
     if (auto PathName = UFE->TheFile->getName())
@@ -364,15 +364,15 @@ Expected<FileEntryRef> FileManager::getFileRef(StrRef Filename,
                                                bool CacheFailures,
                                                bool IsText) {
   return this->getFileRefEx(Filename, OpenFile,
-														CacheFailures, IsText, /*RemapExtern=*/false);
+                            CacheFailures, IsText, /*RemapExtern=*/false);
 }
 
 Expected<FileEntryRef> FileManager::getExternalFileRef(StrRef Filename,
-                                               			 	 bool OpenFile,
-                                               			 	 bool CacheFailures,
-                                               			 	 bool IsText) {
+                                                         bool OpenFile,
+                                                         bool CacheFailures,
+                                                         bool IsText) {
   return this->getFileRefEx(Filename, OpenFile,
-														CacheFailures, IsText, /*RemapExtern=*/true);
+                            CacheFailures, IsText, /*RemapExtern=*/true);
 }
 
 bool FileManager::fixupRelativePath(SmallVecImpl<char>& Path) const {
@@ -419,8 +419,8 @@ ErrorOr<Box<MemoryBuffer>>
   u64 FileSize = Entry->getSize();
 
   if (MaybeLimit)
-		/// Ensure the cast can be done losslessly.
-		FileSize = IntCast<u64>(*MaybeLimit);
+    /// Ensure the cast can be done losslessly.
+    FileSize = IntCast<u64>(*MaybeLimit);
 
   // If there's a high enough chance that the file have changed since we
   // got its size, force a stat before opening it.
@@ -442,29 +442,29 @@ ErrorOr<Box<MemoryBuffer>>
 }
 
 Error FileManager::loadBufferForFileImpl(FileEntryRef FE, bool isVolatile,
-                               					 bool RequiresNullTerminator,
-                               					 Option<i64> MaybeLimit,
-																				 bool IsText, bool IsMutable) {
+                                          bool RequiresNullTerminator,
+                                          Option<i64> MaybeLimit,
+                                         bool IsText, bool IsMutable) {
   const FileEntry* Entry = &FE.getFileEntry();
-	bool HadBuffer = false;
-	
+  bool HadBuffer = false;
+  
   // If the content is living on the file entry, return a reference to it.
   if (Entry->TheBuffer) {
-		// If the file doesn't need to be mutable, or if it's already mutable,
-		// we can return early. Otherwise we have to reload the buffer.
-		if (!IsMutable || Entry->IsMutable)
-			return Error::success();
-		HadBuffer = true;
-	}
+    // If the file doesn't need to be mutable, or if it's already mutable,
+    // we can return early. Otherwise we have to reload the buffer.
+    if (!IsMutable || Entry->IsMutable)
+      return Error::success();
+    HadBuffer = true;
+  }
 
-	FileEntry* MFE = &getOptionalRef(Entry)
-		.expect("Invalid entry in loadBufferForImpl.");
+  FileEntry* MFE = &getOptionalRef(Entry)
+    .expect("Invalid entry in loadBufferForImpl.");
 
   u64 FileSize = Entry->getSize();
 
   if (MaybeLimit)
-		/// Ensure the cast can be done losslessly.
-		FileSize = IntCast<u64>(*MaybeLimit);
+    /// Ensure the cast can be done losslessly.
+    FileSize = IntCast<u64>(*MaybeLimit);
 
   // If there's a high enough chance that the file have changed since we
   // got its size, force a stat before opening it.
@@ -473,28 +473,29 @@ Error FileManager::loadBufferForFileImpl(FileEntryRef FE, bool isVolatile,
 
   StrRef Filename = FE.getName();
   // If the file is already open, use the open file descriptor.
-  if (auto& F = Entry->TheFile) {
+  if (Entry->TheFile /*&& !IsMutable*/) {
+    auto& F = Entry->TheFile;
     auto Result = F->getBuffer(Filename, FileSize,
                                RequiresNullTerminator, isVolatile, IsMutable);
     Entry->closeFile();
     if (auto EC = Result.getError())
-			return errorCodeToError(EC);
-		Entry->TheBuffer = std::move(*Result);
+      return errorCodeToError(EC);
+    Entry->TheBuffer = std::move(*Result);
   } else {
-		auto Result = getBufferForFileImpl(Filename, FileSize, isVolatile,
-                              				 RequiresNullTerminator, IsText,
-																			 IsMutable);
-		if (auto EC = Result.getError())
-			return errorCodeToError(EC);
-		Entry->TheBuffer = std::move(*Result);
-	}
+    auto Result = getBufferForFileImpl(Filename, FileSize, isVolatile,
+                                       RequiresNullTerminator, IsText,
+                                       IsMutable);
+    if (auto EC = Result.getError())
+      return errorCodeToError(EC);
+    Entry->TheBuffer = std::move(*Result);
+  }
 
-	MFE->IsMutable = IsMutable;
-	MFE->IsVolatile = isVolatile;
-	MFE->BufferOverridden = HadBuffer;
-	MFE->IsDirty = false;
+  MFE->IsMutable = IsMutable;
+  MFE->IsVolatile = isVolatile;
+  MFE->BufferOverridden = HadBuffer;
+  MFE->IsDirty = false;
 
-	return Error::success();
+  return Error::success();
 }
 
 ErrorOr<Box<MemoryBuffer>>
@@ -512,13 +513,13 @@ ErrorOr<Box<MemoryBuffer>>
 }
 
 Option<FileEntry&> FileManager::getOptionalRef(const FileEntry* Entry) const {
-	// Assume things passed in are from this FileManager.
-	if EXI_UNLIKELY(!FilesAlloc.identifyObject(Entry)) {
-		LOG_WARN("The entry '{}' is not located in this FileManager!",
-			Entry->getFilename());
-		return std::nullopt;
-	}
-	return *const_cast<FileEntry*>(Entry);
+  // Assume things passed in are from this FileManager.
+  if EXI_UNLIKELY(!FilesAlloc.identifyObject(Entry)) {
+    LOG_WARN("The entry '{}' is not located in this FileManager!",
+      Entry->getFilename());
+    return std::nullopt;
+  }
+  return *const_cast<FileEntry*>(Entry);
 }
 
 /// getStatValue - Get the 'stat' information for the specified path,
@@ -550,7 +551,7 @@ void FileManager::PrintStats() const {
          << NFileCacheMisses << " file cache misses.\n";
 
   getVirtualFileSystem().visit([](vfs::FileSystem& VFS) {
-		/* TODO: TracingFileSystem?
+    /* TODO: TracingFileSystem?
     if (auto* T = dyn_cast_or_null<vfs::TracingFileSystem>(&VFS))
       errs() << "\n*** Virtual File System Stats:\n"
              << T->NumStatusCalls << " status() calls\n"
@@ -559,6 +560,6 @@ void FileManager::PrintStats() const {
              << T->NumGetRealPathCalls << " getRealPath() calls\n"
              << T->NumExistsCalls << " exists() calls\n"
              << T->NumIsLocalCalls << " isLocal() calls\n";
-		*/
+    */
   });
 }

@@ -355,7 +355,7 @@ private:
   openFileForReadWithFlags(const Twine& Name, sys::fs::OpenFlags Flags) {
     SmallStr<256> RealName, Storage;
     Expected<file_t> FDOrErr = sys::fs::openNativeFileForRead(
-        adjustPath(Name, Storage), Flags,& RealName);
+        adjustPath(Name, Storage), Flags, &RealName);
     if (!FDOrErr)
       return errorToErrorCode(FDOrErr.takeError());
     return Box<File>(

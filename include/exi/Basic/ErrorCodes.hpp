@@ -40,34 +40,34 @@ enum class ErrorCode : i32 {
   kSuccess = 0,
 
   /// Tell the exicpp parser to stop parsing.
-	kStop,
+  kStop,
 
   /// End of the buffer has been reached.
   kBufferEndReached,
 
-	/// Parsing has been completed.
-	kParsingComplete,
+  /// Parsing has been completed.
+  kParsingComplete,
 
   /// The code for this function is not yet implemented.
-	kUnimplemented,
+  kUnimplemented,
 
-	/// Any error that does not fall into the other categories.
-	kUnexpectedError,
+  /// Any error that does not fall into the other categories.
+  kUnexpectedError,
 
-	/// Array access out of bounds.
-	kOutOfBounds,
-	kNullptrRef,
+  /// Array access out of bounds.
+  kOutOfBounds,
+  kNullptrRef,
 
-	//// Unsuccessful memory allocation.
-	kInvalidMemoryAlloc,
-	kInvalidEXIHeader,
+  //// Unsuccessful memory allocation.
+  kInvalidMemoryAlloc,
+  kInvalidEXIHeader,
 
-	/// Processor state is inconsistent with the stream events.
-	kInconsistentProcState,
-	kInvalidEXIInput,
+  /// Processor state is inconsistent with the stream events.
+  kInconsistentProcState,
+  kInvalidEXIInput,
 
   /// The information passed to the EXIP API is invalid.
-	kInvalidConfig,
+  kInvalidConfig,
 
   /// When encoding XML Schema in EXI the prefixes must be preserved:
   /// When qualified `namesNS` are used in the values of AT or CH events in an
@@ -77,25 +77,25 @@ enum class ErrorCode : i32 {
   /// use of `xsi:type` attributes in EXI streams when `Preserve.lexicalValues`
   /// fidelity option is set to true.
   kNoPrefixesPreservedXMLSchema,
-	kInvalidStringOp,
+  kInvalidStringOp,
 
-	/// Mismatch in the header options. This error can be due to:
+  /// Mismatch in the header options. This error can be due to:
   ///
-	/// 1) The "alignment" element MUST NOT appear in an EXI options document
+  /// 1) The "alignment" element MUST NOT appear in an EXI options document
   ///    when the "compression" element is present;
-	/// 2) The "strict" element MUST NOT appear in an EXI options document when
+  /// 2) The "strict" element MUST NOT appear in an EXI options document when
   ///    one of "dtd", "prefixes", "comments", "pis" or "selfContained" element
   ///    is present in the same options document. That is only the element "lexicalValues", 
   ///    from the fidelity options, is permitted to occur in the presence of "strict" element;
-	/// 3) The "selfContained" element MUST NOT appear in an EXI options document
+  /// 3) The "selfContained" element MUST NOT appear in an EXI options document
   ///    when one of "compression", "pre-compression" or "strict" elements are
   ///    present in the same options document.
-	/// 4) The `DatatypeRepresentationMap` option does not take effect when the
+  /// 4) The `DatatypeRepresentationMap` option does not take effect when the
   ///    value of the `Preserve.lexicalValues` fidelity option is true (see 6.3 Fidelity Options),
   ///    or when the EXI stream is a schema-less EXI stream.
-	/// 5) Presence Bit for EXI Options not set and no out-of-band options set.
-	kHeaderOptionsMismatch,
-	Last
+  /// 5) Presence Bit for EXI Options not set and no out-of-band options set.
+  kHeaderOptionsMismatch,
+  Last
 };
 
 /// Suboptions for `InvalidEXIHeader` and `HeaderOptionsMismatch`.
