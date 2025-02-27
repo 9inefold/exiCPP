@@ -93,7 +93,7 @@ public:
   /// Gets the offset of a pointer in this buffer, otherwise `-1`.
   usize getBufferOffset(const char* Ptr) const {
     if EXI_UNLIKELY(!isInBuffer(Ptr))
-      return usize(-1);
+      return StrRef::npos;
     return (Ptr - BufferStart);
   }
 
@@ -234,6 +234,7 @@ public:
             bool RequiresNullTerminator = true, bool IsVolatile = false,
             Option<Align> Alignment = nullopt);
   
+  // TODO: Remove? Prob
   static ErrorOr<Box<WritableMemoryBuffer>>
   getOpenFile(sys::fs::file_t FD, const Twine &Filename, u64 FileSize,
               bool RequiresNullTerminator = true, bool IsVolatile = false,
