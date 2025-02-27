@@ -118,7 +118,8 @@ struct WrapCallPtr<Func, ReturnT(Args...)>
     = has_noexcept_v<decltype(Func)>;
   
   static ReturnT call(Args...args) noexcept(is_noexcept) {
-    tail_return Func(EXI_FWD(args)...);
+    // TODO: Make this tail_return when musttail supports noexcept.
+    return Func(EXI_FWD(args)...);
   }
 };
 
