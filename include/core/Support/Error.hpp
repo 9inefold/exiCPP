@@ -1101,6 +1101,16 @@ template <typename T> Option<T> expectedToOptional(Expected<T> &&E) {
   return std::nullopt;
 }
 
+/// Convert an Expected to an Optional without doing anything. This method
+/// should be used only where an error can be considered a reasonable and
+/// expected return value.
+template <typename T> Option<T&> expectedToOptional(Expected<T&> &&E) {
+  if (E)
+    return Option<T&>(*E);
+  consumeError(E.takeError());
+  return std::nullopt;
+}
+
 template <typename T> Option<T> expectedToStdOptional(Expected<T> &&E) {
   if (E)
     return std::move(*E);
@@ -1305,8 +1315,8 @@ private:
 
 /// Create formatted StringError object.
 template <typename...TT>
-inline Error createStringError(
- std::error_code EC, fmt::format_string<const TT&...> Fmt, const TT&... Vals) {
+inline Error createStringError(std::error_code EC,
+ fmt::format_string<const TT&...> Fmt, const TT&... Vals) {
   String Buffer = fmt::vformat(
     Fmt.str, fmt::vargs<const TT&...>{{Vals...}});
   return make_error<StringError>(Buffer, EC);
@@ -1327,14 +1337,15 @@ inline Error createStringError(const Twine &S) {
   return createStringError(exi::inconvertibleErrorCode(), S);
 }
 
-template <typename... Ts>
-inline Error createStringError(char const *Fmt, const Ts &...Vals) {
+template <typename...TT>
+inline Error createStringError(
+ fmt::format_string<const TT&...> Fmt, const TT&... Vals) {
   return createStringError(exi::inconvertibleErrorCode(), Fmt, Vals...);
 }
 
-template <typename... Ts>
-inline Error createStringError(std::errc EC, char const *Fmt,
-                               const Ts &... Vals) {
+template <typename...TT>
+inline Error createStringError(std::errc EC,
+ fmt::format_string<const TT&...> Fmt, const TT&... Vals) {
   return createStringError(std::make_error_code(EC), Fmt, Vals...);
 }
 
