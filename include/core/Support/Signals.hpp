@@ -86,16 +86,25 @@ void AddSignalHandler(SignalHandlerCallback FnPtr, void *Cookie = nullptr);
 
 /// Wraps a function to be called when an abort/kill signal is delivered.
 /// Eg.
-///   void SignalHandler(MyData* Ptr);
 ///   void SignalHandlerV();
 /// Can be wrapped like:
-///   WrapSignalHandler<&SignalHandler>(Ptr);
 ///   WrapSignalHandler<&SignalHandlerV>();
 template <auto Func>
-inline void WrapSignalHandler(auto&&...Args) {
+inline void WrapSignalHandler() {
   using WrapT = WrapOpaqueCall<Func, void>;
-  static_assert(WrapT::Wrapper::num_args == sizeof...(Args));
-  void* Cookie = WrapT::wrap(Args...);
+  AddSignalHandler(&WrapT::call, nullptr);
+}
+
+/// Wraps a function to be called when an abort/kill signal is delivered.
+/// Eg.
+///   void SignalHandler(MyData* Ptr);
+/// Can be wrapped like:
+///   WrapSignalHandler<&SignalHandler>(Ptr);
+template <auto Func>
+inline void WrapSignalHandler(auto Arg) {
+  using WrapT = WrapOpaqueCall<Func, void>;
+  static_assert(WrapT::Wrapper::num_args == 1);
+  void* Cookie = WrapT::wrap(std::move(Arg));
   AddSignalHandler(&WrapT::call, Cookie);
 }
 
