@@ -32,28 +32,46 @@
 
 #pragma once
 
+#include <Common/Features.hpp>
 #include <utility>
+#include <atomic>
 
 namespace exi {
+namespace H {
+
+template <typename T>
+struct ScopedSaveType { using type = T; };
+
+template <typename T>
+struct ScopedSaveType<std::atomic<T>> { using type = T; };
+
+template <typename T>
+struct ScopedSaveType<volatile std::atomic<T>> { using type = T; };
+
+} // namespace H
+
+template <typename T>
+using scoped_save_t = typename H::ScopedSaveType<T>::type;
 
 /// A utility class that uses RAII to save and restore the value of a variable.
 template <typename T> struct ScopedSave {
+  using Type = scoped_save_t<T>;
   ScopedSave(T& X) : X(X), OldValue(X) {}
-  ScopedSave(T& X, const T& NewValue) : X(X), OldValue(X) { X = NewValue; }
-  ScopedSave(T& X, T&& NewValue) : X(X), OldValue(std::move(X)) {
+  ScopedSave(T& X, const Type& NewValue) : X(X), OldValue(X) { X = NewValue; }
+  ScopedSave(T& X, Type&& NewValue) : X(X), OldValue(std::move(X)) {
     X = std::move(NewValue);
   }
   ~ScopedSave() { X = std::move(OldValue); }
-  const T& get() { return OldValue; }
+  const Type& get() { return OldValue; }
 
 private:
   T& X;
-  T OldValue;
+  Type OldValue;
 };
 
 // User-defined CTAD guides.
 template <typename T> ScopedSave(T&) -> ScopedSave<T>;
-template <typename T> ScopedSave(T&, const T&) -> ScopedSave<T>;
-template <typename T> ScopedSave(T&, T&&) -> ScopedSave<T>;
+template <typename T> ScopedSave(T&, const scoped_save_t<T>&) -> ScopedSave<T>;
+template <typename T> ScopedSave(T&, scoped_save_t<T>&&) -> ScopedSave<T>;
 
 } // namespace exi
