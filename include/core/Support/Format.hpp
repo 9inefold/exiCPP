@@ -34,6 +34,7 @@
 #include <Common/ArrayRef.hpp>
 #include <Common/StrRef.hpp>
 #include <Common/Option.hpp>
+#include <Common/SmallStr.hpp>
 #include <fmt/base.h>
 
 namespace exi {
@@ -56,6 +57,21 @@ protected:
 
 public:
   usize print(char* Buffer, usize BufferSize) const;
+  void format(raw_ostream& OS) const;
+  void toVector(SmallVecImpl<char>& Vec) const;
+
+  String str() const;
+  operator String() const { return str(); }
+
+  template <unsigned N>
+  SmallStr<N> sstr() const {
+    SmallStr<N> Out;
+    this->toVector(Out);
+    return Out;
+  }
+  
+  template <unsigned N>
+  operator SmallStr<N>() const { return sstr<N>(); }
 };
 
 template <typename...Args>
@@ -74,7 +90,7 @@ public:
 template <typename...Args>
 EXI_INLINE auto format(
   fmt::format_string<const Args&...> Fmt,
-  const Args&...args)
+  const Args&...args EXI_LIFETIMEBOUND)
  -> FormatObject<Args...> {
   return FormatObject<Args...>(Fmt, args...);
 }

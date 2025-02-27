@@ -39,3 +39,18 @@ usize IFormatObject::print(char* Buffer, usize BufferSize) const {
   // Otherwise N is the length of output (not including the final '\0').
   return N;
 }
+
+void IFormatObject::format(raw_ostream& OS) const { OS << *this; }
+
+void IFormatObject::toVector(SmallVecImpl<char>& Vec) const {
+  raw_svector_ostream OS(Vec);
+  OS << *this;
+}
+
+String IFormatObject::str() const {
+  String Out;
+  raw_string_ostream OS(Out);
+  OS << *this;
+  OS.flush();
+  return Out;
+}
