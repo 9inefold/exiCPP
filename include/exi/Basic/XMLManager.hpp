@@ -61,14 +61,17 @@ public:
   
   /// Get a `XMLDocument&` if it exists, printing to `OS` on error.
   Option<XMLDocument&>
-   getOptionalXMLDocument(const Twine& Filepath, raw_ostream& OS);
+   getOptXMLDocument(const Twine& Filepath, raw_ostream& OS,
+                     bool IsVolatile = false);
 
   /// Get a `XMLDocument&` if it exists, without doing anything on error.
   Option<XMLDocument&>
-   getOptionalXMLDocument(const Twine& Filepath) {
+   getOptXMLDocument(const Twine& Filepath, bool IsVolatile = false) {
     return expectedToOptional(
-      getXMLDocument(Filepath, false));
+      getXMLDocument(Filepath, IsVolatile));
   }
 };
+
+using XMLManagerRef = IntrusiveRefCntPtr<XMLManager>;
 
 } // namespace exi

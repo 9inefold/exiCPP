@@ -81,12 +81,12 @@ Expected<XMLDocument&>
 }
 
 Option<XMLDocument&>
- XMLManager::getOptionalXMLDocument(const Twine& Filepath, raw_ostream& OS) {
-  Expected<XMLDocument&> Result
-    = getXMLDocument(Filepath, false);
+ XMLManager::getOptXMLDocument(const Twine& Filepath, raw_ostream& OS,
+                               bool IsVolatile) {
+  Expected<XMLDocument&> Result 
+    = getXMLDocument(Filepath, IsVolatile);
   if (Result)
     return *Result;
-  
   logAllUnhandledErrors(Result.takeError(), OS);
   return std::nullopt;
 }

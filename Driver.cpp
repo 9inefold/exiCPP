@@ -42,8 +42,8 @@ enum NodeDataKind {
 
 using EmbeddedNode = PointerIntPair<XMLNode*, 3, NodeDataKind>;
 
-static Option<XMLDocument&> TryLoad(XMLManager& M, const Twine& Filepath) {
-  return M.getOptionalXMLDocument("examples/Namespace.xml", errs());
+static Option<XMLDocument&> TryLoad(XMLManager& Mgr, const Twine& Filepath) {
+  return Mgr.getOptXMLDocument(Filepath, errs());
 }
 
 int tests_main(int Argc, char* Argv[]);
@@ -52,11 +52,11 @@ int main(int Argc, char* Argv[]) {
   outs().enable_colors(true);
   dbgs().enable_colors(true);
 
-  IntrusiveRefCntPtr<XMLManager> Manager = make_refcounted<XMLManager>();
-  if (auto Opt = TryLoad(*Manager, "examples/Namespace.xml"))
+  XMLManagerRef Mgr = make_refcounted<XMLManager>();
+  if (auto Opt = TryLoad(*Mgr, "examples/Namespace.xml"))
     outs() << raw_ostream::BRIGHT_GREEN
       << "Read success!\n" << raw_ostream::RESET;
-  if (auto Opt = TryLoad(*Manager, "large-examples/treebank_e.xml"))
+  if (auto Opt = TryLoad(*Mgr, "large-examples/treebank_e.xml"))
     outs() << raw_ostream::BRIGHT_GREEN
       << "Read success!\n" << raw_ostream::RESET;
 }
