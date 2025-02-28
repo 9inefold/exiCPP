@@ -131,7 +131,8 @@ enum NodeKind : int {
   node_comment,     //!< A comment node. Name is empty. Value contains comment Text.
   node_declaration, //!< A declaration node. Name and value are empty. Declaration parameters (version, encoding and standalone) are in node attributes.
   node_doctype,     //!< A DOCTYPE node. Name is empty. Value contains DOCTYPE Text.
-  node_pi           //!< A PI node. Name contains target. Value contains instructions.
+  node_pi,          //!< A PI node. Name contains target. Value contains instructions.
+  node_last
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -796,7 +797,7 @@ public:
         name_size = internal::measure(name);
       for (AttrType* attribute = m_next_attribute; attribute;
            attribute = attribute->m_next_attribute)
-        if (internal::compare(attribute->name(), attribute->name_size(), name, name_size,
+        if (internal::compare(attribute->name(), StrRefT(name, name_size),
                               CaseInsensitive))
           return attribute;
       return 0;
