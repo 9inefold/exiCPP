@@ -39,6 +39,8 @@ class WritableMemoryBuffer;
 class XMLContainer;
 class raw_ostream;
 
+using XMLContainerRef = const XMLContainer&;
+
 class XMLManager : public ThreadSafeRefCountedBase<XMLManager> {
   Option<XMLOptions> DefaultOpts;
   SpecificBumpPtrAllocator<XMLContainer> FilesAlloc;
@@ -49,13 +51,20 @@ class XMLManager : public ThreadSafeRefCountedBase<XMLManager> {
   /// Allocates the base container with `FilesAlloc`.
   XMLContainer* allocateContainer(bool SharedAlloc = true);
 
-  Expected<XMLDocument&> getXMLDocumentImpl(StrRef Filepath,
-                                            bool IsVolatile = false);
+  Expected<XMLContainer&> getXMLRefImpl(StrRef Filepath,
+                                        bool IsVolatile = false);
 
 public:
   XMLManager(Option<XMLOptions> Opts = std::nullopt);
   ~XMLManager();
 
+  Expected<XMLContainerRef> getXMLRef(const Twine& Filepath,
+                                      bool IsVolatile = false);
+  
+  Option<XMLContainerRef> getOptXMLRef(const Twine& Filepath,
+                                       bool IsVolatile = false);
+
+  /// Load and parse an `XMLDocument&` if it exists.
   Expected<XMLDocument&> getXMLDocument(const Twine& Filepath,
                                         bool IsVolatile = false);
   

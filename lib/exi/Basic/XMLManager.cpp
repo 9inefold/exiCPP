@@ -47,6 +47,49 @@ XMLContainer* XMLManager::allocateContainer(bool SharedAlloc) {
   return new (FilesAlloc.Allocate()) XMLContainer(DefaultOpts, Alloc);
 }
 
+Expected<XMLContainer&>
+ XMLManager::getXMLRefImpl(StrRef Filepath, bool IsVolatile) {
+  exi_invariant(sys::path::is_absolute(Filepath),
+    "Inputs to SeenFiles must be absolute paths");
+  
+  auto [SeenFileEntryIt, DidInsert] =
+    SeenFiles.insert({Filepath, nullptr});
+  if (!DidInsert) {
+    LOG_EXTRA("Getting cached file '{}'", Filepath);
+    if (!SeenFileEntryIt->second)
+      return createStringError("Invalid input file '{}'", Filepath);
+    return *SeenFileEntryIt->second;
+  }
+
+  XMLContainer::MapEntry* NamedEnt = &*SeenFileEntryIt;
+  XMLContainer*& Entry = NamedEnt->second;
+  exi_assert(!Entry, "should be newly-created");
+
+  Entry = this->allocateContainer(/*SharedAlloc=*/true);
+  exi_invariant(Entry, "should be newly-created");
+
+  auto Buf = Entry->loadBuffer(*NamedEnt, IsVolatile);
+  if (Error E = Buf.takeError())
+    return std::move(E);
+  LOG_EXTRA("Created new file '{}'", Filepath);
+  return *Entry;
+}
+
+Expected<XMLContainerRef> XMLManager::getXMLRef(const Twine& Filepath,
+                                                bool IsVolatile) {
+  SmallStr<80> Storage;
+  Filepath.toVector(Storage);
+  sys::fs::make_absolute(Storage);
+  return getXMLRefImpl(Storage.str(), IsVolatile);
+}
+
+Option<XMLContainerRef> XMLManager::getOptXMLRef(const Twine& Filepath,
+                                             bool IsVolatile) {
+  return expectedToOptional(
+    getXMLRef(Filepath, IsVolatile));
+}
+
+#if 0
 Expected<XMLDocument&>
  XMLManager::getXMLDocumentImpl(StrRef Filepath, bool IsVolatile) {
   exi_invariant(sys::path::is_absolute(Filepath),
@@ -66,18 +109,22 @@ Expected<XMLDocument&>
   exi_assert(!Entry, "should be newly-created");
 
   Entry = this->allocateContainer(/*SharedAlloc=*/true);
-  exi_assert(Entry, "should be newly-created");
+  exi_invariant(Entry, "should be newly-created");
 
   LOG_EXTRA("Parsing file '{}'", Filepath);
   return Entry->loadAndParse(*NamedEnt, IsVolatile);
 }
+#endif
 
 Expected<XMLDocument&>
  XMLManager::getXMLDocument(const Twine& Filepath, bool IsVolatile) {
-  SmallStr<80> Storage;
-  Filepath.toVector(Storage);
-  sys::fs::make_absolute(Storage);
-  return getXMLDocumentImpl(Storage.str(), IsVolatile);
+  auto XML = this->getXMLRef(Filepath, IsVolatile);
+  if (Error E = XML.takeError())
+    return std::move(E);
+
+  auto* Entry = &*XML;
+  LOG_EXTRA("Parsing file '{}'", Entry->getName());
+  return Entry->parse();
 }
 
 Option<XMLDocument&>
