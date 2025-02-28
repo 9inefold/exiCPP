@@ -137,3 +137,9 @@ Option<XMLDocument&>
   logAllUnhandledErrors(Result.takeError(), OS);
   return std::nullopt;
 }
+
+Option<XMLDocument&>
+ XMLManager::getOptXMLDocument(const Twine& Filepath, bool IsVolatile) {
+  return expectedToOptional(
+    getXMLDocument(Filepath, IsVolatile));
+}

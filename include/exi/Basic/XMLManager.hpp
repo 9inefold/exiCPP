@@ -75,10 +75,8 @@ public:
 
   /// Get a `XMLDocument&` if it exists, without doing anything on error.
   Option<XMLDocument&>
-   getOptXMLDocument(const Twine& Filepath, bool IsVolatile = false) {
-    return expectedToOptional(
-      getXMLDocument(Filepath, IsVolatile));
-  }
+   getOptXMLDocument(const Twine& Filepath,
+                     bool IsVolatile = false);
 };
 
 using XMLManagerRef = IntrusiveRefCntPtr<XMLManager>;
