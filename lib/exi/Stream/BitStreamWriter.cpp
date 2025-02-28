@@ -48,14 +48,13 @@ Option<BitStreamWriter> BitStreamWriter::New(WritableMemoryBuffer* MB) {
 // Writing
 
 ExiError BitStreamWriter::writeBit(safe_bool Value) {
-  if (BaseT::isFull()) {
+  if EXI_UNLIKELY(BaseT::isFull()) {
     LOG_WARN("Unable to write bit.\n");
     return ExiError::Full(1);
   }
 
   const u64 Pos = BaseT::farBitOffset() - 1;
-  const u8 Curr = (Value.data() << Pos);
-  BaseT::getCurrentByte() |= Curr;
+  BaseT::getCurrentByte() |= u8(Value.data() << Pos);
   BaseT::skip(1);
   return ExiError::OK;
 }
@@ -93,7 +92,7 @@ void BitStreamWriter::writeSingleByte(u8 Byte, i64 Bits) {
   const i64 SecondWrite = -FirstWrite;
   // Byte &= GetIMask<u8>(SecondWrite);
   BaseT::getCurrentByte()
-    |= (Byte << (kCHAR_BIT - SecondWrite));
+    |= u8(Byte << (kCHAR_BIT - SecondWrite));
   BaseT::skip(SecondWrite);
 }
 
@@ -139,12 +138,37 @@ void BitStreamWriter::writeBitsSlow(u64 Value, i64 Bits) {
 #endif
 
 void BitStreamWriter::writeBitsSlow(u64 Value, i64 Bits) {
+  if (!BaseT::isByteAligned()) {
+    const i64 Offset = BaseT::farBitOffset();
+    const WordT Masked = Value & GetIMask(Offset);
+    
+    if (Bits < Offset) {
+      BaseT::getCurrentByte()
+        |= u8(Masked << (Offset - Bits));
+      BaseT::skip(Bits);
+      return;
+    }
+
+    BaseT::getCurrentByte() |= u8(Masked);
+    BaseT::skip(Offset);
+    Value >>= Offset;
+    Bits -= Offset;
+  }
+
   // Assumption to possibly unroll loop.
   exi_assume(Bits <= 64);
-  while (Bits > 0) {
-    writeSingleByte(Value & 0xFF);
+  while (Bits >= 8) {
+    BaseT::getCurrentByte() = u8(Value & 0xFF);
     Bits -= CHAR_BIT;
     Value >>= CHAR_BIT;
+    BaseT::skip(8);
+  }
+
+  exi_invariant(Bits >= 0);
+  if (Bits > 0) {
+    BaseT::getCurrentByte()
+      = u8(Value << (8 - Bits));
+    BaseT::skip(Bits);
   }
 }
 
@@ -167,6 +191,7 @@ void BitStreamWriter::writeBitsImpl(u64 Value, i64 Bits) {
 
 ExiError BitStreamWriter::writeBits64(u64 Value, i64 Bits) {
   exi_invariant(Bits >= 0 && Bits <= 64, "Invalid bit size!");
+  exi_invariant(Value & GetIMask(Bits), "High bits set!");
   if EXI_UNLIKELY(!BaseT::canAccessBits(Bits)) {
     LOG_WARN("Unable to write {} bits.\n", Bits);
     return ExiError::Full(Bits);

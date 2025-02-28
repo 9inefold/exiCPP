@@ -455,17 +455,36 @@ static void ReadAPIntExi(const APInt& AP, SmallVecImpl<u8>& Out) {
 #define DUMP_STMT_FMT(FMT, ...) fmt::println("{}: " FMT, #__VA_ARGS__, (__VA_ARGS__))
 #define DUMP_STMT(...) DUMP_STMT_FMT("{}", __VA_ARGS__)
 
+static void DumpU8Array(ArrayRef<u8> Bytes) {
+  for (u8 Byte : Bytes) {
+    const u8 Hi = (Byte >> 4);
+    const u8 Lo = (Byte & 0xF);
+    fmt::print("{:04b}'{:04b} ", Hi, Lo);
+  }
+  fmt::println("");
+}
+
 static void BitStreamTests(int Argc, char* Argv[]) noexcept {
-  SKIP {
+  {
     u8 Data[4] {};
+    bool Flag = false;
+    auto DumpU8 = [Flag, &Data] {
+      if (Flag) DumpU8Array(Data);
+    };
 
     BitStreamWriter OS(Data);
     (void) OS.writeBits64(0b1001, 4);
+    DumpU8();
     (void) OS.writeBits<3>(0b011);
+    DumpU8();
     (void) OS.writeBit(0);
+    DumpU8();
     (void) OS.writeBits64(0b1011, 4);
+    DumpU8();
     (void) OS.writeBits64(0b1011'1111'1110, 12);
+    DumpU8();
     (void) OS.writeBit(1);
+    DumpU8();
 
     BitStreamReader IS(Data);
     exi_assert(IS.bitPos() == 0, "Yeah.");
@@ -476,6 +495,7 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
     exi_assert(IS.readBit()      == 0);
     exi_assert(IS.peekBits<4>()  == 0b1011);
     exi_assert(IS.readBits64(4)  == 0b1011);
+    DUMP_STMT_FMT("{:#0b}", IS.peekBits64(12));
     exi_assert(IS.peekBits(12)   == 0b1011'1111'1110);
     exi_assert(IS.readBits64(12) == 0b1011'1111'1110);
     exi_assert(IS.readBit()      == 1);
