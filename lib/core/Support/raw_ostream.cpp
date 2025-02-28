@@ -526,7 +526,7 @@ bool raw_ostream::prepare_colors() {
 
 raw_ostream::Colors raw_ostream::getColor(bool BG) const {
   const auto* Col = BG ? &BGColor : &FGColor;
-  return Col->value_or(RESET);
+  return Col->value_or(WHITE);
 }
 
 void raw_ostream::setColor(enum Colors Color, bool BG) {
