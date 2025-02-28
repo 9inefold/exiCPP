@@ -349,6 +349,20 @@ void Process::UseANSIEscapeCodes(bool enable) {
   UseANSI = enable;
 }
 
+static bool UseUTFCodepage = false;
+static UINT OldCodepage = 850;
+void Process::UseUTF8Codepage(bool enable) {
+  // TODO: Verify this
+  if (enable) {
+    if (!UseUTFCodepage)
+      OldCodepage = GetConsoleOutputCP();
+    SetConsoleOutputCP(65001);
+  } else {
+    SetConsoleOutputCP(OldCodepage);
+  }
+  UseUTFCodepage = enable;
+}
+
 namespace {
 class DefaultColors {
 private:

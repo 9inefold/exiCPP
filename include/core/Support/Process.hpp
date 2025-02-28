@@ -209,6 +209,12 @@ public:
   /// during initialization.
   static void UseANSIEscapeCodes(bool enable);
 
+  /// Enables or disables whether utf-8 is printed to console output.
+  /// This only has an effect on Windows.
+  /// Note: Setting this option is not thread-safe and should only be done
+  /// during initialization.
+  static void UseUTF8Codepage(bool enable);
+
   /// Whether changing colors requires the output to be flushed.
   /// This is needed on systems that don't support escape sequences for
   /// changing colors.
