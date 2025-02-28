@@ -74,6 +74,13 @@ bool StrRef::ends_with_insensitive(StrRef Suffix) const {
                            Suffix.size()) == 0;
 }
 
+bool StrRef::pinched_with_insensitive(StrRef Prefix, StrRef Suffix) const {
+  return size() >= (Prefix.size() + Suffix.size()) &&
+         AsciiStrncasecmp(data(), Prefix.data(), Prefix.size()) == 0 &&
+         AsciiStrncasecmp(end() - Suffix.size(), Suffix.data(),
+                           Suffix.size()) == 0;
+}
+
 usize StrRef::find_insensitive(char C, usize From) const {
   char L = toLower(C);
   return find_if([L](char D) { return toLower(D) == L; }, From);

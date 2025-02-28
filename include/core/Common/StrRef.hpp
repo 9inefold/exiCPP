@@ -93,6 +93,17 @@ private:
     return ::memcmp(Lhs,Rhs,Length);
   }
 
+  EXI_INLINE int compareMemory_front(StrRef Prefix) const {
+    exi_invariant(size() >= Prefix.size());
+    return compareMemory(data(), Prefix.data(), Prefix.size());
+  }
+
+  EXI_INLINE int compareMemory_back(StrRef Suffix) const {
+    exi_invariant(size() >= Suffix.size());
+    return compareMemory(end() - Suffix.size(),
+                         Suffix.data(), Suffix.size());
+  }
+
 public:
   /// @name Constructors
   /// @{
@@ -314,7 +325,7 @@ public:
   /// Check if this string starts with the given \p Prefix.
   [[nodiscard]] bool starts_with(StrRef Prefix) const {
     return size() >= Prefix.size() &&
-           compareMemory(data(), Prefix.data(), Prefix.size()) == 0;
+           compareMemory_front(Prefix) == 0;
   }
   [[nodiscard]] bool starts_with(char Prefix) const {
     return !empty() && front() == Prefix;
@@ -326,8 +337,7 @@ public:
   /// Check if this string ends with the given \p Suffix.
   [[nodiscard]] bool ends_with(StrRef Suffix) const {
     return size() >= Suffix.size() &&
-           compareMemory(end() - Suffix.size(), Suffix.data(),
-                         Suffix.size()) == 0;
+           compareMemory_back(Suffix) == 0;
   }
   [[nodiscard]] bool ends_with(char Suffix) const {
     return !empty() && back() == Suffix;
@@ -335,6 +345,18 @@ public:
 
   /// Check if this string ends with the given \p Suffix, ignoring case.
   [[nodiscard]] bool ends_with_insensitive(StrRef Suffix) const;
+
+  /// Check if this string is pinched by the \p Prefix and \p Suffix.
+  [[nodiscard]] bool pinched_with(StrRef Prefix, StrRef Suffix) const {
+    return size() >= (Prefix.size() + Suffix.size()) &&
+           compareMemory_front(Prefix) == 0 &&
+           compareMemory_back(Suffix) == 0;
+  }
+
+  /// Check if this string is pinched by the \p Prefix and \p Suffix,
+  /// ignoring case.
+  [[nodiscard]] bool pinched_with_insensitive(StrRef Prefix,
+                                              StrRef Suffix) const;
 
   /// @}
   /// @name String Searching
@@ -722,6 +744,28 @@ public:
     return true;
   }
 
+  /// Returns true if this StrRef is pinched by the prefix and suffix and
+  /// removes those.
+  bool consume_pinch(StrRef Prefix, StrRef Suffix) {
+    if (!pinched_with(Prefix, Suffix))
+      return false;
+    
+    *this = substr(Prefix.size())
+              .drop_back(Suffix.size());
+    return true;
+  }
+
+  /// Returns true if this StrRef is pinched by the prefix and suffix,
+  /// ignoring case, and removes those.
+  bool consume_pinch_insensitive(StrRef Prefix, StrRef Suffix) {
+    if (!pinched_with_insensitive(Prefix, Suffix))
+      return false;
+    
+    *this = substr(Prefix.size())
+              .drop_back(Suffix.size());
+    return true;
+  }
+
   /// Return a reference to the substring from [Start, End).
   ///
   /// \param Start The index of the starting character in the substring; if
@@ -858,7 +902,7 @@ public:
 
   /// Return string with consecutive characters in \p Chars starting from
   /// the right removed.
-  [[nodiscard]] StrRef rtrim(StrRef Chars = " \t\n\v\f\r") const {
+  [[nodiscard]] StrRef rtrim(StrRef Chars = " \t\n\v\f\r\0") const {
     return drop_back(size() - std::min(size(), find_last_not_of(Chars) + 1));
   }
 
