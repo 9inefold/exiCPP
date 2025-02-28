@@ -42,7 +42,8 @@
 
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/ProcTypes.hpp>
-#include <exi/Stream/BitStream.hpp>
+#include <exi/Stream/BitStreamReader.hpp>
+#include <exi/Stream/BitStreamWriter.hpp>
 
 #include <tuple>
 #include <malloc.h>
@@ -458,7 +459,7 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
   SKIP {
     u8 Data[4] {};
 
-    BitStreamOut OS(Data);
+    BitStreamWriter OS(Data);
     (void) OS.writeBits64(0b1001, 4);
     (void) OS.writeBits<3>(0b011);
     (void) OS.writeBit(0);
@@ -466,7 +467,7 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
     (void) OS.writeBits64(0b1011'1111'1110, 12);
     (void) OS.writeBit(1);
 
-    BitStreamIn IS(Data);
+    BitStreamReader IS(Data);
     exi_assert(IS.bitPos() == 0, "Yeah.");
     exi_assert(IS.peekBit()      == 1);
     exi_assert(IS.peekBits64(4)  == 0b1001);
@@ -482,7 +483,7 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
     u8 Data[6 * sizeof(u64)] {};
     bool MakeUnaligned = false;
 
-    BitStreamOut OS(Data);
+    BitStreamWriter OS(Data);
     if (MakeUnaligned)
       (void) OS.writeBit(1);
     (void) OS.writeBits64(0b1001, 64);
@@ -493,7 +494,7 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
     (void) OS.writeBits<2>(0b01);
 
     {
-      BitStreamIn IS(Data);
+      BitStreamReader IS(Data);
       auto printPos = [&IS] {
         fmt::print("{: ^4}: ", IS.bitPos());
       };
@@ -516,7 +517,7 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
       DUMP_STMT_FMT("{:#02b}", IS.readBits<2>());
     }
 
-    BitStreamIn IS(Data);
+    BitStreamReader IS(Data);
     if (MakeUnaligned)
       exi_assert(IS.readBit()    == 1);
     exi_assert(IS.readBits64(64) == 0b1001);
@@ -533,17 +534,17 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
     U8Data.resize(Buf.capacity_in_bytes());
     // ReadAPIntExi(APInt(Bits, Buf), U8Data);
     {
-      BitStreamOut OS = BitStreamOut::New(U8Data);
+      BitStreamWriter OS = BitStreamWriter::New(U8Data);
       (void) OS.writeBits(APInt(Bits, Buf));
     }
 
     auto GetNewStream = [kOff, &U8Data]() {
-      BitStreamIn BSI(U8Data);
+      BitStreamReader BSI(U8Data);
       // BSI.skip(kOff);
       return BSI;
     };
 
-    BitStreamIn IS = GetNewStream();
+    BitStreamReader IS = GetNewStream();
     {
       OwningArrayRef<u8> U8Peek(U8Data.size());
       OwningArrayRef<u8> U8Read(U8Data.size());
@@ -560,7 +561,7 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
     if (AP != BSAP) {
       {
         ArrayRef U8Arr(U8Data);
-        BitStreamIn TIS(U8Arr.take_front(7));
+        BitStreamReader TIS(U8Arr.take_front(7));
         fmt::println("AP: {}\nIS: {}\n",
           AP.getData().back(),
           TIS.peekBits64(kBack));
@@ -661,7 +662,7 @@ void PointerUnionTests(int, char*[]) noexcept {
 
 void tests_main(int Argc, char* Argv[]) {
   // miscTests(Argc, Argv);
-  ExiErrorTests(Argc, Argv);
+  // ExiErrorTests(Argc, Argv);
   BitStreamTests(Argc, Argv);
-  APIntTests(Argc, Argv);
+  // APIntTests(Argc, Argv);
 }

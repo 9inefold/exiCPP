@@ -82,8 +82,8 @@ include_items(EXICPP_SRC "lib/exi"
   Basic/XMLContainer.cpp
   Basic/XMLManager.cpp
 
-  Stream/BitStreamIn.cpp
-  Stream/BitStreamOut.cpp
+  Stream/BitStreamReader.cpp
+  Stream/BitStreamWriter.cpp
 )
 
 add_library(exicpp STATIC ${EXICPP_SRC})

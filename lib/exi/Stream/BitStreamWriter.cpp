@@ -1,4 +1,4 @@
-//===- exi/Stream/BitStreamOut.cpp ----------------------------------===//
+//===- exi/Stream/BitStreamWriter.cpp -------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -17,53 +17,52 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines the base for stream operations.
+/// This file implements the BitStreamWriter class.
 ///
 //===----------------------------------------------------------------===//
 
 #include "BitStreamCommon.hpp"
-#include "core/Support/Logging.hpp"
-#include "core/Support/raw_ostream.hpp"
+#include <exi/Stream/BitStreamWriter.hpp>
+#include <core/Support/Logging.hpp>
+#include <core/Support/raw_ostream.hpp>
 
 #define DEBUG_TYPE "BitStream"
 
 using namespace exi;
 
-BitStreamOut::BitStreamOut(MutArrayRef<char> Buffer) :
- BitStreamOut::BaseType(GetU8Buffer(Buffer)) { 
+BitStreamWriter::BitStreamWriter(MutArrayRef<char> Buffer) :
+ BitStreamWriter::BaseT(GetU8Buffer(Buffer)) { 
 }
 
-BitStreamOut BitStreamOut::New(WritableMemoryBuffer& MB) {
-  return BitStreamOut(MB.getBuffer());
+BitStreamWriter BitStreamWriter::New(WritableMemoryBuffer& MB) {
+  return BitStreamWriter(MB.getBuffer());
 }
 
-Option<BitStreamOut> BitStreamOut::New(WritableMemoryBuffer* MB) {
+Option<BitStreamWriter> BitStreamWriter::New(WritableMemoryBuffer* MB) {
   if EXI_UNLIKELY(!MB)
     return nullopt;
-  return BitStreamOut::New(*MB);
+  return BitStreamWriter::New(*MB);
 }
 
 //////////////////////////////////////////////////////////////////////////
 // Writing
 
-ExiError BitStreamOut::writeBit(safe_bool Value) {
-  if (BaseType::isFull()) {
+ExiError BitStreamWriter::writeBit(safe_bool Value) {
+  if (BaseT::isFull()) {
     LOG_WARN("Unable to write bit.\n");
     return ExiError::Full(1);
   }
 
-  const u64 Pos = BaseType::farBitOffset() - 1;
+  const u64 Pos = BaseT::farBitOffset() - 1;
   const u8 Curr = (Value.data() << Pos);
-  BaseType::getCurrentByte() |= Curr;
-  BaseType::skip(1);
+  BaseT::getCurrentByte() |= Curr;
+  BaseT::skip(1);
   return ExiError::OK;
 }
 
-void BitStreamOut::writeSingleByte(u8 Byte, i64 Bits) {
-#ifdef EXPENSIVE_CHECKS
-  exi_assert(exi::isUIntN(Bits, Byte));
-#endif
-  //
+void BitStreamWriter::writeSingleByte(u8 Byte, i64 Bits) {
+  exi_expensive_invariant(exi::isUIntN(Bits, Byte));
+
   // Writing a single byte is simpler than multiple, but still not simple.
   // Here's some visual examples:
   //
@@ -78,27 +77,28 @@ void BitStreamOut::writeSingleByte(u8 Byte, i64 Bits) {
   // 11111000 00000000
   //      111
   //
-  const i64 FarBits = BaseType::farBitOffset();
+  const i64 FarBits = BaseT::farBitOffset();
   const i64 FirstWrite = FarBits - Bits;
-  BaseType::getCurrentByte()
+  BaseT::getCurrentByte()
     |= SignAwareSHL(Byte, FirstWrite);
   
   // Exit early if our value fits in neatly.
   if (FarBits >= Bits) {
-    BaseType::skip(Bits);
+    BaseT::skip(Bits);
     return;
   }
 
   // Otherwise, handle trailing bits.
-  BaseType::align();
+  BaseT::align();
   const i64 SecondWrite = -FirstWrite;
   // Byte &= GetIMask<u8>(SecondWrite);
-  BaseType::getCurrentByte()
+  BaseT::getCurrentByte()
     |= (Byte << (kCHAR_BIT - SecondWrite));
-  BaseType::skip(SecondWrite);
+  BaseT::skip(SecondWrite);
 }
 
-void BitStreamOut::writeBitsSlow(u64 Value, i64 Bits) {
+#if 0
+void BitStreamWriter::writeBitsSlow(u64 Value, i64 Bits) {
   //
   // Writing bits is more complex than reading, as it uses a different endianness. 
   // For example, let's say words are u32, and we have 0x12345678.
@@ -136,27 +136,38 @@ void BitStreamOut::writeBitsSlow(u64 Value, i64 Bits) {
     Value >>= kCHAR_BIT;
   }
 }
+#endif
 
-void BitStreamOut::writeBitsImpl(u64 Value, i64 Bits) {
+void BitStreamWriter::writeBitsSlow(u64 Value, i64 Bits) {
+  // Assumption to possibly unroll loop.
+  exi_assume(Bits <= 64);
+  while (Bits > 0) {
+    writeSingleByte(Value & 0xFF);
+    Bits -= CHAR_BIT;
+    Value >>= CHAR_BIT;
+  }
+}
+
+void BitStreamWriter::writeBitsImpl(u64 Value, i64 Bits) {
   if EXI_UNLIKELY(Bits == 0)
     return;
 #if READ_FAST_PATH
-  if EXI_LIKELY(BaseType::canAccessWords()) {
+  if EXI_LIKELY(BaseT::canAccessWords()) {
     Value &= GetIMask(Bits);
-    u8* Ptr = BaseType::getCurrentBytePtr();
-    const usize BitAlign = BaseType::bitOffset();
+    u8* Ptr = BaseT::getCurrentBytePtr();
+    const usize BitAlign = BaseT::bitOffset();
     const i64 Off = kBitsPerWord - Bits;
     WriteWordBit(Ptr, (Value << Off), BitAlign);
-    BaseType::skip(Bits);
+    BaseT::skip(Bits);
     return;
   }
 #endif
   tail_return writeBitsSlow(Value, Bits);
 }
 
-ExiError BitStreamOut::writeBits64(u64 Value, i64 Bits) {
+ExiError BitStreamWriter::writeBits64(u64 Value, i64 Bits) {
   exi_invariant(Bits >= 0 && Bits <= 64, "Invalid bit size!");
-  if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
+  if EXI_UNLIKELY(!BaseT::canAccessBits(Bits)) {
     LOG_WARN("Unable to write {} bits.\n", Bits);
     return ExiError::Full(Bits);
   }
@@ -165,26 +176,23 @@ ExiError BitStreamOut::writeBits64(u64 Value, i64 Bits) {
   return ExiError::OK;
 }
 
-ExiError BitStreamOut::writeBitsAP(const APInt& AP, i64 Bits) {
-  ArrayRef<WordType> Words = AP.getData();
-  if (i64 Remainder = Bits % kBitsPerWord; Remainder != 0) {
-    writeBitsImpl(Words.back(), Remainder);
-    Words = Words.drop_back();
-    Bits -= Remainder;
+ExiError BitStreamWriter::writeBitsAP(const APInt& AP, i64 Bits) {
+  const u64* Ptr = AP.getRawData();
+  while (Bits >= i64(kBitsPerWord)) {
+    writeBitsImpl(*Ptr, i64(kBitsPerWord));
+    Bits -= i64(kBitsPerWord);
+    Ptr += 1;
   }
 
-  for (WordType Word : exi::reverse(Words)) {
-    writeBitsImpl(Word, kBitsPerWord);
-    Bits -= kBitsPerWord;
-  }
+  if (Bits > 0)
+    writeBitsImpl(*Ptr, Bits);
 
-  exi_invariant(Bits == 0);
   return ExiError::OK;
 }
 
-ExiError BitStreamOut::writeBits(const APInt& AP) {
+ExiError BitStreamWriter::writeBits(const APInt& AP) {
   const i64 Bits = AP.getBitWidth();
-  if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
+  if EXI_UNLIKELY(!BaseT::canAccessBits(Bits)) {
     LOG_WARN("Unable to write {} bits.\n", Bits);
     return ExiError::Full(Bits);
   }
@@ -197,9 +205,9 @@ ExiError BitStreamOut::writeBits(const APInt& AP) {
   return writeBitsAP(AP, Bits);
 }
 
-ExiError BitStreamOut::writeBits(const APInt& AP, i64 Bits) {
+ExiError BitStreamWriter::writeBits(const APInt& AP, i64 Bits) {
   const i64 NBits = CheckReadWriteSizes(AP.getBitWidth(), Bits);
-  if EXI_UNLIKELY(!BaseType::canAccessBits(Bits)) {
+  if EXI_UNLIKELY(!BaseT::canAccessBits(Bits)) {
     LOG_WARN("Unable to write {} bits.\n", Bits);
     return ExiError::Full(Bits);
   }
@@ -212,8 +220,8 @@ ExiError BitStreamOut::writeBits(const APInt& AP, i64 Bits) {
   return ExiError::TODO;
 }
 
-ExiError BitStreamOut::writeByte(u8 Byte) {
-  if EXI_UNLIKELY(!BaseType::canAccessBits(8)) {
+ExiError BitStreamWriter::writeByte(u8 Byte) {
+  if EXI_UNLIKELY(!BaseT::canAccessBits(8)) {
     LOG_WARN("Unable to write byte.\n");
     return ExiError::Full(8);
   }
@@ -222,9 +230,9 @@ ExiError BitStreamOut::writeByte(u8 Byte) {
   return ExiError::OK;
 }
 
-ExiError BitStreamOut::write(ArrayRef<u8> In, i64 Bytes) {
+ExiError BitStreamWriter::write(ArrayRef<u8> In, i64 Bytes) {
   const i64 NBytes = CheckReadWriteSizes(In.size(), Bytes);
-  if EXI_UNLIKELY(!BaseType::canAccessBytes(NBytes)) {
+  if EXI_UNLIKELY(!BaseT::canAccessBytes(NBytes)) {
     LOG_WARN("Unable to write {} bytes.\n", NBytes);
     return ExiError::Full(NBytes * kCHAR_BIT);
   }
@@ -232,35 +240,35 @@ ExiError BitStreamOut::write(ArrayRef<u8> In, i64 Bytes) {
   if (NBytes == 0)
     return ExiError::OK;
   
-  if (BaseType::isByteAligned()) {
-    u8* Ptr = BaseType::getCurrentBytePtr();
+  if (BaseT::isByteAligned()) {
+    u8* Ptr = BaseT::getCurrentBytePtr();
     std::memcpy(Ptr, In.data(), NBytes);
-    BaseType::skipBytes(NBytes);
+    BaseT::skipBytes(NBytes);
     return ExiError::OK;
   }
 
   for (u8 Byte : In) {
     writeBitsImpl(Byte, kCHAR_BIT);
-    BaseType::skipBytes(1);
+    BaseT::skipBytes(1);
   }
 
   return ExiError::OK;
 }
 
-MutArrayRef<u8> BitStreamOut::getWrittenBytes() {
-  if (BaseType::isFull())
-    return BaseType::Stream;
+MutArrayRef<u8> BitStreamWriter::getWrittenBytes() {
+  if (BaseT::isFull())
+    return BaseT::Stream;
   // Mask current byte.
-  const usize N = BaseType::farBitOffsetInclusive();
+  const usize N = BaseT::farBitOffsetInclusive();
   const u8 Mask = (0xFF << N);
-  BaseType::getCurrentByte() &= Mask;
+  BaseT::getCurrentByte() &= Mask;
 
   // Return the array being written.
-  const usize EndPos = BaseType::bytePos();
-  if (BaseType::isByteAligned()) {
+  const usize EndPos = BaseT::bytePos();
+  if (BaseT::isByteAligned()) {
     // Return extra space if not byte aligned.
-    return BaseType::Stream
+    return BaseT::Stream
       .take_front(EndPos + 1);
   }
-  return BaseType::Stream.take_front(EndPos);
+  return BaseT::Stream.take_front(EndPos);
 }

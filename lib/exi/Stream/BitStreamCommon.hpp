@@ -21,7 +21,7 @@
 ///
 //===----------------------------------------------------------------===//
 
-#include <exi/Stream/BitStream.hpp>
+#include <exi/Stream/Stream.hpp>
 #include <core/Common/APInt.hpp>
 #include <core/Common/SmallVec.hpp>
 #include <core/Common/StrRef.hpp>
@@ -34,7 +34,7 @@
 namespace exi {
 
 using WordT = StreamBase::WordType;
-static constexpr auto kEndianness = endianness::big;
+static constexpr auto kEndianness = endianness::little;
 
 template <typename IntT = WordT>
 ALWAYS_INLINE static constexpr IntT GetIMask(i64 Bits) noexcept {
@@ -82,11 +82,6 @@ static inline i64 CheckReadWriteSizes(const i64 NMax, i64& Len) noexcept {
   }
 
   return (Len = NReads);
-}
-
-ALWAYS_INLINE static APInt
- PeekBitsAPImpl(BitStreamIn thiz, i64 Bits) noexcept {
-  return thiz.readBits(Bits);
 }
 
 } // namespace exi
