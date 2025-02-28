@@ -915,7 +915,7 @@ public:
       if (name_size == 0)
         name_size = internal::measure(name);
       for (NodeType* sibling = m_prev_sibling; sibling; sibling = sibling->m_prev_sibling)
-        if (internal::compare(sibling->name(), sibling->name_size(), name, name_size,
+        if (internal::compare(sibling->name(), StrRefT(name, name_size),
                               CaseInsensitive))
           return sibling;
       return 0;
