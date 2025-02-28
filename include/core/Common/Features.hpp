@@ -412,6 +412,14 @@
 # define EXI_UNREACHABLE __assume(0)
 #endif
 
+#if EXI_HAS_BUILTIN(__builtin_assume)
+# define EXI_ASSUME(...) __builtin_assume(static_cast<bool>(__VA_ARGS__))
+#elif defined(_MSC_VER)
+# define EXI_ASSUME(...) __assume(static_cast<bool>(__VA_ARGS__))
+#elif EXI_HAS_CPPATTR(assume)
+# define EXI_ASSUME(...) [[assume(__VA_ARGS__)]]
+#endif
+
 #if EXI_HAS_BUILTIN(__builtin_constant_p)
 # define EXI_CONSTANT_P(...) (__builtin_constant_p(__VA_ARGS__))
 # ifdef __clang__

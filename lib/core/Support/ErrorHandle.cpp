@@ -57,8 +57,10 @@ static const char* getAssertionMessage(H::AssertionKind Kind) {
   switch (Kind) {
    case ASK_Assert:
     return "Assertion failed";
+   case ASK_Assume:
+    return "Assumption incorrect";
    case ASK_Invariant:
-    return "Invariant failed";
+    return "Invariant broken";
    case ASK_Unreachable:
     return "Unreachable reached";
   }

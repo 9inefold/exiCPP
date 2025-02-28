@@ -26,6 +26,7 @@ namespace H {
 
 enum AssertionKind : int {
   ASK_Assert,
+  ASK_Assume,
   ASK_Invariant,
   ASK_Unreachable,
 };
@@ -70,9 +71,15 @@ class Twine;
   }                                                                           \
 } while(0)
 
+/// Simplified assertion handler, provides required arguments for you.
+#define exi_fail(KIND, MSG) ::exi::exi_assert_impl(                           \
+  ::exi::H::KIND, MSG, EXI_FUNCTION, __LINE__)
+
+/// Simplified assertion handler, provides required arguments for you.
+#define exi_fail_stringify(KIND, ...) exi_fail(KIND, "`" #__VA_ARGS__ "`")
+
 #ifndef NDEBUG
-# define exi_unreachable(MSG)                                                 \
-  ::exi::exi_assert_impl(::exi::H::ASK_Unreachable, MSG, __FILE__, __LINE__)
+# define exi_unreachable(MSG) exi_fail(ASK_Unreachable, MSG)
 #elif !defined(EXI_UNREACHABLE)
 # define exi_unreachable(MSG) ::exi::exi_unreachable_impl()
 #elif EXI_OPTIMIZE_UNREACHABLE && !EXI_DEBUG
@@ -84,12 +91,16 @@ class Twine;
   } while(0)
 #endif
 
-/// Simplified assertion handler, provides required arguments for you.
-#define exi_fail(KIND, MSG) ::exi::exi_assert_impl(                           \
-  ::exi::H::KIND, MSG, EXI_FUNCTION, __LINE__)
-
-/// Simplified assertion handler, provides required arguments for you.
-#define exi_fail_stringify(KIND, ...) exi_fail(KIND, "`" #__VA_ARGS__ "`")
+#ifndef NDEBUG
+# define exi_assume(...) do {                                                 \
+    if EXI_UNLIKELY(!static_cast<bool>(__VA_ARGS__))                          \
+      exi_fail_stringify(ASK_Assume, __VA_ARGS__);                            \
+  } while(0)
+#elif defined(EXI_ASSUME)
+# define exi_assume(...) EXI_ASSUME(__VA_ARGS__)
+#else
+# define exi_assume(...) (void(0))
+#endif
 
 /// Provides runtime assertion checking for a generic kind.
 #define exi_assertRT_(KIND, EXPR, ...) void(EXI_LIKELY((EXPR))                \
