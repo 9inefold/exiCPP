@@ -209,6 +209,7 @@ public:
   /// during initialization.
   static void UseANSIEscapeCodes(bool enable);
 
+  /// TODO: Ensure this is provided empty in Unix builds.
   /// Enables or disables whether utf-8 is printed to console output.
   /// This only has an effect on Windows.
   /// Note: Setting this option is not thread-safe and should only be done
