@@ -208,8 +208,13 @@ Expected<XMLDocument&> XMLContainer::parse() const {
   }
 }
 
+/// @brief Parses the loaded buffer and returns a reference to the doc.
+Option<XMLDocument&> XMLContainer::parseOpt() const {
+  return expectedToOptional(this->parse());
+}
+
 Expected<XMLDocument&> XMLContainer::loadAndParse(const MapEntry& ME,
-                                                    bool IsVolatile) {
+                                                  bool IsVolatile) {
   // In this case, we ensure the MapEntry has been initialized,
   // load the buffer, and then parse it.
   this->setEntry(ME);

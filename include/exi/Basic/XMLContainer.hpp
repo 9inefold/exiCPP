@@ -106,6 +106,9 @@ public:
   /// @brief Parses the loaded buffer and returns a reference to the doc.
   Expected<XMLDocument&> parse() const;
 
+  /// @brief Parses the loaded buffer and returns a reference to the doc.
+  Option<XMLDocument&> parseOpt() const;
+
   /// @brief Variant of parse() which loads the buffer.
   /// @param ME The MapEntry pointing to `this`.
   /// @param IsVolatile Passed to `loadBuffer` if required.
