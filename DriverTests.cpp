@@ -16,6 +16,7 @@
 //
 //===----------------------------------------------------------------===//
 
+#include "Driver.hpp"
 #include <Common/AlignedInt.hpp>
 #include <Common/APSInt.hpp>
 #include <Common/Box.hpp>
@@ -680,7 +681,7 @@ void PointerUnionTests(int, char*[]) noexcept {
   }
 }
 
-void tests_main(int Argc, char* Argv[]) {
+void root::tests_main(int Argc, char* Argv[]) {
   // miscTests(Argc, Argv);
   // ExiErrorTests(Argc, Argv);
   BitStreamTests(Argc, Argv);
