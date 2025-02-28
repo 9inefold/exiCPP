@@ -43,7 +43,9 @@ enum NodeDataKind {
 using EmbeddedNode = PointerIntPair<XMLNode*, 3, NodeDataKind>;
 
 static Option<XMLDocument&> TryLoad(XMLManager& Mgr, const Twine& Filepath) {
-  return Mgr.getOptXMLDocument(Filepath, errs());
+  if (Mgr.getOptXMLDocument(Filepath, errs()))
+    return Mgr.getOptXMLDocument(Filepath, errs());
+  return std::nullopt;
 }
 
 int tests_main(int Argc, char* Argv[]);
@@ -52,6 +54,8 @@ int main(int Argc, char* Argv[]) {
   outs().enable_colors(true);
   dbgs().enable_colors(true);
 
+  tests_main(Argc, Argv);
+
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
   if (auto Opt = TryLoad(*Mgr, "examples/Namespace.xml"))
     outs() << raw_ostream::BRIGHT_GREEN
@@ -59,4 +63,5 @@ int main(int Argc, char* Argv[]) {
   if (auto Opt = TryLoad(*Mgr, "large-examples/treebank_e.xml"))
     outs() << raw_ostream::BRIGHT_GREEN
       << "Read success!\n" << raw_ostream::RESET;
+  
 }
