@@ -21,17 +21,17 @@
 ///
 //===----------------------------------------------------------------===//
 
-#include "exi/Basic/ErrorCodes.hpp"
-#include "core/Common/SmallStr.hpp"
-#include "core/Common/StringExtras.hpp"
-#include "core/Common/bit.hpp"
-#include "core/Support/Debug.hpp"
-#include "core/Support/Format.hpp"
-#include "core/Support/IntCast.hpp"
-#include "core/Support/Limits.hpp"
-#include "core/Support/Logging.hpp"
-#include "core/Support/raw_ostream.hpp"
-#include "exi/Basic/ProcTypes.hpp"
+#include <exi/Basic/ErrorCodes.hpp>
+#include <core/Common/SmallStr.hpp>
+#include <core/Common/StringExtras.hpp>
+#include <core/Common/bit.hpp>
+#include <core/Support/Debug.hpp>
+#include <core/Support/Format.hpp>
+#include <core/Support/IntCast.hpp>
+#include <core/Support/Limits.hpp>
+#include <core/Support/Logging.hpp>
+#include <core/Support/raw_ostream.hpp>
+#include <exi/Basic/ProcTypes.hpp>
 
 #define DEBUG_TYPE "ErrorCodes"
 
@@ -39,7 +39,7 @@ using namespace exi;
 
 using IHCType = exi::InvalidHeaderCode;
 
-static constexpr const char* ErrorCodeNames[kErrorCodeCount + 1] {
+static constexpr StringLiteral ErrorCodeNames[kErrorCodeCount] {
   "Success",
   "Stop",
   "Unimplemented",
@@ -58,7 +58,7 @@ static constexpr const char* ErrorCodeNames[kErrorCodeCount + 1] {
   "HeaderOptionsMismatch"
 };
 
-static constexpr const char* ErrorCodeMessages[kErrorCodeCount + 1] {
+static constexpr StringLiteral ErrorCodeMessages[kErrorCodeCount] {
   "Success",
   "Stop",
   "Unimplemented Behaviour",
@@ -81,7 +81,7 @@ inline static const char*
  get_error_name_what(ErrorCode E) noexcept {
   const usize Ix = static_cast<i32>(E);
   if EXI_LIKELY(Ix < kErrorCodeCount)
-    return ErrorCodeNames[Ix];
+    return ErrorCodeNames[Ix].data();
   return "UNKNOWN_ERROR";
 }
 
@@ -89,15 +89,15 @@ inline static const char*
  get_error_message_what(ErrorCode E) noexcept {
   const usize Ix = static_cast<i32>(E);
   if EXI_LIKELY(Ix < kErrorCodeCount)
-    return ErrorCodeMessages[Ix];
+    return ErrorCodeMessages[Ix].data();
   return "UNKNOWN ERROR";
 }
 
 StrRef exi::get_error_name(ErrorCode E) noexcept {
-  return StrRef(get_error_name_what(E));
+  return get_error_name_what(E);
 }
 StrRef exi::get_error_message(ErrorCode E) noexcept {
-  return StrRef(get_error_message_what(E));
+  return get_error_message_what(E);
 }
 
 raw_ostream& exi::operator<<(raw_ostream& OS, ErrorCode Err) {

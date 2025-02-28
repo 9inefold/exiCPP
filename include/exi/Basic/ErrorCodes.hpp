@@ -25,6 +25,7 @@
 
 #include <core/Common/Fundamental.hpp>
 #include <core/Common/StrRef.hpp>
+#include <system_error>
 
 namespace exi {
 
@@ -35,7 +36,7 @@ enum class AlignKind : u8;
 class Preserve;
 enum class EventTerm : i32;
 
-enum class ErrorCode : i32 {
+enum class ErrorCode : u32 {
   kOk      = 0,
   kSuccess = 0,
 
@@ -113,7 +114,7 @@ enum class InvalidHeaderCode : u8 {
   Last
 };
 
-inline constexpr usize kErrorCodeCount = i32(ErrorCode::Last);
+inline constexpr usize kErrorCodeCount = u32(ErrorCode::Last);
 StrRef get_error_name(ErrorCode E) noexcept EXI_READONLY;
 StrRef get_error_message(ErrorCode E) noexcept EXI_READONLY;
 
@@ -121,8 +122,14 @@ StrRef get_error_message(ErrorCode E) noexcept EXI_READONLY;
 class EXI_NODISCARD ExiError {
   ErrorCode EC;
   u32 Extra = 0;
-
-  constexpr ExiError(ErrorCode E, u32 Extra) : EC(E), Extra(Extra) {}
+  union {
+    u64 Storage;
+    const std::error_category* Category;
+  };
+  
+  constexpr ExiError(ErrorCode E, u32 Extra) :
+   EC(E), Extra(Extra), Storage(0) {}
+  
 public:
   using enum ErrorCode;
   static constexpr u32 Inval = u32(-1);
