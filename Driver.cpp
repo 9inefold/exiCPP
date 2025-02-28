@@ -29,6 +29,7 @@
 #include <Support/Signals.hpp>
 #include <Support/raw_ostream.hpp>
 #include <exi/Basic/XMLManager.hpp>
+#include <exi/Basic/XMLContainer.hpp>
 #include <algorithm>
 #include <rapidxml.hpp>
 
@@ -498,6 +499,13 @@ static Option<XMLDocument&> TryLoad(XMLManager& Mgr, const Twine& Filepath) {
   return std::nullopt;
 }
 
+static usize ReserveSize(XMLManager& Mgr, const Twine& Filepath) {
+  return Mgr.getOptXMLRef(Filepath)
+    .expect("bruh??")
+    .getBufferRef()
+    .getBufferSize();
+}
+
 static void FullTest(XMLManager& Mgr, const Twine& Filepath) {
   SmallStr<80> Storage;
   StrRef Name = Filepath.toStrRef(Storage);
@@ -506,6 +514,7 @@ static void FullTest(XMLManager& Mgr, const Twine& Filepath) {
     outs().flush();
 
     SmallStr<512> PrintBuf;
+    PrintBuf.reserve(ReserveSize(Mgr, Name));
     raw_svector_ostream OS(PrintBuf);
     OS.enable_colors(outs().has_colors());
 
@@ -535,7 +544,6 @@ int main(int Argc, char* Argv[]) {
   FullTest(*Mgr, "examples/Namespace.xml");
   FullTest(*Mgr, "examples/Thai.xml");
 
-  // if (auto Opt = TryLoad(*Mgr, "large-examples/treebank_e.xml"))
-  //   outs() << raw_ostream::BRIGHT_GREEN
-  //     << "Read success!\n" << raw_ostream::RESET;
+  // Without prints this runs in 0.2 seconds!
+  // FullTest(*Mgr, "large-examples/treebank_e.xml");
 }
