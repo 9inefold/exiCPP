@@ -91,6 +91,9 @@ public:
   bool isImmutable() const { return Immutable; }
   bool isStrict() const { return Strict; }
 
+  bool hasBuffer() const { return !!TheBuffer; }
+  bool hasEntry() const { return ME; }
+
   bool isValidKind() const {
     const XMLKind Kind = getKind();
     return Kind != XMLKind::XsdExiSchema

@@ -48,7 +48,8 @@ constexpr int kValidate = 0;
 #endif
 
 constexpr int kDefault = xml::parse_no_entity_translation
-                       | xml::parse_no_data_nodes | kValidate;
+                       /*| xml::parse_no_data_nodes*/
+                       | kValidate;
 
 constexpr int kImmutable = kDefault
                          | xml::parse_non_destructive;
