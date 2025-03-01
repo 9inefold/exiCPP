@@ -78,6 +78,7 @@ include_items(EXICPP_SRC "lib/exi"
   #Basic/FileManager.cpp
   Basic/FilesystemStatCache.cpp
   Basic/NBitInt.cpp
+  Basic/Runes.cpp
   Basic/XML.cpp
   Basic/XMLContainer.cpp
   Basic/XMLManager.cpp

@@ -135,7 +135,7 @@ public:
                        OStreamKind K = OStreamKind::OK_OStream)
       : Kind(K), BufferMode(unbuffered ? BufferKind::Unbuffered
                                        : BufferKind::InternalBuffer) {
-    FGColor = BGColor = Colors::WHITE;
+    FGColor = BGColor = Colors::RESET;
     // Start out ready to flush.
     OutBufStart = OutBufEnd = OutBufCur = nullptr;
   }
