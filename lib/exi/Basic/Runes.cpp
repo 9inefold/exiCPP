@@ -27,23 +27,36 @@
 
 using namespace exi;
 
+/// TODO: Benchmark this baybee
+namespace { constexpr usize kMaxWidthBeforeReserve = 64; }
+
+/// Determines whether reserve should be called. Bases it off the raw bytes,
+/// as most strings will probably just be ASCII anyways.
+ALWAYS_INLINE static void ReserveData(const RuneDecoder& Decoder,
+                                      SmallVecImpl<Rune>& Runes) {
+  if (Decoder.sizeInBytes() > kMaxWidthBeforeReserve)
+    Runes.reserve_back(Decoder.sizeInBytes());
+}
+
 bool exi::decodeRunes(RuneDecoder Decoder,
-											SmallVecImpl<Rune>& Runes) {
-	bool Result = true;
-	while (Decoder) {
-		const Rune Decoded = Decoder.decode();
-		if EXI_UNLIKELY(Decoded == kInvalidRune)
-			Result = false;
-		Runes.push_back(Decoded);
-	}
-	return Result;
+                      SmallVecImpl<Rune>& Runes) {
+  ReserveData(Decoder, Runes);
+  bool Result = true;
+  while (Decoder) {
+    const Rune Decoded = Decoder.decode();
+    if EXI_UNLIKELY(Decoded == kInvalidRune)
+      Result = false;
+    Runes.push_back(Decoded);
+  }
+  return Result;
 }
 
 bool exi::decodeRunesUnchecked(RuneDecoder Decoder,
-															 SmallVecImpl<Rune>& Runes) {
+                               SmallVecImpl<Rune>& Runes) {
+  ReserveData(Decoder, Runes);
   while (Decoder) {
-		Runes.push_back(
-			Decoder.decodeUnchecked());
-	}
-	return true;
+    Runes.push_back(
+      Decoder.decodeUnchecked());
+  }
+  return true;
 }

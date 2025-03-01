@@ -59,7 +59,8 @@ class RuneDecoder {
 public:
   constexpr RuneDecoder() = default;
 
-  RuneDecoder(const u8* Begin, usize Size) : Data(Begin), Length(Size) {
+  constexpr RuneDecoder(const u8* Begin, usize Size) :
+   Data(Begin), Length(Size) {
     exi_invariant(Begin || Size == 0, "Invalid decoder input");
   }
 
@@ -81,8 +82,12 @@ public:
    RuneDecoder(Str.data(), Str.size()) {
   }
 
-  ALWAYS_INLINE RuneDecoder(ArrayRef<u8> Data) :
+  ALWAYS_INLINE constexpr RuneDecoder(ArrayRef<u8> Data) :
    RuneDecoder(Data.data(), Data.size()) {
+  }
+
+  ALWAYS_INLINE constexpr usize sizeInBytes() const {
+    return Length;
   }
 
 private:
@@ -97,17 +102,20 @@ private:
       return 1;
   }
 
+  /// Decodes 1-byte utf8 codepoints.
   ALWAYS_INLINE constexpr Rune decode1() const {
     exi_invariant(Length >= 1);
     return Data[0];
   }
 
+  /// Decodes 2-byte utf8 codepoints.
   ALWAYS_INLINE constexpr Rune decode2() const {
     exi_invariant(Length >= 2);
     return ((Data[0] & kCode2) << 6) |
             (Data[1] & kTrail);
   }
 
+  /// Decodes 3-byte utf8 codepoints.
   ALWAYS_INLINE constexpr Rune decode3() const {
     exi_invariant(Length >= 3);
     return ((Data[0] & kCode3) << 12) |
@@ -115,6 +123,7 @@ private:
             (Data[2] & kTrail);
   }
 
+  /// Decodes 4-byte utf8 codepoints.
   ALWAYS_INLINE constexpr Rune decode4() const {
     exi_invariant(Length >= 4);
     return ((Data[0] & kCode4) << 18) |
@@ -129,6 +138,7 @@ private:
     Length -= N;
   }
 
+  /// Decodes N-byte utf8 codepoints.
   constexpr Rune decodeImpl(usize N) {
     if EXI_LIKELY(N == 1)
       return decode1();
@@ -175,7 +185,13 @@ public:
   } 
 };
 
+/// Safely decodes codepoints from the input and inserts them into `Runes`.
+/// @returns Whether the decoding was successful.
 bool decodeRunes(RuneDecoder Decoder, SmallVecImpl<Rune>& Runes);
+
+/// Decodes codepoints from the input and inserts them into `Runes`.
+/// Does no validity checking, the return is just for consistency.
+/// Only use when you know the data is definitely valid.
 bool decodeRunesUnchecked(RuneDecoder Decoder, SmallVecImpl<Rune>& Runes);
 
 } // namespace exi
