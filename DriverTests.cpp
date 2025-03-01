@@ -752,7 +752,7 @@ static void RuneTests(int, char*[]) {
 void root::tests_main(int Argc, char* Argv[]) {
   // miscTests(Argc, Argv);
   // ExiErrorTests(Argc, Argv);
-  BitStreamTests(Argc, Argv);
+  // BitStreamTests(Argc, Argv);
   // APIntTests(Argc, Argv);
   RuneTests(Argc, Argv);
 }
