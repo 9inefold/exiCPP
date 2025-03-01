@@ -94,11 +94,18 @@ public:
     RESET,
   };
 
+  // Colors grouped.
+  struct TiedColor {
+    Colors FG = Colors::RESET;
+    Colors BG = Colors::RESET;
+  };
+
   using enum Colors;
 
 protected:
+  TiedColor MyColors;
   /// The two stored color types. Can be accessed by derived classes.
-  Option<Colors> FGColor, BGColor;
+  Option<TiedColor&> UsedColors;
 
 private:
   OStreamKind Kind;
@@ -135,9 +142,10 @@ public:
                        OStreamKind K = OStreamKind::OK_OStream)
       : Kind(K), BufferMode(unbuffered ? BufferKind::Unbuffered
                                        : BufferKind::InternalBuffer) {
-    FGColor = BGColor = Colors::RESET;
     // Start out ready to flush.
     OutBufStart = OutBufEnd = OutBufCur = nullptr;
+    // Set up colors.
+    UsedColors = MyColors;
   }
 
   raw_ostream(const raw_ostream &) = delete;
@@ -330,6 +338,9 @@ public:
   /// @returns color if set, otherwise RESET.
   virtual enum Colors getColor(bool BG = false) const;
 
+  /// Gets the stored color of the stream.
+  TiedColor getTiedColor() const;
+
   /// Changes the foreground color of text that will be output from this point
   /// forward.
   /// @param Color ANSI color to use, the special SAVEDCOLOR can be used to
@@ -339,6 +350,11 @@ public:
   /// @returns itself so it can be used within << invocations
   virtual raw_ostream &changeColor(enum Colors Color, bool Bold = false,
                                    bool BG = false);
+  
+  /// Changes the foreground color of text that will be output from this point
+  /// forward.
+  /// @param Bold bold/brighter text, default false
+  virtual raw_ostream &changeColor(TiedColor Color, bool Bold = false);
 
   /// Resets the colors to terminal defaults. Call this when you are done
   /// outputting colored text, or before program exit.
@@ -346,6 +362,9 @@ public:
 
   /// Reverses the foreground and background colors.
   virtual raw_ostream &reverseColor();
+
+  /// Reverses the foreground and background colors.
+  virtual void bindColor(raw_ostream &OS);
 
   /// This function determines if this stream is connected to a "tty" or
   /// "console" window. That is, the output would be displayed to the user
@@ -406,6 +425,9 @@ protected:
   /// not change the value.
   /// @param BG if true, set the background color.
   virtual void setColor(enum Colors Color, bool BG = false);
+
+  /// Sets the stored color of the stream.
+  void setColor(TiedColor Tied);
 
   //===--------------------------------------------------------------------===//
   // Private Interface

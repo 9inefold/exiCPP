@@ -408,8 +408,12 @@ const char *Process::OutputBold(bool bg) {
 }
 
 const char *Process::OutputColor(char code, bool bold, bool bg) {
-  if (UseANSI)
+  if (UseANSI) {
+    if (code == /*RESET*/17)
+      /// TODO: Report this fix to LLVM?
+      return resetcodes[bg ? 1 : 0][bold ? 1 : 0];
     return colorcodes[bg ? 1 : 0][bold ? 1 : 0][code & 15];
+  }
 
   WORD current = DefaultColors::GetCurrentColor();
   WORD colors;

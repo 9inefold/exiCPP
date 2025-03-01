@@ -525,18 +525,25 @@ bool raw_ostream::prepare_colors() {
 }
 
 raw_ostream::Colors raw_ostream::getColor(bool BG) const {
-  const auto* Col = BG ? &BGColor : &FGColor;
-  return Col->value_or(WHITE);
+  if (!UsedColors)
+    return Colors::RESET;
+  return BG ? UsedColors->BG : UsedColors->FG;
+}
+
+raw_ostream::TiedColor raw_ostream::getTiedColor() const {
+  return {getColor(false), getColor(true)};
 }
 
 void raw_ostream::setColor(enum Colors Color, bool BG) {
-  if (Color == SAVEDCOLOR)
+  if (!UsedColors || Color == SAVEDCOLOR)
     return;
-  auto* Col = BG ? &BGColor : &FGColor;
-  if (Color != RESET)
-    Col->emplace(Color);
-  else
-    Col->reset();
+  Colors& Col = *(BG ? &UsedColors->BG : &UsedColors->FG);
+  Col = Color;
+}
+
+void raw_ostream::setColor(raw_ostream::TiedColor Tied) {
+  this->setColor(Tied.FG, false);
+  this->setColor(Tied.BG, true);
 }
 
 raw_ostream &raw_ostream::changeColor(enum Colors Color, bool Bold, bool BG) {
@@ -548,23 +555,34 @@ raw_ostream &raw_ostream::changeColor(enum Colors Color, bool Bold, bool BG) {
       (Color == SAVEDCOLOR)
           ? sys::Process::OutputBold(BG)
           : sys::Process::OutputColor(static_cast<char>(Color), Bold, BG);
-  if (colorcode)
-    write(colorcode, std::strlen(colorcode));
-#else
-  (void)Bold;
-  (void)BG;
+  if (colorcode) {
+#if 0
+    if (*colorcode == '\033') {
+      const auto Len = std::strlen(colorcode);
+      this->write(colorcode, Len);
+      this->write(colorcode + 1, Len - 1);
+      this->write("\033[0m", sizeof("\033[0m") - 1);
+      return *this;
+    }
+#endif
+    this->write(colorcode, std::strlen(colorcode));
+  }
 #endif // EXI_HAS_SYS_IMPL
   return *this;
+}
+
+raw_ostream &raw_ostream::changeColor(TiedColor Color, bool Bold) {
+  return this->changeColor(Color.FG, Bold, false)
+              .changeColor(Color.BG, Bold, true);
 }
 
 raw_ostream &raw_ostream::resetColor() {
   if (!prepare_colors())
     return *this;
-  FGColor.reset();
-  BGColor.reset();
+  UsedColors.reset();
 #if EXI_HAS_SYS_IMPL
   if (const char *colorcode = sys::Process::ResetColor())
-    write(colorcode, strlen(colorcode));
+    this->write(colorcode, strlen(colorcode));
 #endif // EXI_HAS_SYS_IMPL
   return *this;
 }
@@ -572,12 +590,20 @@ raw_ostream &raw_ostream::resetColor() {
 raw_ostream &raw_ostream::reverseColor() {
   if (!prepare_colors())
     return *this;
-  std::swap(FGColor, BGColor);
+  if (UsedColors)
+    std::swap(UsedColors->FG, UsedColors->BG);
 #if EXI_HAS_SYS_IMPL
   if (const char *colorcode = sys::Process::OutputReverse())
-    write(colorcode, strlen(colorcode));
+    this->write(colorcode, strlen(colorcode));
 #endif // EXI_HAS_SYS_IMPL
   return *this;
+}
+
+void raw_ostream::bindColor(raw_ostream &OS) {
+  if (!OS.has_colors())
+    return;
+  // Bind up the chain.
+  UsedColors = OS.UsedColors.value_or(OS.MyColors);
 }
 
 void raw_ostream::anchor() {}
@@ -651,7 +677,7 @@ raw_fd_ostream::raw_fd_ostream(StrRef Filename, std::error_code &EC,
 raw_fd_ostream::raw_fd_ostream(int fd, bool shouldClose, bool unbuffered,
                                OStreamKind K)
     : raw_pwrite_stream(unbuffered, K), FD(fd), ShouldClose(shouldClose) {
-  if (FD < 0 ) {
+  if (FD < 0) {
     ShouldClose = false;
     return;
   }
@@ -861,9 +887,9 @@ u64 raw_fd_ostream::seek(u64 off) {
 void raw_fd_ostream::pwrite_impl(const char *Ptr, usize Size,
                                  u64 Offset) {
   u64 Pos = tell();
-  seek(Offset);
-  write(Ptr, Size);
-  seek(Pos);
+  this->seek(Offset);
+  this->write(Ptr, Size);
+  this->seek(Pos);
 }
 
 usize raw_fd_ostream::preferred_buffer_size() const {

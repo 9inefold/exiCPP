@@ -145,13 +145,22 @@ Process::FindInEnvPath(StrRef EnvName, StrRef FileName,
 
 //                           bg
 //                           |  bold
-//                           |  |
 //                           |  |   codes
 //                           |  |   |
 //                           |  |   |
 static const char colorcodes[2][2][16][11] = {
     { ALLCOLORS("3", "9", ""), ALLCOLORS("3", "9", "1;"),},
     { ALLCOLORS("4", "10", ""), ALLCOLORS("4", "10", "1;")}
+};
+
+//                           bg
+//                           |  bold
+//                           |  |  codes
+//                           |  |  |
+//                           |  |  |
+static const char resetcodes[2][2][10] = {
+    {"\033[0;39m", "\033[0;1;39m"},
+    {"\033[0;49m", "\033[0;1;49m"}
 };
 // clang-format on
 
