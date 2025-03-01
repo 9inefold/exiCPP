@@ -49,11 +49,12 @@ using EmbeddedNode = PointerIntPair<XMLNode*, 3, NodeDataKind>;
 
 int main(int Argc, char* Argv[]) {
   using namespace root;
-  // sys::Process::UseANSIEscapeCodes(true);
+  sys::Process::UseANSIEscapeCodes(true);
   // sys::Process::UseUTF8Codepage(true);
   exi::DebugFlag = LogLevel::WARN;
 
   outs().enable_colors(true);
+  errs().enable_colors(true);
   dbgs().enable_colors(true);
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
@@ -69,4 +70,6 @@ int main(int Argc, char* Argv[]) {
                      
   // Without prints this runs in 0.2 seconds!
   // FullXMLDump(*Mgr, "large-examples/treebank_e.xml");
+
+  root::tests_main(Argc, Argv);
 }

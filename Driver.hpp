@@ -27,21 +27,18 @@ namespace exi {
 
 class WithColor {
   raw_ostream& OS;
-  raw_ostream::Colors FGColor;
-  raw_ostream::Colors BGColor;
+  raw_ostream::TiedColor TColor;
+
 public:
   using enum raw_ostream::Colors;
   using Colors = raw_ostream::Colors;
 
   [[nodiscard]] WithColor(raw_ostream& OS,
                           Colors Color = SAVEDCOLOR) :
-   OS(OS), FGColor(OS.getColor(false)), BGColor(OS.getColor(true)) {
+   OS(OS), TColor(OS.getTiedColor()) {
     OS.changeColor(Color);
   }
-  ~WithColor() {
-    OS.changeColor(FGColor, false, false);
-    // OS.changeColor(BGColor, false, true);
-  }
+  ~WithColor() { OS.changeColor(TColor); }
 
   template <typename T> WithColor &operator<<(T& O) {
     OS << O;
