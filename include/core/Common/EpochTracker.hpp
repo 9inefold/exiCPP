@@ -66,7 +66,7 @@ public:
 
   /// A base class for iterator classes ("handles") that wish to poll for
   /// iterator invalidating modifications in the underlying data structure.
-  /// When LLVM is built without asserts, this class is empty and does nothing.
+  /// When EXI is built without asserts, this class is empty and does nothing.
   ///
   /// HandleBase does not track the parent data structure by itself.  It expects
   /// the routines modifying the data structure to call incrementEpoch when they
