@@ -417,7 +417,10 @@ const char *Process::OutputColor(char code, bool bold, bool bg) {
 
   WORD current = DefaultColors::GetCurrentColor();
   WORD colors;
-  if (bg) {
+  if (code == /*RESET*/17) {
+    colors = bg ? fg_color(current)
+                : bg_color(current);
+  } else if (bg) {
     colors = ((code & 1) ? BACKGROUND_RED : 0) |
              ((code & 2) ? BACKGROUND_GREEN : 0) |
              ((code & 4) ? BACKGROUND_BLUE : 0);
