@@ -32,34 +32,6 @@
 using namespace exi;
 
 namespace {
-class WithColor {
-  raw_ostream& OS;
-  raw_ostream::Colors FGColor;
-  raw_ostream::Colors BGColor;
-public:
-  using enum raw_ostream::Colors;
-  using Colors = raw_ostream::Colors;
-
-  [[nodiscard]] WithColor(raw_ostream& OS,
-                          Colors Color = SAVEDCOLOR) :
-   OS(OS), FGColor(OS.getColor(false)), BGColor(OS.getColor(true)) {
-    OS.changeColor(Color);
-  }
-  ~WithColor() {
-    OS.changeColor(FGColor, false, false);
-    // OS.changeColor(BGColor, false, true);
-  }
-
-  template <typename T> WithColor &operator<<(T& O) {
-    OS << O;
-    return *this;
-  }
-  template <typename T> WithColor &operator<<(const T& O) {
-    OS << O;
-    return *this;
-  }
-};
-
 class XMLDumper {
   static constexpr StrRef knode_unknown = "UNKNOWN-TYPE"; 
   static constexpr StrRef knode_null = "NULL-TYPE"; 
@@ -627,12 +599,19 @@ static void HandleErr(XMLManager& Mgr, StrRef Name, raw_ostream& OS) {
 
 void root::FullXMLDump(exi::XMLManager& Mgr,
                        const exi::Twine& Filepath,
-                        bool DbgPrintTypes) {
+                       exi::Option<raw_ostream&> InOS,
+                       bool DbgPrintTypes) {
   SmallStr<80> Storage;
   StrRef Name = Filepath.toStrRef(Storage);
+
+  raw_ostream& OutS = InOS.value_or(outs());
+  const bool OSProvided = InOS.has_value();
+
   if (auto Doc = TryLoad(Mgr, Name)) {
-    outs() << "'" << Name << "':\n";
-    outs().flush();
+    if (!OSProvided) {
+      OutS << "'" << Name << "':\n";
+      OutS.flush();
+    }
 
     SmallStr<512> PrintBuf;
     PrintBuf.reserve(ReserveSize(Mgr, Name));
@@ -641,12 +620,12 @@ void root::FullXMLDump(exi::XMLManager& Mgr,
 
     XMLDumper Dumper(*Doc, 2, OS);
     Dumper.DebugPrint = DbgPrintTypes;
-    Dumper.dump(/*InitialIndent=*/1);
+    Dumper.dump(/*InitialIndent=*/ OSProvided ? 0 : 1);
 
-    outs() << PrintBuf.str() << '\n';
+    OutS << PrintBuf.str() << '\n';
   } else {
-    HandleErr(Mgr, Name, outs());
-    outs() << '\n';
+    HandleErr(Mgr, Name, errs());
+    errs() << '\n';
   }
-  outs().changeColor(raw_ostream::WHITE).flush();
+  OutS.changeColor(raw_ostream::RESET).flush();
 }

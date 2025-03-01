@@ -18,8 +18,42 @@
 
 #pragma once
 
+#include <Common/Option.hpp>
 #include <Common/Twine.hpp>
+#include <Support/raw_ostream.hpp>
 #include <exi/Basic/XMLManager.hpp>
+
+namespace exi {
+
+class WithColor {
+  raw_ostream& OS;
+  raw_ostream::Colors FGColor;
+  raw_ostream::Colors BGColor;
+public:
+  using enum raw_ostream::Colors;
+  using Colors = raw_ostream::Colors;
+
+  [[nodiscard]] WithColor(raw_ostream& OS,
+                          Colors Color = SAVEDCOLOR) :
+   OS(OS), FGColor(OS.getColor(false)), BGColor(OS.getColor(true)) {
+    OS.changeColor(Color);
+  }
+  ~WithColor() {
+    OS.changeColor(FGColor, false, false);
+    // OS.changeColor(BGColor, false, true);
+  }
+
+  template <typename T> WithColor &operator<<(T& O) {
+    OS << O;
+    return *this;
+  }
+  template <typename T> WithColor &operator<<(const T& O) {
+    OS << O;
+    return *this;
+  }
+};
+
+} // namespace exi
 
 namespace root {
 
@@ -27,6 +61,7 @@ void tests_main(int Argc, char* Argv[]);
 
 void FullXMLDump(exi::XMLManager& Mgr,
                  const exi::Twine& Filepath,
+                 exi::Option<exi::raw_ostream&> InOS = std::nullopt,
                  bool DbgPrintTypes = false);
 
 } // namespace root
