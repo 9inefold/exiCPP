@@ -218,7 +218,7 @@ bool XMLDumper::expectName(NodeT Node, StrRef Err) {
 }
 bool XMLDumper::expectData(NodeT Node, StrRef Err) {
   if (!HasData(Node)) [[unlikely]] {
-    printErr(Node, "no-data");
+    printErr(Node, Err);
     return true;
   }
   return false;
@@ -264,11 +264,7 @@ void XMLDumper::putData(StrRef Data) {
   Save << Data;
 }
 void XMLDumper::putEntity(StrRef Data) {
-  if (!Data.consume_pinch("&", ";")) {
-    putData(Data);
-    return;
-  }
-
+  Data.consume_pinch("&", ";");
   WithColor Save(OS, COLOR_entity);
   putSplit('&');
   Save << Data;
@@ -432,7 +428,22 @@ void XMLDumper::printNode_element(NodeT Node) {
 void XMLDumper::printNode_data(NodeT Node) {
   if (expectData(Node, "no-data"))
     return;
-  putData(Node->value());
+  
+  StrRef Data = Node->value().trim().rtrim();
+  if (Data.empty())
+    return;
+  
+  while (!Data.empty()) {
+    auto [Front, Back] = Data.split('&');
+    if (Back.empty())
+      break;
+    
+    StrRef Entity;
+    std::tie(Entity, Data) = Back.split(';');
+    putEntity(Entity);
+  }
+
+  putData(Data);
   OS << '\n';
 }
 
@@ -494,9 +505,22 @@ void XMLDumper::printNode_doctype(NodeT Node) {
 }
 
 void XMLDumper::printNode_pi(NodeT Node) {
-  if (expectData(Node, "no-PI"))
+  if (expectName(Node, "no-PI-target"))
     return;
-  OS << "PROCESSING-INSTRUCTION\n";
+  if (expectData(Node, "no-PI-directives"))
+    return;
+  
+  SmallStr<32> Storage;
+  raw_svector_ostream OS(Storage);
+
+  OS << "<?" << Node->name();
+  SmallVec<StrRef, 2> PIVec;
+  Node->value().split(PIVec, ' ', -1, false);
+  for (StrRef PI : PIVec)
+    OS << ' ' << PI;
+  OS << "?>\n";
+
+  WithColor(this->OS, COLOR_dtname) << Storage.str();
 }
 
 //////////////////////////////////////////////////////////////////////////
