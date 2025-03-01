@@ -25,6 +25,7 @@
 #include <Support/Debug.hpp>
 #include <Support/Format.hpp>
 #include <Support/FmtBuffer.hpp>
+#include <Support/Process.hpp>
 #include <Support/Signals.hpp>
 #include <Support/WindowsError.hpp>
 #include <Support/raw_ostream.hpp>
@@ -39,15 +40,6 @@
 # define WIN32_NO_STATUS
 # include <Support/Windows/WindowsSupport.hpp>
 # undef WIN32_NO_STATUS
-#endif
-
-#if defined(_WIN32) && EXI_DEBUG
-# define TRAP_IF_DEBUGGING() do {                 \
-  if (::exi::DebugFlag && IsDebuggerPresent())    \
-    EXI_TRAP;                                     \
-} while(0)
-#else
-# define TRAP_IF_DEBUGGING() (void(0))
 #endif
 
 using namespace exi;
@@ -97,7 +89,7 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
   // to make sure any special cleanups get done, in particular that we remove
   // files registered with RemoveFileOnSignal.
   sys::RunInterruptHandlers();
-  TRAP_IF_DEBUGGING();
+  sys::Process::TrapIfDebugging();
 
   if (GenCrashDiag)
     std::abort();
@@ -143,7 +135,7 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
     fmt::print(stderr, "{}", Pre);
   }
   fmt::println(stderr, ".");
-  TRAP_IF_DEBUGGING();
+  sys::Process::TrapIfDebugging();
   std::abort();
 
 #ifdef EXI_UNREACHABLE
@@ -151,7 +143,9 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
 #endif
 }
 
-
+//======================================================================//
+// Windows Only
+//======================================================================//
 
 #ifdef _WIN32
 

@@ -555,6 +555,8 @@ bool exi::RunningWindows11OrGreater() {
   return ver >= exi::VersionTuple(10, 0, 0, 22000);
 }
 
+bool Process::IsReallyDebugging() { return ::IsDebuggerPresent(); }
+
 [[noreturn]] void Process::ExitNoCleanup(int RetCode) {
   TerminateProcess(GetCurrentProcess(), RetCode);
   exi_unreachable("TerminateProcess doesn't return");

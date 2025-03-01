@@ -94,6 +94,7 @@ public:
   static usize GetMallocUsage();
 
   /// TODO: Make sure we do this on Unix.
+  ///
   /// Return process memory usage.
   /// This static function works the same as `GetMallocUsage`, the only
   /// difference being it exclusively works for the standard malloc,
@@ -210,6 +211,7 @@ public:
   static void UseANSIEscapeCodes(bool enable);
 
   /// TODO: Ensure this is provided empty in Unix builds.
+  ///
   /// Enables or disables whether utf-8 is printed to console output.
   /// This only has an effect on Windows.
   /// Note: Setting this option is not thread-safe and should only be done
@@ -241,6 +243,28 @@ public:
   /// Get the result of a process wide random number generator. The
   /// generator will be automatically seeded in non-deterministic fashion.
   static unsigned GetRandomNumber();
+
+  /// TODO: Ensure this is provided in Unix builds.
+  /// See https://stackoverflow.com/a/24969863/17980859
+  /// or https://forum.juce.com/t/detecting-if-a-process-is-being-run-under-a-debugger/2098
+  /// for a potential implementation.
+  ///
+  /// This function returns whether a debugger is present. If checks are not
+  /// supported on the current platform, it will default to `false`.
+  static bool IsReallyDebugging();
+
+  /// This function returns whether a debugger is present and `DebugFlag` is
+  /// enabled.
+  static bool IsDebugging();
+
+  /// This function traps if a debugger is present and `DebugFlag` is enabled.
+  /// Does nothing in release builds.
+  ALWAYS_INLINE EXI_NODEBUG static void TrapIfDebugging() {
+#if EXI_DEBUG
+    if (Process::IsDebugging())
+      EXI_TRAP;
+#endif
+  }
 
   /// Equivalent to ::exit(), except when running inside a CrashRecoveryContext.
   /// In that case, the control flow will resume after RunSafely(), like for a
