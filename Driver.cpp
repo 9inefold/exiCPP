@@ -17,10 +17,12 @@
 //===----------------------------------------------------------------===//
 
 #include "Driver.hpp"
+#include <Common/APInt.hpp>
 #include <Common/SmallStr.hpp>
 #include <Common/IntrusiveRefCntPtr.hpp>
 #include <Common/MMatch.hpp>
 #include <Common/PointerIntPair.hpp>
+#include <Common/StringSwitch.hpp>
 #include <Support/Filesystem.hpp>
 #include <Support/Logging.hpp>
 #include <Support/MemoryBuffer.hpp>
@@ -47,29 +49,74 @@ enum NodeDataKind {
 
 using EmbeddedNode = PointerIntPair<XMLNode*, 3, NodeDataKind>;
 
-int main(int Argc, char* Argv[]) {
+static Option<bool> EnvAsBoolean(StrRef Env) {
+  return StringSwitch<Option<bool>>(Env)
+    .Cases("TRUE", "YES", "ON", true)
+    .Cases("FALSE", "NO", "OFF", false)
+    .Default(std::nullopt);
+}
+
+static bool CheckEnvTruthiness(StrRef Env, bool EmptyResult = false) {
+  if (Env.empty())
+    return false;
+  
+  // Handle integral values.
+  i64 Int = 0;
+  if (Env.consumeInteger(10, Int)) {
+    return (Int != 0);
+  }
+
+  return EnvAsBoolean(Env)
+    .value_or(EmptyResult);
+}
+
+static bool CheckEnvTruthiness(Option<String>& Env,
+                               bool EmptyResult = false) {
+  if (!Env)
+    return EmptyResult;
+  return CheckEnvTruthiness(
+    *Env, EmptyResult);
+}
+
+static void RunDumps(XMLManager& Mgr) {
   using namespace root;
-  sys::Process::UseANSIEscapeCodes(true);
-  // sys::Process::UseUTF8Codepage(true);
-  exi::DebugFlag = LogLevel::WARN;
+  FullXMLDump(Mgr, "examples/022.xml");
+  FullXMLDump(Mgr, "examples/044.xml");
+  FullXMLDump(Mgr, "examples/079.xml");
+  FullXMLDump(Mgr, "examples/085.xml");
+  FullXMLDump(Mgr, "examples/103.xml");
+  FullXMLDump(Mgr, "examples/116.xml");
+  FullXMLDump(Mgr, "examples/Namespace.xml");
+  FullXMLDump(Mgr, "examples/SortTest.xml");
+  FullXMLDump(Mgr, "examples/Thai.xml");
+
+  // Without prints this runs in 0.2 seconds!
+  // FullXMLDump(Mgr, "large-examples/treebank_e.xml");
+}
+
+static void HandleEscapeCodeSetup() {
+  using sys::Process;
+  if (Process::IsReallyDebugging()) {
+    Option<String> NoAnsiEnv
+      = Process::GetEnv("EXICPP_NO_ANSI");
+    if (!CheckEnvTruthiness(NoAnsiEnv, /*EmptyResult=*/true)) {
+      LOG_EXTRA("ANSI escape codes disabled.");
+      return;
+    }
+  }
+
+  LOG_EXTRA("ANSI escape codes enabled.");
+  Process::UseANSIEscapeCodes(true);
+  Process::UseUTF8Codepage(true);
+}
+
+int main(int Argc, char* Argv[]) {
+  exi::DebugFlag = LogLevel::INFO;
+  HandleEscapeCodeSetup();
 
   outs().enable_colors(true);
   errs().enable_colors(true);
   dbgs().enable_colors(true);
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
-  // FullXMLDump(*Mgr, "examples/022.xml");
-  // FullXMLDump(*Mgr, "examples/044.xml");
-  // FullXMLDump(*Mgr, "examples/079.xml");
-  // FullXMLDump(*Mgr, "examples/085.xml");
-  // FullXMLDump(*Mgr, "examples/103.xml");
-  // FullXMLDump(*Mgr, "examples/116.xml");
-  // FullXMLDump(*Mgr, "examples/Namespace.xml");
-  // FullXMLDump(*Mgr, "examples/SortTest.xml");
-  // FullXMLDump(*Mgr, "examples/Thai.xml");
-                     
-  // Without prints this runs in 0.2 seconds!
-  // FullXMLDump(*Mgr, "large-examples/treebank_e.xml");
-
-  root::tests_main(Argc, Argv);
 }
