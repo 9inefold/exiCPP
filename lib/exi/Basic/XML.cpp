@@ -32,28 +32,29 @@
 
 using namespace exi;
 
-static XMLKind Classify(StrRef Ext) {
+static XMLKind Classify(StrRef Ext, bool Hint = false) {
+  using enum XMLKind;
   return StringSwitch<XMLKind>(Ext)
-    .EndsWithLower("xml", XMLKind::Document)
-    .EndsWithLower("exi", XMLKind::XsdExiSchema)
-    .EndsWithLower("xsd", XMLKind::XsdXmlSchema)
-    .EndsWithLower("dtd", XMLKind::DTDSchema)
-    .Default(XMLKind::Unknown);
+    .EndsWithLower("xml", XmlDocument)
+    .EndsWithLower("exi", Hint ? XsdExiSchema : ExiDocument)
+    .EndsWithLower("xsd", XsdXmlSchema)
+    .EndsWithLower("dtd", DTDSchema)
+    .Default(Hint ? UnknownSchema : Unknown);
 }
 
-XMLKind exi::classifyXMLKind(StrRef PathOrExt) {
-  return Classify(PathOrExt);
+XMLKind exi::classifyXMLKind(StrRef PathOrExt, bool HintSchema) {
+  return Classify(PathOrExt, HintSchema);
 }
 
-static XMLKind ClassifyXMLKindTwine(const Twine& PathOrExt) {
+static XMLKind ClassifyXMLKindTwine(const Twine& PathOrExt, bool HintSchema) {
   SmallStr<80> Storage;
-  return Classify(PathOrExt.toStrRef(Storage));
+  return Classify(PathOrExt.toStrRef(Storage), HintSchema);
 }
 
-XMLKind exi::classifyXMLKind(const Twine& PathOrExt) {
+XMLKind exi::classifyXMLKind(const Twine& PathOrExt, bool HintSchema) {
   if (PathOrExt.isSingleStrRef())
-    return Classify(PathOrExt.getSingleStrRef());
-  tail_return ClassifyXMLKindTwine(PathOrExt);
+    return Classify(PathOrExt.getSingleStrRef(), HintSchema);
+  tail_return ClassifyXMLKindTwine(PathOrExt, HintSchema);
 }
 
 //////////////////////////////////////////////////////////////////////////

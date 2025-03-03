@@ -40,11 +40,16 @@ class XMLContainer;
 class XMLManager;
 
 enum class XMLKind : unsigned {
-  Document = 0,
-  XsdExiSchema,
-  XsdXmlSchema,
-  DTDSchema,
-  Unknown,
+  Document = 0,     // An XML Document.
+  XmlDocument = 0,  // An XML Document.
+  ExiDocument,      // An EXI Document.
+
+  XsdExiSchema,     // An XSD Schema in EXI form.
+  XsdXmlSchema,     // An XSD Schema in XML form.
+  DTDSchema,        // A DTD Schema.
+
+  UnknownSchema,    // A schema of unknown type, deduced.
+  Unknown,          // Unknown document type.
 };
 
 struct XMLOptions {
@@ -54,7 +59,13 @@ struct XMLOptions {
   bool Strict = false;
 };
 
-XMLKind classifyXMLKind(StrRef PathOrExt);
-XMLKind classifyXMLKind(const Twine& PathOrExt);
+/// Classifies paths by their extension.
+/// @param PathOrExt The path or extension of a file.
+/// @param Hint When extensions are ambiguous, this will decide if schema should
+/// be the hinted type.
+XMLKind classifyXMLKind(StrRef PathOrExt, bool HintSchema = false);
+
+/// @overload
+XMLKind classifyXMLKind(const Twine& PathOrExt, bool HintSchema = false);
 
 } // namespace exi

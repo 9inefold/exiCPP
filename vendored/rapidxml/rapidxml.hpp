@@ -875,25 +875,24 @@ public:
   }
 
   //! Gets last child node, optionally matching node name.
-  //! Behaviour is undefined if node has no children.
   //! Use first_node() to test if node has children.
-  //! \param name Name of child to find, or 0 to return last child regardless of
-  //! its name; this string doesn't have to be zero-terminated if name_size is
-  //! non-zero \param name_size Size of name, in characters, or 0 to have size
-  //! calculated automatically from string \param CaseInsensitive Should name
-  //! comparison be case-sensitive; non case-sensitive comparison works properly
-  //! only for ASCII characters \return Pointer to found child, or 0 if not
-  //! found.
+  //! \param name Name of child to find, or 0 to return last child regardless of its name;
+  //! this string doesn't have to be zero-terminated if name_size is non-zero
+  //! \param name_size Size of name, in characters, or 0 to have size calculated automatically from string 
+  //! \param CaseInsensitive Should name comparison be case-sensitive;
+  //! non case-sensitive comparison works properly only for ASCII characters
+  //! \return Pointer to found child, or null if not found.
   NodeType* last_node(const Ch* name = 0, usize name_size = 0,
                           bool CaseInsensitive = true) const {
-    assert(m_first_node); // Cannot query for last child if node has no children
+    if EXI_UNLIKELY(!m_first_node)
+      return nullptr;
     if (name) {
       if (name_size == 0)
         name_size = internal::measure(name);
       for (NodeType* child = m_last_node; child; child = child->previous_sibling())
         if (internal::compare(child->name(), child->name_size(), name, name_size, CaseInsensitive))
           return child;
-      return 0;
+      return nullptr;
     } else
       return m_last_node;
   }
@@ -901,13 +900,12 @@ public:
   //! Gets previous sibling node, optionally matching node name.
   //! Behaviour is undefined if node has no parent.
   //! Use parent() to test if node has a parent.
-  //! \param name Name of sibling to find, or 0 to return previous sibling
-  //! regardless of its name; this string doesn't have to be zero-terminated if
-  //! name_size is non-zero \param name_size Size of name, in characters, or 0
-  //! to have size calculated automatically from string \param CaseInsensitive
-  //! Should name comparison be case-sensitive; non case-sensitive comparison
-  //! works properly only for ASCII characters \return Pointer to found sibling,
-  //! or 0 if not found.
+  //! \param name Name of sibling to find, or 0 to return previous sibling regardless of its name;
+  //! this string doesn't have to be zero-terminated if name_size is non-zero 
+  //! \param name_size Size of name, in characters, or 0 to have size calculated automatically from string
+  //! \param CaseInsensitive Should name comparison be case-sensitive; non case-sensitive comparison
+  //! works properly only for ASCII characters
+  //! \return Pointer to found sibling, or 0 if not found.
   NodeType* previous_sibling(const Ch* name = 0, usize name_size = 0,
                                  bool CaseInsensitive = true) const {
     assert(this->m_parent); // Cannot query for siblings if node has no parent
@@ -1066,6 +1064,8 @@ public:
   //! Use first_node() to test if node has children.
   void remove_first_node() {
     assert(first_node());
+    if EXI_UNLIKELY(!m_first_node)
+      return;
     NodeType* child = m_first_node;
     m_first_node = child->m_next_sibling;
     if (child->m_next_sibling)
@@ -1080,6 +1080,8 @@ public:
   //! Use first_node() to test if node has children.
   void remove_last_node() {
     assert(first_node());
+    if EXI_UNLIKELY(!m_first_node)
+      return;
     NodeType* child = m_last_node;
     if (child->m_prev_sibling) {
       m_last_node = child->m_prev_sibling;
@@ -1109,7 +1111,7 @@ public:
   void remove_all_nodes() {
     for (NodeType* node = first_node(); node; node = node->m_next_sibling)
       node->m_parent = 0;
-    m_first_node = 0;
+    m_first_node = nullptr;
   }
 
   //! Prepends a new attribute to the node.
@@ -1132,6 +1134,8 @@ public:
   //! \param attribute Attribute to append.
   void append_attribute(AttrType* attribute) {
     assert(attribute && !attribute->parent());
+    if EXI_UNLIKELY(attribute && !attribute->parent())
+      return;
     if (first_attribute()) {
       attribute->m_prev_attribute = m_last_attribute;
       m_last_attribute->m_next_attribute = attribute;
@@ -1170,6 +1174,8 @@ public:
   void remove_first_attribute() {
     assert(first_attribute());
     AttrType* attribute = m_first_attribute;
+    if EXI_UNLIKELY(!attribute)
+      return;
     if (attribute->m_next_attribute) {
       attribute->m_next_attribute->m_prev_attribute = 0;
     } else
@@ -1183,6 +1189,8 @@ public:
   //! Use first_attribute() to test if node has attributes.
   void remove_last_attribute() {
     assert(first_attribute());
+    if EXI_UNLIKELY(!m_first_attribute)
+      return;
     AttrType* attribute = m_last_attribute;
     if (attribute->m_prev_attribute) {
       attribute->m_prev_attribute->m_next_attribute = 0;
@@ -1195,6 +1203,8 @@ public:
   //! Removes specified attribute from node.
   //! \param where Pointer to attribute to be removed.
   void remove_attribute(AttrType* where) {
+    if EXI_UNLIKELY(!where)
+      return;
     assert(first_attribute() && where->parent() == this);
     if (where == m_first_attribute)
       remove_first_attribute();
@@ -1215,14 +1225,14 @@ public:
     m_first_attribute = 0;
   }
 
-private:
   ///////////////////////////////////////////////////////////////////////////
   // Restrictions
 
   // No copying
-  XMLNode(const XMLNode&);
-  void operator=(const XMLNode&);
+  XMLNode(const XMLNode&) = delete;
+  void operator=(const XMLNode&) = delete;
 
+private:
   ///////////////////////////////////////////////////////////////////////////
   // Data members
 

@@ -184,7 +184,7 @@ Expected<XMLDocument&> XMLContainer::parse() const {
     return TheDocument;
   if (!TheBuffer)
     return makeError("Buffer was not loaded!");
-  if (!isValidKind())
+  if (!isXMLKind())
     return makeError("Not an xml file!");
 
   LOG_EXTRA("Parsing '{}'.", ME->getKey());
@@ -197,8 +197,8 @@ Expected<XMLDocument&> XMLContainer::parse() const {
     this->Parsed = true;
     return TheDocument;
   } catch (const std::exception& Ex) {
-#if !RAPIDXML_NO_EXCEPTIONS
     LOG_ERROR("Failed to read file '{}'", ME->getKey());
+#if !RAPIDXML_NO_EXCEPTIONS
     /// Check if it's rapidxml's wee type
     if (auto* PEx = dynamic_cast<const xml::parse_error*>(&Ex)) {
       LOG_EXTRA("Error type is 'xml::parse_error'");

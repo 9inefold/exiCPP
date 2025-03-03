@@ -94,7 +94,7 @@ public:
   bool hasBuffer() const { return !!TheBuffer; }
   bool hasEntry() const { return ME; }
 
-  bool isValidKind() const {
+  bool isXMLKind() const {
     const XMLKind Kind = getKind();
     return Kind != XMLKind::XsdExiSchema
         && Kind != XMLKind::Unknown;
@@ -102,7 +102,7 @@ public:
 
   bool isSchema() const {
     const XMLKind Kind = getKind();
-    return Kind != XMLKind::Document
+    return Kind != XMLKind::XmlDocument
         && Kind != XMLKind::Unknown;
   }
 
