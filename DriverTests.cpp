@@ -39,6 +39,7 @@
 #include <Support/Process.hpp>
 #include <Support/raw_ostream.hpp>
 
+#include <exi/Basic/Bounded.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/ProcTypes.hpp>
 #include <exi/Basic/Runes.hpp>
@@ -653,8 +654,8 @@ static void ExiErrorTests(int, char*[]) noexcept {
   TEST_EE(HeaderVer, 14);
   TEST_EE(HeaderAlign, AlignKind::BytePacked);
   TEST_EE(HeaderAlign, AlignKind::BitPacked, true);
-  TEST_EE(HeaderStrict, Preserve::PIs);
-  TEST_EE(HeaderStrict, Preserve::All);
+  TEST_EE(HeaderStrict, PreserveKind::PIs);
+  TEST_EE(HeaderStrict, PreserveKind::All);
   TEST_EE(HeaderSelfContained, AlignKind::PreCompression);
   TEST_EE(HeaderSelfContained, AlignKind::None);
   TEST_EE(HeaderSelfContained, AlignKind::None, true);
@@ -749,10 +750,58 @@ static void RuneTests(int, char*[]) {
                      U"ᚻᛖ ᚳᚹᚫᚦ ᚦᚫᛏ ᚻᛖ ᛒᚢᛞᛖ ᚩᚾ ᚦᚫᛗ ᛚᚪᚾᛞᛖ ᚾᚩᚱᚦᚹᛖᚪᚱᛞᚢᛗ ᚹᛁᚦ ᚦᚪ ᚹᛖᛥᚫ");
 }
 
+//===----------------------------------------------------------------===//
+// Bounded
+//===----------------------------------------------------------------===//
+
+void BoundedTests(int, char*[]) noexcept {
+  using T = u32;
+  using Ty = Bounded<T>;
+  Ty Val(77), Inf(exi::unbounded);
+
+  exi_assert(Val == T(77));
+  exi_assert(Val == 77);
+  exi_assert(Val == Ty(77));
+  exi_assert(Val != exi::unbounded);
+  exi_assert(Val != Ty::Unbounded());
+
+  exi_assert(Inf != T(77));
+  exi_assert(Inf != 77);
+  exi_assert(Inf != Ty(77));
+  exi_assert(Inf == exi::unbounded);
+  exi_assert(Inf == Ty::Unbounded());
+
+  exi_assert(Val == Val);
+  exi_assert(Inf == Inf);
+  exi_assert(Val != Inf);
+  exi_assert(Inf != Val);
+  exi_assert(Val < Inf);
+  exi_assert(Inf > Val);
+
+  using Uy = Bounded<i32>;
+
+  exi_assert(Val == Uy(77));
+  exi_assert(Inf == Uy::Unbounded());
+  exi_assert(Val != Uy::Unbounded());
+  exi_assert(Inf != Uy(77));
+  exi_assert(Val < Uy::Unbounded());
+  exi_assert(Uy::Unbounded() > Val);
+
+  exi_assert(exi::unbounded == exi::unbounded);
+  exi_assert(exi::unbounded == Uy::Unbounded());
+  exi_assert(Uy::Unbounded() == exi::unbounded);
+  exi_assert(Ty::Unbounded() == Uy::Unbounded());
+}
+
+//===----------------------------------------------------------------===//
+// ...
+//===----------------------------------------------------------------===//
+
 void root::tests_main(int Argc, char* Argv[]) {
   // miscTests(Argc, Argv);
   // ExiErrorTests(Argc, Argv);
   // BitStreamTests(Argc, Argv);
   // APIntTests(Argc, Argv);
-  RuneTests(Argc, Argv);
+  // RuneTests(Argc, Argv);
+  BoundedTests(Argc, Argv);
 }
