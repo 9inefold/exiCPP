@@ -223,7 +223,7 @@ ExiError ExiError::HeaderAlign(AlignKind A, bool Compress) noexcept {
   );
 }
 
-ExiError ExiError::HeaderStrict(Preserve Opt) noexcept {
+ExiError ExiError::HeaderStrict(PreserveBuilder Opt) noexcept {
   return FROM_HEADER(kHeaderOptionsMismatch,
     .IHC = IHCType::kStrictPreserved,
     .StrictOpts = Opt.get()
@@ -283,12 +283,12 @@ static void FormatInvalidHeader(raw_ostream& OS, u32 Raw) {
 }
 
 #define ADD_NAME(NAME)                                                         \
-if (Opts.has(Preserve::NAME))                                                  \
+if (Opts.has(PreserveBuilder::NAME))                                                  \
   NameVec.emplace_back(#NAME, sizeof(#NAME));
 
 static void FormatMismatchStrict(raw_ostream& OS, PreserveKind O) {
-  Preserve Opts(O);
-  Opts.unset(Preserve::Strict);
+  PreserveBuilder Opts(O);
+  Opts.unset(PreserveBuilder::Strict);
   
   SmallVec<StrRef> NameVec;
   ADD_NAME(Comments);

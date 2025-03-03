@@ -33,7 +33,7 @@ class raw_ostream;
 template <typename> class SmallVecImpl;
 
 enum class AlignKind : u8;
-class Preserve;
+class PreserveBuilder;
 enum class EventTerm : i32;
 
 enum class ErrorCode : u32 {
@@ -178,7 +178,7 @@ public:
   static ExiError HeaderAlign(
    AlignKind A, bool Compress = false) noexcept EXI_READONLY;
   /// Mismatched Preserve settings.
-  static ExiError HeaderStrict(Preserve Opt) noexcept EXI_READONLY;
+  static ExiError HeaderStrict(PreserveBuilder Opt) noexcept EXI_READONLY;
   /// Mismatched Preserve settings.
   static ExiError HeaderSelfContained(
    AlignKind A, bool Strict = false) noexcept EXI_READONLY;
