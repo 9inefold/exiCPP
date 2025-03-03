@@ -34,9 +34,7 @@ namespace exi {
 
 /// Type of an unbounded tag.
 struct unbounded_t {
-  struct _secret_tag {
-    explicit constexpr _secret_tag() = default;
-  };
+  using _secret_tag = exi::Dummy_::_secret_tag;
   EXI_ALWAYS_INLINE EXI_NODEBUG constexpr explicit
    unbounded_t(_secret_tag, _secret_tag) noexcept {}
 };

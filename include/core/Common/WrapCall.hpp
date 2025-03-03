@@ -129,7 +129,7 @@ struct WrapCallPtr<Func, ReturnT(Args...)>
 namespace wrapcall_detail {
 
 /// If return type should be deduced.
-struct deduced;
+using deduced = dummy_t;
 
 /// Handles `T(void*)`.
 template <class WrapperT,

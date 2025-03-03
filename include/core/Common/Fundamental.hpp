@@ -100,10 +100,19 @@ static_assert(bitsizeof_v<f64> == 64);
 
 namespace exi {
 
-struct Dummy_ {};
+struct Dummy_ {
+  struct _secret_tag {
+    explicit constexpr _secret_tag() = default;
+  };
+  EXI_ALWAYS_INLINE EXI_NODEBUG constexpr explicit
+   Dummy_(_secret_tag, _secret_tag) noexcept {}
+};
+
 /// The default placeholder type.
 using dummy_t = Dummy_;
-EXI_CONST dummy_t dummy_v = Dummy_{};
+/// The default placeholder value.
+EXI_CONST dummy_t dummy_v = Dummy_{
+  Dummy_::_secret_tag{}, Dummy_::_secret_tag{}};
 
 struct Void_ {
   ALWAYS_INLINE constexpr
