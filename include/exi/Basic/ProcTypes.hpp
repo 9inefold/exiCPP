@@ -25,46 +25,10 @@
 
 #include <core/Common/Fundamental.hpp>
 #include <core/Common/EnumTraits.hpp>
+#include <exi/Basic/Bounded.hpp>
+#include <exi/Basic/ExiOptions.hpp>
 
 namespace exi {
-
-/// An enum containing all the terminal symbols used for productions.
-enum class AlignKind : u8 {
-  None            = 0b00,
-  BitPacked       = 0b01,
-  BytePacked      = 0b10,
-  PreCompression  = 0b11,
-};
-
-enum class PreserveKind : u8 {
-  Comments        = 0b00001, // EventTerm::CM
-  DTDs            = 0b00010, // EventTerm::{DT, ER}
-  LexicalValues   = 0b00100,
-  PIs             = 0b01000, // EventTerm::PI
-  Prefixes        = 0b10000, // EventTerm::NS
-
-  None            = 0b00000,
-  Strict          = 0b00100, // Mask for strict mode.
-  All             = 0b11111,
-};
-
-EXI_MARK_BITWISE_EX(PreserveKind, u8)
-
-class Preserve {
-public:
-  using enum PreserveKind;
-  using value_type = PreserveKind;
-private:
-  value_type Opts = None;
-public:
-  constexpr Preserve() = default;
-  constexpr Preserve(value_type O) : Opts(O) {}
-
-  value_type set(value_type O) { return (Opts |= O); }
-  value_type unset(value_type O) { return (Opts &= ~O); }
-  value_type get() const { return Opts; }
-  bool has(value_type O) const { return (Opts & O) != None; }
-};
 
 /// An enum containing all the terminal symbols used for productions.
 enum class EventTerm : i32 {
