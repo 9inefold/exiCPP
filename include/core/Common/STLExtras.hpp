@@ -2420,7 +2420,7 @@ public:
 template <typename FirstRange, typename... RestRanges>
 auto enumerate(FirstRange &&First, RestRanges &&...Rest) {
   if constexpr (sizeof...(Rest) != 0) {
-#ifndef NDEBUG
+#if EXI_ASSERTS
     // Note: Create an array instead of an initializer list to work around an
     // Apple clang 14 compiler bug.
     size_t sizes[] = {range_size(First), range_size(Rest)...};
