@@ -211,7 +211,9 @@ constexpr void AssertIntCast(From X) {
 /// Cast that checks if the result is the same representation.
 template <class To, class From>
 EXI_INLINE constexpr To IntCast(const From X) {
+#if EXI_ASSERTS
   AssertIntCast<To, IntCastFrom<From>>(X);
+#endif
   return IntCastInfo<To, From>::doCast(X);
 }
 
@@ -220,6 +222,16 @@ EXI_INLINE constexpr To IntCast(const From X) {
 template <class To, class From>
 constexpr inline To IntCastOrZero(const From X) {
   return IntCastInfo<To, From>::doCastIfPossible(X);
+}
+
+/// Cast that checks if the result is the same representation.
+/// If they would differ, returns 0.
+template <class To, class From>
+constexpr inline To IntCastOr(const From X, const To Else) {
+  using TraitsT = IntCastInfo<To, From>;
+  if EXI_LIKELY(TraitsT::isPossible(X))
+    return TraitsT::doCast(X);
+  return std::move(Else);
 }
 
 } // namespace exi
