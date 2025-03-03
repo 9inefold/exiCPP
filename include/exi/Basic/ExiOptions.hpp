@@ -117,7 +117,7 @@ struct ExiOptions {
   /// or communicated out of band.
   /// Default: none
   ///
-  /// FIXME: Use a better type once necessary?
+  /// FIXME: Use a better type once necessary? Or `Option<Option<u64>&>`
   Option<Option<u64>> SchemaID = std::nullopt;
 
   /// Specify alternate datatype representations for typed values in the body.
