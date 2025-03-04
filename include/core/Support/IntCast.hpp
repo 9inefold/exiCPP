@@ -24,6 +24,7 @@
 #pragma once
 
 #include <Common/Fundamental.hpp>
+#include <Common/QualTraits.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <Support/Limits.hpp>
 #include <concepts>
@@ -232,6 +233,35 @@ constexpr inline To IntCastOr(const From X, const To Else) {
   if EXI_LIKELY(TraitsT::isPossible(X))
     return TraitsT::doCast(X);
   return std::move(Else);
+}
+
+//===----------------------------------------------------------------===//
+// promotion_cast
+//===----------------------------------------------------------------===//
+
+/// Converts between integer types while keeping the bit representation
+/// the same.
+template <class To, class From>
+requires H::both_int<To, From>
+constexpr inline To promotion_cast(const From X) noexcept {
+  if constexpr (H::same_sign<To, From>) {
+    if constexpr (sizeof(To) >= sizeof(From))
+      // Simple case, eg. promotion_cast<u64>(u32);
+      return static_cast<To>(X);
+    else
+      // More complex case, types are different sizes.
+      // Assert the representation will stay the same.
+      tail_return IntCast<To>(X);
+  } else {
+    using U = swap_sign_t<From>;
+    if constexpr (sizeof(To) >= sizeof(From))
+      // Simple case, eg. promotion_cast<u64>(u32);
+      return static_cast<To>(U(X));
+    else
+      // More complex case, types are different sizes.
+      // Assert the representation will stay the same.
+      return IntCast<To>(U(X));
+  }
 }
 
 } // namespace exi
