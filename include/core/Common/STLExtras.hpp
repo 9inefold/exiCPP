@@ -56,7 +56,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#if defined(EXPENSIVE_CHECKS)
+#ifdef EXPENSIVE_CHECKS
 # include <random> // for std::mt19937
 #endif
 
@@ -66,10 +66,37 @@ namespace exi {
 //     Extra additions to <type_traits>
 //===----------------------------------------------------------------------===//
 
+namespace H {
+template <typename T>
+concept implicit_lifetime_class_copy
+  = (std::is_aggregate_v<T> || std::is_trivially_copy_constructible_v<T>)
+  && std::is_trivially_destructible_v<T>;
+
+template <typename T>
+concept is_memcpyable_i
+  = std::is_scalar_v<T> || implicit_lifetime_class_copy<T>;
+
+template <typename T>
+struct IsMemcpyable
+    : std::bool_constant<is_memcpyable_i<T>> {};
+
+template <typename ArrT>
+requires(std::is_array_v<ArrT>)
+struct IsMemcpyable<ArrT>
+    : public IsMemcpyable<
+      std::remove_cv_t<std::remove_all_extents_t<ArrT>>> {};
+} // namespace H
+
+/// Checks if a type can be used with `std::memcpy`.
+template <typename T>
+concept is_memcpyable = H::IsMemcpyable<std::remove_cv_t<T>>::value;
+
+/// Adds const, then adds a pointer.
 template <typename T> struct make_const_ptr {
   using type = std::add_pointer_t<std::add_const_t<T>>;
 };
 
+/// Adds const, then adds an lvalue reference.
 template <typename T> struct make_const_ref {
   using type = std::add_lvalue_reference_t<std::add_const_t<T>>;
 };
@@ -94,21 +121,26 @@ struct detector<std::void_t<Op<Args...>>, Op, Args...> {
 template <template <class...> class Op, class... Args>
 using is_detected = typename H::detector<void, Op, Args...>::value_t;
 
-/// traits class for checking whether type T is one of any of the given
-/// types in the variadic list.
-template <typename T, typename... Ts>
-using is_one_of = std::disjunction<std::is_same<T, Ts>...>;
+/// concept for checking whether type T is one of the given types in the
+/// variadic list.
+template <typename T, typename...Ts>
+concept is_one_of = (std::same_as<T, Ts> || ...);
 
-/// traits class for checking whether type T is a base class for all
-///  the given types in the variadic list.
-template <typename T, typename... Ts>
-using are_base_of = std::conjunction<std::is_base_of<T, Ts>...>;
+/// concept for checking whether type T is not one of the given types in the 
+/// variadic list.
+template <typename T, typename...Ts>
+concept not_one_of = !is_one_of<T, Ts...>;
+
+/// concept for checking whether type T is a base class for all
+/// the given types in the variadic list.
+template <typename T, typename...Ts>
+concept are_base_of = (std::derived_from<Ts, T> && ...);
 
 namespace H {
 template <typename T, typename... Us> struct TypesAreDistinct;
 template <typename T, typename... Us>
 struct TypesAreDistinct
-    : std::integral_constant<bool, !is_one_of<T, Us...>::value &&
+    : std::integral_constant<bool, not_one_of<T, Us...> &&
                                        TypesAreDistinct<Us...>::value> {};
 template <typename T> struct TypesAreDistinct<T> : std::true_type {};
 } // namespace H
@@ -164,6 +196,28 @@ constexpr auto addEnumValues(EnumTy1 LHS, EnumTy2 RHS) {
 //     Extra additions to <iterator>
 //===----------------------------------------------------------------------===//
 
+/// Trait wrapping `std::iterator_traits<It>::difference_type`.
+template <typename It>
+using iterator_diff_t = typename std::iterator_traits<It>::difference_type;
+
+/// Trait wrapping `std::iterator_traits<It>::value_type`.
+template <typename It>
+using iterator_value_t = typename std::iterator_traits<It>::value_type;
+
+/// Trait wrapping `std::iterator_traits<It>::pointer`.
+template <typename It>
+using iterator_ptr_t = typename std::iterator_traits<It>::pointer;
+
+/// Trait wrapping `std::iterator_traits<It>::reference`.
+template <typename It>
+using iterator_ref_t = typename std::iterator_traits<It>::reference;
+
+/// Trait wrapping `std::iterator_traits<It>::iterator_category`.
+template <typename It> using iterator_category_t
+  = typename std::iterator_traits<It>::iterator_category;
+
+////////////////////////////////////////////////////////////////////////////////
+
 namespace callable_detail {
 
 /// Templated storage wrapper for a callable.
@@ -184,7 +238,7 @@ class Callable {
   using reference = value_type &;
   using const_reference = value_type const &;
 
-  std::optional<value_type> Obj;
+  Option<value_type> Obj;
 
   static_assert(!std::is_pointer_v<value_type>,
                 "Pointers to non-functions are not callable.");
@@ -230,7 +284,7 @@ public:
 };
 
 // Function specialization.  No need to waste extra space wrapping with a
-// std::optional.
+// Option.
 template <typename T> class Callable<T, true> {
   static constexpr bool IsPtr = std::is_pointer_v<std::remove_cvref_t<T>>;
 
@@ -521,7 +575,7 @@ template <> struct fwd_or_bidi_tag_impl<true> {
 template <typename IterT> struct fwd_or_bidi_tag {
   using type = typename fwd_or_bidi_tag_impl<std::is_base_of<
       std::bidirectional_iterator_tag,
-      typename std::iterator_traits<IterT>::iterator_category>::value>::type;
+      iterator_category_t<IterT>>::value>::type;
 };
 
 } // namespace H
@@ -864,7 +918,7 @@ Iter next_or_end(const Iter &I, const Iter &End) {
 }
 
 template <typename Iter>
-auto deref_or_none(const Iter &I, const Iter &End) -> std::optional<
+auto deref_or_none(const Iter &I, const Iter &End) -> Option<
     std::remove_const_t<std::remove_reference_t<decltype(*I)>>> {
   if (I == End)
     return std::nullopt;
@@ -872,7 +926,7 @@ auto deref_or_none(const Iter &I, const Iter &End) -> std::optional<
 }
 
 template <typename Iter> struct ZipLongestItemType {
-  using type = std::optional<std::remove_const_t<
+  using type = Option<std::remove_const_t<
       std::remove_reference_t<decltype(*std::declval<Iter>())>>>;
 };
 
@@ -971,7 +1025,7 @@ public:
 } // namespace H
 
 /// Iterate over two or more iterators at the same time. Iteration continues
-/// until all iterators reach the end. The std::optional only contains a value
+/// until all iterators reach the end. The Option only contains a value
 /// if the iterator has not reached the end.
 template <typename T, typename U, typename... Args>
 H::zip_longest_range<T, U, Args...> zip_longest(T &&t, U &&u,
@@ -1003,7 +1057,7 @@ class concat_iterator
       typename std::conditional_t<ReturnsByValue, ValueT, ValueT &>;
 
   using handle_type =
-      typename std::conditional_t<ReturnsByValue, std::optional<ValueT>,
+      typename std::conditional_t<ReturnsByValue, Option<ValueT>,
                                   ValueT *>;
 
   /// We store both the current and end iterators for each concatenated
@@ -1525,14 +1579,13 @@ constexpr decltype(auto) makeVisitor(CallableTs &&...Callables) {
 //     Extra additions to <algorithm>
 //===----------------------------------------------------------------------===//
 
-// We have a copy here so that LLVM behaves the same when using different
+// We have a copy here so that EXICPP behaves the same when using different
 // standard libraries.
 template <class Iterator, class RNG>
 void shuffle(Iterator first, Iterator last, RNG &&g) {
   // It would be better to use a std::uniform_int_distribution,
   // but that would be stdlib dependent.
-  typedef
-      typename std::iterator_traits<Iterator>::difference_type difference_type;
+  using difference_type = iterator_diff_t<Iterator>;
   for (auto size = last - first; size > 1; ++first, (void)--size) {
     difference_type offset = g() % size;
     // Avoid self-assignment due to incorrect assertions in libstdc++
@@ -1562,7 +1615,7 @@ inline int (*get_array_pod_sort_comparator(const T &))
   return array_pod_sort_comparator<T>;
 }
 
-#if EXPENSIVE_CHECKS
+#ifdef EXPENSIVE_CHECKS
 namespace H {
 
 inline unsigned presortShuffleEntropy() {
@@ -1582,7 +1635,7 @@ inline void presortShuffle(IteratorTy Start, IteratorTy End) {
 /// array_pod_sort - This sorts an array with the specified start and end
 /// extent.  This is just like std::sort, except that it calls qsort instead of
 /// using an inlined template.  qsort is slightly slower than std::sort, but
-/// most sorts are not performance critical in LLVM and std::sort has to be
+/// most sorts are not performance critical in EXICPP and std::sort has to be
 /// template instantiated for each type, leading to significant measured code
 /// bloat.  This function should generally be used instead of std::sort where
 /// possible.
@@ -1602,45 +1655,45 @@ inline void array_pod_sort(IteratorTy Start, IteratorTy End) {
 #ifdef EXPENSIVE_CHECKS
   H::presortShuffle<IteratorTy>(Start, End);
 #endif
-  qsort(&*Start, NElts, sizeof(*Start), get_array_pod_sort_comparator(*Start));
+  ::qsort(&*Start, NElts, sizeof(*Start),
+          get_array_pod_sort_comparator(*Start));
 }
 
 template <class IteratorTy>
 inline void array_pod_sort(
     IteratorTy Start, IteratorTy End,
     int (*Compare)(
-        const typename std::iterator_traits<IteratorTy>::value_type *,
-        const typename std::iterator_traits<IteratorTy>::value_type *)) {
+        const iterator_value_t<IteratorTy>*,
+        const iterator_value_t<IteratorTy>*)) {
   // Don't inefficiently call qsort with one element or trigger undefined
   // behavior with an empty sequence.
   auto NElts = End - Start;
   if (NElts <= 1) return;
-#if defined(EXPENSIVE_CHECKS)
+#ifdef EXPENSIVE_CHECKS
   H::presortShuffle<IteratorTy>(Start, End);
 #endif
-  qsort(&*Start, NElts, sizeof(*Start),
-        reinterpret_cast<int (*)(const void *, const void *)>(Compare));
+  ::qsort(&*Start, NElts, sizeof(*Start),
+          reinterpret_cast<int(*)(const void*, const void*)>(Compare));
 }
 
 namespace H {
 template <typename T>
 // We can use qsort if the iterator type is a pointer and the underlying value
 // is trivially copyable.
-using sort_trivially_copyable = std::conjunction<
-    std::is_pointer<T>,
-    std::is_trivially_copyable<typename std::iterator_traits<T>::value_type>>;
+concept sort_trivially_copyable
+    = std::is_pointer_v<T> && is_memcpyable<iterator_value_t<T>>;
 } // namespace H
 
 // Provide wrappers to std::sort which shuffle the elements before sorting
 // to help uncover non-deterministic behavior (PR35135).
 template <typename IteratorTy>
 inline void sort(IteratorTy Start, IteratorTy End) {
-  if constexpr (H::sort_trivially_copyable<IteratorTy>::value) {
+  if constexpr (H::sort_trivially_copyable<IteratorTy>) {
     // Forward trivially copyable types to array_pod_sort. This avoids a large
     // amount of code bloat for a minor performance hit.
     array_pod_sort(Start, End);
   } else {
-#if defined(EXPENSIVE_CHECKS)
+#ifdef EXPENSIVE_CHECKS
     H::presortShuffle<IteratorTy>(Start, End);
 #endif
     std::sort(Start, End);
@@ -1653,7 +1706,7 @@ template <typename Container> inline void sort(Container &&C) {
 
 template <typename IteratorTy, typename Compare>
 inline void sort(IteratorTy Start, IteratorTy End, Compare Comp) {
-#if defined(EXPENSIVE_CHECKS)
+#ifdef EXPENSIVE_CHECKS
   H::presortShuffle<IteratorTy>(Start, End);
 #endif
   std::sort(Start, End, Comp);
@@ -1669,9 +1722,9 @@ inline void sort(Container &&C, Compare Comp) {
 template <typename R>
 auto size(R &&Range,
           std::enable_if_t<
-              std::is_base_of<std::random_access_iterator_tag,
-                              typename std::iterator_traits<decltype(
-                                  Range.begin())>::iterator_category>::value,
+              std::is_base_of_v<std::random_access_iterator_tag,
+                              iterator_category_t<decltype(
+                                  Range.begin())>>,
               void> * = nullptr) {
   return std::distance(Range.begin(), Range.end());
 }
@@ -2482,9 +2535,9 @@ bool hasNItems(
     Pred &&ShouldBeCounted =
         [](const decltype(*std::declval<IterTy>()) &) { return true; },
     std::enable_if_t<
-        !std::is_base_of<std::random_access_iterator_tag,
-                         typename std::iterator_traits<std::remove_reference_t<
-                             decltype(Begin)>>::iterator_category>::value,
+        !std::is_base_of_v<std::random_access_iterator_tag,
+                         iterator_category_t<std::remove_reference_t<
+                             decltype(Begin)>,
         void> * = nullptr) {
   for (; N; ++Begin) {
     if (Begin == End)
