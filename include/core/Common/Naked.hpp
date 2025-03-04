@@ -111,6 +111,8 @@ public:
   }
 };
 
+template <typename T> Naked(T*) -> Naked<T>;
+
 template <typename T> struct PointerLikeTypeTraits<Naked<T>> {
 	using TraitsT = PointerLikeTypeTraits<T*>;
 
@@ -134,9 +136,9 @@ template <typename T> struct DenseMapInfo<Naked<T>> {
     return DenseMapInfo<T*>::getTombstoneKey();
   }
 
-  static unsigned getHashValue(const Naked<T>& UnionVal) {
-    const intptr_t key = (intptr_t)T.get();
-    return DenseMapInfo<intptr_t>::getHashValue(key);
+  static unsigned getHashValue(const Naked<T>& Val) {
+    const intptr_t Key = intptr_t(Val.get());
+    return DenseMapInfo<intptr_t>::getHashValue(Key);
   }
 
   static bool isEqual(const Naked<T>& LHS, const Naked<T>& RHS) {
