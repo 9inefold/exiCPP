@@ -2537,7 +2537,7 @@ bool hasNItems(
     std::enable_if_t<
         !std::is_base_of_v<std::random_access_iterator_tag,
                          iterator_category_t<std::remove_reference_t<
-                             decltype(Begin)>,
+                             decltype(Begin)>>>,
         void> * = nullptr) {
   for (; N; ++Begin) {
     if (Begin == End)
