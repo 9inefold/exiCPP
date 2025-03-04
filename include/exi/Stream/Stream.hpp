@@ -59,6 +59,7 @@ using ref_or_value_t = typename H::RefOrValue<T>::type;
 // BitStream*
 //======================================================================//
 
+template <class BufferT> class BitStreamCommon;
 class BitStreamReader;
 class BitStreamWriter;
 
@@ -90,9 +91,21 @@ public:
   using ref = ref_or_value_t<pointer>;
   using const_ref = ref_or_value_t<const_pointer>;
 
+  /// A proxy type for passing around consumed bits. Useful when swapping
+  /// between stream types (generally between the header and body).
+  class BitConsumerProxy {
+    template <typename> friend class BitStreamCommon;
+    BufferT Bytes;
+    StreamBase::WordType Bits;
+  public:
+    BitConsumerProxy(BufferT Bytes, u64 Bits) :
+     Bytes(Bytes), Bits(Bits) {
+    }
+  };
+
 protected:
   BufferT Stream;
-  StreamBase::WordType Store = 0;
+  // StreamBase::WordType Store = 0;
   size_type BitCapacity = 0;
   size_type Position = 0;
 
@@ -140,6 +153,17 @@ public:
     this->Stream = NewStream;
     this->BitCapacity = NewStream.size() * kCHAR_BIT;
     this->Position = 0;
+  }
+
+  BitConsumerProxy getProxy() const {
+    return BitConsumerProxy(Stream, Position);
+  }
+
+  template <typename OtherBCProxyT>
+  void setProxy(OtherBCProxyT Other) {
+    this->Stream = Other.Bytes;
+    this->BitCapacity = Other.Bytes.size() * kCHAR_BIT;
+    this->Position = Other.Bits;
   }
 
 protected:

@@ -504,6 +504,13 @@ static void BitStreamTests(int Argc, char* Argv[]) noexcept {
     exi_assert(IS.peekBits(12)   == 0b1011'1111'1110);
     exi_assert(IS.readBits64(12) == 0b1011'1111'1110);
     exi_assert(IS.readBit()      == 1);
+
+    BitStreamWriter OS2(Data);
+    BitStreamReader IS2(Data);
+    BitStreamReader IS3(Data);
+
+    IS2.setProxy(OS2.getProxy());
+    IS3.setProxy(IS2.getProxy());
   } {
     u8 Data[6 * sizeof(u64)] {};
     bool MakeUnaligned = false;
