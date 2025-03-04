@@ -1130,13 +1130,16 @@ SmallVecImpl<T> &SmallVecImpl<T>::operator=(SmallVecImpl<T> &&RHS) {
 /// to avoid allocating unnecessary storage.
 template <typename T, unsigned N>
 struct SmallVecStorage {
+  static constexpr unsigned kNInlineElts = N;
   alignas(T) char InlineElts[N * sizeof(T)];
 };
 
 /// We need the storage to be properly aligned even for small-size of 0 so that
 /// the pointer math in \a SmallVecTemplateCommon::getFirstEl() is
 /// well-defined.
-template <typename T> struct alignas(T) SmallVecStorage<T, 0> {};
+template <typename T> struct alignas(T) SmallVecStorage<T, 0> {
+  static constexpr unsigned kNInlineElts = 0;
+};
 
 /// Forward declaration of SmallVec so that
 /// calculateSmallVecDefaultInlinedElements can reference
