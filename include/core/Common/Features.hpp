@@ -573,3 +573,20 @@ consteval bool exi_compile_failure() {
   static_assert(::exi::exi_compile_failure<TYPE>()                            \
     __VA_OPT__(, "In "#TYPE": ") __VA_ARGS__);
 #endif
+
+#define HELPER_NS H
+#define BEGIN_HELPER_NS namespace HELPER_NS
+
+#define LITERAL_NS ops
+#define BEGIN_LITERAL_NS inline namespace LITERAL_NS
+
+namespace exi {
+/// The "helper" namespace. Equivalent to a detail namespace.
+namespace H {}
+/// Inline namespace for literals/operators.
+inline namespace ops {}
+/// The "helper" namespace. An alias for `exi::H`.
+namespace helpers = H;
+/// The namespace for `operator""`s. An alias for `exi::ops`.
+namespace literals = ops;
+} // namespace exi

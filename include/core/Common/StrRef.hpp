@@ -974,6 +974,22 @@ inline String &operator+=(String &buffer, StrRef string) {
 
 /// @}
 
+inline namespace ops {
+
+inline constexpr StrRef
+ operator""_str(const char* Str, usize Size) noexcept {
+  return StrRef(Str, Size);
+}
+
+#if defined(__cpp_char8_t)
+inline illegal_constexpr StrRef
+ operator""_str(const char8_t* Str, usize Size) noexcept {
+  return StrRef(FOLD_CXPR(reinterpret_cast<const char*>(Str)), Size);
+}
+#endif
+
+} // namespace ops
+
 /// A wrapper around a string literal that serves as a proxy for constructing
 /// global tables of StringRefs with the length computed at compile time.
 /// In order to avoid the invocation of a global constructor, StringLiteral
@@ -1033,11 +1049,6 @@ template <> struct DenseMapInfo<StrRef, void> {
 #endif
 
 } // namespace exi
-
-inline constexpr exi::StrRef
- operator""_str(const char* Str, size_t Size) noexcept {
-  return exi::StrRef(Str, Size);
-}
 
 namespace fmt {
   FMT_FORMAT_AS(exi::StrRef, std::string_view);
