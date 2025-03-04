@@ -42,7 +42,49 @@ template <class T> using simplify_mmatch_t
 
 /// Match adaptor, simplifies some stuff.
 /// Use like `MMatch(V).is(arg1, arg2, ...)`.
-template <typename T> class MMatch {
+/// Or `mmatch<T>(V).is(arg1, arg2, ...)`.
+template <typename T,
+  typename ConvT = dummy_t>
+class MMatch {
+public:
+  using type = ConvT;
+  using value_type = ConvT;
+  explicit constexpr MMatch(T Value) : Data(EXI_FWD(Value)) {}
+public:
+  /// Checks if data is equal to a single input.
+  constexpr bool is(ConvT Value) const {
+    return (Data == Value);
+  }
+
+  /// Checks if data is equal to any of the inputs.
+  constexpr bool is(ConvT First, auto&&...Rest) const
+   requires(sizeof...(Rest) > 0) {
+    return (is(EXI_FWD(First)) || ... || is(static_cast<ConvT>(EXI_FWD(Rest))));
+  }
+
+  /// Checks if data is not equal to any of the inputs.
+  EXI_INLINE constexpr bool isnt(ConvT First, auto&&...Rest) const {
+    return !is(EXI_FWD(First), EXI_FWD(Rest)...);
+  }
+
+  /// Checks if data is in the exclusive range of inputs.
+  constexpr bool in(ConvT Lo, ConvT Hi) const {
+    return (EXI_FWD(Lo) <= Data) && (Data < EXI_FWD(Hi));
+  }
+
+  /// Checks if data is in the inclusive range of inputs.
+  constexpr bool iin(ConvT Lo, ConvT Hi) const {
+    return (EXI_FWD(Lo) <= Data) && (Data <= EXI_FWD(Hi));
+  }
+
+public:
+  type Data;
+};
+
+/// Match adaptor, simplifies some stuff.
+/// Use like `MMatch(V).is(arg1, arg2, ...)`.
+template <typename T>
+class MMatch<T, dummy_t> {
 public:
   using type = H::simplify_mmatch_t<T>;
   using value_type = std::remove_cvref_t<T>;
@@ -80,5 +122,11 @@ public:
 
 template <typename T>
 MMatch(T&&) -> MMatch<T>;
+
+template <typename Conv = dummy_t>
+EXI_INLINE constexpr auto mmatch(auto&& ToMatch) noexcept {
+  using MatchT = MMatch<decltype(ToMatch), Conv>;
+  return MatchT(EXI_FWD(ToMatch));
+}
 
 } // namespace exi

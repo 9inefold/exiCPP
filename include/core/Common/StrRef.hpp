@@ -1034,6 +1034,11 @@ template <> struct DenseMapInfo<StrRef, void> {
 
 } // namespace exi
 
+inline constexpr exi::StrRef
+ operator""_str(const char* Str, size_t Size) noexcept {
+  return exi::StrRef(Str, Size);
+}
+
 namespace fmt {
   FMT_FORMAT_AS(exi::StrRef, std::string_view);
 } // namespace fmt
