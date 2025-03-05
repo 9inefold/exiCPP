@@ -119,7 +119,7 @@ StrRef get_error_name(ErrorCode E) noexcept EXI_READONLY;
 StrRef get_error_message(ErrorCode E) noexcept EXI_READONLY;
 
 /// Works like `Error`, returns `true` when a non-ok state is held.
-class EXI_NODISCARD ExiError {
+class EXI_NODISCARD alignas(8) ExiError {
   ErrorCode EC;
   u32 Extra = 0;
   union {
@@ -225,5 +225,7 @@ EXI_CONST ExiError ExiError::DONE = ExiError::kParsingComplete;
 EXI_CONST ExiError ExiError::FULL = ExiError::Full();
 EXI_CONST ExiError ExiError::TODO = ExiError::kUnimplemented;
 EXI_CONST ExiError ExiError::OOB  = ExiError::kOutOfBounds;
+
+static_assert(sizeof(ExiError) == 16);
 
 } // namespace exi
