@@ -42,6 +42,14 @@
 #include <utility>
 #include <fmt/core.h>
 
+#if defined(__clang__) && EXI_HAS_ATTR(enable_if)                             \
+                       && EXI_HAS_BUILTIN(__builtin_constant_p)
+# define STRLIT_ENABLE_IF_CONSTANT(VAL)                                       \
+  __attribute((enable_if(__builtin_constant_p(VAL), "non-static string")))
+#else
+# define STRLIT_ENABLE_IF_CONSTANT(VAL)
+#endif
+
 namespace exi {
 
 #if EXI_HAS_AP_SCALARS == 1
@@ -1003,6 +1011,7 @@ private:
 public:
   template <usize N>
   consteval StringLiteral(const char(&Str)[N])
+      STRLIT_ENABLE_IF_CONSTANT(&Str)
 #if defined(__clang__) && __has_attribute(enable_if)
 DIAGNOSTIC_PUSH()
 CLANG_IGNORED("-Wgcc-compat")
@@ -1015,7 +1024,8 @@ DIAGNOSTIC_POP()
 
   // Explicit construction for strings like "foo\0bar".
   template <usize N>
-  static consteval StringLiteral WithInnerNUL(const char(&Str)[N]) {
+  static consteval StringLiteral WithInnerNUL(const char(&Str)[N])
+      STRLIT_ENABLE_IF_CONSTANT(&Str) {
     return StringLiteral(Str, N - 1);
   }
 };
@@ -1063,3 +1073,5 @@ namespace std {
     using hash<exi::StrRef>::operator();
   };
 } // namespace std
+
+#undef STRLIT_ENABLE_IF_CONSTANT
