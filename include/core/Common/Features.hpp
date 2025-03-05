@@ -428,6 +428,7 @@
   (EXI_CONSTANT_P(__VA_ARGS__) ? (__VA_ARGS__) : (__VA_ARGS__))
 /// "Illegal" constant folds supported (clang only?).
 #  define illegal_constexpr constexpr
+#  define illegal_consteval consteval
 #endif // __clang__
 #else
 # define EXI_CONSTANT_P(...) (false)
@@ -437,6 +438,7 @@
 # define EXI_FOLD_CXPR(...) (__VA_ARGS__)
 /// "Illegal" constant folds not supported.
 # define illegal_constexpr
+# define illegal_consteval
 #endif
 /// If "illegal" constant folds are supported, this can be used to do limited
 /// `reinterpret_cast`s in `constexpr` contexts.
