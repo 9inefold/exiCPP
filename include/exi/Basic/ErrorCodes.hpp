@@ -182,7 +182,7 @@ public:
   /// Mismatched Preserve settings.
   static ExiError HeaderSelfContained(
    AlignKind A, bool Strict = false) noexcept EXI_READONLY;
-  /// Mismatched Preserve settings.
+  /// Out of band without provided options.
   static ExiError HeaderOutOfBand() noexcept EXI_READONLY;
 
   ////////////////////////////////////////////////////////////////////////
