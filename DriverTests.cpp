@@ -20,6 +20,7 @@
 #include <Common/AlignedInt.hpp>
 #include <Common/APSInt.hpp>
 #include <Common/Box.hpp>
+#include <Common/MaybeBoxed.hpp>
 #include <Common/Map.hpp>
 #include <Common/PointerUnion.hpp>
 #include <Common/String.hpp>
@@ -801,6 +802,30 @@ void BoundedTests(int, char*[]) noexcept {
 }
 
 //===----------------------------------------------------------------===//
+// Bounded
+//===----------------------------------------------------------------===//
+
+void MaybeBoxTests(int, char*[]) noexcept {
+  MaybeBoxed<String> MBox;
+  auto Data = [&MBox] { return MBox.dataAndOwned(); };
+
+  String Stk = "...";
+  Option<String&> Opt(Stk);
+  Box<String> Bx = std::make_unique<String>("..?");
+  Naked<String> Nkd(Bx.get());
+
+  exi_assert((Data() == std::pair{nullptr, false}));
+  MBox = Stk;
+  exi_assert((Data() == std::pair{&Stk, false}));
+  MBox = Opt;
+  exi_assert((Data() == std::pair{&Stk, false}));
+  MBox = Nkd;
+  exi_assert((Data() == std::pair{Bx.get(), false}));
+  MBox = std::move(Bx);
+  exi_assert((Data() == std::pair{Nkd.get(), true}));
+}
+
+//===----------------------------------------------------------------===//
 // ...
 //===----------------------------------------------------------------===//
 
@@ -811,4 +836,5 @@ void root::tests_main(int Argc, char* Argv[]) {
   // APIntTests(Argc, Argv);
   // RuneTests(Argc, Argv);
   BoundedTests(Argc, Argv);
+  MaybeBoxTests(Argc, Argv);
 }
