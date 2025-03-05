@@ -38,6 +38,8 @@ class BitStreamReader : public BitStreamCommon<ArrayRef<u8>> {
   using StreamT = ArrayRef<u8>;
   using BaseT = BitStreamCommon<StreamT>;
 public:
+  template <typename AnyT>
+  BitStreamReader(BitConsumerProxy<AnyT> Other) : BaseT(Other) {}
   BitStreamReader(StreamT Stream) : BaseT(Stream) {}
 private:
   /// Constructs a `BitStreamReader` from a `StrRef`.

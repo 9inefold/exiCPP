@@ -60,8 +60,12 @@ using ref_or_value_t = typename H::RefOrValue<T>::type;
 //======================================================================//
 
 template <class BufferT> class BitStreamCommon;
+
 class BitStreamReader;
 class BitStreamWriter;
+
+class ByteStreamReader;
+class ByteStreamWriter;
 
 /// The base for BitStream types. Provides common definitions.
 struct StreamBase {
@@ -75,7 +79,17 @@ struct StreamBase {
   static constexpr size_type kMask = (kCHAR_BIT - 1ull);
 };
 
-// TODO: Add options for little endian?
+/// A proxy type for passing around consumed bits. Useful when swapping
+/// between stream types (generally between the header and body).
+template <class BufferT> class BitConsumerProxy {
+  template <typename> friend class BitStreamCommon;
+  BufferT Bytes;
+  StreamBase::WordType Bits;
+public:
+  BitConsumerProxy(BufferT Bytes, u64 Bits) :
+   Bytes(Bytes), Bits(Bits) {
+  }
+};
 
 /// The interface for BitStream types. Provides a simple interface for reading
 /// the current position in bits and bytes, and wraps a "stream" buffer.
@@ -85,23 +99,12 @@ template <class BufferT> class BitStreamCommon : public StreamBase {
   static_assert(std::is_pointer_v<typename BufferT::iterator>,
     "BufferT::iterator must be a pointer!");
 public:
+  using ProxyT = BitConsumerProxy<BufferT>;
   using value_type = typename BufferT::value_type;
   using pointer = typename BufferT::iterator;
   using const_pointer = typename BufferT::const_iterator;
   using ref = ref_or_value_t<pointer>;
   using const_ref = ref_or_value_t<const_pointer>;
-
-  /// A proxy type for passing around consumed bits. Useful when swapping
-  /// between stream types (generally between the header and body).
-  class BitConsumerProxy {
-    template <typename> friend class BitStreamCommon;
-    BufferT Bytes;
-    StreamBase::WordType Bits;
-  public:
-    BitConsumerProxy(BufferT Bytes, u64 Bits) :
-     Bytes(Bytes), Bits(Bits) {
-    }
-  };
 
 protected:
   BufferT Stream;
@@ -150,19 +153,20 @@ public:
   bool isByteAligned() const { return bitOffset() == 0; }
 
   void setStream(BufferT NewStream) {
+    exi_assert(NewStream.size() <= kMaxCapacityBytes,
+      "Stream size exceeds max capacity.");
     this->Stream = NewStream;
     this->BitCapacity = NewStream.size() * kCHAR_BIT;
     this->Position = 0;
   }
 
-  BitConsumerProxy getProxy() const {
-    return BitConsumerProxy(Stream, Position);
+  ProxyT getProxy() const {
+    return ProxyT(Stream, Position);
   }
 
-  template <typename OtherBCProxyT>
-  void setProxy(OtherBCProxyT Other) {
-    this->Stream = Other.Bytes;
-    this->BitCapacity = Other.Bytes.size() * kCHAR_BIT;
+  template <typename AnyT>
+  void setProxy(BitConsumerProxy<AnyT> Other) {
+    this->setStream(Other.Bytes);
     this->Position = Other.Bits;
   }
 
@@ -171,6 +175,12 @@ protected:
    Stream(Stream), BitCapacity(Stream.size() * kCHAR_BIT) {
     exi_assert(Stream.size() <= kMaxCapacityBytes,
       "Stream size exceeds max capacity.");
+  }
+
+  template <typename AnyT>
+  BitStreamCommon(BitConsumerProxy<AnyT> Other) :
+   BitStreamCommon(Other.Bytes) {
+    this->Position = Other.Bits;
   }
 
   ExiError ec() const noexcept {

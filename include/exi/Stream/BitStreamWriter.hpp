@@ -38,6 +38,8 @@ class BitStreamWriter : public BitStreamCommon<MutArrayRef<u8>> {
   using StreamT = MutArrayRef<u8>;
   using BaseT = BitStreamCommon<StreamT>;
 public:
+  template <typename AnyT>
+  BitStreamWriter(BitConsumerProxy<AnyT> Other) : BaseT(Other) {}
   BitStreamWriter(StreamT Stream) : BaseT(Stream) {}
 private:
   /// Constructs a `BitStreamWriter` from a `MutArrayRef<char>`.
