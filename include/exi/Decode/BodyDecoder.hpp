@@ -1,4 +1,4 @@
-//===- exi/Basic/ExiOptions.hpp -------------------------------------===//
+//===- exi/Basic/BodyDecoder.cpp ------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -17,38 +17,15 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines the options in the EXI header.
+/// This file implements decoding of the EXI body from a stream.
 ///
 //===----------------------------------------------------------------===//
 
 #pragma once
 
-#include <core/Common/MaybeBoxed.hpp>
-#include <exi/Basic/ExiOptions.hpp>
+#include <exi/Basic/ErrorCodes.hpp>
+#include <exi/Stream/StreamVariant.hpp>
 
 namespace exi {
-
-inline constexpr u32 kCurrentExiVersion = 1;
-
-struct ExiHeader {
-  EXI_PREFER_TYPE(bool)
-  /// If the file begins with "$EXI".
-  u32 HasCookie : 1 = true;
-
-  EXI_PREFER_TYPE(bool)
-  /// If the header has options.
-  u32 HasOptions : 1 = true;
-
-  EXI_PREFER_TYPE(bool)
-  /// If the version is a preview.
-  u32 IsPreviewVersion : 1 = false;
-
-  EXI_PREFER_TYPE(bool)
-  /// If the version is a preview
-  u32 ExiVersion : 30 = kCurrentExiVersion;
-
-  /// Options used by the EXI processor.
-  MaybeBoxed<ExiOptions> Opts;
-};
 
 } // namespace exi

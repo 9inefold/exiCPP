@@ -147,6 +147,10 @@ struct ExiOptions {
   /// defined in the spec.
   /// Default: none
   exi::Any UserData;
+
+public:
+  bool bitAligned() const { return Alignment == AlignKind::BitPacked; }
+  bool byteAligned() const { return !bitAligned(); }
 };
 
 } // namespace exi
