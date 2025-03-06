@@ -27,6 +27,7 @@
 #include <core/Common/EnumTraits.hpp>
 #include <exi/Basic/Bounded.hpp>
 #include <exi/Basic/ExiOptions.hpp>
+#include <exi/Basic/ExiHeader.hpp>
 
 namespace exi {
 

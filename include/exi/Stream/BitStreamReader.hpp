@@ -80,6 +80,7 @@ private:
   ExiError checkReadBits(i64 Bits) const;
 
 public:
+  using BaseT::align;
   bool atEndOfStream() const { return BaseT::isFull(); }
 
   ////////////////////////////////////////////////////////////////////////

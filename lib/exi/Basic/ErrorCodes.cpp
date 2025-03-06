@@ -267,12 +267,12 @@ static void FormatInvalidHeader(raw_ostream& OS, u32 Raw) {
       OS << format(" '0b{:02b}'", Ex.Bits);
     return;
   case kInvalidVersion:
-    if EXI_UNLIKELY(Ex.Version == 1) {
-      LOG_WARN("Use of 'kInvalidVersion' with valid version.");
-      OS << "??? supported Final Version " << Ex.Version;
-      return;
-    }
     if (Ex.Version != 0) {
+      if EXI_UNLIKELY(Ex.Version <= kCurrentExiVersion) {
+        LOG_WARN("Use of 'kInvalidVersion' with valid version.");
+        OS << "??? supported Final Version " << Ex.Version;
+        return;
+      }
       OS << "unsupported Final Version: " << Ex.Version;
     } else {
       OS << "invalid Preview Version";

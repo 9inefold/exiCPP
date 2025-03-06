@@ -83,6 +83,8 @@ include_items(EXICPP_SRC "lib/exi"
   Basic/XMLContainer.cpp
   Basic/XMLManager.cpp
 
+  Decode/HeaderDecoder.cpp
+
   Stream/BitStreamReader.cpp
   Stream/BitStreamWriter.cpp
 )
