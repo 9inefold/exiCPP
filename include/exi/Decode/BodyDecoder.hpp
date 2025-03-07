@@ -28,4 +28,8 @@
 
 namespace exi {
 
+class BodyDecoder {
+
+};
+
 } // namespace exi
