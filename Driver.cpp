@@ -21,7 +21,7 @@
 #include <Common/SmallStr.hpp>
 #include <Common/IntrusiveRefCntPtr.hpp>
 #include <Common/MMatch.hpp>
-#include <Common/MaybeBoxed.hpp>
+#include <Common/MaybeBox.hpp>
 #include <Common/PointerIntPair.hpp>
 #include <Common/StringSwitch.hpp>
 #include <Support/Filesystem.hpp>

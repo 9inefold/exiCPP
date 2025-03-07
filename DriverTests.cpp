@@ -20,7 +20,7 @@
 #include <Common/AlignedInt.hpp>
 #include <Common/APSInt.hpp>
 #include <Common/Box.hpp>
-#include <Common/MaybeBoxed.hpp>
+#include <Common/MaybeBox.hpp>
 #include <Common/Map.hpp>
 #include <Common/PointerUnion.hpp>
 #include <Common/String.hpp>
@@ -806,7 +806,7 @@ void BoundedTests(int, char*[]) noexcept {
 //===----------------------------------------------------------------===//
 
 void MaybeBoxTests(int, char*[]) noexcept {
-  MaybeBoxed<String> MBox;
+  MaybeBox<String> MBox;
   auto Data = [&MBox] { return MBox.dataAndOwned(); };
 
   String Stk = "...";

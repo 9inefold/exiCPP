@@ -23,7 +23,7 @@
 
 #pragma once
 
-#include <core/Common/MaybeBoxed.hpp>
+#include <core/Common/MaybeBox.hpp>
 #include <exi/Basic/ExiOptions.hpp>
 
 namespace exi {
@@ -48,7 +48,7 @@ struct ExiHeader {
   u32 ExiVersion : 30 = kCurrentExiVersion;
 
   /// Options used by the EXI processor.
-  MaybeBoxed<ExiOptions> Opts;
+  MaybeBox<ExiOptions> Opts;
 };
 
 } // namespace exi
