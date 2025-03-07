@@ -69,33 +69,35 @@ void exi::initSignalsOptions() {
 // could be running as we add new callbacks. We don't add unbounded numbers of
 // callbacks, an array is therefore sufficient.
 struct CallbackAndCookie {
+  enum class Status { Empty, Initializing, Initialized, Executing };
   sys::SignalHandlerCallback Callback;
   void *Cookie;
-  enum class Status { Empty, Initializing, Initialized, Executing };
   std::atomic<Status> Flag;
 };
 
-static constexpr usize MaxSignalHandlerCallbacks = 8;
+using CallbackStatus = CallbackAndCookie::Status;
+
+static constexpr usize kMaxSignalHandlerCallbacks = 8;
+using CallbackArray = std::array<CallbackAndCookie, kMaxSignalHandlerCallbacks>;
 
 // A global array of CallbackAndCookie may not compile with
 // -Werror=global-constructors in c++20 and above
-static auto CallBacksToRun()
- -> std::array<CallbackAndCookie, MaxSignalHandlerCallbacks>& {
-  static std::array<CallbackAndCookie, MaxSignalHandlerCallbacks> callbacks;
-  return callbacks;
+static CallbackArray& CallBacksToRun()  {
+  static CallbackArray Callbacks;
+  return Callbacks;
 }
 
 // Signal-safe.
 void sys::RunSignalHandlers() {
   for (CallbackAndCookie &RunMe : CallBacksToRun()) {
-    auto Expected = CallbackAndCookie::Status::Initialized;
-    auto Desired = CallbackAndCookie::Status::Executing;
+    auto Expected = CallbackStatus::Initialized;
+    auto Desired = CallbackStatus::Executing;
     if (!RunMe.Flag.compare_exchange_strong(Expected, Desired))
       continue;
     (*RunMe.Callback)(RunMe.Cookie);
     RunMe.Callback = nullptr;
     RunMe.Cookie = nullptr;
-    RunMe.Flag.store(CallbackAndCookie::Status::Empty);
+    RunMe.Flag.store(CallbackStatus::Empty);
   }
 }
 
@@ -103,13 +105,13 @@ void sys::RunSignalHandlers() {
 static void insertSignalHandler(sys::SignalHandlerCallback FnPtr,
                                 void *Cookie) {
   for (CallbackAndCookie &SetMe : CallBacksToRun()) {
-    auto Expected = CallbackAndCookie::Status::Empty;
-    auto Desired = CallbackAndCookie::Status::Initializing;
+    auto Expected = CallbackStatus::Empty;
+    auto Desired = CallbackStatus::Initializing;
     if (!SetMe.Flag.compare_exchange_strong(Expected, Desired))
       continue;
     SetMe.Callback = FnPtr;
     SetMe.Cookie = Cookie;
-    SetMe.Flag.store(CallbackAndCookie::Status::Initialized);
+    SetMe.Flag.store(CallbackStatus::Initialized);
     return;
   }
   report_fatal_error("too many signal callbacks already registered");
@@ -140,6 +142,7 @@ EXI_USED static bool printMarkupStackTrace(
     return false;
   for (int I = 0; I < Depth; I++) {
     const auto Ptr = uptr(StackTrace[I]);
+    // TODO: Set this up so it actually prints a stacktrace...
     OS << "{{{" << format("bt:{}:{:#016x}\n", I, Ptr) << "}}}";
   }
 
