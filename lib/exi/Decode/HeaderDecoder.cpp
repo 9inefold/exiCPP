@@ -71,6 +71,7 @@ static void SetReader(StreamReader& Strm, BitStreamReader& MyReader) {
 RTTISetter::~RTTISetter() { SetReader(Out, In); }
 
 static ExiError DecodeCookieAndBits(ExiHeader& Header, BitStreamReader* Strm) {
+  // The [Distinguishing Bits].
   ubit<2> DistinguishingBits;
 
   exi_try(Strm->peekBits(DistinguishingBits));
@@ -89,9 +90,10 @@ static ExiError DecodeCookieAndBits(ExiHeader& Header, BitStreamReader* Strm) {
   }
   
   exi_try(Strm->readBits(DistinguishingBits));
-  if (DistinguishingBits != 0b10)
+  if (DistinguishingBits != 0b10) {
     // File does not start with a valid sequence.
-    return ExiError::HeaderBits(Bits);
+    return ExiError::HeaderBits(DistinguishingBits);
+  }
 
   return ExiError::OK;
 }
@@ -139,7 +141,7 @@ ExiError exi::decodeExiHeader(ExiHeader& Header, StreamReader& In) {
 
   safe_bool PresenceBit;
   exi_try(DecodeCookieAndBits(Header, &Strm));
-  exi_try(Strm->readBits(PresenceBit));
+  exi_try(Strm.readBits(PresenceBit));
 
   if (!Header.Opts) {
     if (!PresenceBit)
