@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <Common/Box.hpp>
 #include <Common/Option.hpp>
 #include <Support/type_traits.hpp>
 #include <cassert>
@@ -77,8 +78,8 @@ template <typename To, typename From> struct isa_impl_cl<To, const From> {
 };
 
 template <typename To, typename From>
-struct isa_impl_cl<To, const std::unique_ptr<From>> {
-  static inline bool doit(const std::unique_ptr<From> &Val) {
+struct isa_impl_cl<To, const exi::Box<From>> {
+  static inline bool doit(const exi::Box<From> &Val) {
     assert(Val && "isa<> used on a null pointer");
     return isa_impl_cl<To, From>::doit(*Val);
   }
@@ -160,13 +161,13 @@ template <class To, class From> struct cast_retty_impl<To, const From *const> {
 };
 
 template <class To, class From>
-struct cast_retty_impl<To, std::unique_ptr<From>> {
+struct cast_retty_impl<To, exi::Box<From>> {
 private:
   using PointerType = typename cast_retty_impl<To, From *>::ret_type;
   using ResultType = std::remove_pointer_t<PointerType>;
 
 public:
-  using ret_type = std::unique_ptr<ResultType>;
+  using ret_type = exi::Box<ResultType>;
 };
 
 template <class To, class From, class SimpleFrom> struct cast_retty_wrap {
@@ -226,7 +227,7 @@ struct cast_convert_val<To, FromTy *, FromTy *> {
 //===----------------------------------------------------------------------===//
 
 template <class X> struct is_simple_type {
-  static const bool value =
+  static constexpr bool value =
     std::is_same_v<X, typename simplify_type<X>::SimpleType>;
 };
 
@@ -259,8 +260,8 @@ struct CastIsPossible {
 // over. In fact, some of the isa_impl templates should be moved over to
 // CastIsPossible.
 template <typename To, typename From>
-struct CastIsPossible<To, Option<From>> {
-  static inline bool isPossible(const Option<From> &f) {
+struct CastIsPossible<To, exi::Option<From>> {
+  static inline bool isPossible(const exi::Option<From> &f) {
     assert(f && "CastIsPossible::isPossible called on a nullopt!");
     return isa_impl_wrap<
         To, const From,
@@ -331,41 +332,42 @@ struct ValueFromPointerCast
   static inline To doCast(From *f) { return To(f); }
 };
 
-/// This cast trait provides std::unique_ptr casting. It has the semantics of
+/// This cast trait provides exi::Box casting. It has the semantics of
 /// moving the contents of the input unique_ptr into the output unique_ptr
 /// during the cast. It's also a good example of how to implement a move-only
 /// cast.
+/// TODO: Split casts if `exi::Box<...>` is ever specialized.
 template <typename To, typename From, typename Derived = void>
 struct UniquePtrCast : public CastIsPossible<To, From *> {
   using Self = H::SelfType<Derived, UniquePtrCast<To, From>>;
-  using CastResultType = std::unique_ptr<
+  using CastResultType = exi::Box<
       std::remove_reference_t<cast_retty_t<To, From>>>;
 
-  static inline CastResultType doCast(std::unique_ptr<From> &&f) {
+  static inline CastResultType doCast(exi::Box<From> &&f) {
     return CastResultType((typename CastResultType::element_type *)f.release());
   }
 
   static inline CastResultType castFailed() { return CastResultType(nullptr); }
 
-  static inline CastResultType doCastIfPossible(std::unique_ptr<From> &f) {
+  static inline CastResultType doCastIfPossible(exi::Box<From> &f) {
     if (!Self::isPossible(f.get()))
       return castFailed();
     return doCast(std::move(f));
   }
 };
 
-/// This cast trait provides Option<T> casting. This means that if you
+/// This cast trait provides exi::Option<T> casting. This means that if you
 /// have a value type, you can cast it to another value type and have dyn_cast
-/// return an Option<T>.
+/// return an exi::Option<T>.
 template <typename To, typename From, typename Derived = void>
 struct OptionalValueCast
     : public CastIsPossible<To, From>,
       public DefaultDoCastIfPossible<
-          Option<To>, From,
+          exi::Option<To>, From,
           H::SelfType<Derived, OptionalValueCast<To, From>>> {
-  static inline Option<To> castFailed() { return Option<To>{}; }
+  static inline exi::Option<To> castFailed() { return exi::Option<To>{}; }
 
-  static inline Option<To> doCast(const From &f) { return To(f); }
+  static inline exi::Option<To> doCast(const From &f) { return To(f); }
 };
 
 /// Provides a cast trait that strips `const` from types to make it easier to
@@ -524,16 +526,15 @@ struct CastInfo<To, From, std::enable_if_t<!is_simple_type<From>::value>> {
 // Pre-specialized CastInfo
 //===----------------------------------------------------------------------===//
 
-/// Provide a CastInfo specialized for std::unique_ptr.
+/// Provide a CastInfo specialized for exi::Box.
 template <typename To, typename From>
-struct CastInfo<To, std::unique_ptr<From>> : public UniquePtrCast<To, From> {};
+struct CastInfo<To, exi::Box<From>> : public UniquePtrCast<To, From> {};
 
-/// Provide a CastInfo specialized for Option<From>. It's assumed that if
-/// the input is Option<From> that the output can be Option<To>.
+/// Provide a CastInfo specialized for exi::Option<From>. It's assumed that if
+/// the input is exi::Option<From> that the output can be exi::Option<To>.
 /// If that's not the case, specialize CastInfo for your use case.
 template <typename To, typename From>
-struct CastInfo<To, Option<From>> : public OptionalValueCast<To, From> {
-};
+struct CastInfo<To, exi::Option<From>> : public OptionalValueCast<To, From> {};
 
 /// isa<X> - Return true if the parameter to the template is an instance of one
 /// of the template type arguments.  Used like this:
@@ -577,9 +578,9 @@ template <typename To, typename From>
 }
 
 template <typename To, typename From>
-[[nodiscard]] inline decltype(auto) cast(std::unique_ptr<From> &&Val) {
+[[nodiscard]] inline decltype(auto) cast(exi::Box<From> &&Val) {
   assert(isa<To>(Val) && "cast<Ty>() argument of incompatible type!");
-  return CastInfo<To, std::unique_ptr<From>>::doCast(std::move(Val));
+  return CastInfo<To, exi::Box<From>>::doCast(std::move(Val));
 }
 
 //===----------------------------------------------------------------------===//
@@ -587,7 +588,7 @@ template <typename To, typename From>
 //===----------------------------------------------------------------------===//
 
 template <typename T>
-constexpr bool IsNullable =
+inline constexpr bool IsNullable =
     std::is_pointer_v<T> || std::is_constructible_v<T, std::nullptr_t>;
 
 /// ValueIsPresent provides a way to check if a value is, well, present. For
@@ -603,12 +604,12 @@ template <typename T, typename Enable = void> struct ValueIsPresent {
 };
 
 // Optional provides its own way to check if something is present.
-template <typename T> struct ValueIsPresent<Option<T>> {
+template <typename T> struct ValueIsPresent<exi::Option<T>> {
   using UnwrappedType = T;
-  static inline bool isPresent(const Option<T> &t) {
+  static inline bool isPresent(const exi::Option<T> &t) {
     return t.has_value();
   }
-  static inline decltype(auto) unwrapValue(Option<T> &t) { return *t; }
+  static inline decltype(auto) unwrapValue(exi::Option<T> &t) { return *t; }
 };
 
 // If something is "nullable" then we just compare it to nullptr to see if it
@@ -661,9 +662,9 @@ template <typename To, typename From>
 }
 
 template <typename To, typename From>
-[[nodiscard]] inline decltype(auto) dyn_cast(std::unique_ptr<From> &Val) {
+[[nodiscard]] inline decltype(auto) dyn_cast(exi::Box<From> &Val) {
   assert(H::isPresent(Val) && "dyn_cast on a non-existent value");
-  return CastInfo<To, std::unique_ptr<From>>::doCastIfPossible(Val);
+  return CastInfo<To, exi::Box<From>>::doCastIfPossible(Val);
 }
 
 /// isa_and_present<X> - Functionally identical to isa, except that a null value
@@ -705,7 +706,7 @@ template <class X, class Y> [[nodiscard]] inline auto cast_if_present(Y *Val) {
 }
 
 template <class X, class Y>
-[[nodiscard]] inline auto cast_if_present(std::unique_ptr<Y> &&Val) {
+[[nodiscard]] inline auto cast_if_present(exi::Box<Y> &&Val) {
   if (!H::isPresent(Val))
     return UniquePtrCast<X, Y>::castFailed();
   return UniquePtrCast<X, Y>::doCast(std::move(Val));
@@ -726,7 +727,7 @@ template <class X, class Y> auto cast_or_null(Y *Val) {
   return cast_if_present<X>(Val);
 }
 
-template <class X, class Y> auto cast_or_null(std::unique_ptr<Y> &&Val) {
+template <class X, class Y> auto cast_or_null(exi::Box<Y> &&Val) {
   return cast_if_present<X>(std::move(Val));
 }
 
@@ -771,30 +772,30 @@ template <class X, class Y> auto dyn_cast_or_null(Y *Val) {
 /// is returned.  If the cast is unsuccessful, the function returns nullptr
 /// and From is unchanged.
 template <class X, class Y>
-[[nodiscard]] inline typename CastInfo<X, std::unique_ptr<Y>>::CastResultType
-unique_dyn_cast(std::unique_ptr<Y> &Val) {
+[[nodiscard]] inline typename CastInfo<X, exi::Box<Y>>::CastResultType
+unique_dyn_cast(exi::Box<Y> &Val) {
   if (!isa<X>(Val))
     return nullptr;
   return cast<X>(std::move(Val));
 }
 
 template <class X, class Y>
-[[nodiscard]] inline auto unique_dyn_cast(std::unique_ptr<Y> &&Val) {
+[[nodiscard]] inline auto unique_dyn_cast(exi::Box<Y> &&Val) {
   return unique_dyn_cast<X, Y>(Val);
 }
 
 // unique_dyn_cast_or_null<X> - Functionally identical to unique_dyn_cast,
 // except that a null value is accepted.
 template <class X, class Y>
-[[nodiscard]] inline typename CastInfo<X, std::unique_ptr<Y>>::CastResultType
-unique_dyn_cast_or_null(std::unique_ptr<Y> &Val) {
+[[nodiscard]] inline typename CastInfo<X, exi::Box<Y>>::CastResultType
+unique_dyn_cast_or_null(exi::Box<Y> &Val) {
   if (!Val)
     return nullptr;
   return unique_dyn_cast<X, Y>(Val);
 }
 
 template <class X, class Y>
-[[nodiscard]] inline auto unique_dyn_cast_or_null(std::unique_ptr<Y> &&Val) {
+[[nodiscard]] inline auto unique_dyn_cast_or_null(exi::Box<Y> &&Val) {
   return unique_dyn_cast_or_null<X, Y>(Val);
 }
 
@@ -841,7 +842,6 @@ inline constexpr H::IsaCheckPredicate<Types...> IsaPred{};
 ///   ...
 /// ```
 template <typename... Types>
-inline constexpr H::IsaAndPresentCheckPredicate<Types...>
-    IsaAndPresentPred{};
+inline constexpr H::IsaAndPresentCheckPredicate<Types...> IsaAndPresentPred{};
 
 } // namespace exi
