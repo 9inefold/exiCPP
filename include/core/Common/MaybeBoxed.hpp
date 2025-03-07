@@ -33,92 +33,96 @@ namespace exi {
 
 /// This class is used when a pointer may or may not be 
 template <typename T> class MaybeBoxed {
-	static_assert(PointerLikeTypeTraits<T*>::NumLowBitsAvailable > 0);
+  static_assert(PointerLikeTypeTraits<T*>::NumLowBitsAvailable > 0);
 public:
-	using PackedT = PointerIntPair<T*, 1>;
+  using PackedT = PointerIntPair<T*, 1>;
 private:
-	PackedT Data;
+  PackedT Data;
 public:
-	constexpr MaybeBoxed() = default;
-	MaybeBoxed(const MaybeBoxed&) = delete;
-	MaybeBoxed(MaybeBoxed&& O) : Data(std::move(O.Data)) { O.clearData(); }
+  constexpr MaybeBoxed() = default;
+  MaybeBoxed(const MaybeBoxed&) = delete;
+  MaybeBoxed(MaybeBoxed&& O) : Data(std::move(O.Data)) { O.clearData(); }
 
-	constexpr MaybeBoxed(std::nullptr_t) : MaybeBoxed() {}
-	MaybeBoxed(T* Ptr, bool Owned) : Data(Ptr, Owned) {}
-	MaybeBoxed(Naked<T> Ptr) : Data(Ptr.get(), false) {}
-	MaybeBoxed(T& Ref EXI_LIFETIMEBOUND) : Data(&Ref, false) {}
-	MaybeBoxed(Box<T>&& Ptr) : Data(Ptr.release(), true) {}
-	MaybeBoxed(Option<T&> Opt) : Data(Opt.data(), false) {}
+  constexpr MaybeBoxed(std::nullptr_t) : MaybeBoxed() {}
+  MaybeBoxed(T* Ptr, bool Owned) : Data(Ptr, Owned) {}
+  MaybeBoxed(Naked<T> Ptr) : Data(Ptr.get(), false) {}
+  MaybeBoxed(T& Ref EXI_LIFETIMEBOUND) : Data(&Ref, false) {}
+  MaybeBoxed(Box<T>&& Ptr) : Data(Ptr.release(), true) {}
+  MaybeBoxed(Option<T&> Opt) : Data(Opt.data(), false) {}
 
-	~MaybeBoxed() { this->deleteData(); }
+  ~MaybeBoxed() { this->deleteData(); }
 
-	MaybeBoxed& operator=(const MaybeBoxed&) = delete;
-	MaybeBoxed& operator=(MaybeBoxed&& O) {
-		this->deleteData();
-		this->Data = std::move(O.Data);
-		O.clearData();
-		return *this;
-	}
+  MaybeBoxed& operator=(const MaybeBoxed&) = delete;
+  MaybeBoxed& operator=(MaybeBoxed&& O) {
+    this->deleteData();
+    this->Data = std::move(O.Data);
+    O.clearData();
+    return *this;
+  }
 
-	MaybeBoxed& operator=(std::nullptr_t) {
-		this->reset();
-		return *this;
-	}
+  MaybeBoxed& operator=(std::nullptr_t) {
+    this->reset();
+    return *this;
+  }
 
-	MaybeBoxed& operator=(Naked<T> Ptr) {
-		this->deleteData();
-		this->Data.setPointerAndInt(Ptr.get(), false);
-		return *this;
-	}
+  MaybeBoxed& operator=(Naked<T> Ptr) {
+    this->deleteData();
+    this->Data.setPointerAndInt(Ptr.get(), false);
+    return *this;
+  }
 
-	MaybeBoxed& operator=(T& Ref EXI_LIFETIMEBOUND) {
-		this->deleteData();
-		this->Data.setPointerAndInt(&Ref, false);
-		return *this;
-	}
+  MaybeBoxed& operator=(T& Ref EXI_LIFETIMEBOUND) {
+    this->deleteData();
+    this->Data.setPointerAndInt(&Ref, false);
+    return *this;
+  }
 
-	MaybeBoxed& operator=(Box<T>&& Ptr) {
-		this->deleteData();
-		this->Data.setPointerAndInt(Ptr.release(), true);
-		return *this;
-	}
+  MaybeBoxed& operator=(Box<T>&& Ptr) {
+    this->deleteData();
+    this->Data.setPointerAndInt(Ptr.release(), true);
+    return *this;
+  }
 
-	MaybeBoxed& operator=(Option<T&> Opt) {
-		this->deleteData();
-		this->Data.setPointerAndInt(Opt.data(), false);
-		return *this;
-	}
+  MaybeBoxed& operator=(Option<T&> Opt) {
+    this->deleteData();
+    this->Data.setPointerAndInt(Opt.data(), false);
+    return *this;
+  }
 
-	bool owned() const { return Data.getInt(); }
-	T* get() const { return Data.getPointer(); }
-	T* data() const { return Data.getPointer(); }
+  bool owned() const { return Data.getInt(); }
+  T* get() const { return Data.getPointer(); }
+  T* data() const { return Data.getPointer(); }
 
-	std::pair<T*, bool> dataAndOwned() {
-		return {data(), owned()};
-	}
+  std::pair<T*, bool> dataAndOwned() {
+    return {data(), owned()};
+  }
 
-	T* operator->() const {
-		exi_assert(data(), "value is inactive!");
-		return data();
-	}
-	T& operator*() const {
-		exi_assert(data(), "value is inactive!");
-		return *data();
-	}
+  T* operator->() const {
+    exi_assert(data(), "value is inactive!");
+    return data();
+  }
+  T& operator*() const {
+    exi_assert(data(), "value is inactive!");
+    return *data();
+  }
 
-	void reset() {
-		this->deleteData();
-		this->clearData();
-	}
+  explicit operator bool() const {
+    return !!data();
+  }
+
+  void reset() {
+    this->deleteData();
+    this->clearData();
+  }
 
 private:
-	ALWAYS_INLINE void deleteData() {
-		if (owned())
-			delete this->get();
-	}
-	ALWAYS_INLINE void clearData() {
-		Data.setPointerAndInt(nullptr, false);
-	}
+  ALWAYS_INLINE void deleteData() {
+    if (owned())
+      delete this->get();
+  }
+  ALWAYS_INLINE void clearData() {
+    Data.setPointerAndInt(nullptr, false);
+  }
 };
 
 } // namespace exi
