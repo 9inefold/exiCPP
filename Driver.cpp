@@ -18,11 +18,12 @@
 
 #include "Driver.hpp"
 #include <Common/APInt.hpp>
-#include <Common/SmallStr.hpp>
+#include <Common/EnumArray.hpp>
 #include <Common/IntrusiveRefCntPtr.hpp>
 #include <Common/MMatch.hpp>
 #include <Common/MaybeBox.hpp>
 #include <Common/PointerIntPair.hpp>
+#include <Common/SmallStr.hpp>
 #include <Common/StringSwitch.hpp>
 #include <Support/Filesystem.hpp>
 #include <Support/Logging.hpp>

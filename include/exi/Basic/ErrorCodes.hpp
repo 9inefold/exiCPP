@@ -96,7 +96,7 @@ enum class ErrorCode : u32 {
   ///    or when the EXI stream is a schema-less EXI stream.
   /// 5) Presence Bit for EXI Options not set and no out-of-band options set.
   kHeaderOptionsMismatch,
-  Last
+  Last = kHeaderOptionsMismatch
 };
 
 /// Suboptions for `InvalidEXIHeader` and `HeaderOptionsMismatch`.
@@ -111,10 +111,9 @@ enum class InvalidHeaderCode : u8 {
   kSelfContained,       // `selfContained` incompatible with options
   kDatatypeMap,         // ...
   kOutOfBandOpts,       // No options, but out-of-band not specified
-  Last
+  Last = kOutOfBandOpts
 };
 
-inline constexpr usize kErrorCodeCount = u32(ErrorCode::Last);
 StrRef get_error_name(ErrorCode E) noexcept EXI_READONLY;
 StrRef get_error_message(ErrorCode E) noexcept EXI_READONLY;
 

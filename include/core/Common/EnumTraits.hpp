@@ -100,8 +100,79 @@ using UnderlyingType = typename H::TUnderlyingType<T>::type;
 
 /// Returns underlying integer value of an enum. Backport of std::to_underlying.
 template <typename E>
-[[nodiscard]] constexpr UnderlyingType<E> to_underlying(E V) {
-  return static_cast<UnderlyingType<E>>(V);
+[[nodiscard]] constexpr UnderlyingType<E> to_underlying(E Val) {
+  return static_cast<UnderlyingType<E>>(Val);
 }
+
+//////////////////////////////////////////////////////////////////////////
+// EnumBounds
+
+/// Creates `enum_first` for your type.
+#define EXI_MARK_ENUM_FIRST(TYPE, FIRST)                                      \
+  inline constexpr TYPE enum_first(TYPE) noexcept { return TYPE::FIRST; }
+/// Creates `enum_last` for your type.
+#define EXI_MARK_ENUM_LAST(TYPE, LAST)                                        \
+  inline constexpr TYPE enum_last(TYPE) noexcept { return TYPE::LAST; }
+
+/// Creates `enum_first` and `enum_last` for your type.
+#define EXI_MARK_ENUM_BOUNDS(TYPE, FIRST, LAST)                               \
+  EXI_MARK_ENUM_FIRST(TYPE, FIRST)                                            \
+  EXI_MARK_ENUM_LAST(TYPE,  LAST)
+
+namespace H {
+template <typename E>
+concept has_enum_first = exi::is_enum<E>
+  && requires (E Val) { enum_first(Val); };
+
+template <typename E>
+concept has_enum_Last = exi::is_enum<E> && requires { E::Last; };
+} // namespace H
+
+/// Provides an interface for customizing the first enum value.
+/// If `EnumT()` is the first element, it is defaulted. Otherwise, the ADL
+/// function `enum_first` should be provided.
+template <exi::is_enum E>
+consteval E get_enum_first() noexcept {
+  if constexpr (!H::has_enum_first<E>)
+    return E();
+  else
+    return enum_first(E());
+}
+
+/// Provides an interface for customizing the last enum value.
+/// If `EnumT::Last` exists, that will be used. Otherwise, the ADL function
+/// `enum_last` must be provided.
+template <exi::is_enum E>
+consteval E get_enum_last() noexcept {
+  if constexpr (H::has_enum_Last<E>)
+    return E::Last;
+  else
+    return enum_last(E());
+}
+
+/// Provides a range from [First, Last) for an enum.
+/// See `get_enum_first` and `get_enum_last` for more details.
+template <exi::is_enum E> struct EnumRange {
+  /// Underlying type of the enum.
+  using type = UnderlyingType<E>;
+  /// Adaptor for `get_enum_first`, see for more details.
+  static constexpr E First = get_enum_first<E>();
+  /// Adaptor for `get_enum_last`, see for more details.
+  static constexpr E Last = get_enum_last<E>();
+  /// Difference between `First` and `Last`.
+  static constexpr type size = 1 + (type(Last) - type(First));
+};
+
+/// Adaptor for `get_enum_first`, see for more details.
+template <exi::is_enum E>
+inline constexpr E kEnumFirst = EnumRange<E>::First;
+
+/// Adaptor for `get_enum_last`, see for more details.
+template <exi::is_enum E>
+inline constexpr E kEnumLast = EnumRange<E>::Last;
+
+/// Adaptor for `EnumRange::size`, see for more details.
+template <exi::is_enum E>
+inline constexpr UnderlyingType<E> kEnumSize = EnumRange<E>::size;
 
 } // namespace exi

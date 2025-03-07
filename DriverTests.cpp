@@ -19,6 +19,7 @@
 #include "Driver.hpp"
 #include <Common/AlignedInt.hpp>
 #include <Common/APSInt.hpp>
+#include <Common/EnumArray.hpp>
 #include <Common/Box.hpp>
 #include <Common/MaybeBox.hpp>
 #include <Common/Map.hpp>
@@ -62,6 +63,20 @@ using namespace exi::sys;
 
 #undef  SKIP
 #define SKIP if (0)
+
+enum class E1 { A, B, C, D, Last = D };
+enum class E2 { A, B, C, D };
+enum class E3 { A = 1, B, C, D, Last = D };
+enum class E4 { A = 1, B, C, D };
+
+EXI_MARK_ENUM_LAST(E2, D)
+EXI_MARK_ENUM_FIRST(E3, A)
+EXI_MARK_ENUM_BOUNDS(E4, A, D)
+
+static_assert(EnumArray<int, E1>::size() == 4);
+static_assert(EnumArray<int, E2>::size() == 4);
+static_assert(EnumArray<int, E3>::size() == 4);
+static_assert(EnumArray<int, E4>::size() == 4);
 
 //===----------------------------------------------------------------===//
 // Misc

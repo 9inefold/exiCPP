@@ -38,6 +38,7 @@
 using namespace exi;
 
 using IHCType = exi::InvalidHeaderCode;
+static constexpr usize kErrorCodeCount = EnumRange<ErrorCode>::size;
 
 static constexpr StringLiteral ErrorCodeNames[kErrorCodeCount] {
   "Success",
