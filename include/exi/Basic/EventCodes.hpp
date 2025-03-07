@@ -1,4 +1,4 @@
-//===- exi/Basic/ProcTypes.hpp --------------------------------------===//
+//===- exi/Basic/EventCodes.hpp -------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -17,19 +17,32 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines or includes the types used by the EXI processor.
+/// This file defines an interface for event codes used by the program.
 ///
 //===----------------------------------------------------------------===//
 
 #pragma once
 
 #include <core/Common/Fundamental.hpp>
-#include <core/Common/EnumTraits.hpp>
-#include <exi/Basic/Bounded.hpp>
-#include <exi/Basic/EventCodes.hpp>
-#include <exi/Basic/ExiOptions.hpp>
-#include <exi/Basic/ExiHeader.hpp>
+#include <core/Common/EnumArray.hpp>
 
 namespace exi {
+
+/// An enum containing all the terminal symbols used for productions.
+enum class EventTerm : i32 {
+  SD, // Start Document
+  ED, // End Document
+  SE, // Start Element (qname)
+  EE, // End Element
+  AT, // Attribute (qname, value)
+  CH, // Characters (value)
+  NS, // Namespace Declaration (uri, prefix, local-element-ns)
+  CM, // Comment text (text)
+  PI, // Processing Instruction (name, text)
+  DT, // DOCTYPE (name, public, system, text)
+  ER, // Entity Reference (name)
+  SC, // Self Contained
+  Last = SC,
+};
 
 } // namespace exi
