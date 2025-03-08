@@ -25,6 +25,7 @@
 
 #include <core/Common/Fundamental.hpp>
 #include <core/Common/EnumArray.hpp>
+#include <core/Common/STLExtras.hpp>
 
 namespace exi {
 
@@ -42,7 +43,36 @@ enum class EventTerm : i32 {
   DT, // DOCTYPE (name, public, system, text)
   ER, // Entity Reference (name)
   SC, // Self Contained
+  Void,
   Last = SC,
 };
+
+/// All the data required to output an event code.
+/// The data is stored in three u32's.
+///
+struct alignas(8) EventCode {
+  union {
+    struct {
+      u32 Hi;     // X.y.z
+      u32 Mid;    // x.Y.z
+      u32 Lo;     // x.y.Z
+    };
+    Array<u32, 3> Data; // [x.y.z]
+  };
+
+  union {
+    struct {
+      u8 HiBits;  // [X].y.z
+      u8 MidBits; // x.[Y].z
+      u8 LoBits;  // x.y.[Z]
+    };
+    Array<u8, 3> Bits; // [[x].[y].[z]]
+  };
+
+  i8 Length; // Number of pieces.
+};
+
+static_assert(sizeof(EventCode) == sizeof(u32) * 4);
+static_assert(alignof(EventCode) >= 8);
 
 } // namespace exi
