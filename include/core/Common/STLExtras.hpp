@@ -874,11 +874,21 @@ private:
 
 } // namespace H
 
+/// zip adaptor for two or more iteratable types. Iteration continues until the
+/// end of the *shortest* iteratee is reached.
+template <typename T, typename U, typename...Args>
+using zip_adaptor = H::zippy<H::zip_shortest, T, U, Args...>;
+
+/// zip adaptor that assumes that all iteratees have the same length.
+/// In builds with assertions on, this assumption is checked before the
+/// iteration starts.
+template <typename T, typename U, typename...Args>
+using zip_eq_adaptor = H::zippy<H::zip_first, T, U, Args...>;
+
 /// zip iterator for two or more iteratable types. Iteration continues until the
 /// end of the *shortest* iteratee is reached.
 template <typename T, typename U, typename... Args>
-H::zippy<H::zip_shortest, T, U, Args...> zip(T &&t, U &&u,
-                                                       Args &&...args) {
+zip_adaptor<T, U, Args...> zip(T &&t, U &&u, Args &&...args) {
   return H::zippy<H::zip_shortest, T, U, Args...>(
       std::forward<T>(t), std::forward<U>(u), std::forward<Args>(args)...);
 }
@@ -887,8 +897,7 @@ H::zippy<H::zip_shortest, T, U, Args...> zip(T &&t, U &&u,
 /// In builds with assertions on, this assumption is checked before the
 /// iteration starts.
 template <typename T, typename U, typename... Args>
-H::zippy<H::zip_first, T, U, Args...> zip_equal(T &&t, U &&u,
-                                                          Args &&...args) {
+zip_eq_adaptor<T, U, Args...> zip_equal(T &&t, U &&u, Args &&...args) {
   exi_assert(all_equal({range_size(t), range_size(u), range_size(args)...}),
          "Iteratees do not have equal length");
   return H::zippy<H::zip_first, T, U, Args...>(
