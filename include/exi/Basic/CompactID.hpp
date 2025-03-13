@@ -83,7 +83,7 @@ public:
   EXI_INLINE constexpr u32 bits() const { return LogValue; }
   /// Returns the minimum bytes required for current value of the counter.
   EXI_INLINE constexpr u32 bytes() const {
-    if EXI_UNLIKELY(LogValue == 0)
+    if EXI_UNLIKELY(Value == 0)
       return 0;
     return (LogValue / 8) + 1u;
   }
