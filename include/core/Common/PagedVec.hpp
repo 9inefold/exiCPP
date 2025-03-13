@@ -25,7 +25,7 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines the PagedVector class.
+/// This file defines the PagedVec class.
 ///
 //===----------------------------------------------------------------===//
 
@@ -60,7 +60,7 @@ namespace exi {
 /// while iterating, therefore materialising them and losing the gains in terms
 /// of memory usage this container provides. If you have such a use case, you
 /// probably want to use a normal std::vector or an exi::SmallVec.
-template <typename T, usize PageSize = 1024 / sizeof(T)> class PagedVector {
+template <typename T, usize PageSize = 1024 / sizeof(T)> class PagedVec {
   static_assert(PageSize > 1, "PageSize must be greater than 0. Most likely "
                               "you want it to be greater than 16.");
   /// The actual number of elements in the vector which can be accessed.
@@ -85,19 +85,19 @@ public:
   using value_type = T;
 
   /// Default constructor. We build our own allocator and box it.
-  PagedVector() : Allocator(new BumpPtrAllocator, true) {}
+  PagedVec() : Allocator(new BumpPtrAllocator, true) {}
   /// Reference constructor. We wrap the passed allocator.
-  explicit PagedVector(BumpPtrAllocator& A) : Allocator(&A, false) {}
+  explicit PagedVec(BumpPtrAllocator& A) : Allocator(&A, false) {}
   /// Pointer constructor. We wrap the passed allocator, or a box a new one.
-  explicit PagedVector(BumpPtrAllocator* A) : Allocator(WrapOrMakeNew(A)) {}
+  explicit PagedVec(BumpPtrAllocator* A) : Allocator(WrapOrMakeNew(A)) {}
 
-  ~PagedVector() { clear(); }
+  ~PagedVec() { clear(); }
 
   // Forbid copy and move as we do not need them for the current use case.
-  PagedVector(const PagedVector&) = delete;
-  PagedVector(PagedVector&&) = delete;
-  PagedVector &operator=(const PagedVector&) = delete;
-  PagedVector &operator=(PagedVector&&) = delete;
+  PagedVec(const PagedVec&) = delete;
+  PagedVec(PagedVec&&) = delete;
+  PagedVec &operator=(const PagedVec&) = delete;
+  PagedVec &operator=(PagedVec&&) = delete;
 
   /// Look up an element at position `Index`.
   /// If the associated page is not filled, it will be filled with default
@@ -189,7 +189,7 @@ public:
   /// Iterator on all the elements of the vector
   /// which have actually being constructed.
   class MaterializedIterator {
-    const PagedVector* PV;
+    const PagedVec* PV;
     usize ElementIdx;
 
   public:
@@ -199,7 +199,7 @@ public:
     using pointer = T*;
     using reference = T&;
 
-    MaterializedIterator(const PagedVector* PV, usize ElementIdx)
+    MaterializedIterator(const PagedVec* PV, usize ElementIdx)
         : PV(PV), ElementIdx(ElementIdx) {}
 
     /// Pre-increment operator.
