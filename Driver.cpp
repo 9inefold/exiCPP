@@ -25,6 +25,7 @@
 #include <Common/PointerIntPair.hpp>
 #include <Common/SmallStr.hpp>
 #include <Common/StringSwitch.hpp>
+
 #include <Support/Filesystem.hpp>
 #include <Support/Logging.hpp>
 #include <Support/MemoryBuffer.hpp>
@@ -33,11 +34,14 @@
 #include <Support/ScopedSave.hpp>
 #include <Support/Signals.hpp>
 #include <Support/raw_ostream.hpp>
+
 #include <exi/Basic/ExiOptions.hpp>
 #include <exi/Basic/Runes.hpp>
+#include <exi/Basic/StringTables.hpp>
 #include <exi/Basic/XMLManager.hpp>
 #include <exi/Basic/XMLContainer.hpp>
 #include <exi/Stream/StreamVariant.hpp>
+
 #include <algorithm>
 #include <rapidxml.hpp>
 
