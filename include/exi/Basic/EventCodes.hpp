@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <core/Common/Array.hpp>
 #include <core/Common/Fundamental.hpp>
 #include <core/Common/EnumArray.hpp>
 #include <core/Common/STLExtras.hpp>
