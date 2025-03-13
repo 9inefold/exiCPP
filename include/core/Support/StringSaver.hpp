@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2024-2025 Eightfold
 //
 // Relicensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,16 +27,31 @@
 #pragma once
 
 #include <Config/FeatureFlags.hpp>
-#if EXI_HAS_DENSE_SET
-# include <Common/DenseSet.hpp>
-#else
-# include <Common/Set.hpp>
+#if !EXI_HAS_DENSE_SET
+# error DenseSet required!
 #endif
+
+#include <Common/DenseSet.hpp>
 #include <Common/StrRef.hpp>
 #include <Common/Twine.hpp>
 #include <Support/Allocator.hpp>
 
 namespace exi {
+
+#ifdef _MSC_VER
+# define FLEX_ARRAY 1
+inline constexpr bool kHasFlexibleArrayMembers = false;
+#else
+# define FLEX_ARRAY
+inline constexpr bool kHasFlexibleArrayMembers = true;
+#endif
+
+struct InlineStr {
+  /// As small as possible to pack things tightly.
+  using size_type = u16;
+  size_type Size;
+  char Data[FLEX_ARRAY];
+};
 
 /// Saves strings in the provided stable storage and returns a
 /// StrRef with a stable character pointer.
@@ -45,14 +60,37 @@ class StringSaver final {
 
 public:
   StringSaver(BumpPtrAllocator &Alloc) : Alloc(Alloc) {}
-
-  BumpPtrAllocator &getAllocator() const { return Alloc; }
+  BumpPtrAllocator& getAllocator() const { return Alloc; }
 
   // All returned strings are null-terminated: *save(S).end() == 0.
   StrRef save(const char *S) { return save(StrRef(S)); }
   StrRef save(StrRef S);
   StrRef save(const Twine &S);
   StrRef save(const std::string &S) { return save(StrRef(S)); }
+
+  InlineStr* saveRaw(const char *S) { return saveRaw(StrRef(S)); }
+  InlineStr* saveRaw(StrRef S);
+  InlineStr* saveRaw(const Twine &S);
+};
+
+/// Saves strings in the provided stable storage and returns a
+/// StrRef with a stable character pointer.
+class OwningStringSaver final {
+  mutable BumpPtrAllocator Alloc;
+
+public:
+  OwningStringSaver() = default;
+  BumpPtrAllocator& getAllocator() const { return Alloc; }
+
+  // All returned strings are null-terminated: *save(S).end() == 0.
+  StrRef save(const char *S) { return save(StrRef(S)); }
+  StrRef save(StrRef S);
+  StrRef save(const Twine &S);
+  StrRef save(const std::string &S) { return save(StrRef(S)); }
+
+  InlineStr* saveRaw(const char *S) { return saveRaw(StrRef(S)); }
+  InlineStr* saveRaw(StrRef S);
+  InlineStr* saveRaw(const Twine &S);
 };
 
 /// Saves strings in the provided stable storage and returns a StrRef with a
@@ -65,11 +103,7 @@ public:
 /// refcounting/deletion.
 class UniqueStringSaver final {
   StringSaver Strings;
-#if EXI_HAS_DENSE_SET
   exi::DenseSet<exi::StrRef> Unique;
-#else
-  exi::Set<exi::StrRef> Unique;
-#endif
 
 public:
   UniqueStringSaver(BumpPtrAllocator &Alloc) : Strings(Alloc) {}

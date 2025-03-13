@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2024-2025 Eightfold
 //
 // Relicensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,12 +33,35 @@
 
 using namespace exi;
 
+static constexpr usize kAddNullTerm
+  = kHasFlexibleArrayMembers ? 1 : 0;
+
+ALWAYS_INLINE static InlineStr*
+ CreateInlineStr(BumpPtrAllocator& Alloc, const usize Size) {
+  static constexpr usize kExtra = sizeof(InlineStr) + kAddNullTerm;
+  return (InlineStr*) Alloc.Allocate(Size + kExtra, alignof(InlineStr));
+}
+
+ALWAYS_INLINE static InlineStr*
+ SaveWithRaw(BumpPtrAllocator& Alloc, StrRef S) {
+  const usize Size = S.size();
+  InlineStr *P = CreateInlineStr(Alloc, Size);
+  if (!S.empty()) [[likely]]
+    std::memcpy(P->Data, S.data(), Size);
+  P->Data[Size] = '\0';
+  return P;
+}
+
+ALWAYS_INLINE static StrRef
+ SaveWith(BumpPtrAllocator& Alloc, StrRef S) {
+  InlineStr* const P = SaveWithRaw(Alloc, S);
+  return StrRef(P->Data, S.size());
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 StrRef StringSaver::save(StrRef S) {
-  char *P = Alloc.Allocate<char>(S.size() + 1);
-  if (!S.empty())
-    memcpy(P, S.data(), S.size());
-  P[S.size()] = '\0';
-  return StrRef(P, S.size());
+  return SaveWith(this->Alloc, S);
 }
 
 StrRef StringSaver::save(const Twine &S) {
@@ -46,15 +69,41 @@ StrRef StringSaver::save(const Twine &S) {
   return save(S.toStrRef(Storage));
 }
 
+InlineStr* StringSaver::saveRaw(StrRef S) {
+  return SaveWithRaw(this->Alloc, S);
+}
+
+InlineStr* StringSaver::saveRaw(const Twine &S) {
+  SmallStr<128> Storage;
+  return saveRaw(S.toStrRef(Storage));
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+StrRef OwningStringSaver::save(StrRef S) {
+  return SaveWith(this->Alloc, S);
+}
+
+StrRef OwningStringSaver::save(const Twine &S) {
+  SmallStr<128> Storage;
+  return save(S.toStrRef(Storage));
+}
+
+InlineStr* OwningStringSaver::saveRaw(StrRef S) {
+  return SaveWithRaw(this->Alloc, S);
+}
+
+InlineStr* OwningStringSaver::saveRaw(const Twine &S) {
+  SmallStr<128> Storage;
+  return saveRaw(S.toStrRef(Storage));
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 StrRef UniqueStringSaver::save(StrRef S) {
   auto [It, CacheMiss] = Unique.insert(S);
-  if (CacheMiss) {               // cache miss, need to actually save the string
-#if EXI_HAS_DENSE_SET
+  if (CacheMiss) // cache miss, need to actually save the string
     *It = Strings.save(S); // safe replacement with equal value
-#else
-    Unique.emplace_hint(It, Strings.save(S));
-#endif
-  }
   return *It;
 }
 
