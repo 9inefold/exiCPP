@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2024-2025 Eightfold
 //
 // Relicensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,6 +44,8 @@
 #include <utility>
 
 // TODO: Make static functions pascal case?
+
+#define AP_LIKELY(...) EXI_LIKELY(__VA_ARGS__)
 
 namespace exi {
 // class FoldingSetNodeID;
@@ -152,7 +154,7 @@ public:
         }
       }
     }
-    if (isSingleWord()) {
+    if AP_LIKELY(isSingleWord()) {
       U.VAL = val;
       if (implicitTrunc || isSigned)
         clearUnusedBits();
@@ -197,7 +199,7 @@ public:
 
   /// Copy Constructor.
   APInt(const APInt &that) : BitWidth(that.BitWidth) {
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       U.VAL = that.U.VAL;
     else
       initSlowCase(that);
@@ -394,14 +396,14 @@ public:
   bool isAllOnes() const {
     if (BitWidth == 0)
       return true;
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       return U.VAL == kWordTypeMax >> (kAPIntBitsPerWord - BitWidth);
     return countTrailingOnesSlowCase() == BitWidth;
   }
 
   /// Determine if this value is zero, i.e. all bits are clear.
   bool isZero() const {
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       return U.VAL == 0;
     return countLeadingZerosSlowCase() == BitWidth;
   }
@@ -410,7 +412,7 @@ public:
   ///
   /// This checks to see if the value of this APInt is one.
   bool isOne() const {
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       return U.VAL == 1;
     return countLeadingZerosSlowCase() == BitWidth - 1;
   }
@@ -426,7 +428,7 @@ public:
   /// This checks to see if the value of this APInt is the maximum signed
   /// value for the APInt's bit width.
   bool isMaxSignedValue() const {
-    if (isSingleWord()) {
+    if AP_LIKELY(isSingleWord()) {
       exi_assert(BitWidth, "zero width values not allowed");
       return U.VAL == ((WordType(1) << (BitWidth - 1)) - 1);
     }
@@ -444,7 +446,7 @@ public:
   /// This checks to see if the value of this APInt is the minimum signed
   /// value for the APInt's bit width.
   bool isMinSignedValue() const {
-    if (isSingleWord()) {
+    if AP_LIKELY(isSingleWord()) {
       exi_assert(BitWidth, "zero width values not allowed");
       return U.VAL == (WordType(1) << (BitWidth - 1));
     }
@@ -461,7 +463,7 @@ public:
   ///
   /// \returns true if the argument APInt value is a power of two > 0.
   bool isPowerOf2() const {
-    if (isSingleWord()) {
+    if AP_LIKELY(isSingleWord()) {
       exi_assert(BitWidth, "zero width values not allowed");
       return isPowerOf2_64(U.VAL);
     }
@@ -511,7 +513,7 @@ public:
   bool isMask(unsigned numBits) const {
     exi_assert(numBits != 0, "numBits must be non-zero");
     exi_assert(numBits <= BitWidth, "numBits out of range");
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       return U.VAL == (kWordTypeMax >> (kAPIntBitsPerWord - numBits));
     unsigned Ones = countTrailingOnesSlowCase();
     return (numBits == Ones) &&
@@ -522,7 +524,7 @@ public:
   /// the least significant bit with the remainder zero.
   /// Ex. isMask(0x0000FFFFU) == true.
   bool isMask() const {
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       return isMask_64(U.VAL);
     unsigned Ones = countTrailingOnesSlowCase();
     return (Ones > 0) && ((Ones + countLeadingZerosSlowCase()) == BitWidth);
@@ -531,7 +533,7 @@ public:
   /// Return true if this APInt value contains a non-empty sequence of ones with
   /// the remainder zero.
   bool isShiftedMask() const {
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       return isShiftedMask_64(U.VAL);
     unsigned Ones = countPopulationSlowCase();
     unsigned LeadZ = countLeadingZerosSlowCase();
@@ -543,7 +545,7 @@ public:
   /// lowest set bit and \p MaskLen is updated to specify the length of the
   /// mask, else neither are updated.
   bool isShiftedMask(unsigned &MaskIdx, unsigned &MaskLen) const {
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       return isShiftedMask_64(U.VAL, MaskIdx, MaskLen);
     unsigned Ones = countPopulationSlowCase();
     unsigned LeadZ = countLeadingZerosSlowCase();
@@ -590,7 +592,7 @@ public:
   /// This is useful for writing out the APInt in binary form without any
   /// conversions.
   const u64 *getRawData() const {
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       return &U.VAL;
     return &U.pVal[0];
   }
@@ -683,7 +685,7 @@ public:
   ///
   /// \returns *this after assignment of RHS value.
   APInt &operator=(u64 RHS) {
-    if (isSingleWord()) {
+    if AP_LIKELY(isSingleWord()) {
       U.VAL = RHS;
       return clearUnusedBits();
     }
@@ -700,7 +702,7 @@ public:
   /// \returns *this after ANDing with RHS.
   APInt &operator&=(const APInt &RHS) {
     exi_assert(BitWidth == RHS.BitWidth, "Bit widths must be the same");
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       U.VAL &= RHS.U.VAL;
     else
       andAssignSlowCase(RHS);
@@ -713,7 +715,7 @@ public:
   /// logically zero-extended or truncated to match the bit-width of
   /// the LHS.
   APInt &operator&=(u64 RHS) {
-    if (isSingleWord()) {
+    if AP_LIKELY(isSingleWord()) {
       U.VAL &= RHS;
       return *this;
     }
@@ -730,7 +732,7 @@ public:
   /// \returns *this after ORing with RHS.
   APInt &operator|=(const APInt &RHS) {
     exi_assert(BitWidth == RHS.BitWidth, "Bit widths must be the same");
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       U.VAL |= RHS.U.VAL;
     else
       orAssignSlowCase(RHS);
@@ -743,7 +745,7 @@ public:
   /// logically zero-extended or truncated to match the bit-width of
   /// the LHS.
   APInt &operator|=(u64 RHS) {
-    if (isSingleWord()) {
+    if AP_LIKELY(isSingleWord()) {
       U.VAL |= RHS;
       return clearUnusedBits();
     }
@@ -759,7 +761,7 @@ public:
   /// \returns *this after XORing with RHS.
   APInt &operator^=(const APInt &RHS) {
     exi_assert(BitWidth == RHS.BitWidth, "Bit widths must be the same");
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       U.VAL ^= RHS.U.VAL;
     else
       xorAssignSlowCase(RHS);
@@ -772,7 +774,7 @@ public:
   /// logically zero-extended or truncated to match the bit-width of
   /// the LHS.
   APInt &operator^=(u64 RHS) {
-    if (isSingleWord()) {
+    if AP_LIKELY(isSingleWord()) {
       U.VAL ^= RHS;
       return clearUnusedBits();
     }
@@ -811,7 +813,7 @@ public:
   /// \returns *this after shifting left by ShiftAmt
   APInt &operator<<=(unsigned ShiftAmt) {
     exi_assert(ShiftAmt <= BitWidth, "Invalid shift amount");
-    if (isSingleWord()) {
+    if AP_LIKELY(isSingleWord()) {
       if (ShiftAmt == BitWidth)
         U.VAL = 0;
       else
@@ -860,7 +862,7 @@ public:
   /// Arithmetic right-shift this APInt by ShiftAmt in place.
   void ashrInPlace(unsigned ShiftAmt) {
     exi_assert(ShiftAmt <= BitWidth, "Invalid shift amount");
-    if (isSingleWord()) {
+    if AP_LIKELY(isSingleWord()) {
       i64 SExtVAL = SignExtend64(U.VAL, BitWidth);
       if (ShiftAmt == BitWidth)
         U.VAL = SExtVAL >> (kAPIntBitsPerWord - 1); // Fill with sign bit.
@@ -884,7 +886,7 @@ public:
   /// Logical right-shift this APInt by ShiftAmt in place.
   void lshrInPlace(unsigned ShiftAmt) {
     exi_assert(ShiftAmt <= BitWidth, "Invalid shift amount");
-    if (isSingleWord()) {
+    if AP_LIKELY(isSingleWord()) {
       if (ShiftAmt == BitWidth)
         U.VAL = 0;
       else
@@ -1088,7 +1090,7 @@ public:
     if EXI_UNLIKELY(BitWidth != RHS.BitWidth)
       return equalUneven(RHS);
 #endif
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       return U.VAL == RHS.U.VAL;
     return equalSlowCase(RHS);
   }
@@ -1281,7 +1283,7 @@ public:
   /// between this APInt and RHS that are both set.
   bool intersects(const APInt &RHS) const {
     exi_assert(BitWidth == RHS.BitWidth, "Bit widths must be the same");
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       return (U.VAL & RHS.U.VAL) != 0;
     return intersectsSlowCase(RHS);
   }
@@ -1289,7 +1291,7 @@ public:
   /// This operation checks that all bits set in this APInt are also set in RHS.
   bool isSubsetOf(const APInt &RHS) const {
     exi_assert(BitWidth == RHS.BitWidth, "Bit widths must be the same");
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       return (U.VAL & ~RHS.U.VAL) == 0;
     return isSubsetOfSlowCase(RHS);
   }
@@ -1350,7 +1352,7 @@ public:
 
   /// Set every bit to 1.
   void setAllBits() {
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       U.VAL = kWordTypeMax;
     else
       // Set all the bits in all the words.
@@ -1363,7 +1365,7 @@ public:
   void setBit(unsigned BitPosition) {
     exi_assert(BitPosition < BitWidth, "BitPosition out of range");
     WordType Mask = maskBit(BitPosition);
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       U.VAL |= Mask;
     else
       U.pVal[whichWord(BitPosition)] |= Mask;
@@ -1406,7 +1408,7 @@ public:
     if (loBit < kAPIntBitsPerWord && hiBit <= kAPIntBitsPerWord) {
       u64 mask = kWordTypeMax >> (kAPIntBitsPerWord - (hiBit - loBit));
       mask <<= loBit;
-      if (isSingleWord())
+      if AP_LIKELY(isSingleWord())
         U.VAL |= mask;
       else
         U.pVal[0] |= mask;
@@ -1428,7 +1430,7 @@ public:
 
   /// Set every bit to 0.
   void clearAllBits() {
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       U.VAL = 0;
     else
       memset(U.pVal, 0, getNumWords() * kAPIntWordSize);
@@ -1440,7 +1442,7 @@ public:
   void clearBit(unsigned BitPosition) {
     exi_assert(BitPosition < BitWidth, "BitPosition out of range");
     WordType Mask = ~maskBit(BitPosition);
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       U.VAL &= Mask;
     else
       U.pVal[whichWord(BitPosition)] &= Mask;
@@ -1465,7 +1467,7 @@ public:
 
   /// Toggle every bit to its opposite value.
   void flipAllBits() {
-    if (isSingleWord()) {
+    if AP_LIKELY(isSingleWord()) {
       U.VAL ^= kWordTypeMax;
       clearUnusedBits();
     } else {
@@ -1551,7 +1553,7 @@ public:
   /// u64. The bitwidth must be <= 64 or the value must fit within a
   /// u64. Otherwise an assertion will result.
   u64 getZExtValue() const {
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       return U.VAL;
     exi_assert(getActiveBits() <= 64, "Too many bits for u64");
     return U.pVal[0];
@@ -1573,7 +1575,7 @@ public:
   /// i64. The bit width must be <= 64 or the value must fit within an i64. 
   /// Otherwise an assertion will result.
   i64 getSExtValue() const {
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       return SignExtend64(U.VAL, BitWidth);
     exi_assert(getSignificantBits() <= 64, "Too many bits for i64");
     return i64(U.pVal[0]);
@@ -1608,7 +1610,7 @@ public:
   /// \returns BitWidth if the value is zero, otherwise returns the number of
   ///   zeros from the most significant bit to the first one bits.
   unsigned countl_zero() const {
-    if (isSingleWord()) {
+    if AP_LIKELY(isSingleWord()) {
       unsigned unusedBits = kAPIntBitsPerWord - BitWidth;
       return exi::countl_zero(U.VAL) - unusedBits;
     }
@@ -1625,7 +1627,7 @@ public:
   /// \returns 0 if the high order bit is not set, otherwise returns the number
   /// of 1 bits from the most significant to the least
   unsigned countl_one() const {
-    if (isSingleWord()) {
+    if AP_LIKELY(isSingleWord()) {
       if (EXI_UNLIKELY(BitWidth == 0))
         return 0;
       return exi::countl_one(U.VAL << (kAPIntBitsPerWord - BitWidth));
@@ -1649,7 +1651,7 @@ public:
   /// \returns BitWidth if the value is zero, otherwise returns the number of
   /// zeros from the least significant bit to the first one bit.
   unsigned countr_zero() const {
-    if (isSingleWord()) {
+    if AP_LIKELY(isSingleWord()) {
       unsigned TrailingZeros = exi::countr_zero(U.VAL);
       return (TrailingZeros > BitWidth ? BitWidth : TrailingZeros);
     }
@@ -1666,7 +1668,7 @@ public:
   /// \returns BitWidth if the value is all ones, otherwise returns the number
   /// of ones from the least significant bit to the first zero bit.
   unsigned countr_one() const {
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       return exi::countr_one(U.VAL);
     return countTrailingOnesSlowCase();
   }
@@ -1680,7 +1682,7 @@ public:
   ///
   /// \returns 0 if the value is zero, otherwise returns the number of set bits.
   unsigned popcount() const {
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       return exi::popcount(U.VAL);
     return countPopulationSlowCase();
   }
@@ -2003,7 +2005,7 @@ private:
     if EXI_UNLIKELY(BitWidth == 0)
       mask = 0;
 
-    if (isSingleWord())
+    if AP_LIKELY(isSingleWord())
       U.VAL &= mask;
     else
       U.pVal[getNumWords() - 1] &= mask;
@@ -2059,8 +2061,8 @@ private:
   /// inline case for uneven operator==
   bool equalUneven(const APInt &RHS) const {
     exi_invariant(BitWidth != RHS.BitWidth);
-    if (isSingleWord()) {
-      if (RHS.isSingleWord())
+    if AP_LIKELY(isSingleWord()) {
+      if AP_LIKELY(RHS.isSingleWord())
         return U.VAL == RHS.U.VAL;
       return this->equalUnevenFastCase(RHS);
     }
@@ -2485,3 +2487,5 @@ template <> struct DenseMapInfo<APInt, void> {
 };
 
 } // namespace exi
+
+#undef AP_LIKELY
