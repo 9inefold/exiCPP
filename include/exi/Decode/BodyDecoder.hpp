@@ -1,6 +1,6 @@
 //===- exi/Basic/BodyDecoder.cpp ------------------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2025 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,12 +23,15 @@
 
 #pragma once
 
+#include <core/Common/DenseMap.hpp>
+#include <core/Common/StringMap.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
+#include <exi/Decode/HeaderDecoder.hpp>
 #include <exi/Stream/StreamVariant.hpp>
 
 namespace exi {
 
-class BodyDecoder {
+class ExiDecoder {
 
 };
 
