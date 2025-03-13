@@ -38,8 +38,7 @@ template <typename From> struct simplify_type;
 /// Otherwise ownedness is explicitly provided by the user with `(Ptr, Owned)`.
 template <typename T> class MaybeBox {
   static_assert(PointerLikeTypeTraits<T*>::NumLowBitsAvailable > 0);
-  using PackedT = PointerIntPair<T*, 1, bool>;
-  PackedT Data;
+  PointerIntPair<T*, 1, bool> Data;
 
   ALWAYS_INLINE void setData(T* Ptr, bool Owned) {
     Data.setPointerAndInt(Ptr, true);
