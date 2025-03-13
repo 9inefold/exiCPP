@@ -1,6 +1,6 @@
 //===- Support/ErrorHandle.hpp --------------------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2024-2025 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,12 @@
 
 #include <Common/Features.hpp>
 #include <cassert>
+
+#if !defined(NDEBUG) || EXI_INVARIANTS
+# define EXI_ASSERTS 1
+#else
+# undef EXI_ASSERTS
+#endif
 
 namespace exi {
 namespace H {
@@ -91,7 +97,7 @@ class Twine;
   } while(0)
 #endif
 
-#ifndef NDEBUG
+#if EXI_ASSERTS
 # define exi_assume(...) do {                                                 \
     if EXI_UNLIKELY(!static_cast<bool>(__VA_ARGS__))                          \
       exi_fail_stringify(ASK_Assume, __VA_ARGS__);                            \
@@ -123,13 +129,11 @@ class Twine;
   exi_assertRT_(KIND, EXPR __VA_OPT__(,) __VA_ARGS__);                        \
 } while(0)
 
-#if !defined(NDEBUG) || EXI_INVARIANTS
-# define EXI_ASSERTS 1
+#if EXI_ASSERTS
 /// Takes `(condition, "message")`, asserts in debug mode.
 # define exi_assert(EXPR, ...) \
  exi_assert_(ASK_Assert, EXPR __VA_OPT__(,) __VA_ARGS__)
 #else
-# undef EXI_ASSERTS
 # define exi_assert(EXPR, ...) exi_assertCT_(EXPR)
 #endif
 
