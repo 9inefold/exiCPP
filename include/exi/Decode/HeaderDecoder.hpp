@@ -1,6 +1,6 @@
 //===- exi/Basic/HeaderDecoder.hpp ----------------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2025 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@
 namespace exi {
 
 struct ExiHeader;
+class ExiDecoder;
 
 ExiError decodeExiHeader(ExiHeader& Header, StreamReader& Strm);
 
