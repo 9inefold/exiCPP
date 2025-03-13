@@ -33,7 +33,9 @@ namespace exi {
 using CompactID = u64;
 
 EXI_INLINE constexpr static u32 CompactIDLog2(CompactID ID) noexcept {
-  exi_assume(ID > 0);
+  // exi_invariant(ID > 0);
+  if EXI_UNLIKELY(ID == 0)
+    return 0;
   // Same as Log2_64 for now, may change in the future.
   return 63 - std::countl_zero(ID);
 }
