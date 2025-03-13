@@ -22,6 +22,7 @@
 //===----------------------------------------------------------------===//
 
 #include <exi/Decode/HeaderDecoder.hpp>
+#include <exi/Decode/BodyDecoder.hpp>
 #include <core/Support/Casting.hpp>
 #include <core/Support/ErrorHandle.hpp>
 #include <core/Support/Logging.hpp>
@@ -98,6 +99,7 @@ static ExiError DecodeCookieAndBits(ExiHeader& Header, BitStreamReader* Strm) {
   return ExiError::OK;
 }
 
+#if 0
 [[maybe_unused]] static ExiError
  DecodePresenceBit(ExiHeader& Header, BitStreamReader* Strm) {
   safe_bool PresenceBit;
@@ -117,6 +119,7 @@ static ExiError DecodeCookieAndBits(ExiHeader& Header, BitStreamReader* Strm) {
 
   return ExiError::OK;
 }
+#endif
 
 static ExiError DecodeVersion(ExiHeader& Header, BitStreamReader* Strm) {
   safe_bool PreviewBit;
@@ -135,6 +138,11 @@ static ExiError DecodeVersion(ExiHeader& Header, BitStreamReader* Strm) {
   return ExiError::OK;
 }
 
+static ExiError ValidateOptions(ExiOptions& Opts) {
+  // FIXME: Do validation
+  return ExiError::OK;
+}
+
 ExiError exi::decodeExiHeader(ExiHeader& Header, StreamReader& In) {
   BitStreamReader Strm = GetReader(In);
   RTTISetter SetOnExit(Strm, In);
@@ -143,6 +151,7 @@ ExiError exi::decodeExiHeader(ExiHeader& Header, StreamReader& In) {
   exi_try(DecodeCookieAndBits(Header, &Strm));
   exi_try(Strm.readBits(PresenceBit));
 
+  Header.HasOptions = bool(PresenceBit);
   if (!Header.Opts) {
     if (!PresenceBit)
       return ExiError::HeaderOutOfBand();
@@ -167,13 +176,16 @@ ExiError exi::decodeExiHeader(ExiHeader& Header, StreamReader& In) {
     exi_unreachable("options decoding unimplemented");
   }
 
+  exi_invariant(Header.Opts, "EXI Options must be initialized!");
+  exi_try(ValidateOptions(*Header.Opts));
+
   auto& Opts = *Header.Opts;
   if (Opts.Compression)
     // Data is packed the same with precompression as with compression.
     // We set the alignment to this so the processor acts as such.
     Opts.Alignment = AlignKind::PreCompression;
 
-  if (Opts.byteAligned())
+  if (Opts.Alignment != AlignKind::BitPacked)
     // Skip [Padding Bits].
     Strm.align();
 
