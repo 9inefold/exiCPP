@@ -285,6 +285,27 @@ public:
       Vec->pop_back();
   }
 
+  void reserve(unsigned NewSize) {
+    if EXI_UNLIKELY(NewSize == 0)
+      return;
+    
+    if (!isa<VecT*>(Data)) {
+      if (NewSize == 1)
+        return;
+      // If we have a single value, convert to a vector.
+      if (isa<T>(Data)) {
+        T V = cast<T>(Data);
+        Data = new VecT();
+        cast<VecT*>(Data)->push_back(V);
+      } else {
+        Data = new VecT();
+      }
+    }
+
+    // Add the new value, we know we have a vector.
+    cast<VecT*>(Data)->reserve(NewSize);
+  }
+
   void clear() {
     // If we have a single value, convert to empty.
     if (isa<T>(Data)) {
