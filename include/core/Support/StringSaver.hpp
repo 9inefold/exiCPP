@@ -51,6 +51,11 @@ struct InlineStr {
   using size_type = u16;
   size_type Size;
   char Data[FLEX_ARRAY];
+
+public:
+  EXI_INLINE StrRef str() const {
+    return {Size, Data};
+  }
 };
 
 /// Saves strings in the provided stable storage and returns a
@@ -64,11 +69,13 @@ public:
 
   // All returned strings are null-terminated: *save(S).end() == 0.
   StrRef save(const char *S) { return save(StrRef(S)); }
+  StrRef save(const char *S, usize N) { return save(StrRef(S, N)); }
   StrRef save(StrRef S);
   StrRef save(const Twine &S);
   StrRef save(const std::string &S) { return save(StrRef(S)); }
 
   InlineStr* saveRaw(const char *S) { return saveRaw(StrRef(S)); }
+  InlineStr* saveRaw(const char *S, usize N) { return saveRaw(StrRef(S, N)); }
   InlineStr* saveRaw(StrRef S);
   InlineStr* saveRaw(const Twine &S);
 };
@@ -84,11 +91,13 @@ public:
 
   // All returned strings are null-terminated: *save(S).end() == 0.
   StrRef save(const char *S) { return save(StrRef(S)); }
+  StrRef save(const char *S, usize N) { return save(StrRef(S, N)); }
   StrRef save(StrRef S);
   StrRef save(const Twine &S);
   StrRef save(const std::string &S) { return save(StrRef(S)); }
 
   InlineStr* saveRaw(const char *S) { return saveRaw(StrRef(S)); }
+  InlineStr* saveRaw(const char *S, usize N) { return saveRaw(StrRef(S, N)); }
   InlineStr* saveRaw(StrRef S);
   InlineStr* saveRaw(const Twine &S);
 };
@@ -110,6 +119,7 @@ public:
 
   // All returned strings are null-terminated: *save(S).end() == 0.
   StrRef save(const char *S) { return save(StrRef(S)); }
+  StrRef save(const char *S, usize N) { return save(StrRef(S, N)); }
   StrRef save(StrRef S);
   StrRef save(const Twine &S);
   StrRef save(const std::string &S) { return save(StrRef(S)); }
