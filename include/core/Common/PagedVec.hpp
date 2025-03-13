@@ -137,7 +137,7 @@ public:
   /// For these reason the usage of this vector is discouraged if you rely
   /// on the construction / destructor of the elements to be invoked.
   void resize(usize NewSize) {
-    if (NewSize == 0) {
+    if EXI_UNLIKELY(NewSize == 0) {
       clear();
       return;
     }
