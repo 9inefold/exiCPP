@@ -54,7 +54,7 @@ struct InlineStr {
 
 public:
   EXI_INLINE StrRef str() const {
-    return {Size, Data};
+    return StrRef(Data, Size);
   }
 };
 
