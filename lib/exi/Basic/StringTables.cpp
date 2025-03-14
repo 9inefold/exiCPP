@@ -100,11 +100,29 @@ void StringTable::setup(const ExiOptions& Opts) {
   }
 }
 
+void StringTable::addPrefix(CompactID URI, StrRef Pfx) {
+  exi_invariant(URI < URIMap.size());
+  this->assertPartitionsInSync();
+
+  ++URIMap[URI].PrefixElts;
+  InlineStr* PfxP = intern(Pfx);
+  PrefixMap[URI].push_back(PfxP);
+}
+
+void StringTable::addLocalName(CompactID URI, StrRef Name) {
+  exi_invariant(URI < URIMap.size());
+  this->assertPartitionsInSync();
+
+  ++URIMap[URI].LNElts;
+  LocalName* LN = createLocalName(Name);
+  LNMap[URI].push_back(LN);
+}
+
 void StringTable::createInitialEntries(bool UsesSchema) {
   // D.1 & D.2 - Initial Entries in Uri & Prefix Partition
   // Saving these is ok since we know there are at least 4 inline slots in
   // the partition.
-  auto Empty = createURI("", "").second;
+  auto Empty = createURI(""_str, ""_str).second;
   auto Xml = createURI(XML_URI, "xml"_str).second;
   auto Xsi = createURI(XSI_URI, "xsi"_str).second;
 
@@ -136,7 +154,7 @@ std::pair<URIInfo*, CompactID>
   // our partitions in sync.
   auto& PfxPart = PrefixMap.emplace_back();
   if (Pfx) {
-    InlineStr* PfxP = intern(Pfx);
+    InlineStr* PfxP = intern(*Pfx);
     PfxPart.push_back(PfxP);
   }
 

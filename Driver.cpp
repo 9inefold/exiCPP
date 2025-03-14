@@ -127,4 +127,5 @@ int main(int Argc, char* Argv[]) {
   dbgs().enable_colors(true);
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
+  outs() << "Ok!\n";
 }

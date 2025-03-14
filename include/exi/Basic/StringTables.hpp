@@ -122,8 +122,13 @@ public:
   }
 
   /// Sets up the initial decoder state.
-  /// FIXME: The signature will have to change when schemas are introduced.
+  /// The signature will have to change when schemas are introduced.
   void setup(const ExiOptions& Opts);
+
+  /// Associates a new Prefix with a URI.
+  void addPrefix(CompactID URI, StrRef Pfx);
+  /// Associates a new LocalName with a URI.
+  void addLocalName(CompactID URI, StrRef Name);
 
 private:
   InlineStr* intern(StrRef Str) { return NameValueCache.saveRaw(Str); }
@@ -145,7 +150,9 @@ private:
   LocalName* createLocalName(StrRef Name) {
     StrRef S = internStr(Name);
     LocalName* Ptr = LNAllocator.Allocate();
-    return new (Ptr) LocalName { .Name = S };
+    return new (Ptr) LocalName {
+      .Name = S, .LocalValues = {}
+    };
   }
 
   /// Creates the initial entries for the string table. The values inserted
