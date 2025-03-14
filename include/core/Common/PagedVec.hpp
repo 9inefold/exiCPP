@@ -108,7 +108,7 @@ public:
     T*& PagePtr = PageToDataPtrs[Index / PageSize];
     // If the page was not yet allocated, allocate it.
     if EXI_UNLIKELY(!PagePtr) {
-      PagePtr = Allocator.getPointer()->template Allocate<T>(PageSize);
+      PagePtr = Allocator->template Allocate<T>(PageSize);
       // We need to invoke the default constructor on all the elements of the
       // page.
       std::uninitialized_value_construct_n(PagePtr, PageSize);
@@ -158,7 +158,7 @@ public:
           continue;
         // We need to invoke the destructor on all the elements of the page.
         std::destroy_n(Page, PageSize);
-        Allocator.getPointer()->Deallocate(Page);
+        Allocator->Deallocate(Page);
       }
     }
 
@@ -177,12 +177,12 @@ public:
         continue;
       std::destroy_n(Page, PageSize);
       // If we do not own the allocator, deallocate the pages one by one.
-      if (!Allocator.getInt())
-        Allocator.getPointer()->Deallocate(Page);
+      if (!Allocator.owned())
+        Allocator->Deallocate(Page);
     }
     // If we own the allocator, simply reset it.
-    if (Allocator.getInt())
-      Allocator.getPointer()->Reset();
+    if (Allocator.owned())
+      Allocator->Reset();
     PageToDataPtrs.clear();
   }
 
