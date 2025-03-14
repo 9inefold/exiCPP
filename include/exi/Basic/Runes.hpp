@@ -34,6 +34,18 @@ template <typename T> class SmallVecImpl;
 using Rune = u32;
 inline constexpr Rune kInvalidRune = U'�'; 
 
+#if EXI_INVARIANTS
+inline constexpr bool kCheckRunes = true;
+#else
+inline constexpr bool kCheckRunes = false;
+#endif
+
+/// A simple UTF8 -> UTF32 decoder. It can be run in a checked or unchecked
+/// mode, allowing for more efficient decoding. The latter requires external
+/// validation before running the decoder.
+///
+/// The checked decoder does not follow Unicode's current error replacement
+/// guidelines, instead replacing entire error sequences with the invalid rune.
 class RuneDecoder {
   enum : u32 {
     kASCII = 0b0111'1111,
@@ -62,23 +74,25 @@ public:
   constexpr RuneDecoder(const u8* Begin, usize Size) :
    Data(Begin), Length(Size) {
     exi_invariant(Begin || Size == 0, "Invalid decoder input");
+    // TODO: Consider if this should be checked in release.
   }
 
-  ALWAYS_INLINE RuneDecoder(const char* Begin, usize Size) :
-   RuneDecoder(reinterpret_cast<const u8*>(Begin), Size) {
+  ALWAYS_INLINE illegal_constexpr RuneDecoder(const char* Begin, usize Size) :
+   RuneDecoder(FOLD_CXPR(reinterpret_cast<const u8*>(Begin)), Size) {
   }
 
 #if defined(__cpp_char8_t)
-  ALWAYS_INLINE RuneDecoder(const char8_t* Begin, usize Size) :
-   RuneDecoder(reinterpret_cast<const u8*>(Begin), Size) {
+  ALWAYS_INLINE illegal_constexpr
+    RuneDecoder(const char8_t* Begin, usize Size) :
+   RuneDecoder(FOLD_CXPR(reinterpret_cast<const u8*>(Begin)), Size) {
   }
 #endif
 
-  ALWAYS_INLINE RuneDecoder(StrRef Str) :
+  illegal_constexpr ALWAYS_INLINE RuneDecoder(StrRef Str) :
    RuneDecoder(Str.data(), Str.size()) {
   }
 
-  ALWAYS_INLINE RuneDecoder(ArrayRef<char> Str) :
+  illegal_constexpr ALWAYS_INLINE RuneDecoder(ArrayRef<char> Str) :
    RuneDecoder(Str.data(), Str.size()) {
   }
 
@@ -102,6 +116,20 @@ private:
       return 1;
   }
 
+  template <usize N>
+  ALWAYS_INLINE constexpr usize checkTrail() const {
+    static_assert(N >= 1 && N < 4);
+    return (Data[N] & 0b1100'0000) == 0b1000'0000;
+  }
+
+  template <usize N>
+  ALWAYS_INLINE constexpr usize checkTrailSeq() const {
+    if constexpr (N == 1)
+      return checkTrail<N>();
+    else
+      return checkTrail<N>() && checkTrailSeq<N - 1>();
+  }
+
   /// Decodes 1-byte utf8 codepoints.
   ALWAYS_INLINE constexpr Rune decode1() const {
     exi_invariant(Length >= 1);
@@ -109,23 +137,38 @@ private:
   }
 
   /// Decodes 2-byte utf8 codepoints.
+  template <bool Check>
   ALWAYS_INLINE constexpr Rune decode2() const {
     exi_invariant(Length >= 2);
+    if (Check) {
+      if (not checkTrailSeq<1>())
+        return U'�';
+    }
     return ((Data[0] & kCode2) << 6) |
             (Data[1] & kTrail);
   }
 
   /// Decodes 3-byte utf8 codepoints.
+  template <bool Check>
   ALWAYS_INLINE constexpr Rune decode3() const {
     exi_invariant(Length >= 3);
+    if (Check) {
+      if (not checkTrailSeq<2>())
+        return U'�';
+    }
     return ((Data[0] & kCode3) << 12) |
            ((Data[1] & kTrail) << 6)  |
             (Data[2] & kTrail);
   }
 
   /// Decodes 4-byte utf8 codepoints.
+  template <bool Check>
   ALWAYS_INLINE constexpr Rune decode4() const {
     exi_invariant(Length >= 4);
+    if (Check) {
+      if (not checkTrailSeq<3>())
+        return U'�';
+    }
     return ((Data[0] & kCode4) << 18) |
            ((Data[1] & kTrail) << 12) |
            ((Data[2] & kTrail) << 6)  |
@@ -139,23 +182,39 @@ private:
   }
 
   /// Decodes N-byte utf8 codepoints.
-  constexpr Rune decodeImpl(usize N) {
+  template <bool Check>
+  constexpr Rune decodeImpl(usize N) const {
     if EXI_LIKELY(N == 1)
       return decode1();
     else if (N == 2)
-      return decode2();
+      return decode2<Check>();
     else if (N == 3)
-      return decode3();
+      return decode3<Check>();
     else
-      return decode4();
+      return decode4<Check>();
   }
 
 public:
+  ALWAYS_INLINE constexpr usize currentLen() const {
+    if EXI_UNLIKELY(Length == 0)
+      return 0;
+    return UnitLen(*Data);
+  }
+
+  template <bool Checked = true>
+  EXI_INLINE constexpr std::pair<Rune, usize> peek() const {
+    const usize NBytes = UnitLen(*Data);
+    if constexpr (Checked) {
+      if EXI_UNLIKELY(NBytes > Length)
+        return {U'�', Length};
+    }
+    return {decodeImpl<Checked>(NBytes), NBytes};
+  }
+
   /// Decodes UTF8 to unicode codepoints without validity checking.
   /// Only use when you know the data is definitely valid.
   constexpr Rune decodeUnchecked() {
-    const usize NBytes = UnitLen(*Data);
-    const Rune Out = decodeImpl(NBytes);
+    auto [Out, NBytes] = peek</*Checked=*/false>();
     advance(NBytes);
     return Out;
   }
@@ -165,16 +224,15 @@ public:
     if EXI_UNLIKELY(!Data || Length == 0)
       return U'�';
 
-    const usize NBytes = UnitLen(*Data);
+    auto [Out, NBytes] = peek</*Checked=*/true>();
     if EXI_UNLIKELY(NBytes > Length) {
       Data += Length;
       Length = 0;
-      return U'�';
+      return Out;
     }
 
     // TODO: Check for overlong sequences?
     // Might not be necessary with simdutf integration...
-    const Rune Out = decodeImpl(NBytes);
     advance(NBytes);
     return EXI_LIKELY(Out <= kMaxVal) ? Out : U'�';
   }
@@ -182,8 +240,43 @@ public:
   /// Checks if the decoder reached the end of the data.
   constexpr explicit operator bool() const {
     return EXI_LIKELY(Data) && (Length > 0);
-  } 
+  }
+
+  class sentinel {};
+  class iterator;
+
+  constexpr iterator begin() const;
+  constexpr sentinel end() const { return sentinel{}; }
 };
+
+class RuneDecoder::iterator {
+  RuneDecoder Data;
+public:
+  constexpr iterator(RuneDecoder Decoder) : Data(Decoder) {}
+  constexpr Rune operator*() const { return Data.peek<kCheckRunes>().first; }
+  constexpr RuneDecoder* operator->() { return &Data; }
+  constexpr const RuneDecoder* operator->() const { return &Data; }
+
+  constexpr iterator& operator++() {
+    Data.advance(Data.currentLen());
+    return *this;
+  }
+  constexpr iterator operator++(int) {
+    const iterator Out = *this;
+    Data.advance(Data.currentLen());
+    return Out;
+  }
+
+  constexpr bool operator==(const iterator& RHS) const {
+    return (Data.Data == RHS->Data) && (Data.Length == RHS->Length);
+  }
+  constexpr bool operator==(sentinel) const {
+    return Data.Length == 0;
+  }
+};
+
+ALWAYS_INLINE constexpr RuneDecoder::iterator
+ RuneDecoder::begin() const { return iterator(*this); }
 
 /// Safely decodes codepoints from the input and inserts them into `Runes`.
 /// @returns Whether the decoding was successful.
