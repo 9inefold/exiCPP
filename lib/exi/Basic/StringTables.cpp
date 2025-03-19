@@ -24,8 +24,11 @@
 #include <exi/Basic/StringTables.hpp>
 #include <core/Common/Twine.hpp>
 #include <core/Support/ErrorHandle.hpp>
+#include <core/Support/Logging.hpp>
 #include <exi/Basic/ExiOptions.hpp>
 #include <algorithm>
+
+#define DEBUG_TYPE "StringTables"
 
 using namespace exi;
 
@@ -53,13 +56,6 @@ constexpr StrRef XSD_InitialValues[] {
 };
 
 } // namespace `anonymous`
-
-template <typename T>
-static T GetBoundsOrDefault(Bounded<T> I) {
-  if (I == unbounded)
-    return static_cast<T>(kDefaultReserveSize);
-  return I;
-}
 
 static const Option<u64> PullSchemaID(Option<Option<u64>> SchemaID) {
   return SchemaID.expect("schema should resolve to value or nil");
@@ -90,9 +86,15 @@ void StringTable::setup(const ExiOptions& Opts) {
     // SchemaResolver[*ID]->getExtraEntryCount();
   }
 
-  const u64 ValueCapacity
-    = GetBoundsOrDefault(Opts.ValuePartitionCapacity);
-  GValueMap.reserve(ValueCapacity);
+  if (Bounded I = Opts.ValuePartitionCapacity; I.bounded()) {
+    WrappingValues = true;
+    LOG_WARN("Bounded tables are not supported, "
+             "the value '{}' only affects the initial reserve.", *I);
+    // TODO: Do some kind of check here. We definitely don't want arbitrarily
+    // large allocations.
+    GValueMap.reserve(*I);
+  } else
+    GValueMap.reserve(kDefaultReserveSize);
 
   if (Opts.DatatypeRepresentationMap) {
     // TODO: DatatypeRepresentationMap?
@@ -116,6 +118,23 @@ void StringTable::addLocalName(CompactID URI, StrRef Name) {
   ++URIMap[URI].LNElts;
   LocalName* LN = createLocalName(Name);
   LNMap[URI].push_back(LN);
+}
+
+StrRef StringTable::addValue(StrRef Value) {
+  // Add to the global table, no other interaction needed.
+  return createGlobalValue(Value)->str();
+}
+
+StrRef StringTable::addValue(CompactID URI, CompactID LocalID, StrRef Value) {
+  exi_invariant(URI < URIMap.size());
+  exi_invariant(LocalID < *LNCount);
+  this->assertPartitionsInSync();
+
+  // Add to the global table.
+  InlineStr* Str = createGlobalValue(Value);
+  // Add to the local table for URI:LocalID.
+  LNMap[URI][LocalID]->LocalValues.push_back(Str);
+  return Str->str();
 }
 
 void StringTable::createInitialEntries(bool UsesSchema) {

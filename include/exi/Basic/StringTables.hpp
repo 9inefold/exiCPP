@@ -18,6 +18,8 @@
 ///
 /// \file
 /// This file defines the various tables used by the EXI processor.
+/// String tables have no understanding of the EXI format (other than length),
+/// they simply cache the provided values.
 ///
 //===----------------------------------------------------------------===//
 
@@ -74,6 +76,7 @@ public:
   }
 };
 
+/// The string table used for decoding.
 class StringTable {
   /// Allocator used by `LNMap`.
   mutable exi::BumpPtrAllocator LNPageAllocator;
@@ -91,9 +94,10 @@ class StringTable {
 
   /// Maps a URI to a (likely) singular value.
   using PrefixMapType = SmallVec<TinyPtrVec<InlineStr*>, kSchemaElts>;
-  /// Used to map URI indices to prefixes, where there is likely only one.
-  /// If prefixes are preserved, this mapping will be enabled.
-  /// FIXME: This should probably be a tagged union instead...
+  /// Used to map URI indices to Prefixes, where there is likely only one.
+  /// If Prefixes are preserved, this mapping will be enabled.
+  /// If a given Prefix partition has <= 1 elements, it is omitted.
+  /// FIXME: This should maybe be a tagged union instead...
   PrefixMapType PrefixMap;
 
   /// Small size for schema adjacent values.
@@ -113,7 +117,8 @@ class StringTable {
   SmallVec<InlineStr*, 0> GValueMap;
   CompactIDCounter GValueCount;
 
-  bool DidSetup = false;
+  bool DidSetup : 1 = false;
+  bool WrappingValues : 1 = false;
 
 public:
   StringTable();
@@ -130,9 +135,18 @@ public:
   /// Associates a new LocalName with a URI.
   void addLocalName(CompactID URI, StrRef Name);
 
+  /// Creates a new Value.
+  StrRef addValue(StrRef Value);
+  /// Associates a new Value with a (URI, LocalNameID).
+  StrRef addValue(CompactID URI, CompactID LocalID, StrRef Value);
+
 private:
-  InlineStr* intern(StrRef Str) { return NameValueCache.saveRaw(Str); }
-  StrRef internStr(StrRef Str) { return NameValueCache.save(Str); }
+  [[nodiscard]] InlineStr* intern(StrRef Str) {
+    return NameValueCache.saveRaw(Str);
+  }
+  [[nodiscard]] StrRef internStr(StrRef Str) {
+    return NameValueCache.save(Str);
+  }
 
   /// Checks if partitions are of equal size.
   EXI_INLINE void assertPartitionsInSync() const {
@@ -147,12 +161,21 @@ private:
    createURI(StrRef URI, Option<StrRef> Pfx = std::nullopt);
 
   /// Gets a new LocalName.
-  LocalName* createLocalName(StrRef Name) {
-    StrRef S = internStr(Name);
+  [[nodiscard]] LocalName* createLocalName(StrRef Name) {
+    StrRef Str = internStr(Name);
     LocalName* Ptr = LNAllocator.Allocate();
     return new (Ptr) LocalName {
-      .Name = S, .LocalValues = {}
+      .Name = Str, .LocalValues = {}
     };
+  }
+
+  /// Gets a new global value (which is added to the global partition).
+  [[nodiscard]] InlineStr* createGlobalValue(StrRef Value) {
+    InlineStr* Str = intern(Value);
+    exi_invariant(Str, "Invalid allocation??");
+    GValueMap.push_back(Str);
+    ++GValueCount;
+    return Str;
   }
 
   /// Creates the initial entries for the string table. The values inserted
@@ -174,6 +197,7 @@ namespace encode {
 
 class StringTable;
 
+/// TODO: The string table used for encoding.
 class StringTable {
   /// The allocator shared internally.
   exi::BumpPtrAllocator Alloc;
