@@ -28,11 +28,21 @@
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Decode/HeaderDecoder.hpp>
 #include <exi/Stream/StreamVariant.hpp>
+#include <variant>
 
 namespace exi {
 
 class ExiDecoder {
+public:
+  using Reader = std::variant<std::monostate, 
+    bitstream::BitReader, bitstream::ByteReader>;
 
+private:
+  StreamReader Reader;
+  ReaderVariant InlineReader;
+
+public:
+  ExiDecoder() = default;
 };
 
 } // namespace exi
