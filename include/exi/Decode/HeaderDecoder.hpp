@@ -31,6 +31,10 @@ namespace exi {
 struct ExiHeader;
 class ExiDecoder;
 
-ExiError decodeExiHeader(ExiHeader& Header, StreamReader& Strm);
+/// Decodes an EXI header given an arbitrary stream.
+ExiError decodeHeader(ExiHeader& Header, StreamReader& Strm);
+
+/// Decodes an EXI header given an EXI processor.
+ExiError decodeHeader(ExiDecoder& Processor);
 
 } // namespace exi

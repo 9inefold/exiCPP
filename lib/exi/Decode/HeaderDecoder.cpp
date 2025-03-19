@@ -28,6 +28,7 @@
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/ExiHeader.hpp>
 #include <exi/Basic/NBitInt.hpp>
+#include <exi/Decode/BodyDecoder.hpp>
 
 #define DEBUG_TYPE "HeaderDecoder"
 
@@ -143,10 +144,7 @@ static ExiError ValidateOptions(ExiOptions& Opts) {
   return ExiError::OK;
 }
 
-ExiError exi::decodeExiHeader(ExiHeader& Header, StreamReader& In) {
-  BitStreamReader Strm = GetReader(In);
-  RTTISetter SetOnExit(Strm, In);
-
+static ExiError decodeHeaderImpl(ExiHeader& Header, BitStreamReader& Strm) {
   safe_bool PresenceBit;
   exi_try(DecodeCookieAndBits(Header, &Strm));
   exi_try(Strm.readBits(PresenceBit));
@@ -190,4 +188,26 @@ ExiError exi::decodeExiHeader(ExiHeader& Header, StreamReader& In) {
     Strm.align();
 
   return ExiError::OK;
+}
+
+ExiError exi::decodeHeader(ExiHeader& Header, StreamReader& In) {
+  BitStreamReader Strm = GetReader(In);
+  RTTISetter SetOnExit(Strm, In);
+  return decodeHeaderImpl(Header, Strm);
+}
+
+ExiError exi::decodeHeader(ExiDecoder& Processor) {
+  BitStreamReader Strm(Processor.Buffer);
+  auto& Header = Processor.Header;
+  ExiError Out = decodeHeaderImpl(Header, Strm);
+
+  const auto Pos = Strm.getProxy();
+  if (Out || Header.Opts->Alignment == AlignKind::BitPacked)
+    Processor.setReader<bitstream::BitReader>(Pos);
+  else {
+    exi_assert(Strm.bitOffset() == 0, "Misaligned stream!");
+    Processor.setReader<bitstream::ByteReader>(Pos);
+  }
+  
+  return Out;
 }

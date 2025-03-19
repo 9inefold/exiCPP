@@ -31,7 +31,11 @@ namespace exi {
 
 /// Declare a fake stream (for now)
 /// May also scrap this and manually align streams, but this may be clearer.
-class alignas(8) DummyStream { DummyStream() = delete; };
+class alignas(8) DummyStream {
+public:
+	DummyStream() = delete;
+	DummyStream(auto&&) {}
+};
 
 namespace bitstream {
 
