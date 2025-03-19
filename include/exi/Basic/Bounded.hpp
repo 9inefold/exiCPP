@@ -183,6 +183,7 @@ public:
   // Operators
   // FIXME: Possibly use partial_ordering? This is essentially an INF value.
 
+  constexpr T operator*() const { return Data; }
   constexpr operator T() const { return Data; }
   constexpr explicit operator bool() const { return Data; }
 
