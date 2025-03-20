@@ -35,11 +35,7 @@ ALWAYS_INLINE static APInt
   return thiz.readBits(Bits);
 }
 
-BitStreamReader::BitStreamReader(StrRef Buffer) :
- BitStreamReader::BaseT(GetU8Buffer(Buffer)) { 
-}
-
-BitStreamReader BitStreamReader::New(const MemoryBuffer& MB) {
+BitStreamReader BitStreamReader::New(const MemoryBuffer& MB EXI_LIFETIMEBOUND) {
   return BitStreamReader(MB.getBuffer());
 }
 

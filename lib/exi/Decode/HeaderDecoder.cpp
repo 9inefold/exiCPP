@@ -196,17 +196,16 @@ ExiError exi::decodeHeader(ExiHeader& Header, StreamReader& In) {
   return decodeHeaderImpl(Header, Strm);
 }
 
-ExiError exi::decodeHeader(ExiDecoder& Processor) {
-  BitStreamReader Strm(Processor.Buffer);
-  auto& Header = Processor.Header;
+ExiError ExiDecoder::decodeHeader(UnifiedBuffer Buffer) {
+  BitStreamReader Strm(Buffer.arr());
   ExiError Out = decodeHeaderImpl(Header, Strm);
 
   const auto Pos = Strm.getProxy();
   if (Out || Header.Opts->Alignment == AlignKind::BitPacked)
-    Processor.setReader<bitstream::BitReader>(Pos);
+    Reader.set<bitstream::BitReader>(Pos);
   else {
     exi_assert(Strm.bitOffset() == 0, "Misaligned stream!");
-    Processor.setReader<bitstream::ByteReader>(Pos);
+    Reader.set<bitstream::ByteReader>(Pos);
   }
   
   return Out;

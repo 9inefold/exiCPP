@@ -23,7 +23,9 @@
 
 #pragma once
 
+#include <core/Common/StringExtras.hpp>
 #include <core/Support/ErrorHandle.hpp>
+#include <core/Support/MemoryBufferRef.hpp>
 #include <exi/Basic/NBitInt.hpp>
 #include <exi/Stream/Stream.hpp>
 
@@ -40,11 +42,17 @@ class BitStreamReader : public BitStreamCommon<ArrayRef<u8>> {
 public:
   template <typename AnyT>
   BitStreamReader(BitConsumerProxy<AnyT> Other) : BaseT(Other) {}
+  /// Constructs a `BitStreamReader` from the real stream type.
   BitStreamReader(StreamT Stream) : BaseT(Stream) {}
+  /// Constructs a `BitStreamReader` from a `MemoryBufferRef`.
+  BitStreamReader(MemoryBufferRef Buffer) :
+   BitStreamReader(Buffer.getBuffer()) {}
+
 private:
   /// Constructs a `BitStreamReader` from a `StrRef`.
-  /// Used for constructing from a `MemoryBuffer`.
-  BitStreamReader(StrRef Buffer);
+  /// Used for constructing from a `MemoryBuffer[Ref]`.
+  BitStreamReader(StrRef Buffer) :
+   BaseT(exi::arrayRefFromStringRef(Buffer)) {}
 
 public:
   /// Creates a `BitStreamReader` from an `ArrayRef`.
@@ -52,7 +60,7 @@ public:
     return BitStreamReader(Stream);
   }
   /// Maybe creates a `BitStreamReader` from a `MemoryBuffer`.
-  static BitStreamReader New(const MemoryBuffer& MB);
+  static BitStreamReader New(const MemoryBuffer& MB EXI_LIFETIMEBOUND);
   /// Maybe creates a `BitStreamReader` from a `MemoryBuffer*`.
   static Option<BitStreamReader> New(const MemoryBuffer* MB);
 
