@@ -263,6 +263,24 @@ public:
   constexpr T& operator*() & { return Storage.value(); }
 	constexpr T&& operator*() && { return std::move(Storage.value()); }
 
+  /// Reserved for `Option<T>`. Converts the contained value to an `Option<T&>`,
+  /// if it exists.
+  constexpr Option<T&> ref()& noexcept {
+    return has_value() ? std::addressof(value()) : nullptr;
+  }
+  /// Reserved for `Option<T>`. Converts the contained value to
+  /// an `Option<const T&>`, if it exists.
+  constexpr Option<const T&> ref() const& noexcept {
+    return has_value() ? std::addressof(value()) : nullptr;
+  }
+
+  constexpr T& ref_or(T& Alt)& noexcept {
+    return ref().value_or(Alt);
+  }
+  constexpr const T& ref_or(const T& Alt EXI_LIFETIMEBOUND) const& noexcept {
+    return ref().value_or(Alt);
+  }
+
   const T& expect(const Twine& Msg) const& {
     this->assert_expect(Msg);
     return Storage.value();
@@ -385,6 +403,10 @@ public:
   /// an `Option<T>`, if it exists.
   constexpr Option<type> deref() const {
     return has_value() ? Option(**this) : std::nullopt;
+  }
+
+  template <typename U> constexpr type deref_or(U&& Alt) const {
+    return deref().value_or(EXI_FWD(Alt));
   }
 
   T& expect(const Twine& Msg) const {
