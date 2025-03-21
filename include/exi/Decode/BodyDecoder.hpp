@@ -52,14 +52,17 @@ struct HandleVisitResult<void> {
   using opt_type = void;
 };
 
-template <typename Fn>
+template <typename Fn, bool IsConst>
 struct VisitResult {
-  using ret_type = std::invoke_result_t<Fn, bitstream::BitReader&>;
+  // TODO: apply_if<bool, template, ...>?
+  using strm_type = bitstream::BitReader;
+  using in_type = std::conditional_t<IsConst, const strm_type&, strm_type&>;
+  using ret_type = std::invoke_result_t<Fn, in_type>;
   using type = typename HandleVisitResult<ret_type>::type;
 };
 
-template <typename Fn>
-using visit_result_t = typename VisitResult<Fn>::type;
+template <typename Fn, bool IsConst = false>
+using visit_result_t = typename VisitResult<Fn, IsConst>::type;
 
 } // namespace decoder_detail
 
@@ -78,8 +81,19 @@ public:
   ReaderHolder() = default;
 
   /// Passes a reference to the stream to the provided functor.
-  template <typename F> auto operator()(F&& Func)
+  template <typename F> auto operator()(F&& Func) &
    -> decoder_detail::visit_result_t<F> {
+    exi_invariant(Reader, "Uninitialized reader!");
+    if (isa<bitstream::BitReader*>(Reader))
+      return this->visit<bitstream::BitReader>(EXI_FWD(Func));
+    // TODO: Enable the ByteReader overload once it is defined.
+    // else
+    //   return this->visit<bitstream::ByteReader>(EXI_FWD(Func));
+    exi_unreachable("invalid stream type!");
+  }
+  /// Passes a reference to the stream to the provided functor.
+  template <typename F> auto operator()(F&& Func) const&
+   -> decoder_detail::visit_result_t<F, true> {
     exi_invariant(Reader, "Uninitialized reader!");
     if (isa<bitstream::BitReader*>(Reader))
       return this->visit<bitstream::BitReader>(EXI_FWD(Func));
@@ -107,6 +121,13 @@ private:
     auto* const Strm = cast<StrmT*>(Reader);
     return ResultT(EXI_FWD(Func)(*Strm));
   }
+
+  template <class StrmT, typename F>
+  decltype(auto) visit(F&& Func) const {
+    using ResultT = decoder_detail::visit_result_t<F, true>;
+    const auto* const Strm = cast<StrmT*>(Reader);
+    return ResultT(EXI_FWD(Func)(*Strm));
+  }
 };
 
 } // namespace decode
@@ -115,7 +136,7 @@ private:
 class ExiDecoder {
   ExiHeader Header;
   decode::ReaderHolder Reader;
-
+  /// The stream used for diagnostics.
   Option<raw_ostream&> OS;
 
 public:
@@ -126,6 +147,8 @@ public:
       this->diagnose(E);
   }
 
+  /// Returns the stream used for diagnostics.
+  raw_ostream& os() const EXI_READONLY;
   /// Diagnoses errors in the current context.
   void diagnose(ExiError E) const;
 
