@@ -78,27 +78,27 @@ static constexpr StringLiteral ErrorCodeMessages[kErrorCodeCount] {
   "Mismatched Header Options"
 };
 
-inline static const char*
- get_error_name_what(ErrorCode E) noexcept {
+StrRef exi::get_error_name(ErrorCode E) noexcept {
   const usize Ix = static_cast<i32>(E);
   if EXI_LIKELY(Ix < kErrorCodeCount)
     return ErrorCodeNames[Ix].data();
-  return "UNKNOWN_ERROR";
+  return "UNKNOWN_ERROR"_str;
 }
-
-inline static const char*
- get_error_message_what(ErrorCode E) noexcept {
+StrRef exi::get_error_message(ErrorCode E) noexcept {
   const usize Ix = static_cast<i32>(E);
   if EXI_LIKELY(Ix < kErrorCodeCount)
     return ErrorCodeMessages[Ix].data();
-  return "UNKNOWN ERROR";
+  return "UNKNOWN ERROR"_str;
 }
 
-StrRef exi::get_error_name(ErrorCode E) noexcept {
-  return get_error_name_what(E);
+EXI_READNONE inline static const char*
+ get_error_name_what(ErrorCode E) noexcept {
+  return exi::get_error_name(E).data();
 }
-StrRef exi::get_error_message(ErrorCode E) noexcept {
-  return get_error_message_what(E);
+
+EXI_READNONE inline static const char*
+ get_error_message_what(ErrorCode E) noexcept {
+  return exi::get_error_message(E).data();
 }
 
 raw_ostream& exi::operator<<(raw_ostream& OS, ErrorCode Err) {

@@ -114,8 +114,8 @@ enum class InvalidHeaderCode : u8 {
   Last = kOutOfBandOpts
 };
 
-StrRef get_error_name(ErrorCode E) noexcept EXI_READONLY;
-StrRef get_error_message(ErrorCode E) noexcept EXI_READONLY;
+StrRef get_error_name(ErrorCode E) noexcept EXI_READNONE;
+StrRef get_error_message(ErrorCode E) noexcept EXI_READNONE;
 
 /// Works like `Error`, returns `true` when a non-ok state is held.
 class EXI_NODISCARD alignas(8) ExiError {
