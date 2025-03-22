@@ -84,10 +84,22 @@ Expected<XMLContainerRef> XMLManager::getXMLRef(const Twine& Filepath,
 }
 
 Option<XMLContainerRef> XMLManager::getOptXMLRef(const Twine& Filepath,
-                                             bool IsVolatile) {
+                                                 bool IsVolatile) {
   return expectedToOptional(
     getXMLRef(Filepath, IsVolatile));
 }
+
+Option<XMLContainerRef> XMLManager::getOptXMLRef(const Twine& Filepath,
+                                                 raw_ostream& OS,
+                                                 bool IsVolatile) {
+  Expected<XMLContainerRef> Result 
+    = getXMLRef(Filepath, IsVolatile);
+  if (Result)
+    return *Result;
+  logAllUnhandledErrors(Result.takeError(), OS);
+  return std::nullopt;
+}
+
 
 #if 0
 Expected<XMLDocument&>

@@ -63,6 +63,9 @@ public:
   
   Option<XMLContainerRef> getOptXMLRef(const Twine& Filepath,
                                        bool IsVolatile = false);
+  
+  Option<XMLContainerRef> getOptXMLRef(const Twine& Filepath, raw_ostream& OS,
+                                       bool IsVolatile = false);
 
   /// Load and parse an `XMLDocument&` if it exists.
   Expected<XMLDocument&> getXMLDocument(const Twine& Filepath,
