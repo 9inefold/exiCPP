@@ -132,25 +132,44 @@ private:
 
 } // namespace decode
 
+struct DecoderFlags {
+  bool DidHeader : 1 = false;
+};
+
 /// The EXI decoding processor.
 class ExiDecoder {
   ExiHeader Header;
   decode::ReaderHolder Reader;
   /// The stream used for diagnostics.
   Option<raw_ostream&> OS;
+  /// State of the decoder in terms of progression.
+  DecoderFlags Flags;
 
 public:
   ExiDecoder() = default;
 
-  ExiDecoder(UnifiedBuffer Buffer) : ExiDecoder() {
-    if (ExiError E = decodeHeader(Buffer))
-      this->diagnose(E);
+  ExiDecoder(UnifiedBuffer Buffer,
+             Option<raw_ostream&> OS = std::nullopt) : ExiDecoder() {
+    this->OS = OS;
+    if (ExiError E = decodeHeader(Buffer); E && !OS)
+      this->diagnose(E, true);
   }
+
+  /// Get the state flags.
+  DecoderFlags flags() const { return Flags; }
+  /// Returns if the header was successfully decoded.
+  bool didHeader() const { return Flags.DidHeader; }
 
   /// Returns the stream used for diagnostics.
   raw_ostream& os() const EXI_READONLY;
+
   /// Diagnoses errors in the current context.
-  void diagnose(ExiError E) const;
+  void diagnose(ExiError E, bool Force = false) const;
+  /// Diagnoses errors in the current context, then returns.
+  ExiError diagnoseme(ExiError E) const {
+    this->diagnose(E);
+    return E;
+  }
 
   /// Decodes the header from the provided buffer.
   /// Defined in `HeaderDecoder.cpp`.

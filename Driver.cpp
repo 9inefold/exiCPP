@@ -25,6 +25,7 @@
 #include <Common/PointerIntPair.hpp>
 #include <Common/SmallStr.hpp>
 #include <Common/StringSwitch.hpp>
+#include <Common/Twine.hpp>
 
 #include <Support/Filesystem.hpp>
 #include <Support/Logging.hpp>
@@ -40,6 +41,7 @@
 #include <exi/Basic/StringTables.hpp>
 #include <exi/Basic/XMLManager.hpp>
 #include <exi/Basic/XMLContainer.hpp>
+#include <exi/Decode/BodyDecoder.hpp>
 #include <exi/Stream/StreamVariant.hpp>
 
 #include <algorithm>
@@ -127,5 +129,14 @@ int main(int Argc, char* Argv[]) {
   dbgs().enable_colors(true);
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
-  outs() << "Ok!\n";
+
+  // Basic.xml with default settings and no options.
+  StrRef HiddenFile = "examples/BasicNoopt.exi"_str;
+  XMLContainerRef Exi
+    = Mgr->getOptXMLRef(HiddenFile, errs())
+      .expect("could not locate file!");
+  
+  ExiDecoder Decode(Exi.getBufferRef(), errs());
+  if (!Decode.didHeader())
+    return 1;
 }

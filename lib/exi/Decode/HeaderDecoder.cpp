@@ -197,6 +197,11 @@ ExiError exi::decodeHeader(ExiHeader& Header, StreamReader& In) {
 }
 
 ExiError ExiDecoder::decodeHeader(UnifiedBuffer Buffer) {
+  if (Flags.DidHeader) {
+    exi_assert(Reader, "Invalid processor state");
+    return ExiError::OK;
+  }
+
   BitStreamReader Strm(Buffer.arr());
   ExiError Out = decodeHeaderImpl(Header, Strm);
 
@@ -208,5 +213,7 @@ ExiError ExiDecoder::decodeHeader(UnifiedBuffer Buffer) {
     Reader.set<bitstream::ByteReader>(Pos);
   }
   
-  return Out;
+  if (Out == ExiError::OK)
+    Flags.DidHeader = true;
+  return this->diagnoseme(Out);
 }

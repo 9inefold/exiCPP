@@ -34,8 +34,10 @@ raw_ostream& ExiDecoder::os() const {
   return OS.value_or(errs());
 }
 
-void ExiDecoder::diagnose(ExiError E) const {
+void ExiDecoder::diagnose(ExiError E, bool Force) const {
   if (E == ExiError::OK)
+    return;
+  if (!Force && !OS)
     return;
   
   if EXI_LIKELY(Reader) {
