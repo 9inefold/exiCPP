@@ -29,8 +29,8 @@
 #include <utility>
 
 namespace exi {
-namespace H {
 
+/// A wrapper around a callable object that gets invoked on destruction.
 template <typename Callable> class ScopeExit {
   Callable ExitFunction;
   bool Engaged = true; // False once moved-from or release()d.
@@ -56,17 +56,17 @@ public:
   }
 };
 
-} // namespace H
-
-// Keeps the callable object that is passed in, and execute it at the
-// destruction of the returned object (usually at the scope exit where the
-// returned object is kept).
-//
-// Interface is specified by p0052r2.
 template <typename Callable>
-[[nodiscard]] H::ScopeExit<std::decay_t<Callable>>
- make_scope_exit(Callable &&F) {
-  return H::ScopeExit<std::decay_t<Callable>>(std::forward<Callable>(F));
+ScopeExit(Callable&&) -> ScopeExit<std::decay_t<Callable>>;
+
+/// Keeps the callable object that is passed in, and execute it at the
+/// destruction of the returned object (usually at the scope exit where the
+/// returned object is kept).
+///
+/// Interface is specified by p0052r2.
+template <typename Callable>
+[[nodiscard]] ScopeExit<std::decay_t<Callable>> make_scope_exit(Callable &&F) {
+  return ScopeExit<std::decay_t<Callable>>(std::forward<Callable>(F));
 }
 
 } // namespace llvm
