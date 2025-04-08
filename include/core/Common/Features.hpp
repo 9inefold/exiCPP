@@ -552,6 +552,14 @@ void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 /// Defines a global constant
 #define EXI_CONST inline constexpr
 
+#if __cpp_constexpr >= 202211L
+# define EXI_HAS_CXPR_STATIC 1
+# define constexpr_static static constexpr
+#else
+# define EXI_HAS_CXPR_STATIC 0
+# define constexpr_static constexpr
+#endif
+
 #if EXI_STATIC_ASSERT_FALSE
 /// Since P2593 - backported by the big 3.
 # define COMPILE_FAILURE(TYPE, ...)                                           \
