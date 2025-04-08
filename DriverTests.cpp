@@ -690,7 +690,7 @@ static void ExiErrorTests(int, char*[]) noexcept {
 // Pointer*
 //===----------------------------------------------------------------===//
 
-void PointerUnionTests(int, char*[]) noexcept {
+static void PointerUnionTests(int, char*[]) noexcept {
   PointerUnion<ia8*, ia16*, ia32*, ia64*> AnyInt;
   {
     ia8 Val = 0;
@@ -778,7 +778,7 @@ static void RuneTests(int, char*[]) {
 // Bounded
 //===----------------------------------------------------------------===//
 
-void BoundedTests(int, char*[]) noexcept {
+static void BoundedTests(int, char*[]) noexcept {
   using T = u32;
   using Ty = Bounded<T>;
   Ty Val(77), Inf(exi::unbounded);
@@ -821,7 +821,7 @@ void BoundedTests(int, char*[]) noexcept {
 // Bounded
 //===----------------------------------------------------------------===//
 
-void MaybeBoxTests(int, char*[]) noexcept {
+static void MaybeBoxTests(int, char*[]) noexcept {
   MaybeBox<String> MBox;
   auto Data = [&MBox] { return MBox.dataAndOwned(); };
 
@@ -845,27 +845,73 @@ void MaybeBoxTests(int, char*[]) noexcept {
 // Poly
 //===----------------------------------------------------------------===//
 
-namespace {
+//namespace {
 
 struct MyBase {
-  virtual ~MyBase() {}
-  virtual void saySomething() = 0;
+  void saySomething() const { std::printf("Center!\n"); }
 };
 
-struct Meower : public MyBase {
-  void saySomething() override { std::printf("Meow!\n"); }
+struct Left : public MyBase {
+  void saySomething() const { std::printf("Left!\n"); }
 };
 
-struct Woofer : public MyBase {
-  void saySomething() override { std::printf("Woof!\n"); }
+struct Right : public MyBase {
+  void saySomething() const { std::printf("Right!\n"); }
 };
 
-} // namespace `anonymous`
+using SPoly = Poly<MyBase, Left, Right>;
 
-using MyPoly = Poly<MyBase, Meower, Woofer>;
+struct MyVBase {
+  virtual ~MyVBase() {}
+  virtual void saySomething() const = 0;
+};
 
-void PolyTests(int, char*[]) {
-  MyPoly x;
+struct Meower : public MyVBase {
+  void saySomething() const override { std::printf("Meow!\n"); }
+};
+
+struct Woofer : public MyVBase {
+  void saySomething() const override { std::printf("Woof!\n"); }
+};
+
+using VPoly = Poly<MyVBase, Meower, Woofer>;
+
+//} // namespace `anonymous`
+
+static void SaySomething(const SPoly& Val) {
+  Val.visit([](auto& Val) { Val.saySomething(); });
+}
+
+static void SPolyTests() {
+  SPoly x;
+  exi_assert(x.empty());
+  x = MyBase();
+  SaySomething(x);
+  x = Left();
+  exi_assert(isa<Left>(x));
+  if (auto X = dyn_cast<Left>(&x))
+    X->saySomething();
+  
+  SPoly y = x;
+  exi_assert(!y.empty());
+  Right M {};
+  y = M;
+  exi_assert(isa<Right>(y));
+  SaySomething(y);
+
+  SPoly z = std::move(x);
+  exi_assert(isa<Left>(z) && x.empty());
+  SaySomething(z);
+
+  Option<SPoly> O;
+  exi_assert(!O.has_value());
+  O = MyBase();
+  SaySomething(*O);
+  exi_assert(isa<MyBase>(*O));
+}
+
+static void VPolyTests() {
+  VPoly x;
   exi_assert(x.empty());
   x = Meower();
   x->saySomething();
@@ -873,21 +919,21 @@ void PolyTests(int, char*[]) {
   x->saySomething();
   exi_assert(isa<Woofer>(x));
   
-  MyPoly y = x;
+  VPoly y = x;
   exi_assert(!y.empty());
   Meower M {};
   y = M;
   exi_assert(isa<Meower>(y));
   y->saySomething();
 
-  MyPoly z = std::move(x);
+  VPoly z = std::move(x);
   exi_assert(isa<Woofer>(z) && x.empty());
   z->saySomething();
 
-  std::optional<MyPoly> O;
+  Option<VPoly> O;
   exi_assert(!O.has_value());
   O = Meower();
-  (*O)->saySomething();
+  O.value()->saySomething();
 
 #if 0
   x = O->take();
@@ -902,6 +948,11 @@ void PolyTests(int, char*[]) {
   std::swap(x, z);
   exi_assert(isa<Woofer>(x));
 #endif
+}
+
+static void PolyTests(int, char*[]) {
+  SPolyTests();
+  VPolyTests();
 }
 
 //===----------------------------------------------------------------===//
