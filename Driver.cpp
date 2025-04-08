@@ -23,6 +23,7 @@
 #include <Common/MMatch.hpp>
 #include <Common/MaybeBox.hpp>
 #include <Common/PointerIntPair.hpp>
+#include <Common/Poly.hpp>
 #include <Common/SmallStr.hpp>
 #include <Common/StringSwitch.hpp>
 #include <Common/Twine.hpp>
@@ -127,6 +128,8 @@ int main(int Argc, char* Argv[]) {
   outs().enable_colors(true);
   errs().enable_colors(true);
   dbgs().enable_colors(true);
+
+  root::tests_main(Argc, Argv);
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
 

@@ -24,6 +24,7 @@
 #include <Common/MaybeBox.hpp>
 #include <Common/Map.hpp>
 #include <Common/PointerUnion.hpp>
+#include <Common/Poly.hpp>
 #include <Common/String.hpp>
 #include <Common/SmallStr.hpp>
 #include <Common/SmallVec.hpp>
@@ -831,13 +832,78 @@ void MaybeBoxTests(int, char*[]) noexcept {
 
   exi_assert((Data() == std::pair{nullptr, false}));
   MBox = Stk;
+  fmt::println("{:p}: {{{:p}, {}}}", (void*)&Stk, (void*)Data().first, Data().second);
   exi_assert((Data() == std::pair{&Stk, false}));
   MBox = Opt;
+  fmt::println("{:p}: {{{:p}, {}}}", (void*)&Stk, (void*)Data().first, Data().second);
   exi_assert((Data() == std::pair{&Stk, false}));
   MBox = Nkd;
   exi_assert((Data() == std::pair{Bx.get(), false}));
   MBox = std::move(Bx);
   exi_assert((Data() == std::pair{Nkd.get(), true}));
+}
+
+//===----------------------------------------------------------------===//
+// Poly
+//===----------------------------------------------------------------===//
+
+namespace {
+
+struct MyBase {
+  virtual ~MyBase() {}
+  virtual void saySomething() = 0;
+};
+
+struct Meower : public MyBase {
+  void saySomething() override { std::printf("Meow!\n"); }
+};
+
+struct Woofer : public MyBase {
+  void saySomething() override { std::printf("Woof!\n"); }
+};
+
+} // namespace `anonymous`
+
+using MyPoly = Poly<MyBase, Meower, Woofer>;
+
+void PolyTests(int, char*[]) {
+  MyPoly x;
+  exi_assert(x.empty());
+  x = Meower();
+  x->saySomething();
+  x = Woofer();
+  x->saySomething();
+  exi_assert(isa<Woofer>(x));
+  
+  MyPoly y = x;
+  exi_assert(!y.empty());
+  Meower M {};
+  y = M;
+  exi_assert(isa<Meower>(y));
+  y->saySomething();
+
+  MyPoly z = std::move(x);
+  exi_assert(isa<Woofer>(z) && x.empty());
+  z->saySomething();
+
+  std::optional<MyPoly> O;
+  exi_assert(!O.has_value());
+  O = Meower();
+  (*O)->saySomething();
+
+#if 0
+  x = O->take();
+  x->saySomething();
+  z.swap(x);
+  x->saySomething();
+
+  x = z.take();
+  exi_assert(z.empty());
+  exi_assert(isa<Meower>(x));
+  z = Woofer();
+  std::swap(x, z);
+  exi_assert(isa<Woofer>(x));
+#endif
 }
 
 //===----------------------------------------------------------------===//
@@ -852,4 +918,5 @@ void root::tests_main(int Argc, char* Argv[]) {
   // RuneTests(Argc, Argv);
   BoundedTests(Argc, Argv);
   MaybeBoxTests(Argc, Argv);
+  PolyTests(Argc, Argv);
 }
