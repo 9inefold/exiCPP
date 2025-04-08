@@ -33,6 +33,8 @@
 #include <new>
 #include <type_traits>
 
+// TODO: In the future, add a check for embedded llvm-style RTTI.
+
 namespace exi {
 
 template <class Base,
@@ -247,6 +249,15 @@ public:
 	constexpr Poly() : Super() {}
 	constexpr Poly(std::nullopt_t) : Super() {}
 
+	Poly(const Poly& O)
+	 requires poly_detail::all_copyable<Base, Derived...> : Super() {
+		this->operator=(O);
+	}
+
+	Poly(Poly&& O) requires poly_detail::all_movable<Base, Derived...> : Super() {
+		this->operator=(std::move(O));
+	}
+
 	template <typename U>
 	Poly(std::in_place_type_t<U>, auto&&...Args) : 
 	 Super(std::in_place_type<U>, EXI_FWD(Args)...) {
@@ -262,15 +273,8 @@ public:
 	 Super(std::in_place_type<U>, std::move(Value)) {
 	}
 
-	Poly(const Poly& O) : Super() {
-		this->operator=(O);
-	}
-
-	Poly(Poly&& O) : Super() {
-		this->operator=(std::move(O));
-	}
-
-	Poly& operator=(const Poly& O) {
+	Poly& operator=(const Poly& O)
+	 requires poly_detail::all_copyable<Base, Derived...> {
 		this->reset();
 		if EXI_LIKELY(!O.empty()) {
 			O.visitSelf<void>([this] <typename T> (const T& Val) {
@@ -280,7 +284,8 @@ public:
 		return *this;
 	}
 
-	Poly& operator=(Poly&& O) noexcept {
+	Poly& operator=(Poly&& O) noexcept
+	 requires poly_detail::all_movable<Base, Derived...> {
 		this->reset();
 		if EXI_LIKELY(!O.empty()) {
 			O.visitSelf<void>([this] <typename T> (T& Val) {
@@ -453,6 +458,7 @@ auto Poly<Base, Derived...>::visit(F&& Func) const
 
 // Specialization of CastInfo for Poly
 template <typename To, typename...TT>
+requires is_one_of<To, TT...>
 struct CastInfo<To, Poly<TT...>>
     : public DefaultDoCastIfPossible<To, Poly<TT...>&,
                             CastInfo<To, Poly<TT...>>> {
@@ -475,7 +481,9 @@ struct CastInfo<To, Poly<TT...>>
 	}
 };
 
-template <typename To, typename...TT> struct isa_impl<To, Poly<TT...>> {
+template <typename To, typename...TT>
+requires is_one_of<To, TT...>
+struct isa_impl<To, Poly<TT...>> {
 	using From = Poly<TT...>;
 	using Super = poly_detail::Storage<TT...>;
 
