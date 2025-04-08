@@ -41,7 +41,7 @@ template <typename T> class MaybeBox {
   PointerIntPair<T*, 1, bool> Data;
 
   ALWAYS_INLINE void setData(T* Ptr, bool Owned) {
-    Data.setPointerAndInt(Ptr, true);
+    Data.setPointerAndInt(Ptr, Owned);
   }
   ALWAYS_INLINE void deleteData() {
     if (owned())
