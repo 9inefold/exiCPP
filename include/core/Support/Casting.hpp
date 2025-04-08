@@ -269,6 +269,16 @@ struct CastIsPossible<To, exi::Option<From>> {
   }
 };
 
+template <typename To, typename From>
+struct CastIsPossible<To, exi::Option<From&>> {
+  static inline bool isPossible(const exi::Option<From&> f) {
+    assert(f && "CastIsPossible::isPossible called on a nullopt!");
+    return isa_impl_wrap<
+        To, const From,
+        typename simplify_type<const From>::SimpleType>::doit(*f);
+  }
+};
+
 /// Upcasting (from derived to base) and casting from a type to itself should
 /// always be possible.
 template <typename To, typename From>
