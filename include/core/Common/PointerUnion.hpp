@@ -233,10 +233,10 @@ template <typename... PTs> struct CastInfoPointerUnionImpl {
 };
 
 // Specialization of CastInfo for PointerUnion
-template <typename To, typename... PTs>
+template <typename To, typename...PTs>
 struct CastInfo<To, PointerUnion<PTs...>>
     : public DefaultDoCastIfPossible<To, PointerUnion<PTs...>,
-                                     CastInfo<To, PointerUnion<PTs...>>> {
+                            CastInfo<To, PointerUnion<PTs...>>> {
   using From = PointerUnion<PTs...>;
   using Impl = CastInfoPointerUnionImpl<PTs...>;
 
@@ -251,7 +251,7 @@ struct CastInfo<To, PointerUnion<PTs...>>
 
 // Teach SmallPtrSet that PointerUnion is "basically a pointer", that has
 // # low bits available = min(PT1bits,PT2bits)-1.
-template <typename ...PTs>
+template <typename...PTs>
 struct PointerLikeTypeTraits<PointerUnion<PTs...>> {
   static inline void *getAsVoidPointer(const PointerUnion<PTs...> &P) {
     return P.getOpaqueValue();
