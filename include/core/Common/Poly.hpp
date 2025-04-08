@@ -143,6 +143,16 @@ public:
 		new (Data.buffer) U(EXI_FWD(Args)...);
 	}
 
+	static constexpr decltype(auto)
+	 From(Poly<Base, Derived...>& Child) noexcept {
+		return static_cast<Storage&>(Child);
+	}
+
+	static constexpr decltype(auto)
+	 From(const Poly<Base, Derived...>& Child) noexcept {
+		return static_cast<const Storage&>(Child);
+	}
+
 	template <typename U>
 	requires is_one_of<U, Base, Derived...>
 	static constexpr int tagof(type_c<U>) noexcept {
@@ -221,6 +231,7 @@ class Poly final : private poly_detail::Storage<Base, Derived...> {
 	static_assert((... && poly_detail::concrete<Derived>),
 		"All derived types must be concrete!");
 
+	friend class poly_detail::Storage<Base, Derived...>;
 	using Super = poly_detail::Storage<Base, Derived...>;
 
 	/// Finds the real return type of a visit.
@@ -449,19 +460,35 @@ struct CastInfo<To, Poly<TT...>>
 	using Super = poly_detail::Storage<TT...>;
 
   static inline bool isPossible(From& Val) {
-		auto& Base = (const Super&)Val;
+		auto& Base = Super::From(Val);
     return Base.template is<To>();
   }
 
   static To& doCast(From& Val) {
-		auto& Base = (const Super&)Val;
+		auto& Base = Super::From(Val);
 		auto& Data = Base.template as<To>();
 		return static_cast<To>(Data);
 	}
 
-  static inline To castFailed() {
-		return To();
+  static inline auto castFailed() {
+		return std::nullopt;
 	}
 };
+
+template <typename To, typename...TT> struct isa_impl<To, Poly<TT...>> {
+	using From = Poly<TT...>;
+	using Super = poly_detail::Storage<TT...>;
+
+  static inline bool doit(const From &Val) {
+		auto& Base = Super::From(Val);
+		return Base.template is<To>(); 
+	}
+};
+
+//template <typename To, typename...TT>
+//struct CastInfo<To, const Poly<TT...>,
+//	std::enable_if_t<!is_simple_type<const Poly<TT...>>::value>>
+//    : public ConstStrippingForwardingCast<To, const Poly<TT...>,
+//                            		 CastInfo<To, Poly<TT...>>> {};
 
 } // namespace exi
