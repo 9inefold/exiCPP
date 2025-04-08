@@ -832,10 +832,8 @@ void MaybeBoxTests(int, char*[]) noexcept {
 
   exi_assert((Data() == std::pair{nullptr, false}));
   MBox = Stk;
-  fmt::println("{:p}: {{{:p}, {}}}", (void*)&Stk, (void*)Data().first, Data().second);
   exi_assert((Data() == std::pair{&Stk, false}));
   MBox = Opt;
-  fmt::println("{:p}: {{{:p}, {}}}", (void*)&Stk, (void*)Data().first, Data().second);
   exi_assert((Data() == std::pair{&Stk, false}));
   MBox = Nkd;
   exi_assert((Data() == std::pair{Bx.get(), false}));
