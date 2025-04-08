@@ -17,7 +17,9 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines the Option alias.
+/// This file defines the Option class, which is a custom implementation of
+/// std::optional with extra functionality. It supports custom storage and
+/// reference types.
 ///
 //===----------------------------------------------------------------===//
 
