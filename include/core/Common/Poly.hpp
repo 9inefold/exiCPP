@@ -485,7 +485,7 @@ struct CastInfo<To, Poly<TT...>>
   static To& doCast(From& Val) {
     auto& Base = Super::From(Val);
     auto& Data = Base.template as<To>();
-    return static_cast<To>(Data);
+    return static_cast<To&>(Data);
   }
 
   static inline auto castFailed() {
