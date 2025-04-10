@@ -129,8 +129,6 @@ int main(int Argc, char* Argv[]) {
   errs().enable_colors(true);
   dbgs().enable_colors(true);
 
-  root::tests_main(Argc, Argv);
-
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
 
   // Basic.xml with default settings and no options.
