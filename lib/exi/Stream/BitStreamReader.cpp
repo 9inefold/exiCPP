@@ -63,6 +63,8 @@ ExiError BitStreamReader::checkReadBits(i64 Bits) const {
   return ExiError::OK;
 }
 
+void BitStreamReader::anchor() {}
+
 //////////////////////////////////////////////////////////////////////////
 // Peeking
 

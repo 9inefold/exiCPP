@@ -36,7 +36,7 @@ class MemoryBuffer;
 template <typename T> class SmallVecImpl;
 
 class BitStreamReader : public BitStreamCommon<ArrayRef<u8>> {
-  // TODO: friend class ...
+  friend class ByteStreamReader;
   using StreamT = ArrayRef<u8>;
   using BaseT = BitStreamCommon<StreamT>;
 public:
@@ -47,6 +47,8 @@ public:
   /// Constructs a `BitStreamReader` from a `MemoryBufferRef`.
   BitStreamReader(MemoryBufferRef Buffer) :
    BitStreamReader(Buffer.getBuffer()) {}
+
+  virtual ~BitStreamReader() = default;
 
 private:
   /// Constructs a `BitStreamReader` from a `StrRef`.
@@ -86,6 +88,8 @@ private:
 
   ExiError checkPeekBits(i64 Bits) const;
   ExiError checkReadBits(i64 Bits) const;
+
+  virtual void anchor();
 
 public:
   using BaseT::align;
@@ -264,6 +268,11 @@ public:
 
   /// Reads a sequence of bytes.
   ExiError read(MutArrayRef<u8> Bytes, i64 Len = -1);
+};
+
+class ByteStreamReader final : public BitStreamReader {
+public:
+  // TODO
 };
 
 } // namespace exi

@@ -1,4 +1,4 @@
-//===- exi/Stream/BitStream.hpp -------------------------------------===//
+//===- exi/Stream/Stream.hpp ----------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
