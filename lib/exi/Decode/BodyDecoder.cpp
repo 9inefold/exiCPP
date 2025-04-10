@@ -24,11 +24,16 @@
 #include <exi/Decode/BodyDecoder.hpp>
 #include <core/Support/Format.hpp>
 #include <core/Support/Logging.hpp>
-#include <core/Support/raw_ostream.hpp>
+#include <exi/Basic/ErrorCodes.hpp>
 
 #define DEBUG_TYPE "BodyDecoder"
 
 using namespace exi;
+
+ExiDecoder::ExiDecoder(MaybeBox<ExiOptions> Opts,
+                       Option<raw_ostream&> OS) : ExiDecoder(OS) {
+  Header.Opts = std::move(Opts);
+}
 
 raw_ostream& ExiDecoder::os() const {
   return OS.value_or(errs());

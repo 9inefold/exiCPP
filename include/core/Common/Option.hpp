@@ -26,6 +26,7 @@
 #pragma once
 
 #include <Common/Features.hpp>
+#include <Common/Fundamental.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <new>
 #include <optional>
@@ -42,6 +43,14 @@ concept is_const = std::is_const_v<T>;
 
 template <typename T>
 concept not_const = !is_const<T>;
+
+// TODO: Unify with Poly traits?
+template <typename T>
+concept abstract = std::is_abstract_v<T>;
+
+// TODO: Unify with Poly traits?
+template <typename T>
+concept concrete = !abstract<T>;
 
 template <class Derived, class Base>
 concept valid_constness = is_const<Base> || not_const<Derived>;
@@ -68,6 +77,8 @@ using Transform = Option<TransformImpl<F, T>>;
 
 //////////////////////////////////////////////////////////////////////////
 
+template <typename T> struct RefStorage;
+
 /// Default storage for `Option`, this is trivially destructible.
 template <typename T,
 	bool = std::is_trivially_destructible_v<T>>
@@ -91,7 +102,8 @@ template <typename T>
 struct Storage<T, false> {
 	union {
 		char Empty;
-		T Data;
+		// T Data;
+		std::conditional_t<concrete<T>, T, u8[sizeof(T)]> Data;
 	};
 	bool Active = false;
 public:
@@ -223,9 +235,11 @@ public:
 
   // Allow conversion from std::optional<T>.
   constexpr Option(const std::optional<T>& V)
+    requires option_detail::concrete<T>
       : Option(V ? *V : Option()) {}
 
-  constexpr Option(std::optional<T>&& V)
+  explicit constexpr Option(std::optional<T>&& V)
+    requires option_detail::concrete<T>
       : Option(V ? std::move(*V) : Option()) {}
 
   Option& operator=(T&& V) {
@@ -327,42 +341,95 @@ private:
 
 template <typename T> Option(T) -> Option<T>;
 
-// Optional type specialized for direct references.
-template <typename T> class Option<T&> {
+//////////////////////////////////////////////////////////////////////////
+// Option<T&>
+
+namespace option_detail {
+
+/// Default storage for `Option<T&>`, this is for concrete `T`s.
+template <typename T> struct RefStorage {
   T* Storage = nullptr;
 public:
   using type = std::remove_const_t<T>;
   using value_type = T&;
 
-  constexpr Option() = default;
-  constexpr Option(std::nullopt_t) {}
+  constexpr RefStorage() = default;
+  constexpr RefStorage(std::nullopt_t) {}
 
-  constexpr Option(T& In EXI_LIFETIMEBOUND) noexcept
+  constexpr RefStorage(T& In EXI_LIFETIMEBOUND) noexcept
       : Storage(std::addressof(In)) {}
-  constexpr Option(T* In) noexcept
+  constexpr RefStorage(T* In) noexcept
       : Storage(In) {}
-  Option(T&&) = delete;
+  RefStorage(T&&) = delete;
 
   template <option_detail::explicitly_derived_ex<T> U>
-  inline constexpr Option(Option<U&> O) : Storage(O.Storage) {}
-  constexpr Option(const Option/*T&*/& O) noexcept = default;
-  constexpr Option(Option&& O) noexcept = default;
+  inline constexpr RefStorage(Option<U&> O) : Storage(O.Storage) {}
 
   // Allow conversion from std::optional<T>.
-  constexpr Option(std::optional<type>& V)
+  explicit constexpr RefStorage(std::optional<type>& V)
       : Storage(V ? &*V : nullptr) {}
-  constexpr Option(const std::optional<type>& V)
+  explicit constexpr RefStorage(const std::optional<type>& V)
     requires option_detail::not_const<T>
       : Storage(V ? &*V : nullptr) {}
-  constexpr Option(std::optional<type>&&) = delete;
+  constexpr RefStorage(std::optional<type>&&) = delete;
 
 	// Allow conversion from Option<T>.
-  constexpr Option(Option<type>& O)
+  constexpr RefStorage(Option<type>& O)
       : Storage(O ? &*O : nullptr) {}
-  constexpr Option(const Option<type>& V)
+  constexpr RefStorage(const Option<type>& V)
     requires option_detail::not_const<T>
       : Storage(V ? &*V : nullptr) {}
-  constexpr Option(Option<type>&&) = delete;
+  constexpr RefStorage(Option<type>&&) = delete;
+
+  constexpr bool has_value() const { return Storage != nullptr; }
+
+  /// Reserved for `Option<T&>`. Converts the contained reference to
+  /// an `Option<T>`, if it exists.
+  constexpr Option<type> deref() const {
+    return has_value() ? Option(**this) : std::nullopt;
+  }
+
+  template <typename U> constexpr type deref_or(U&& Alt) const {
+    return deref().value_or(EXI_FWD(Alt));
+  }
+};
+
+/// Default storage for `Option<T&>`, this is for abstract `T`s.
+template <typename T> requires abstract<T> struct RefStorage<T> {
+  T* Storage = nullptr;
+public:
+  using type = std::remove_const_t<T>;
+  using value_type = T&;
+
+  constexpr RefStorage() = default;
+  constexpr RefStorage(std::nullopt_t) {}
+
+  constexpr RefStorage(T& In EXI_LIFETIMEBOUND) noexcept
+      : Storage(std::addressof(In)) {}
+  constexpr RefStorage(T* In) noexcept
+      : Storage(In) {}
+  RefStorage(T&&) = delete;
+
+  template <option_detail::explicitly_derived_ex<T> U>
+  inline constexpr RefStorage(Option<U&> O) : Storage(O.Storage) {}
+
+  constexpr bool has_value() const { return Storage != nullptr; }
+};
+
+} // namespace option_detail
+
+// Optional type specialized for direct references.
+template <typename T> class Option<T&>
+    : public option_detail::RefStorage<T> {
+  using BaseT = option_detail::RefStorage<T>;
+  using BaseT::Storage;
+public:
+  using type = BaseT::type;
+  using value_type = BaseT::value_type;
+
+  using BaseT::BaseT;
+  constexpr Option(const Option/*T&*/& O) noexcept : BaseT(O.Storage) {}
+  constexpr Option(Option&& O) noexcept : BaseT(O.Storage) {}
 
   /// Create a new object by constructing it in place with the given arguments.
   constexpr T& emplace(T& In EXI_LIFETIMEBOUND) {
@@ -389,7 +456,7 @@ public:
 	}
   
   constexpr explicit operator bool() const { return has_value(); }
-  constexpr bool has_value() const { return Storage != nullptr; }
+  using BaseT::has_value;
 
   constexpr T* operator->() const {
 		exi_invariant(has_value(), "value is inactive!");
@@ -400,16 +467,6 @@ public:
 		exi_invariant(has_value(), "value is inactive!");
 		return *Storage;
 	}
-
-  /// Reserved for `Option<T&>`. Converts the contained reference to
-  /// an `Option<T>`, if it exists.
-  constexpr Option<type> deref() const {
-    return has_value() ? Option(**this) : std::nullopt;
-  }
-
-  template <typename U> constexpr type deref_or(U&& Alt) const {
-    return deref().value_or(EXI_FWD(Alt));
-  }
 
   T& expect(const Twine& Msg) const {
     if EXI_UNLIKELY(!has_value())

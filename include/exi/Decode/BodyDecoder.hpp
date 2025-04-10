@@ -27,6 +27,7 @@
 #include <core/Common/DenseMap.hpp>
 #include <core/Common/Option.hpp>
 #include <core/Common/StringMap.hpp>
+#include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/ExiHeader.hpp>
 #include <exi/Decode/HeaderDecoder.hpp>
@@ -34,8 +35,6 @@
 #include <exi/Stream/StreamVariant.hpp>
 
 namespace exi {
-class raw_ostream;
-class ExiDecoder;
 
 struct DecoderFlags {
   bool DidHeader : 1 = false;
@@ -51,14 +50,16 @@ class ExiDecoder {
   DecoderFlags Flags;
 
 public:
-  ExiDecoder() = default;
+  ExiDecoder(Option<raw_ostream&> OS = std::nullopt) : OS(OS) {}
+  ExiDecoder(MaybeBox<ExiOptions> Opts, Option<raw_ostream&> OS = std::nullopt);
 
+  /*
   ExiDecoder(UnifiedBuffer Buffer,
-             Option<raw_ostream&> OS = std::nullopt) : ExiDecoder() {
-    this->OS = OS;
+             Option<raw_ostream&> OS = std::nullopt) : ExiDecoder(OS) {
     if (ExiError E = decodeHeader(Buffer); E && !OS)
       this->diagnose(E, true);
   }
+  */
 
   /// Get the state flags.
   DecoderFlags flags() const { return Flags; }
