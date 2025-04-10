@@ -272,7 +272,7 @@ public:
 
 class ByteStreamReader final : public BitStreamReader {
 public:
-  // TODO
+  using BitStreamReader::BitStreamReader;
 };
 
 } // namespace exi
