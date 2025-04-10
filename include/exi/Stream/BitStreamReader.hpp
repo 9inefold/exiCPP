@@ -273,6 +273,9 @@ public:
 class ByteStreamReader final : public BitStreamReader {
 public:
   using BitStreamReader::BitStreamReader;
+  ByteStreamReader(auto&&...Args) : BitStreamReader(EXI_FWD(Args)...) {
+    exi_unreachable("ByteStreamReader is currently unimplemented!");
+  }
 };
 
 } // namespace exi

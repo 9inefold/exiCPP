@@ -66,7 +66,7 @@ public:
   bool didHeader() const { return Flags.DidHeader; }
 
   /// Returns the stream used for diagnostics.
-  raw_ostream& os() const EXI_READONLY;
+  raw_ostream& os() const EXI_READONLY; // TODO: Remove readonly?
 
   /// Diagnoses errors in the current context.
   void diagnose(ExiError E, bool Force = false) const;
