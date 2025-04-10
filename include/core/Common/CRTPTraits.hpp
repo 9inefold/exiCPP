@@ -147,6 +147,10 @@ ALWAYS_INLINE constexpr const SUPER* super() const {                          \
   return static_cast<const SUPER*>(this);                                     \
 }
 
+#define EXI_CRTP_REQUIRE(SUPER, ...)                                          \
+  static_assert(requires { &SUPER::__VA_ARGS__; },                            \
+    #__VA_ARGS__ " not found in " #SUPER);
+
 /// This macro should be used to implement `super()` for `EXI_CRTP_TYPES`.
 ///
 #define EXI_CRTP_SUPER() EXI_CRTP_SUPER0(EXI_CRTP_EXPAND(EXI_CRTP_TYPES))
