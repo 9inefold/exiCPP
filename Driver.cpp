@@ -136,8 +136,14 @@ int main(int Argc, char* Argv[]) {
   XMLContainerRef Exi
     = Mgr->getOptXMLRef(HiddenFile, errs())
       .expect("could not locate file!");
+  auto MB = Exi.getBufferRef();
   
-  ExiDecoder Decode(Exi.getBufferRef(), errs());
-  if (!Decode.didHeader())
+  ExiOptions Opts {};
+  Opts.SchemaID.emplace(std::nullopt);
+
+  ExiDecoder Decoder(Opts, errs());
+  if (auto E = Decoder.decodeHeader(MB)) {
+    Decoder.diagnose(E);
     return 1;
+  }
 }
