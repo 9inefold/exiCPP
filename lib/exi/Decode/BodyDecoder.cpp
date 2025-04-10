@@ -40,10 +40,8 @@ void ExiDecoder::diagnose(ExiError E, bool Force) const {
   if (!Force && !OS)
     return;
   
-  if EXI_LIKELY(Reader) {
-    Reader([this] (auto& Strm) {
-      os() << "At [" << Strm.bitPos() << "]: ";
-    });
+  if EXI_LIKELY(!Reader.empty()) {
+    os() << "At [" << Reader->bitPos() << "]: ";
   }
   os() << E << '\n';
 }

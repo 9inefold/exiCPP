@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <core/Common/Poly.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Stream/StreamVariant.hpp>
 

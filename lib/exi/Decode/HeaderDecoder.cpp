@@ -47,24 +47,22 @@ public:
 } // namespace `anonymous`
 
 static BitStreamReader GetReader(StreamReader& Strm) {
-  if (auto* BitS = dyn_cast<BitStreamReader*>(Strm))
+  if (auto* BitS = dyn_cast<BitStreamReader>(&Strm))
     return BitStreamReader(BitS->getProxy());
   else {
-    /* TODO: When supported...
-    auto* ByteS = cast<ByteStreamReader*>(Strm);
-    return BitStreamReader(ByteS->getProxy());
-    */
-    exi_unreachable("use of ByteStreamReader is currently unsupported");
+    auto& ByteS = cast<ByteStreamReader>(Strm);
+    return BitStreamReader(ByteS.getProxy());
+    // exi_unreachable("use of ByteStreamReader is currently unsupported");
   }
 }
 
 static void SetReader(StreamReader& Strm, BitStreamReader& MyReader) {
   auto Proxy = MyReader.getProxy();
-  if (auto* BitS = dyn_cast<BitStreamReader*>(Strm))
+  if (auto* BitS = dyn_cast<BitStreamReader>(&Strm))
     BitS->setProxy(Proxy);
   else {
     /* TODO: When supported...
-    cast<ByteStreamReader*>(Strm)->setProxy(Proxy);
+    cast<ByteStreamReader>(Strm).setProxy(Proxy);
     */
     exi_unreachable("use of ByteStreamReader is currently unsupported");
   }
@@ -198,7 +196,7 @@ ExiError exi::decodeHeader(ExiHeader& Header, StreamReader& In) {
 
 ExiError ExiDecoder::decodeHeader(UnifiedBuffer Buffer) {
   if (Flags.DidHeader) {
-    exi_assert(Reader, "Invalid processor state");
+    exi_assert(!Reader.empty(), "Invalid processor state");
     return ExiError::OK;
   }
 
@@ -207,10 +205,10 @@ ExiError ExiDecoder::decodeHeader(UnifiedBuffer Buffer) {
 
   const auto Pos = Strm.getProxy();
   if (Out || Header.Opts->Alignment == AlignKind::BitPacked)
-    Reader.set<bitstream::BitReader>(Pos);
+    Reader.emplace<bitstream::BitReader>(Pos);
   else {
     exi_assert(Strm.bitOffset() == 0, "Misaligned stream!");
-    Reader.set<bitstream::ByteReader>(Pos);
+    Reader.emplace<bitstream::ByteReader>(Pos);
   }
   
   if (Out == ExiError::OK)

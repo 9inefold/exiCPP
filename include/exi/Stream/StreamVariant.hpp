@@ -41,11 +41,11 @@ namespace bitstream {
 
 using BitReader  = BitStreamReader;
 using BitWriter  = BitStreamWriter;
-using ByteReader = DummyStream;
+using ByteReader = ByteStreamReader;
 using ByteWriter = DummyStream;
 
 /// A pointer union of the stream types.
-using StreamReader = PointerUnion<BitReader*, ByteReader*>;
+using StreamReader = Poly<BitReader, ByteReader>;
 /// A pointer union of the stream types.
 using StreamWriter = PointerUnion<BitWriter*, ByteWriter*>;
 

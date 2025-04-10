@@ -32,105 +32,10 @@
 #include <exi/Decode/HeaderDecoder.hpp>
 #include <exi/Decode/UnifyBuffer.hpp>
 #include <exi/Stream/StreamVariant.hpp>
-#include <variant>
 
 namespace exi {
 class raw_ostream;
 class ExiDecoder;
-
-namespace decoder_detail {
-
-template <typename Ret>
-struct HandleVisitResult {
-  using type = Ret;
-  using opt_type = Option<Ret>;
-};
-
-template <>
-struct HandleVisitResult<void> {
-  using type = void;
-  using opt_type = void;
-};
-
-template <typename Fn, bool IsConst>
-struct VisitResult {
-  // TODO: apply_if<bool, template, ...>?
-  using strm_type = bitstream::BitReader;
-  using in_type = std::conditional_t<IsConst, const strm_type&, strm_type&>;
-  using ret_type = std::invoke_result_t<Fn, in_type>;
-  using type = typename HandleVisitResult<ret_type>::type;
-};
-
-template <typename Fn, bool IsConst = false>
-using visit_result_t = typename VisitResult<Fn, IsConst>::type;
-
-} // namespace decoder_detail
-
-namespace decode {
-
-/// The variant holding the inline reader. May be changed in the future.
-using ReaderVariant = std::variant<std::monostate, 
-  bitstream::BitReader, bitstream::ByteReader>;
-
-/// A wrapper around a reader variant. Currently only has 2 variants (+empty).
-class ReaderHolder {
-  friend class exi::ExiDecoder;
-  StreamReader Reader;
-  mutable ReaderVariant Inline;
-public:
-  ReaderHolder() = default;
-
-  /// Passes a reference to the stream to the provided functor.
-  template <typename F> auto operator()(F&& Func) &
-   -> decoder_detail::visit_result_t<F> {
-    exi_invariant(Reader, "Uninitialized reader!");
-    if (isa<bitstream::BitReader*>(Reader))
-      return this->visit<bitstream::BitReader>(EXI_FWD(Func));
-    // TODO: Enable the ByteReader overload once it is defined.
-    // else
-    //   return this->visit<bitstream::ByteReader>(EXI_FWD(Func));
-    exi_unreachable("invalid stream type!");
-  }
-  /// Passes a reference to the stream to the provided functor.
-  template <typename F> auto operator()(F&& Func) const&
-   -> decoder_detail::visit_result_t<F, true> {
-    exi_invariant(Reader, "Uninitialized reader!");
-    if (isa<bitstream::BitReader*>(Reader))
-      return this->visit<bitstream::BitReader>(EXI_FWD(Func));
-    // TODO: Enable the ByteReader overload once it is defined.
-    // else
-    //   return this->visit<bitstream::ByteReader>(EXI_FWD(Func));
-    exi_unreachable("invalid stream type!");
-  }
-
-  explicit operator bool() const {
-    return static_cast<bool>(Reader);
-  }
-
-private:
-  template <class T, typename AnyT>
-  T* set(BitConsumerProxy<AnyT> Proxy) {
-    T& NewReader = Inline.emplace<T>(Proxy);
-    this->Reader = &NewReader;
-    return &NewReader;
-  }
-
-  template <class StrmT, typename F>
-  decltype(auto) visit(F&& Func) {
-    using ResultT = decoder_detail::visit_result_t<F>;
-    auto* const Strm = cast<StrmT*>(Reader);
-    return ResultT(EXI_FWD(Func)(*Strm));
-  }
-
-  template <class StrmT, typename F>
-  decltype(auto) visit(F&& Func) const {
-    using ResultT = decoder_detail::visit_result_t<F, true>;
-    const auto* const Strm = cast<StrmT*>(Reader);
-    return ResultT(EXI_FWD(Func)(*Strm));
-  }
-};
-
-} // namespace decode
 
 struct DecoderFlags {
   bool DidHeader : 1 = false;
@@ -139,7 +44,7 @@ struct DecoderFlags {
 /// The EXI decoding processor.
 class ExiDecoder {
   ExiHeader Header;
-  decode::ReaderHolder Reader;
+  Poly<BitStreamReader, ByteStreamReader> Reader;
   /// The stream used for diagnostics.
   Option<raw_ostream&> OS;
   /// State of the decoder in terms of progression.
