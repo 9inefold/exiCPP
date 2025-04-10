@@ -265,6 +265,31 @@ APInt BitStreamReader::readBits(i64 Bits) {
   return readBitsAPLarge(Bits);
 }
 
+ExiError BitStreamReader::readUInt(u64& Out) {
+  u64 Multiplier = 1;
+  u64 Value = 0;
+
+  static constexpr i64 OctetsPerWord = kOctetsPerWord;
+  for (i64 N = 0; N < OctetsPerWord; ++N) {
+    u8 Octet;
+    exi_try(readByte(Octet));
+    const u64 Lo = Octet & 0b0111'1111;
+
+    Value = (Lo * Multiplier);
+    if (Octet & 0b1000'000) {
+      Multiplier *= 128;
+      continue;
+    }
+
+    Out = Value;
+    return ExiError::OK;
+  }
+
+  Out = 0;
+  LOG_WARN("uint exceeded {} octets.\n", OctetsPerWord);
+  return ErrorCode::kInvalidEXIInput;
+}
+
 ExiError BitStreamReader::read(MutArrayRef<u8> Out, i64 Bytes) {
   const i64 NBytes = CheckReadWriteSizes(Out.size(), Bytes);
   if EXI_UNLIKELY(!BaseT::canAccessBytes(NBytes)) {

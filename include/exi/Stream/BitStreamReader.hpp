@@ -266,6 +266,21 @@ public:
     return ubit<Bits>::FromBits(readBits64(Bits));
   }
 
+  /// Reads an `Unsigned Integer` with a maximum of 8 octets.
+  /// See https://www.w3.org/TR/exi/#encodingUnsignedInteger.
+  ExiError readUInt(u64& Out);
+
+  /// Reads an `Unsigned Integer` with a maximum of 8 octets.
+  /// See https://www.w3.org/TR/exi/#encodingUnsignedInteger.
+  /// @attention This function ignores errors.
+  u64 readUInt() {
+    u64 Out;
+    (void) readUInt(Out);
+    return Out;
+  }
+
+  // TODO: readUInt(APInt&)
+
   /// Reads a sequence of bytes.
   ExiError read(MutArrayRef<u8> Bytes, i64 Len = -1);
 };

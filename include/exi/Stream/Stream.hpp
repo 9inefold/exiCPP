@@ -74,6 +74,7 @@ struct StreamBase {
 
   static constexpr size_type kWordSize = sizeof(WordType);
   static constexpr size_type kBitsPerWord = bitsizeof_v<WordType>;
+  static constexpr size_type kOctetsPerWord = kBitsPerWord / 8;
 
   static constexpr size_type kMaxCapacityBytes = max_v<size_type> / kCHAR_BIT;
   static constexpr size_type kMask = (kCHAR_BIT - 1ull);
