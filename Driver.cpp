@@ -121,16 +121,18 @@ static void HandleEscapeCodeSetup() {
   Process::UseUTF8Codepage(true);
 }
 
-int main(int Argc, char* Argv[]) {
-  exi::DebugFlag = LogLevel::INFO;
-  HandleEscapeCodeSetup();
+static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
+  if (auto E = Decoder.decodeHeader(MB)) {
+    Decoder.diagnose(E);
+    return 1;
+  }
 
-  outs().enable_colors(true);
-  errs().enable_colors(true);
-  dbgs().enable_colors(true);
+  // ...
 
-  XMLManagerRef Mgr = make_refcounted<XMLManager>();
+  return 0;
+}
 
+static int DecodeBasic(XMLManagerRef Mgr) {
   // Basic.xml with default settings and no options.
   StrRef HiddenFile = "examples/BasicNoopt.exi"_str;
   XMLContainerRef Exi
@@ -142,8 +144,35 @@ int main(int Argc, char* Argv[]) {
   Opts.SchemaID.emplace(std::nullopt);
 
   ExiDecoder Decoder(Opts, errs());
-  if (auto E = Decoder.decodeHeader(MB)) {
-    Decoder.diagnose(E);
-    return 1;
-  }
+  return Decode(Decoder, MB);
+}
+
+static int DecodeCustomers(XMLManagerRef Mgr) {
+  // Customers.xml with Preserve.prefixes and no options.
+  StrRef HiddenFile = "examples/BasicNoopt2.exi"_str;
+  XMLContainerRef Exi
+    = Mgr->getOptXMLRef(HiddenFile, errs())
+      .expect("could not locate file!");
+  auto MB = Exi.getBufferRef();
+  
+  ExiOptions Opts {.Preserve { .Prefixes = true }};
+  Opts.SchemaID.emplace(std::nullopt);
+
+  ExiDecoder Decoder(Opts, errs());
+  return Decode(Decoder, MB);
+}
+
+int main(int Argc, char* Argv[]) {
+  exi::DebugFlag = LogLevel::INFO;
+  HandleEscapeCodeSetup();
+
+  outs().enable_colors(true);
+  errs().enable_colors(true);
+  dbgs().enable_colors(true);
+
+  XMLManagerRef Mgr = make_refcounted<XMLManager>();
+  if (int Ret = DecodeBasic(Mgr))
+    return Ret;
+  if (int Ret = DecodeCustomers(Mgr))
+    return Ret;
 }

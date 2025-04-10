@@ -20,10 +20,7 @@
          <zip>01760</zip>
       </address>
    </customer>
-</customers>
-
-<customers xmlns="https://www.w3.org/XML/EXI/">
-   <customer id="77">
+   <customer xmlns="https://www.w3.org/XML/EXI/" id="77">
       <name>Charter Group 2</name>
       <address>
          <street>130 Ridge</street>
