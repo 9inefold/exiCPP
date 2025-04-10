@@ -13,13 +13,15 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## In Progress
 
-- Produce event codes
+- Decode event codes
 - Update rapidxml
 - `ErrorCode` customization
 - `DenseMap` and friends
 
 ## Unfinished
 
+- Produce event codes
+- `Option<Unchecked<T>>` + `UncheckedOption`
 - `sys::` implementation on linux
 - `ByteStream*` implementation
 - `CrashRecoveryContext` and `cpptrace`
