@@ -25,6 +25,8 @@
 
 #include <core/Common/Any.hpp>
 #include <core/Common/Box.hpp>
+#include <core/Common/MaybeBox.hpp>
+#include <core/Common/D/Str.hpp>
 #include <core/Common/EnumTraits.hpp>
 #include <core/Common/Fundamental.hpp>
 #include <core/Common/Option.hpp>
@@ -116,9 +118,7 @@ struct ExiOptions {
   /// then an error has occurred. It should be explicitly nulled via `xsi:nil`
   /// or communicated out of band.
   /// Default: none
-  ///
-  /// FIXME: Use a better type once necessary? Or `Option<Option<u64>&>`
-  Option<Option<u64>> SchemaID = std::nullopt;
+  Option<MaybeBox<String>> SchemaID = std::nullopt;
 
   /// Specify alternate datatype representations for typed values in the body.
   /// When there are no elements in the Options document, no
@@ -127,8 +127,8 @@ struct ExiOptions {
   /// fidelity option is true, or when the EXI stream is a schemaless stream.
   /// Default: none
   ///
-  /// FIXME: Use a better type once necessary.
-  Box<StringMap</*User Defined Type*/String>> DatatypeRepresentationMap;
+  /// FIXME: Use a better type for mapping once necessary?
+  MaybeBox<StringMap</*User Defined Type*/String>> DatatypeRepresentationMap;
 
   /// Specifies the block size used for EXI compression
   u64 BlockSize = 1'000'000;

@@ -57,8 +57,8 @@ constexpr StrRef XSD_InitialValues[] {
 
 } // namespace `anonymous`
 
-static const Option<u64> PullSchemaID(Option<Option<u64>> SchemaID) {
-  return SchemaID.expect("schema should resolve to value or nil");
+static const Option<String&> PullSchemaID(const Option<MaybeBox<String>>& ID) {
+  return ID.expect("schema should resolve to value or nil").get();
 }
 
 //===----------------------------------------------------------------===//
@@ -76,7 +76,7 @@ void StringTable::setup(const ExiOptions& Opts) {
     return;
   DidSetup = true;
 
-  auto ID = PullSchemaID(Opts.SchemaID);
+  Option<const String&> ID = PullSchemaID(Opts.SchemaID);
   const bool UsesSchema = ID.has_value();
 
   /// Populates the URI, Prefix, and LocalName partitions.

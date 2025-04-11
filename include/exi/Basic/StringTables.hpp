@@ -118,6 +118,7 @@ class StringTable {
   CompactIDCounter GValueCount;
 
   bool DidSetup : 1 = false;
+  /// If the tables should wrap once reaching their capacity.
   bool WrappingValues : 1 = false;
 
 public:
