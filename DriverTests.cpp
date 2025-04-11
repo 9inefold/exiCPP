@@ -713,14 +713,15 @@ static void PointerUnionTests(int, char*[]) noexcept {
 // Runes
 //===----------------------------------------------------------------===//
 
-static void CheckRuneDecoding(StrRef UTF8, ArrayRef<char32_t> Expect) {
-  SmallVec<Rune> Runes;
+static void CheckRuneCoding(StrRef UTF8, ArrayRef<char32_t> Expect) {
   if (Expect.back() == 0)
     Expect = Expect.drop_back();
   WithColor(errs()) << "Testing "
     << WithColor::BRIGHT_YELLOW << '"' << UTF8 << '"'
     << WithColor::RESET << ":\n";
 
+  // Decode...
+  SmallVec<Rune> Runes;
   if (!decodeRunes(UTF8, Runes)) {
     WithColor Save(errs(), WithColor::BRIGHT_RED);
     Save << "  error decoding string.\n\n";
@@ -749,29 +750,59 @@ static void CheckRuneDecoding(StrRef UTF8, ArrayRef<char32_t> Expect) {
     return;
   }
 
+  // Encode...
+  SmallStr<64> Chars;
+  if (!encodeRunes(Runes, Chars)) {
+    WithColor Save(errs(), WithColor::BRIGHT_RED);
+    Save << "  error encoding string.\n\n";
+    return;
+  }
+
+  if (Chars.size() != UTF8.size()) {
+    WithColor Save(errs(), WithColor::BRIGHT_RED);
+    Save << "  size mismatch with utf8.\n\n";
+    return;
+  }
+
+  IsSame = true;
+  for (i64 I = 0, E = Chars.size(); I != E; ++I) {
+    const char ExChar = UTF8[I];
+    if (Chars[I] == ExChar)
+      continue;
+    IsSame = false;
+    errs() << "  mismatch at " << I << ": "
+      << format("\\{:06x} -> \\{:06x}\n", u8(Chars[I]), u8(ExChar));
+  }
+
+  if (!IsSame) {
+    WithColor Save(errs(), WithColor::BRIGHT_RED);
+    Save << "  encoding inconsistent.\n\n";
+    return;
+  }
+
   WithColor Save(errs(), WithColor::GREEN);
   Save << "  success!\n\n";
 }
 
 static void RuneTests(int, char*[]) {
-  CheckRuneDecoding(u8"Hello world, Καλημέρα κόσμε, コンニチハ",
-                     U"Hello world, Καλημέρα κόσμε, コンニチハ");
-  CheckRuneDecoding(u8"∮ E⋅da = Q,  n → ∞, ∑ f(i) = ∏ g(i)",
-                     U"∮ E⋅da = Q,  n → ∞, ∑ f(i) = ∏ g(i)");
-  CheckRuneDecoding(u8"∀x∈ℝ: ⌈x⌉ = −⌊−x⌋, α ∧ ¬β = ¬(¬α ∨ β)",
-                     U"∀x∈ℝ: ⌈x⌉ = −⌊−x⌋, α ∧ ¬β = ¬(¬α ∨ β)");
-  CheckRuneDecoding(u8"ði ıntəˈnæʃənəl fəˈnɛtık əsoʊsiˈeıʃn",
-                     U"ði ıntəˈnæʃənəl fəˈnɛtık əsoʊsiˈeıʃn");
-  CheckRuneDecoding(u8"((V⍳V)=⍳⍴V)/V←,V  ⌷←⍳→⍴∆∇⊃‾⍎⍕⌈",
-                     U"((V⍳V)=⍳⍴V)/V←,V  ⌷←⍳→⍴∆∇⊃‾⍎⍕⌈");
-  CheckRuneDecoding(u8"კონფერენციაზე დასასწრებად, რომელიც გაიმართება",
-                     U"კონფერენციაზე დასასწრებად, რომელიც გაიმართება");
-  CheckRuneDecoding(u8"๏ แผ่นดินฮั่นเสื่อมโทรมแสนสังเวช  พระปกเกศกองบู๊กู้ขึ้นใหม่",
-                     U"๏ แผ่นดินฮั่นเสื่อมโทรมแสนสังเวช  พระปกเกศกองบู๊กู้ขึ้นใหม่");
-  CheckRuneDecoding(u8"ሰው እንደቤቱ እንጅ እንደ ጉረቤቱ አይተዳደርም።",
-                     U"ሰው እንደቤቱ እንጅ እንደ ጉረቤቱ አይተዳደርም።");
-  CheckRuneDecoding(u8"ᚻᛖ ᚳᚹᚫᚦ ᚦᚫᛏ ᚻᛖ ᛒᚢᛞᛖ ᚩᚾ ᚦᚫᛗ ᛚᚪᚾᛞᛖ ᚾᚩᚱᚦᚹᛖᚪᚱᛞᚢᛗ ᚹᛁᚦ ᚦᚪ ᚹᛖᛥᚫ",
-                     U"ᚻᛖ ᚳᚹᚫᚦ ᚦᚫᛏ ᚻᛖ ᛒᚢᛞᛖ ᚩᚾ ᚦᚫᛗ ᛚᚪᚾᛞᛖ ᚾᚩᚱᚦᚹᛖᚪᚱᛞᚢᛗ ᚹᛁᚦ ᚦᚪ ᚹᛖᛥᚫ");
+  CheckRuneCoding(u8"Hello world, Καλημέρα κόσμε, コンニチハ",
+                   U"Hello world, Καλημέρα κόσμε, コンニチハ");
+  CheckRuneCoding(u8"∮ E⋅da = Q,  n → ∞, ∑ f(i) = ∏ g(i)",
+                   U"∮ E⋅da = Q,  n → ∞, ∑ f(i) = ∏ g(i)");
+  CheckRuneCoding(u8"∀x∈ℝ: ⌈x⌉ = −⌊−x⌋, α ∧ ¬β = ¬(¬α ∨ β)",
+                   U"∀x∈ℝ: ⌈x⌉ = −⌊−x⌋, α ∧ ¬β = ¬(¬α ∨ β)");
+  CheckRuneCoding(u8"ði ıntəˈnæʃənəl fəˈnɛtık əsoʊsiˈeıʃn",
+                   U"ði ıntəˈnæʃənəl fəˈnɛtık əsoʊsiˈeıʃn");
+  CheckRuneCoding(u8"((V⍳V)=⍳⍴V)/V←,V  ⌷←⍳→⍴∆∇⊃‾⍎⍕⌈",
+                   U"((V⍳V)=⍳⍴V)/V←,V  ⌷←⍳→⍴∆∇⊃‾⍎⍕⌈");
+  CheckRuneCoding(u8"კონფერენციაზე დასასწრებად, რომელიც გაიმართება",
+                   U"კონფერენციაზე დასასწრებად, რომელიც გაიმართება");
+  CheckRuneCoding(u8"๏ แผ่นดินฮั่นเสื่อมโทรมแสนสังเวช  พระปกเกศกองบู๊กู้ขึ้นใหม่",
+                   U"๏ แผ่นดินฮั่นเสื่อมโทรมแสนสังเวช  พระปกเกศกองบู๊กู้ขึ้นใหม่");
+  CheckRuneCoding(u8"ሰው እንደቤቱ እንጅ እንደ ጉረቤቱ አይተዳደርም።",
+                   U"ሰው እንደቤቱ እንጅ እንደ ጉረቤቱ አይተዳደርም።");
+  CheckRuneCoding(u8"ᚻᛖ ᚳᚹᚫᚦ ᚦᚫᛏ ᚻᛖ ᛒᚢᛞᛖ ᚩᚾ ᚦᚫᛗ ᛚᚪᚾᛞᛖ ᚾᚩᚱᚦᚹᛖᚪᚱᛞᚢᛗ ᚹᛁᚦ ᚦᚪ ᚹᛖᛥᚫ",
+                   U"ᚻᛖ ᚳᚹᚫᚦ ᚦᚫᛏ ᚻᛖ ᛒᚢᛞᛖ ᚩᚾ ᚦᚫᛗ ᛚᚪᚾᛞᛖ ᚾᚩᚱᚦᚹᛖᚪᚱᛞᚢᛗ ᚹᛁᚦ ᚦᚪ ᚹᛖᛥᚫ");
 }
 
 //===----------------------------------------------------------------===//
@@ -964,8 +995,8 @@ void root::tests_main(int Argc, char* Argv[]) {
   // ExiErrorTests(Argc, Argv);
   // BitStreamTests(Argc, Argv);
   // APIntTests(Argc, Argv);
-  // RuneTests(Argc, Argv);
-  BoundedTests(Argc, Argv);
-  MaybeBoxTests(Argc, Argv);
-  PolyTests(Argc, Argv);
+  RuneTests(Argc, Argv);
+  // BoundedTests(Argc, Argv);
+  // MaybeBoxTests(Argc, Argv);
+  // PolyTests(Argc, Argv);
 }

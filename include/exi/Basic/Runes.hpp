@@ -40,6 +40,42 @@ inline constexpr bool kCheckRunes = true;
 inline constexpr bool kCheckRunes = false;
 #endif
 
+class RuneEncoder;
+class RuneDecoder;
+
+/// A simple 4-byte buffer to hold encoded runes. Can be freely passed by value.
+class RuneBuf {
+  friend class RuneEncoder;
+  friend class RuneDecoder;
+  char Data[4] = {};
+  u32 Length = 0;
+
+  ALWAYS_INLINE constexpr RuneBuf& putUnchecked(u8 Val) {
+    Data[Length++] = static_cast<char>(Val);
+    return *this;
+  }
+
+public:
+  constexpr RuneBuf() = default;
+
+  constexpr RuneBuf& put(u8 Val) {
+    if EXI_UNLIKELY(Length == 4)
+      return *this;
+    return putUnchecked(Val);
+  }
+
+  ALWAYS_INLINE constexpr RuneBuf& reset() {
+    Length = 0;
+    return *this;
+  }
+
+  ALWAYS_INLINE constexpr usize size() const { return Length; }
+  ALWAYS_INLINE constexpr const char* data() const { return Data; }
+
+  constexpr StrRef str() const { return {Data, Length}; }
+  EXI_INLINE constexpr operator StrRef() const { return this->str(); }
+};
+
 /// A simple UTF8 -> UTF32 decoder. It can be run in a checked or unchecked
 /// mode, allowing for more efficient decoding. The latter requires external
 /// validation before running the decoder.
@@ -278,6 +314,56 @@ public:
 ALWAYS_INLINE constexpr RuneDecoder::iterator
  RuneDecoder::begin() const { return iterator(*this); }
 
+/// A simple UTF32 -> UTF8 decoder. It does not handle checking for things such
+/// as surrogate pairs directly, but it will when `exi::encodeRunes` is used.
+class RuneEncoder {
+  enum : u32 {
+    kASCII = 0x7f,
+    kCode2 = 0x7ff,
+    kCode3 = 0xffff,
+    kCode4 = 0x10ffff,
+  };
+
+  template <bool Ret, typename TrueType = bool>
+  using RetType = std::conditional_t<Ret, TrueType, void>;
+
+public:
+  template <bool ReturnCode = false>
+  EXI_INLINE static RetType<ReturnCode>
+   Encode(const Rune C, RuneBuf& Out) noexcept {
+    if (C <= kASCII) {
+      Out.reset()
+        .putUnchecked(C);
+    } else if (C <= kCode2) {
+      Out.reset()
+        .putUnchecked(0xc0 | (C >> 6))
+        .putUnchecked(0x80 | (C & 0x3f));
+    } else if (C <= kCode3) {
+      Out.reset()
+        .putUnchecked(0xe0 |  (C >> 12))
+        .putUnchecked(0x80 | ((C >> 6) & 0x3f))
+        .putUnchecked(0x80 |  (C & 0x3f));
+    } else if (C <= kCode4) {
+      Out.reset()
+        .putUnchecked(0xf0 |  (C >> 18))
+        .putUnchecked(0x80 | ((C >> 12) & 0x3f))
+        .putUnchecked(0x80 | ((C >> 6) & 0x3f))
+        .putUnchecked(0x80 |  (C & 0x3f));
+    } else {
+      RuneEncoder::Encode(U'�', Out);
+      return RetType<ReturnCode>(false);
+    }
+
+    return RetType<ReturnCode>(true);
+  }
+
+  static RuneBuf Encode(const Rune C) noexcept {
+    RuneBuf Out;
+    RuneEncoder::Encode<false>(C, Out);
+    return Out;
+  }
+};
+
 /// Safely decodes codepoints from the input and inserts them into `Runes`.
 /// @returns Whether the decoding was successful.
 bool decodeRunes(RuneDecoder Decoder, SmallVecImpl<Rune>& Runes);
@@ -286,5 +372,14 @@ bool decodeRunes(RuneDecoder Decoder, SmallVecImpl<Rune>& Runes);
 /// Does no validity checking, the return is just for consistency.
 /// Only use when you know the data is definitely valid.
 bool decodeRunesUnchecked(RuneDecoder Decoder, SmallVecImpl<Rune>& Runes);
+
+/// Safely encodes UTF8 from the input and inserts them into `Chars`.
+/// @returns Whether the decoding was successful.
+bool encodeRunes(ArrayRef<Rune> Runes, SmallVecImpl<char>& Chars);
+
+/// Encodes UTF8 from the input and inserts them into `Chars`.
+/// Does no validity checking, the return is just for consistency.
+/// Only use when you know the data is definitely valid.
+bool encodeRunesUnchecked(ArrayRef<Rune> Runes, SmallVecImpl<char>& Chars);
 
 } // namespace exi

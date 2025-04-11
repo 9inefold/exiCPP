@@ -60,3 +60,39 @@ bool exi::decodeRunesUnchecked(RuneDecoder Decoder,
   }
   return true;
 }
+
+bool exi::encodeRunes(ArrayRef<Rune> Runes,
+                      SmallVecImpl<char>& Chars) {
+  // ...
+  RuneBuf Buf;
+  auto* const Data = Buf.data();
+  bool Result = true;
+
+  Chars.reserve_back(Runes.size());
+  for (Rune C : Runes) {
+    /// Surrogate pairs are invalid under UTF8.
+    if EXI_UNLIKELY(C >= 0xD800 && C <= 0xDFFF) {
+      C = kInvalidRune;
+      Result = false;
+    }
+    if EXI_UNLIKELY(!RuneEncoder::Encode<true>(C, Buf))
+      Result = false;
+    Chars.append(Data, Data + Buf.size());
+  }
+  
+  return Result;
+}
+
+bool exi::encodeRunesUnchecked(ArrayRef<Rune> Runes,
+                               SmallVecImpl<char>& Chars) {
+  RuneBuf Buf;
+  auto* const Data = Buf.data();
+
+  Chars.reserve_back(Runes.size());
+  for (Rune C : Runes) {
+    RuneEncoder::Encode(C, Buf);
+    Chars.append(Data, Data + Buf.size());
+  }
+
+  return true;
+}
