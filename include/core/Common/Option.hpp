@@ -362,8 +362,12 @@ public:
       : Storage(In) {}
   RefStorage(T&&) = delete;
 
-  template <option_detail::explicitly_derived_ex<T> U>
-  inline constexpr RefStorage(Option<U&> O) : Storage(O.Storage) {}
+  template <option_detail::explicitly_derived_ex<type> U>
+  inline constexpr RefStorage(Option<U&> O) : Storage(O.data()) {}
+
+  template <std::same_as<type> U>
+  requires option_detail::is_const<T> 
+  inline constexpr RefStorage(Option<U&> O) : Storage(O.data()) {}
 
   // Allow conversion from std::optional<T>.
   explicit constexpr RefStorage(std::optional<type>& V)
@@ -410,8 +414,12 @@ public:
       : Storage(In) {}
   RefStorage(T&&) = delete;
 
-  template <option_detail::explicitly_derived_ex<T> U>
-  inline constexpr RefStorage(Option<U&> O) : Storage(O.Storage) {}
+  template <option_detail::explicitly_derived_ex<type> U>
+  inline constexpr RefStorage(Option<U&> O) : Storage(O.data()) {}
+
+  template <std::same_as<type> U>
+  requires option_detail::is_const<T> 
+  inline constexpr RefStorage(Option<U&> O) : Storage(O.data()) {}
 
   constexpr bool has_value() const { return Storage != nullptr; }
 };
