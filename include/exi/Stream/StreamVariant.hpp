@@ -24,6 +24,7 @@
 #pragma once
 
 #include <core/Common/PointerUnion.hpp>
+#include <core/Common/Poly.hpp>
 #include <exi/Stream/BitStreamReader.hpp>
 #include <exi/Stream/BitStreamWriter.hpp>
 
