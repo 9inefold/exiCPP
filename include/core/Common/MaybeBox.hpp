@@ -54,7 +54,12 @@ template <typename T> class MaybeBox {
 public:
   constexpr MaybeBox() = default;
   MaybeBox(const MaybeBox&) = delete;
-  MaybeBox(MaybeBox&& O) : Data(std::move(O.Data)) { O.clearData(); }
+
+  template <class U>
+  requires std::convertible_to<U*, T*>
+  MaybeBox(MaybeBox<U>&& O) : Data(O.get(), O.owned()) {
+    O.clearData();
+  }
 
   constexpr MaybeBox(std::nullptr_t) : MaybeBox() {}
   MaybeBox(T* Ptr, bool Owned) : Data(Ptr, Ptr ? Owned : false) {}
