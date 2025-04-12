@@ -192,6 +192,7 @@ private:
 
   ALWAYS_INLINE EventTerm handleEE(StreamReader&) {
     --SEDepth;
+    // TODO: Check this... I'm doing everything in my power to avoid a stack.
     this->pushGrammar(SEDepth > 0 ? Last : DocEnd);
     exi_invariant(SEDepth >= 0, "invalid nesting");
     return EventTerm::EE;
