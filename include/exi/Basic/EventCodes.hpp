@@ -32,18 +32,22 @@ namespace exi {
 
 /// An enum containing all the terminal symbols used for productions.
 enum class EventTerm : i32 {
-  SD, // Start Document
-  ED, // End Document
-  SE, // Start Element (qname)
-  EE, // End Element
-  AT, // Attribute (qname, value)
-  CH, // Characters (value)
-  NS, // Namespace Declaration (uri, prefix, local-element-ns)
-  CM, // Comment text (text)
-  PI, // Processing Instruction (name, text)
-  DT, // DOCTYPE (name, public, system, text)
-  ER, // Entity Reference (name)
-  SC, // Self Contained
+  SD,       // Start Document
+  ED,       // End Document
+  SE,       // Start Element (*)
+  SEUri,    // Start Element (uri:*)
+  SEQName,  // Start Element (qname)
+  EE,       // End Element
+  AT,       // Attribute (*, value)
+  ATUri,    // Attribute (uri:*, value)
+  ATQName,  // Attribute (qname, value)
+  CH,       // Characters (value)
+  NS,       // Namespace Declaration (uri, prefix, local-element-ns)
+  CM,       // Comment text (text)
+  PI,       // Processing Instruction (name, text)
+  DT,       // DOCTYPE (name, public, system, text)
+  ER,       // Entity Reference (name)
+  SC,       // Self Contained
   Void,
   Last = SC,
 };
