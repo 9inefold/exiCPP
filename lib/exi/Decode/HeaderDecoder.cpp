@@ -211,7 +211,14 @@ ExiError ExiDecoder::decodeHeader(UnifiedBuffer Buffer) {
     Reader.emplace<bitstream::ByteReader>(Pos);
   }
   
-  if (Out == ExiError::OK)
+  if (Out == ExiError::OK) {
+    auto& Opts = *Header.Opts;
+    if (!Opts.SchemaID.expect("schema is required"))
+      CurrentSchema = BuiltinSchema::GetSchema(Opts.SelfContained);
+    // TODO: Load schema
+    Idents.setup(*Header.Opts);
     Flags.DidHeader = true;
+  }
+
   return this->diagnoseme(Out);
 }

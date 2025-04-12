@@ -30,8 +30,10 @@
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/ExiHeader.hpp>
+#include <exi/Basic/StringTables.hpp>
 #include <exi/Decode/HeaderDecoder.hpp>
 #include <exi/Decode/UnifyBuffer.hpp>
+#include <exi/Grammar/Schema.hpp>
 #include <exi/Stream/StreamVariant.hpp>
 
 namespace exi {
@@ -44,6 +46,11 @@ struct DecoderFlags {
 class ExiDecoder {
   ExiHeader Header;
   Poly<BitStreamReader, ByteStreamReader> Reader;
+  /// The table holding decoded string values (QNames, LocalNames, etc.)
+  decode::StringTable Idents;
+  /// The schema for the current document.
+  /// TODO: Add SchemaResolver...
+  Box<Schema> CurrentSchema;
   /// The stream used for diagnostics.
   Option<raw_ostream&> OS;
   /// State of the decoder in terms of progression.
@@ -80,6 +87,9 @@ public:
   /// Decodes the header from the provided buffer.
   /// Defined in `HeaderDecoder.cpp`.
   ExiError decodeHeader(UnifiedBuffer Buffer);
+
+protected:
+
 };
 
 } // namespace exi

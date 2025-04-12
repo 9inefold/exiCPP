@@ -35,6 +35,12 @@ ExiDecoder::ExiDecoder(MaybeBox<ExiOptions> Opts,
   Header.Opts = std::move(Opts);
 }
 
+
+
+//===----------------------------------------------------------------===//
+// Miscellaneous
+//===----------------------------------------------------------------===//
+
 raw_ostream& ExiDecoder::os() const {
   return OS.value_or(errs());
 }
