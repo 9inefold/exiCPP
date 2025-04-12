@@ -59,7 +59,7 @@ public:
 
   /// @brief Gets a builtin schema.
   /// @param SelfContained If SC terms should be considered.
-  static Box<BuiltinSchema> GetBuiltinSchema(bool SelfContained);
+  static Box<BuiltinSchema> GetSchema(bool SelfContained);
 private:
   virtual void anchor();
 };

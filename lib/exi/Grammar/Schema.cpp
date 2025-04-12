@@ -152,7 +152,7 @@ private:
       }
       // 0.x
       static constexpr usize Off = SelfContained ? 4 : 3;
-      return this->childContentItems<Off>(Strm);
+      return this->childContentItems<Off>(Strm, Val);
     }
   }
 
@@ -162,7 +162,7 @@ private:
       return this->handleEE(Strm);
     // 1.x
     const u64 Val = Strm->readBits<3>();
-    return this->childContentItems<3>(Val);
+    return this->childContentItems<3>(Strm, Val);
   }
 
   template <usize M>
@@ -225,7 +225,7 @@ public:
 
 } // namespace `anonymous`
 
-Box<BuiltinSchema> BuiltinSchema::GetBuiltinSchema(bool SelfContained) {
+Box<BuiltinSchema> BuiltinSchema::GetSchema(bool SelfContained) {
   if (SelfContained)
     return std::make_unique<SCBuiltinSchema>();
   else
