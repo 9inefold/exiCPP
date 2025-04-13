@@ -32,10 +32,14 @@ namespace exi {
 /// The Compact ID type.
 using CompactID = u64;
 
-EXI_INLINE constexpr static u32 CompactIDLog2(CompactID ID) noexcept {
-  // exi_invariant(ID > 0);
-  if EXI_UNLIKELY(ID == 0)
-    return 0;
+template <bool NeverZero = false>
+EXI_INLINE constexpr u32 CompactIDLog2(CompactID ID) noexcept {
+  if constexpr (NeverZero)
+    exi_invariant(ID > 0);
+  else {
+    if EXI_UNLIKELY(ID == 0)
+      return 0;
+  }
   // Same as Log2_64 for now, may change in the future.
   return 63 - std::countl_zero(ID);
 }
@@ -63,13 +67,18 @@ private:
 
 } // namespace H
 
+template <u64 Offset = 0>
 class CompactIDCounter {
   CompactID Value = 0;
   u32 LogValue = 0;
 
+  ALWAYS_INLINE constexpr u32 Log2(CompactID ID) noexcept {
+    return CompactIDLog2<Offset != 0>(ID);
+  }
+
   /// Runs the compact log2 calculation on the current value. 
   EXI_INLINE constexpr void recalculateLog() {
-    LogValue = CompactIDLog2(this->Value);
+    LogValue = Log2(this->Value + Offset);
   }
 
 public:
@@ -77,7 +86,7 @@ public:
   EXI_INLINE constexpr CompactIDCounter() = default;
   /// Starts counter from `StartingID`.
   constexpr CompactIDCounter(CompactID StartingID) :
-   Value(StartingID), LogValue(CompactIDLog2(StartingID)) {}
+   Value(StartingID), LogValue(Log2(StartingID)) {}
   
   /// Returns the current value of the counter.
   EXI_INLINE constexpr CompactID value() const { return Value; }

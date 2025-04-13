@@ -90,7 +90,7 @@ class StringTable {
 
   /// Used to map URI indices to strings.
   SmallVec<URIInfo, kSchemaElts> URIMap;
-  CompactIDCounter URICount;
+  CompactIDCounter<1> URICount;
 
   /// Maps a URI to a (likely) singular value.
   using PrefixMapType = SmallVec<TinyPtrVec<InlineStr*>, kSchemaElts>;
