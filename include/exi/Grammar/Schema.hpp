@@ -36,7 +36,7 @@ class Schema : public RTTIExtends<Schema, RTTIRoot> {
 public:
   static const char ID;
   /// Gets the terminal symbol at the current position.
-  virtual EventTerm getTerm(StreamReader& Strm) = 0;
+  [[nodiscard]] virtual EventTerm getTerm(StreamReader& Strm) = 0;
   /// TODO: writeTerm(StreamWriter& Strm, EventCode);
 private:
   virtual void anchor();
@@ -59,7 +59,7 @@ public:
 
   /// @brief Gets a builtin schema.
   /// @param SelfContained If SC terms should be considered.
-  static Box<BuiltinSchema> GetSchema(bool SelfContained);
+  [[nodiscard]] static Box<BuiltinSchema> GetSchema(bool SelfContained);
 private:
   virtual void anchor();
 };
