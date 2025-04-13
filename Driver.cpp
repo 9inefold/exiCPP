@@ -141,7 +141,7 @@ static int DecodeBasic(XMLManagerRef Mgr) {
   auto MB = Exi.getBufferRef();
   
   ExiOptions Opts {};
-  Opts.SchemaID.emplace(std::nullopt);
+  Opts.SchemaID.emplace(nullptr);
 
   ExiDecoder Decoder(Opts, errs());
   return Decode(Decoder, MB);
@@ -156,7 +156,7 @@ static int DecodeCustomers(XMLManagerRef Mgr) {
   auto MB = Exi.getBufferRef();
   
   ExiOptions Opts {.Preserve { .Prefixes = true }};
-  Opts.SchemaID.emplace(std::nullopt);
+  Opts.SchemaID.emplace(nullptr);
 
   ExiDecoder Decoder(Opts, errs());
   return Decode(Decoder, MB);
@@ -177,7 +177,7 @@ static constexpr u8 Example[] {
 };
 
 int main(int Argc, char* Argv[]) {
-  exi::DebugFlag = LogLevel::INFO;
+  exi::DebugFlag = LogLevel::WARN;
   HandleEscapeCodeSetup();
 
   outs().enable_colors(true);
@@ -189,4 +189,25 @@ int main(int Argc, char* Argv[]) {
     return Ret;
   if (int Ret = DecodeCustomers(Mgr))
     return Ret;
+  
+  exi::DebugFlag = LogLevel::VERBOSE;
+
+  ExiDecoder Decoder(errs());
+  ExiOptions Opts {};
+  Opts.SchemaID.emplace(nullptr);
+  if (auto E = Decoder.setOptions(Opts)) {
+    Decoder.diagnose(E);
+    return 1;
+  }
+
+  ArrayRef Ex(Example);
+  if (auto E = Decoder.setReader(Ex)) {
+    Decoder.diagnose(E);
+    return 1;
+  }
+
+  if (auto E = Decoder.decodeBody()) {
+    Decoder.diagnose(E);
+    return 1;
+  }
 }

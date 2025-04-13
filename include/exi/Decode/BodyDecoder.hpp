@@ -39,7 +39,12 @@
 namespace exi {
 
 struct DecoderFlags {
+  /// If the stream was set externally.
+  bool SetReader : 1 = false;
+  /// If the header has already been "parsed".
   bool DidHeader : 1 = false;
+  /// If init has already been run.
+  bool DidInit : 1 = false;
 };
 
 /// The EXI decoding processor.
@@ -51,6 +56,9 @@ class ExiDecoder {
   /// The schema for the current document.
   /// TODO: Add SchemaResolver...
   Box<Schema> CurrentSchema;
+  /// The stack of current grammars.
+  // TODO: Vec<?> GrammarStack;
+
   /// The stream used for diagnostics.
   Option<raw_ostream&> OS;
   /// State of the decoder in terms of progression.
@@ -60,14 +68,6 @@ public:
   ExiDecoder(Option<raw_ostream&> OS = std::nullopt) : OS(OS) {}
   ExiDecoder(MaybeBox<ExiOptions> Opts, Option<raw_ostream&> OS = std::nullopt);
 
-  /*
-  ExiDecoder(UnifiedBuffer Buffer,
-             Option<raw_ostream&> OS = std::nullopt) : ExiDecoder(OS) {
-    if (ExiError E = decodeHeader(Buffer); E && !OS)
-      this->diagnose(E, true);
-  }
-  */
-
   /// Get the state flags.
   DecoderFlags flags() const { return Flags; }
   /// Returns if the header was successfully decoded.
@@ -75,7 +75,6 @@ public:
 
   /// Returns the stream used for diagnostics.
   raw_ostream& os() const EXI_READONLY; // TODO: Remove readonly?
-
   /// Diagnoses errors in the current context.
   void diagnose(ExiError E, bool Force = false) const;
   /// Diagnoses errors in the current context, then returns.
@@ -84,12 +83,30 @@ public:
     return E;
   }
 
+  /// Returns an error if the reader is empty.
+  ExiError readerExists() const;
+  /// Sets options out-of-band.
+  ExiError setOptions(MaybeBox<ExiOptions> Opts);
+  /// Sets reader out-of-band. Options must be provided.
+  ExiError setReader(UnifiedBuffer Buffer);
+
   /// Decodes the header from the provided buffer.
   /// Defined in `HeaderDecoder.cpp`.
   ExiError decodeHeader(UnifiedBuffer Buffer);
+  /// Decodes the body from the current stream.
+  ExiError decodeBody();
 
 protected:
+  /// Initializes StringTable and Schema.
+  ExiError init();
 
+  ExiError decodeEvent();
+  ExiError decodeSE(EventTerm Term);
+  ExiError decodeAT(EventTerm Term);
+
+  ExiError handleEE();
+  ExiError handleNS();
+  ExiError handleCH();
 };
 
 } // namespace exi
