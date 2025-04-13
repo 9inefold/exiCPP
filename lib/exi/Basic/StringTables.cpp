@@ -102,22 +102,32 @@ void StringTable::setup(const ExiOptions& Opts) {
   }
 }
 
-void StringTable::addPrefix(CompactID URI, StrRef Pfx) {
+CompactID StringTable::addURI(StrRef URI, Option<StrRef> Pfx) {
+  const CompactID ID = *URICount;
+  this->createURI(URI, Pfx);
+  return ID;
+}
+
+StrRef StringTable::addPrefix(CompactID URI, StrRef Pfx) {
   exi_invariant(URI < URIMap.size());
   this->assertPartitionsInSync();
 
   ++URIMap[URI].PrefixElts;
   InlineStr* PfxP = intern(Pfx);
   PrefixMap[URI].push_back(PfxP);
+
+  return PfxP->str();
 }
 
-void StringTable::addLocalName(CompactID URI, StrRef Name) {
+StrRef StringTable::addLocalName(CompactID URI, StrRef Name) {
   exi_invariant(URI < URIMap.size());
   this->assertPartitionsInSync();
 
   ++URIMap[URI].LNElts;
   LocalName* LN = createLocalName(Name);
   LNMap[URI].push_back(LN);
+
+  return LN->Name;
 }
 
 StrRef StringTable::addValue(StrRef Value) {

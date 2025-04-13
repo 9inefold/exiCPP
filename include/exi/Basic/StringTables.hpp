@@ -131,10 +131,21 @@ public:
   /// The signature will have to change when schemas are introduced.
   void setup(const ExiOptions& Opts);
 
+  /// Gets an `InlineStr` from an interned `StrRef`.
+  [[nodiscard]] const InlineStr* getInline(StrRef Str) const {
+    const char* RawStr = (Str.data() - offsetof(InlineStr, Data));
+    exi_invariant(NameValueCache.getAllocator().identifyObject(RawStr));
+    auto* const InlStr = reinterpret_cast<const InlineStr*>(RawStr);
+    exi_assert(InlStr->Size == Str.size());
+    return std::launder(InlStr);
+  }
+
+  /// Creates a new URI.
+  CompactID addURI(StrRef URI, Option<StrRef> Pfx = std::nullopt);
   /// Associates a new Prefix with a URI.
-  void addPrefix(CompactID URI, StrRef Pfx);
+  StrRef addPrefix(CompactID URI, StrRef Pfx);
   /// Associates a new LocalName with a URI.
-  void addLocalName(CompactID URI, StrRef Name);
+  StrRef addLocalName(CompactID URI, StrRef Name);
 
   /// Creates a new Value.
   StrRef addValue(StrRef Value);
