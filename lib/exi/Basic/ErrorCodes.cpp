@@ -38,7 +38,7 @@
 using namespace exi;
 
 using IHCType = exi::InvalidHeaderCode;
-static constexpr usize kErrorCodeCount = EnumRange<ErrorCode>::size;
+static constexpr i32 kErrorCodeCount = EnumRange<ErrorCode>::size;
 
 static constexpr StringLiteral ErrorCodeNames[kErrorCodeCount] {
   "Success",
@@ -79,13 +79,13 @@ static constexpr StringLiteral ErrorCodeMessages[kErrorCodeCount] {
 };
 
 StrRef exi::get_error_name(ErrorCode E) noexcept {
-  const usize Ix = static_cast<i32>(E);
+  const i32 Ix = static_cast<i32>(E);
   if EXI_LIKELY(Ix < kErrorCodeCount)
     return ErrorCodeNames[Ix].data();
   return "UNKNOWN_ERROR"_str;
 }
 StrRef exi::get_error_message(ErrorCode E) noexcept {
-  const usize Ix = static_cast<i32>(E);
+  const i32 Ix = static_cast<i32>(E);
   if EXI_LIKELY(Ix < kErrorCodeCount)
     return ErrorCodeMessages[Ix].data();
   return "UNKNOWN ERROR"_str;
