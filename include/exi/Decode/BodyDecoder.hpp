@@ -27,6 +27,7 @@
 #include <core/Common/DenseMap.hpp>
 #include <core/Common/Option.hpp>
 #include <core/Common/StringMap.hpp>
+#include <core/Common/Vec.hpp>
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/ExiHeader.hpp>
@@ -57,7 +58,7 @@ class ExiDecoder {
   /// TODO: Add SchemaResolver...
   Box<Schema> CurrentSchema;
   /// The stack of current grammars.
-  // TODO: Vec<?> GrammarStack;
+  SmallVec<const InlineStr*> GrammarStack;
 
   /// The stream used for diagnostics.
   Option<raw_ostream&> OS;
@@ -99,14 +100,18 @@ public:
 protected:
   /// Initializes StringTable and Schema.
   ExiError init();
-
   ExiError decodeEvent();
-  ExiError decodeSE(EventTerm Term);
-  ExiError decodeAT(EventTerm Term);
 
-  ExiError handleEE();
-  ExiError handleNS();
-  ExiError handleCH();
+  ExiError decodeSE(EventTerm Term);
+  ExiError decodeEE();
+  ExiError decodeAT(EventTerm Term);
+  ExiError decodeNS();
+  ExiError decodeCH();
+
+  Option<String> decodeString();
+  Option<StrRef> decodeString(SmallVecImpl<char>& Storage);
+
+  Option<StrRef> readString(u64 Size, SmallVecImpl<char>& Storage);
 };
 
 } // namespace exi

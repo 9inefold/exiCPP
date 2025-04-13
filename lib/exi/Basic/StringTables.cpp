@@ -102,10 +102,10 @@ void StringTable::setup(const ExiOptions& Opts) {
   }
 }
 
-CompactID StringTable::addURI(StrRef URI, Option<StrRef> Pfx) {
-  const CompactID ID = *URICount;
-  this->createURI(URI, Pfx);
-  return ID;
+IDPair StringTable::addURI(StrRef URI, Option<StrRef> Pfx) {
+  // const CompactID ID = *URICount;
+  auto [Info, ID] = createURI(URI, Pfx);
+  return {Info->Name, ID};
 }
 
 StrRef StringTable::addPrefix(CompactID URI, StrRef Pfx) {

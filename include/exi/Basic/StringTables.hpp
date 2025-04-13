@@ -50,6 +50,8 @@ namespace decode {
 
 class StringTable;
 
+using IDPair = std::pair<StrRef, CompactID>;
+
 /// The value stored for each entry in the URI map.
 struct URIInfo {
   StrRef Name; /// Data for [namespace]:local-name
@@ -110,12 +112,12 @@ class StringTable {
   ///  Eg. `LNMap[URI][LocalID]->LocalValues[ValueID]`
   /// TODO: Cache?? And maybe use a deque instead...
   PagedVec<LNMapType, kLNPageElts> LNMap;
-  CompactIDCounter LNCount;
+  CompactIDCounter<> LNCount;
 
   /// Used to map LocalName IDs to GlobalValues.
   ///  Eg. `GValueMap[GlobalID]`
   SmallVec<InlineStr*, 0> GValueMap;
-  CompactIDCounter GValueCount;
+  CompactIDCounter<> GValueCount;
 
   bool DidSetup : 1 = false;
   /// If the tables should wrap once reaching their capacity.
@@ -141,7 +143,7 @@ public:
   }
 
   /// Creates a new URI.
-  CompactID addURI(StrRef URI, Option<StrRef> Pfx = std::nullopt);
+  IDPair addURI(StrRef URI, Option<StrRef> Pfx = std::nullopt);
   /// Associates a new Prefix with a URI.
   StrRef addPrefix(CompactID URI, StrRef Pfx);
   /// Associates a new LocalName with a URI.
@@ -151,6 +153,26 @@ public:
   StrRef addValue(StrRef Value);
   /// Associates a new Value with a (URI, LocalNameID).
   StrRef addValue(CompactID URI, CompactID LocalID, StrRef Value);
+
+  StrRef getURI(CompactID URI) const {
+    exi_invariant(URI < URIMap.size());
+    this->assertPartitionsInSync();
+    return URIMap[URI].Name;
+  }
+
+  StrRef getLocalName(CompactID URI, CompactID LocalID) const {
+    exi_invariant(URI < URIMap.size());
+    this->assertPartitionsInSync();
+    return LNMap[URI][LocalID]->Name;
+  }
+
+  u64 getURILog() const { return URICount.bits(); }
+
+  u64 getLocalNameLog(CompactID URI) const {
+    exi_invariant(URI < URIMap.size());
+    this->assertPartitionsInSync();
+    return CompactIDLog2<>(URIMap[URI].LNElts);
+  }
 
 private:
   [[nodiscard]] InlineStr* intern(StrRef Str) {

@@ -127,7 +127,10 @@ static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
     return 1;
   }
 
-  // ...
+  if (auto E = Decoder.decodeBody()) {
+    Decoder.diagnose(E);
+    return 1;
+  }
 
   return 0;
 }
@@ -177,7 +180,7 @@ static constexpr u8 Example[] {
 };
 
 int main(int Argc, char* Argv[]) {
-  exi::DebugFlag = LogLevel::WARN;
+  exi::DebugFlag = LogLevel::VERBOSE;
   HandleEscapeCodeSetup();
 
   outs().enable_colors(true);
@@ -185,11 +188,13 @@ int main(int Argc, char* Argv[]) {
   dbgs().enable_colors(true);
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
+#if 0
   if (int Ret = DecodeBasic(Mgr))
     return Ret;
   if (int Ret = DecodeCustomers(Mgr))
     return Ret;
-  
+#endif
+
   exi::DebugFlag = LogLevel::VERBOSE;
 
   ExiDecoder Decoder(errs());

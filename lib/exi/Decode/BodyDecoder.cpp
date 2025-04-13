@@ -22,10 +22,12 @@
 //===----------------------------------------------------------------===//
 
 #include <exi/Decode/BodyDecoder.hpp>
+#include <core/Common/MMatch.hpp>
 #include <core/Support/Casting.hpp>
 #include <core/Support/Format.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
+#include <exi/Basic/Runes.hpp>
 
 #define DEBUG_TYPE "BodyDecoder"
 
@@ -161,15 +163,15 @@ ExiError ExiDecoder::decodeEvent() {
   case EventTerm::SEQName:  // Start Element (qname)
     return this->decodeSE(Term);
   case EventTerm::EE:       // End Element
-    return this->handleEE();
+    return this->decodeEE();
   case EventTerm::AT:       // Attribute (*, value)
   case EventTerm::ATUri:    // Attribute (uri:*, value)
   case EventTerm::ATQName:  // Attribute (qname, value)
     return this->decodeAT(Term);
   case EventTerm::NS:       // Namespace Declaration (uri, prefix, local-element-ns)
-    return this->handleNS();
+    return this->decodeNS();
   case EventTerm::CH:       // Characters (value)
-    return this->handleCH();
+    return this->decodeCH();
   case EventTerm::CM:       // Comment text (text)  
   case EventTerm::PI:       // Processing Instruction (name, text)
   case EventTerm::DT:       // DOCTYPE (name, public, system, text)
@@ -181,34 +183,115 @@ ExiError ExiDecoder::decodeEvent() {
   }
 }
 
+// Start Element (*)
+// Start Element (uri:*)
+// Start Element (qname)
 ExiError ExiDecoder::decodeSE(EventTerm Term) {
-  // Start Element (*)
-  // Start Element (uri:*)
-  // Start Element (qname)
+  if (Term != EventTerm::SE)
+    return ErrorCode::kUnimplemented;
+  
+  u64 UID; {
+    const u64 NBits = Idents.getURILog();
+    LOG_EXTRA("Decoding <{}>", NBits);
+    exi_try(Reader->readBits64(UID, NBits));
+  }
+
+  StrRef URI;
+  if (UID == 0) {
+    SmallStr<32> Data;
+    Option Str = decodeString(Data);
+    if EXI_UNLIKELY(!Str)
+      return ErrorCode::kInvalidStringOp;
+    std::tie(URI, UID) = Idents.addURI(*Str);
+  } else {
+    UID -= 1;
+    URI = Idents.getURI(UID);
+  }
+  LOG_EXTRA(">> URI @{}: \"{}\"", UID, URI);
+
+  u64 LnID; {
+    LOG_EXTRA("Decoding UInt");
+    exi_try(Reader->readUInt(LnID));
+  }
+
+  StrRef LocalName;
+  if (LnID == 0) {
+    const u64 NBits = Idents.getLocalNameLog(UID);
+    LOG_EXTRA("Decoding <{}>", NBits);
+    exi_try(Reader->readBits64(LnID, NBits));
+    LocalName = Idents.getLocalName(UID, LnID);
+  } else {
+    SmallStr<32> Data;
+    Option Str = readString(LnID, Data);
+    if EXI_UNLIKELY(!Str)
+      return ErrorCode::kInvalidStringOp;
+    LocalName = Idents.addLocalName(UID, *Str);
+  }
+  LOG_EXTRA(">> LN @{}: \"{}\"", LnID, LocalName);
+  
+  // TODO: Prefixes...
+
+  return ExiError::OK;
+}
+
+ExiError ExiDecoder::decodeEE() {
   return ErrorCode::kUnimplemented;
 }
 
+// Attribute (*, value)
+// Attribute (uri:*, value)
+// Attribute (qname, value)
 ExiError ExiDecoder::decodeAT(EventTerm Term) {
-  // Attribute (*, value)
-  // Attribute (uri:*, value)
-  // Attribute (qname, value)
+  if (Term != EventTerm::AT)
+    return ErrorCode::kUnimplemented;
+  
   return ErrorCode::kUnimplemented;
 }
 
-ExiError ExiDecoder::handleEE() {
+// Namespace Declaration (uri, prefix, local-element-ns)
+ExiError ExiDecoder::decodeNS() {
   return ErrorCode::kUnimplemented;
 }
 
-ExiError ExiDecoder::handleNS() {
-  // Namespace Declaration (uri, prefix, local-element-ns)
+// Characters (value)
+ExiError ExiDecoder::decodeCH() {
   return ErrorCode::kUnimplemented;
 }
 
-ExiError ExiDecoder::handleCH() {
-  // Characters (value)
-  return ErrorCode::kUnimplemented;
+Option<String> ExiDecoder::decodeString() {
+  SmallStr<64> Data;
+  if (!this->decodeString(Data))
+    return std::nullopt;
+  return String(Data);
 }
 
+Option<StrRef> ExiDecoder::decodeString(SmallVecImpl<char>& Storage) {
+  u64 Size = 0;
+  if (auto E = Reader->readUInt(Size)) {
+    this->diagnose(E);
+    return std::nullopt;
+  }
+
+  return readString(Size, Storage);
+}
+
+Option<StrRef> ExiDecoder::readString(u64 Size, SmallVecImpl<char>& Storage) {
+  if (Size == 0)
+    return ""_str;
+
+  Storage.clear();
+  for (u64 Ix = 0; Ix < Size; ++Ix) {
+    u64 Rune;
+    if (auto E = Reader->readUInt(Rune)) {
+      this->diagnose(E);
+      return std::nullopt;
+    }
+    auto Buf = RuneEncoder::Encode(Rune);
+    Storage.append(Buf.data(), Buf.data() + Buf.size());
+  }
+
+  return StrRef(Storage.data(), Size);
+}
 
 //===----------------------------------------------------------------===//
 // Miscellaneous

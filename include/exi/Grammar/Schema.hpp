@@ -59,6 +59,7 @@ public:
 
   /// @brief Gets a builtin schema.
   /// @param SelfContained If SC terms should be considered.
+  /// FIXME: THIS DOESN'T WORK!!! Need to take Preserve into account.
   [[nodiscard]] static Box<BuiltinSchema> GetSchema(bool SelfContained);
 private:
   virtual void anchor();
