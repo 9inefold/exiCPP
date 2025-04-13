@@ -189,7 +189,12 @@ static ExiError decodeHeaderImpl(ExiHeader& Header, BitStreamReader& Strm) {
 }
 
 ExiError exi::decodeHeader(ExiHeader& Header, StreamReader& In) {
-  BitStreamReader Strm = GetReader(In);
+  if EXI_UNLIKELY(In.empty()) {
+    LOG_WARN("Stream was not initialized.");
+    return ErrorCode::kNullptrRef;
+  }
+
+  BitStreamReader Strm(In->getProxy());
   RTTISetter SetOnExit(Strm, In);
   return decodeHeaderImpl(Header, Strm);
 }
@@ -197,12 +202,13 @@ ExiError exi::decodeHeader(ExiHeader& Header, StreamReader& In) {
 ExiError ExiDecoder::decodeHeader(UnifiedBuffer Buffer) {
   if (Flags.DidHeader) {
     exi_assert(!Reader.empty(), "Invalid processor state");
-    return ExiError::OK;
+    return this->readerExists();
   }
 
   BitStreamReader Strm(Buffer.arr());
   ExiError Out = decodeHeaderImpl(Header, Strm);
 
+  Flags.SetReader = false;
   const auto Pos = Strm.getProxy();
   if (Out || Header.Opts->Alignment == AlignKind::BitPacked)
     Reader.emplace<bitstream::BitReader>(Pos);
@@ -212,12 +218,9 @@ ExiError ExiDecoder::decodeHeader(UnifiedBuffer Buffer) {
   }
   
   if (Out == ExiError::OK) {
-    auto& Opts = *Header.Opts;
-    if (!Opts.SchemaID.expect("schema is required"))
-      CurrentSchema = BuiltinSchema::GetSchema(Opts.SelfContained);
-    // TODO: Load schema
-    Idents.setup(*Header.Opts);
-    Flags.DidHeader = true;
+    if (ExiError E = this->init())
+      this->diagnose(E, /*Force=*/true);
+    return ExiError::OK;
   }
 
   return this->diagnoseme(Out);
