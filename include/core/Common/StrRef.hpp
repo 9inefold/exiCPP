@@ -42,7 +42,8 @@
 #include <utility>
 #include <fmt/core.h>
 
-#if defined(__clang__) && EXI_HAS_ATTR(enable_if)                             \
+#if defined(__clang__) && !defined(__INTELLISENSE__)                          \
+                       && EXI_HAS_ATTR(enable_if)                             \
                        && EXI_HAS_BUILTIN(__builtin_constant_p)
 # define STRLIT_ENABLE_IF_CONSTANT(VAL)                                       \
   __attribute((enable_if(__builtin_constant_p(VAL), "non-static string")))
