@@ -68,6 +68,7 @@ class ExiDecoder {
 public:
   ExiDecoder(Option<raw_ostream&> OS = std::nullopt) : OS(OS) {}
   ExiDecoder(MaybeBox<ExiOptions> Opts, Option<raw_ostream&> OS = std::nullopt);
+  ~ExiDecoder() { os().flush(); }
 
   /// Get the state flags.
   DecoderFlags flags() const { return Flags; }
