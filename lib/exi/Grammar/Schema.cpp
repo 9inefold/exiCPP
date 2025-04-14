@@ -313,11 +313,6 @@ private:
     exi_unreachable("invalid ElementContent");
   }
 
-  template <usize M>
-  CC ALWAYS_INLINE EventTerm childContentItems(StreamReader& Strm, const u64 Val) {
-    exi_unreachable("invalid ChildContentItems");
-  }
-
   CC ALWAYS_INLINE EventTerm handleSE(StreamReader&) {
     this->pushGrammar(ElementContent);
     ++SEDepth;
