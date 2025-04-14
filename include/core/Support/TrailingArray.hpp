@@ -85,6 +85,8 @@ protected:
   }
 
   [[nodiscard]] static Derived* New(unsigned N) {
+    static_assert(std::is_final_v<Derived>,
+      "Derived is required to be final to avoid array overlap.");
     void* const Ptr = ::operator new(TrailingArray::NewSize(N));
     // TODO: Check alignment?
     return static_cast<Derived*>(Ptr);
@@ -143,6 +145,9 @@ public:
   const_reverse_iterator rbegin() const { return reverse_iterator(end()); }
   reverse_iterator rend() { return reverse_iterator(begin()); }
   const_reverse_iterator rend() const { return reverse_iterator(begin()); }
+
+  MutArrayRef<T> arr() { return MutArrayRef<T>(data(), Size); }
+  ArrayRef<T> arr() const { return ArrayRef<T>(data(), Size); }
 };
 
 } // namespace exi
