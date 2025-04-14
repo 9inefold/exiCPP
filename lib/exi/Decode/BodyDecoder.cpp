@@ -98,6 +98,8 @@ ExiError ExiDecoder::init() {
     LOG_ERROR("Schema could not be allocated.");
     return ErrorCode::kInvalidMemoryAlloc;
   }
+
+  CurrentSchema->dump();
   
   // TODO: Load schema
   Idents.setup(Opts);

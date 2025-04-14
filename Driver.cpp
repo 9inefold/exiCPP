@@ -89,6 +89,22 @@ static bool CheckEnvTruthiness(Option<String>& Env,
     *Env, EmptyResult);
 }
 
+static void HandleEscapeCodeSetup() {
+  using sys::Process;
+  if (Process::IsReallyDebugging()) {
+    Option<String> NoAnsiEnv
+      = Process::GetEnv("EXICPP_NO_ANSI");
+    if (!CheckEnvTruthiness(NoAnsiEnv, /*EmptyResult=*/true)) {
+      LOG_EXTRA("ANSI escape codes disabled.");
+      return;
+    }
+  }
+
+  LOG_EXTRA("ANSI escape codes enabled.");
+  Process::UseANSIEscapeCodes(true);
+  Process::UseUTF8Codepage(true);
+}
+
 static void RunDumps(XMLManager& Mgr) {
   using namespace root;
   FullXMLDump(Mgr, "examples/022.xml");
@@ -105,20 +121,14 @@ static void RunDumps(XMLManager& Mgr) {
   // FullXMLDump(Mgr, "large-examples/treebank_e.xml");
 }
 
-static void HandleEscapeCodeSetup() {
-  using sys::Process;
-  if (Process::IsReallyDebugging()) {
-    Option<String> NoAnsiEnv
-      = Process::GetEnv("EXICPP_NO_ANSI");
-    if (!CheckEnvTruthiness(NoAnsiEnv, /*EmptyResult=*/true)) {
-      LOG_EXTRA("ANSI escape codes disabled.");
-      return;
-    }
-  }
+static void TestSchema(StrRef Name, ExiOptions::PreserveOpts Preserve) {
+  ExiOptions Opts { .Preserve = Preserve };
+  Opts.SchemaID.emplace(nullptr);
+  auto S = BuiltinSchema::New(Opts);
+  exi_assert(S, "Invalid BuiltinSchema");
 
-  LOG_EXTRA("ANSI escape codes enabled.");
-  Process::UseANSIEscapeCodes(true);
-  Process::UseUTF8Codepage(true);
+  WithColor(outs(), raw_ostream::BRIGHT_BLUE) << Name << ":\n";
+  S->dump();
 }
 
 static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
@@ -194,6 +204,26 @@ int main(int Argc, char* Argv[]) {
   if (int Ret = DecodeCustomers(Mgr))
     return Ret;
 #endif
+
+  exi::DebugFlag = LogLevel::INFO;
+
+  TestSchema("Preserve.{CM}", {
+    .Comments = true,
+  });
+  TestSchema("Preserve.{CM, DT}", {
+    .Comments = true,
+    .DTDs = true,
+  });
+  TestSchema("Preserve.{PI, NS}", {
+    .PIs = true,
+    .Prefixes = true,
+  });
+  TestSchema("Preserve.All", {
+    .Comments = true,
+    .DTDs = true,
+    .PIs = true,
+    .Prefixes = true,
+  });
 
   exi::DebugFlag = LogLevel::VERBOSE;
 
