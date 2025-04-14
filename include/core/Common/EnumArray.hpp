@@ -33,11 +33,16 @@ namespace exi {
 /// Default type for EnumeratedArray.
 using EAIdxDefaultType = i64;
 
+template <typename IdxT = EAIdxDefaultType, typename E>
+constexpr IdxT enum_distance(E First, E Last) {
+  return static_cast<IdxT>(Last) - static_cast<IdxT>(First);
+}
+
 template <typename ValueT, exi::is_enum Enum,
           Enum Last = Enum::Last,
           Enum First = Enum(),
           typename IdxT = EAIdxDefaultType,
-          IdxT Size = 1 + static_cast<IdxT>(Last)>
+          IdxT Size = 1 + enum_distance<IdxT>(First, Last)>
 class EnumeratedArray {
   using SelfT = EnumeratedArray;
   ValueT Underlying[Size];
