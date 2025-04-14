@@ -26,10 +26,12 @@
 #include <core/Common/MMatch.hpp>
 #include <core/Common/SmallVec.hpp>
 #include <core/Common/STLExtras.hpp>
+#include <core/Support/Format.hpp>
 #include <core/Support/Logging.hpp>
 #include <core/Support/TrailingArray.hpp>
 #include <exi/Basic/ExiOptions.hpp>
 #include <exi/Stream/StreamVariant.hpp>
+#include <fmt/ranges.h>
 
 using namespace exi;
 
@@ -88,11 +90,18 @@ namespace {
 
 /// A small log2 table for deducing bit counts. The maximum value a builtin
 /// schema can have is 7, with `StartTagContent.{CM, PI}` with `SC` enabled.
-alignas(16) static constexpr u8 SmallLog2[9] {0, 0, 1, 2, 2, 3, 3, 3, 3};
+alignas(16) static constexpr u8 SmallLog2[10] {0, 0, 1, 2, 2, 3, 3, 3, 3, 4};
+
+/// Small EventCode for use in `BIInfo`.
+struct SEventCode {
+  Array<u8, 3> Data = {}; // [x.y.z]
+  Array<u8, 3> Bits = {}; // [[x].[y].[z]]
+  i8 Length = 0;          // Number of pieces.
+};
 
 struct BIInfo {
   u8 Offset = 0;
-  EventCode Code = {};
+  SEventCode Code = {};
 };
 
 // TODO: Implement...
@@ -124,6 +133,71 @@ public:
     tail_return this->getTermImpl(Strm);
   }
 
+  void dump() const override {
+    outs() << "Document[1] <@0>:\n"
+           << "  SD      0\n\n";
+    PrintGrammar(Grammar::DocContent, "DocContent");
+    PrintGrammar(Grammar::DocEnd, "DocEnd");
+    PrintGrammar(Grammar::StartTagContent, "StartTagContent");
+    PrintGrammar(Grammar::ElementContent, "ElementContent");
+    outs().flush();
+  }
+
+  void PrintGrammar(BuiltinSchema::Grammar G, StrRef Name) const {
+    auto [Off, Code] = Info[G];
+    const EventTerm* Base = BaseT::data() + Off;
+
+    /*Format*/ {
+      const int MaxIx = (Code.Length - 1);
+      outs() << Name << '[';
+      for (int Ix = 0; Ix < MaxIx; ++Ix)
+        outs() << format("{}.", Code.Data[Ix]);
+      outs() << format("{}] <", Code.Data[MaxIx]);
+      
+      for (int Ix = 0; Ix < MaxIx; ++Ix)
+        outs() << format("@{}, ", Code.Bits[Ix]);
+      outs() << format("@{}>:\n", Code.Bits[MaxIx]);
+    }
+
+    if (Code.Length == 0) {
+      outs() << '\n';
+      return;
+    }
+
+    SmallStr<8> Pre;
+    int At = 0;
+
+    auto PrintEvent = [&] (int Ix) {
+      exi_assert(IntCast<unsigned>(At) < BaseT::size());
+      StrRef Name = get_event_fullname(Base[At++]);
+      outs() << "  "
+        << format("{: <8}", Name)
+        << format("{}{}", Pre, Ix) << '\n';
+    };
+
+    PrintEvent(0);
+    for (int IC = 0; IC < Code.Length; ++IC) {
+      const int ICMax = i32(Code.Data[IC]) - 1;
+      for (int Ix = 1; Ix < ICMax; ++Ix)
+        PrintEvent(Ix);
+      
+      if (IC + 1 == Code.Length) {
+        if (ICMax >= 1)
+          PrintEvent(ICMax);
+        break;
+      } else if (IC + 2 == Code.Length) {
+        if (Code.Data[IC + 1] <= 1) {
+          PrintEvent(ICMax);
+          break;
+        }
+      }
+      wrap_stream(Pre) << format("{}.", ICMax);
+      PrintEvent(0);
+    }
+
+    outs() << '\n';
+  }
+
 private:
   ALWAYS_INLINE void pushGrammar(BuiltinSchema::Grammar New) {
     Prev = Current;
@@ -137,12 +211,15 @@ private:
 
     unsigned At = 0;
     for (int Ix = 0, E = Code.Length; Ix < E; ++Ix) {
-      const auto Bits = Code.Bits[Ix];
+      const u64 Bits = Code.Bits[Ix];
       const u64 Data = Strm->readBits64(Bits);
       At += Data;
 
-      exi_invariant(Data + 1 < Code.Data[Ix]);
-      if (Data + 1 != Code.Data[Ix])
+      exi_invariant(Code.Data[Ix] != 0,
+        "EventCode node not pruned!");
+      const u64 CData = Code.Data[Ix] - 1;
+      exi_invariant(Data <= CData);
+      if (Data != CData)
         break;
     }
 
@@ -151,11 +228,14 @@ private:
   }
 
   CC EventTerm getTermImpl(StreamReader& Strm) {
-    switch (Current) {
-    case Document:
+    // Very rarely set. In most (or all?) cases it only happens once.
+    if EXI_UNLIKELY(Current == Document) {
       // Document is always empty, and therefore never reads.
       this->pushGrammar(DocContent);
       return EventTerm::SD;
+    }
+
+    switch (Current) {
     case DocContent:
       tail_return this->handleDocContent(Strm);
     case DocEnd:
@@ -166,9 +246,9 @@ private:
       tail_return this->handleElement(Strm);
     case Fragment:
       exi_unreachable("SC elements are currently unsupported");
+    default:
+      exi_unreachable("invalid state?");
     }
-
-    exi_unreachable("invalid state?");
   }
 
   CC EventTerm handleDocContent(StreamReader& Strm) {
@@ -231,13 +311,6 @@ private:
       return M.Data;
     
     exi_unreachable("invalid ElementContent");
-
-    // 0
-    if (!Strm->readBit())
-      return this->handleEE(Strm);
-    // 1.x
-    const u64 Val = Strm->readBits<3>();
-    return this->childContentItems<3>(Strm, Val);
   }
 
   template <usize M>
@@ -270,19 +343,22 @@ private:
   bool SelfContained;
 
   class EventCodeRTTI {
-    EventCode* C;
+    SEventCode* C;
   public:
-    EventCodeRTTI(EventCode* EC) : C(EC) {}
+    EventCodeRTTI(SEventCode* EC) : C(EC) {}
     ~EventCodeRTTI() { Builder::CalculateLog(C); }
-    EventCode& operator*() { return *C; }
-    EventCode* operator->() { return C; }
+    SEventCode& operator*() { return *C; }
+    SEventCode* operator->() { return C; }
   };
 
-  static void CalculateLog(EventCode* EC);
+  static void CalculateLog(SEventCode* EC);
 
   EventCodeRTTI createBIInfo() {
     const u8 Offset = IntCast<u8>(Terms.size());
-    Info.push_back({ .Offset = Offset });
+    Info.push_back({
+      .Offset = Offset,
+      .Code { .Length = 1 }
+    });
     return &Info.back().Code;
   }
 
@@ -292,32 +368,49 @@ public:
    SelfContained(Opts.SelfContained) {
   }
 
-  static void Inc(EventCode& C, i8 I = 1) { C.Data[C.Length] += I; }
-  static void Next(EventCode& C) { if (C.Length < 3) ++C.Length; }
-  static void IncNext(EventCode& C, i8 I = 1) {
+  static void Inc(SEventCode& C, i8 I = 1) {
+    if EXI_LIKELY(C.Length)
+      C.Data[C.Length - 1] += I;
+    else
+      LOG_WARN("'Inc' ran on empty EventCode.");
+  }
+  static void Next(SEventCode& C) {
+    if EXI_LIKELY(C.Length < 3)
+      ++C.Length;
+    else
+      LOG_WARN("'Next' ran on full EventCode.");
+  }
+  static void IncNext(SEventCode& C, i8 I = 1) {
     Builder::Inc(C, I);
     Builder::Next(C);
   }
 
   void init() {
     /*DocContent:*/ {
+      LOG_EXTRA("DocContent:");
       auto C = createBIInfo();
       Terms.push_back(EventTerm::SE);
+      Builder::Inc(*C);
+
       if (Preserve.DTDs) {
         Terms.push_back(EventTerm::DT);
         Builder::IncNext(*C);
+        Builder::Inc(*C);
       }
 
       this->addCMPI(*C);
     }
 
     /*DocEnd:*/ {
+      LOG_EXTRA("DocEnd:");
       auto C = createBIInfo();
       Terms.push_back(EventTerm::ED);
+      Builder::Inc(*C);
       this->addCMPI(*C);
     }
 
     /*StartTagContent:*/ {
+      LOG_EXTRA("StartTagContent:");
       auto C = createBIInfo();
       Terms.push_back(EventTerm::EE);
       Terms.push_back(EventTerm::AT);
@@ -338,27 +431,32 @@ public:
     }
 
     /*ElementContent:*/ {
+      LOG_EXTRA("ElementContent:");
       auto C = createBIInfo();
       Terms.push_back(EventTerm::EE);
-      Builder::Inc(*C);
+      Builder::Inc(*C, 2);
       this->addCCItems(*C);
     }
   }
 
 private:
   /// Adds CM/PI to the end of a grammar, if possible.
-  void addCMPI(EventCode& C) {
+  void addCMPI(SEventCode& C) {
+    if (!Preserve.Comments && !Preserve.PIs)
+      return;
+    Builder::IncNext(C);
     if (Preserve.Comments) {
       Terms.push_back(EventTerm::CM);
-      Builder::IncNext(C);
+      Builder::Inc(C);
     }
     if (Preserve.PIs) {
       Terms.push_back(EventTerm::PI);
-      Builder::IncNext(C);
+      Builder::Inc(C);
     }
   }
 
-  void addCCItems(EventCode& C) {
+  /// Adds ChildContentItems.
+  void addCCItems(SEventCode& C) {
     exi_assert(C.Length <= 2);
     C.Length = 2;
 
@@ -377,9 +475,9 @@ private:
 
 } // namespace `anonymous`
 
-void DynBuiltinSchema::Builder::CalculateLog(EventCode* EC) {
+void DynBuiltinSchema::Builder::CalculateLog(SEventCode* EC) {
   exi_invariant(EC);
-  exi_assert(EC->Length <= 3);
+  exi_assert(EC->Length <= 3 && EC->Length >= 0);
 
   auto& Length = EC->Length;
   if (Length == 0)
@@ -391,14 +489,15 @@ void DynBuiltinSchema::Builder::CalculateLog(EventCode* EC) {
     Length -= 1;
   }
 
-  // If we have `[x.0.z]`, make it `[x.z].z`.
+  // If we have `[x.0.z]`, make it `[x.z].0`.
   if (Length >= 2 && !Data[1]) {
     Data[1] = Data[2];
     Data[2] = 0;
     Length -= 1;
   }
 
-  // If we have `[0.y.z]`, make it `[y.z].z`.
+  // If we have `[0.y.z]`, make it `[y.z].0`.
+  // If we have `[0.y].0`, make it `[y].0.0`.
   if (Length >= 1 && !Data[0]) {
     Data[0] = Data[1];
     Data[1] = Data[2];
@@ -407,7 +506,7 @@ void DynBuiltinSchema::Builder::CalculateLog(EventCode* EC) {
   }
 
   /// Calculate log for all elements.
-  for (int Ix = 0, E = Length; Ix < E; ++Ix)
+  for (int Ix = 0; Ix < 3; ++Ix)
     EC->Bits[Ix] = SmallLog2[Data[Ix]];
 }
 

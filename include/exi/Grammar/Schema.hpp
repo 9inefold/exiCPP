@@ -40,6 +40,7 @@ public:
   /// Gets the terminal symbol at the current position.
   [[nodiscard]] virtual EventTerm getTerm(StreamReader& Strm) = 0;
   /// TODO: writeTerm(StreamWriter& Strm, EventCode);
+  virtual void dump() const {}
 private:
   virtual void anchor();
 };
