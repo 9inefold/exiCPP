@@ -31,6 +31,8 @@
 
 namespace exi {
 
+struct ExiOptions;
+
 /// The base for all schemas.
 class Schema : public RTTIExtends<Schema, RTTIRoot> {
 public:
@@ -44,9 +46,7 @@ private:
 
 /// The builtin (or fallback) schema.
 class BuiltinSchema : public RTTIExtends<BuiltinSchema, Schema> {
-public:
-  static const char ID;
-
+protected:
   /// Possible Grammar states for schemaless.
   enum class Grammar {
     Document,
@@ -55,12 +55,19 @@ public:
     StartTagContent,
     ElementContent,
     Fragment,
+    Last = ElementContent
   };
+  
+public:
+  static const char ID;
 
   /// @brief Gets a builtin schema.
   /// @param SelfContained If SC terms should be considered.
   /// FIXME: THIS DOESN'T WORK!!! Need to take Preserve into account.
   [[nodiscard]] static Box<BuiltinSchema> GetSchema(bool SelfContained);
+
+  /// @brief Gets a builtin schema.
+  [[nodiscard]] static Box<BuiltinSchema> New(const ExiOptions& Opts);
 private:
   virtual void anchor();
 };

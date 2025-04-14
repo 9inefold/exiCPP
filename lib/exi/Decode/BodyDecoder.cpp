@@ -90,7 +90,7 @@ ExiError ExiDecoder::init() {
 
   auto& Opts = *Header.Opts;
   if (!Opts.SchemaID.expect("schema is required"))
-    CurrentSchema = BuiltinSchema::GetSchema(Opts.SelfContained);
+    CurrentSchema = BuiltinSchema::New(Opts);
   else
     exi_unreachable("schemas are currently unsupported");
   
@@ -100,7 +100,7 @@ ExiError ExiDecoder::init() {
   }
   
   // TODO: Load schema
-  Idents.setup(*Header.Opts);
+  Idents.setup(Opts);
   Flags.DidHeader = true;
   Flags.DidInit = true;
 
