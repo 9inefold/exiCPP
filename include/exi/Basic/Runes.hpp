@@ -72,6 +72,9 @@ public:
   ALWAYS_INLINE constexpr usize size() const { return Length; }
   ALWAYS_INLINE constexpr const char* data() const { return Data; }
 
+  const u8* begin() const { return reinterpret_cast<const u8*>(Data); }
+  const u8* end() const { return begin() + Length; }
+
   constexpr StrRef str() const { return {Data, Length}; }
   EXI_INLINE constexpr operator StrRef() const { return this->str(); }
 };
