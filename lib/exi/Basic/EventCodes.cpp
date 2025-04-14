@@ -41,6 +41,22 @@ static constexpr StringLiteral EventTermNames[kEventTermCount] {
   "SC"
 };
 
+static constexpr StringLiteral EventTermFullNames[kEventTermCount] {
+  "SD", "ED",
+  "SE (*)",
+  "SE (uri:*)",
+  "SE (qname)",
+  "EE",
+  "AT (*)",
+  "AT (uri:)",
+  "AT (qname)",
+  "CH",
+  "NS",
+  "CM",
+  "PI", "DT", "ER",
+  "SC"
+};
+
 static constexpr StringLiteral EventTermMessages[kEventTermCount] {
   "Start Document",
   "End Document",
@@ -62,14 +78,21 @@ static constexpr StringLiteral EventTermMessages[kEventTermCount] {
 
 StrRef exi::get_event_name(EventTerm E) noexcept {
   const i32 Ix = static_cast<i32>(E);
-  if EXI_LIKELY(Ix < kEventTermCount)
+  if EXI_LIKELY(Ix < kEventTermCount && Ix >= 0)
     return EventTermNames[Ix].data();
+  return "??"_str;
+}
+
+StrRef exi::get_event_fullname(EventTerm E) noexcept {
+  const i32 Ix = static_cast<i32>(E);
+  if EXI_LIKELY(Ix < kEventTermCount && Ix >= 0)
+    return EventTermFullNames[Ix].data();
   return "??"_str;
 }
 
 StrRef exi::get_event_signature(EventTerm E) noexcept {
   const i32 Ix = static_cast<i32>(E);
-  if EXI_LIKELY(Ix < kEventTermCount)
+  if EXI_LIKELY(Ix < kEventTermCount && Ix >= 0)
     return EventTermMessages[Ix].data();
   return "Unknown Event"_str;
 }

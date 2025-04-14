@@ -53,15 +53,16 @@ enum class EventTerm : i32 {
 };
 
 StrRef get_event_name(EventTerm E) noexcept EXI_READNONE;
+StrRef get_event_fullname(EventTerm E) noexcept EXI_READNONE;
 StrRef get_event_signature(EventTerm E) noexcept EXI_READNONE;
 
 /// All the data required to output an event code.
 /// The data is stored in three u32's.
 ///
 struct alignas(8) EventCode {
-  Array<u32, 3> Data; // [x.y.z]
-  Array<u8, 3> Bits;  // [[x].[y].[z]]
-  i8 Length;          // Number of pieces.
+  Array<u32, 3> Data = {}; // [x.y.z]
+  Array<u8, 3> Bits = {};  // [[x].[y].[z]]
+  i8 Length = 0;           // Number of pieces.
 };
 
 static_assert(sizeof(EventCode) == sizeof(u32) * 4);
