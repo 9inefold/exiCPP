@@ -106,35 +106,49 @@ u64 BitStreamReader::peekBitsSlow(i64 Bits) const {
 }
 #endif
 
-u64 BitStreamReader::peekBitsSlow(i64 Bits) const {
+u64 BitStreamReader::peekBitsFast(i64 Bits) const {
   exi_invariant(Bits > 0);
-  i64 Offset = 0;
+  i64 Offset = 0, Pos = BaseT::bytePos();
   u64 Result = 0;
-  u64 Pos = BaseT::bytePos();
-  if (!BaseT::isByteAligned()) {
-    // We really want to avoid this.
-    const u64 Peeked = peekUnalignedBits();
-    Offset = BaseT::farBitOffset();
-    if (Bits < Offset)
-      // If we need less bits than the retrieved amount, return those.
-      return Peeked >> (Offset - Bits);
-    // Otherwise, continue.
-    Result = Peeked;
-    Bits -= Offset;
-    ++Pos;
-  }
 
   // Assumption to possibly unroll loop.
+  // TODO: Profile
   exi_assume(Bits <= 64);
   while (Bits >= 8) {
-    Result |= u64(BaseT::Stream[Pos++]) << Offset;
-    Offset += CHAR_BIT;
-    Bits -= CHAR_BIT;
+    Result |= u64(BaseT::Stream[Pos]) << Offset;
+    Pos += 1;
+    Offset += 8;
+    Bits -= 8;
   }
 
   if (Bits != 0) {
-    exi_invariant(Bits >= 0, "Negative bit number??");
-    u64 Curr = u64(BaseT::Stream[Pos]) >> (CHAR_BIT - Bits);
+    // exi_invariant(Bits >= 0, "Negative bit number??");
+    u64 Curr = u64(BaseT::Stream[Pos]) >> (8 - Bits);
+    Result |= Curr << Offset;
+  }
+
+  return Result;
+}
+
+u64 BitStreamReader::peekBitsSlow(i64 Bits) const {
+  exi_invariant(Bits > 0);
+  i64 Pos = 0, Offset = 0;
+  u64 Result = 0;
+
+  // Assumption to possibly unroll loop.
+  // TODO: Profile
+  exi_assume(Bits <= 64);
+  while (Bits >= 8) {
+    Result |= peekByteSlow(Pos) << Offset;
+    Pos += 1;
+    Offset += 8;
+    Bits -= 8;
+  }
+
+  if (Bits != 0) {
+    // exi_invariant(Bits >= 0, "Negative bit number??");
+    const u64 CurrPos = (BaseT::bitPos() + Offset) / 8;
+    u64 Curr = u64(BaseT::Stream[CurrPos]) >> (8 - Bits);
     Result |= Curr << Offset;
   }
 
@@ -155,7 +169,10 @@ u64 BitStreamReader::peekBitsImpl(i64 Bits) const {
     return Read >> (kBitsPerWord - Bits);
   }
 #endif
-  tail_return peekBitsSlow(Bits);
+  if (BaseT::isByteAligned())
+    tail_return peekBitsFast(Bits);
+  else
+    tail_return peekBitsSlow(Bits);
 }
 
 ExiError BitStreamReader::peekBits(APInt& AP, i64 Bits) const {

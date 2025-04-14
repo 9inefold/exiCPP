@@ -71,7 +71,7 @@ private:
 
   u64 peekUnalignedBits() const {
     const u64 Pos = BaseT::bitOffset();
-    const u64 Curr = getCurrentByte();
+    const u64 Curr = BaseT::getCurrentByte();
     return Curr & (0xFF >> Pos);
   }
 
@@ -82,7 +82,22 @@ private:
   }
 
   u64 peekBitsImpl(i64 Bits) const;
-  u64 peekBitsSlow(i64 Bits) const EXI_READONLY;
+  u64 peekBitsFast(i64 Bits) const;
+  u64 peekBitsSlow(i64 Bits) const;
+
+  u64 peekByteSlow(const i64 POff = 0) const {
+    exi_assume(POff >= 0);
+    exi_expensive_invariant(!BaseT::isByteAligned(),
+      "If aligned, access bytes directly.");
+    
+    const u64 Pos = BaseT::bytePos() + POff;
+    const auto Off = BaseT::farBitOffset();
+
+    u64 Result = BaseT::Stream[Pos] << (8 - Off);
+    Result |= BaseT::Stream[Pos + 1] >> Off;
+
+    return Result;
+  }
 
   APInt readBitsAPLarge(i64 Bits);
 
@@ -124,8 +139,12 @@ public:
     if (auto Err = checkPeekBits(8)) [[unlikely]] {
       Out = 0;
       return Err;
+    } else if (BaseT::isByteAligned()) {
+      Out = getCurrentByte();
+      return ExiError::OK;
     }
-    Out = peekBitsImpl(8);
+
+    Out = peekByteSlow(0);
     return ExiError::OK;
   }
 
