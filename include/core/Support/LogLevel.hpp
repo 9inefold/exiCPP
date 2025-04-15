@@ -24,6 +24,9 @@
 #pragma once
 
 #include <Common/Features.hpp>
+#include <Config/Config.inc>
+
+#define EXI_LOG_LEVEL ::exi::LogLevel::EXI_MIN_LOG_LEVEL
 
 namespace exi {
 
@@ -42,10 +45,20 @@ struct LogLevel {
 };
 
 #if EXI_LOGGING
+
+template <LogLevelType Level>
+ALWAYS_INLINE EXI_NODEBUG static constexpr
+ bool hasLogLevel(LogLevelType Val) noexcept {
+  if constexpr (EXI_LOG_LEVEL >= Level)
+    return (Level <= Val);
+  return false;
+}
+
 /// Checks if a value `VAL` can be printed under `LEVEL`.
 # define hasLogLevelVal(LEVEL, VAL) ((LEVEL) <= (VAL))
 /// Checks if a type `TYPE` can be printed under `LEVEL`.
-# define hasLogLevel(TYPE, VAL) ((::exi::LogLevel::TYPE) <= (VAL))
+# define hasLogLevel(TYPE, VAL) (::exi::hasLogLevel<::exi::LogLevel::TYPE>(VAL))
+
 #else
 # define hasLogLevelVal(LEVEL, VAL) (false)
 # define hasLogLevel(TYPE, VAL) (false)

@@ -36,6 +36,7 @@
 #cmakedefine01 EXI_DEBUG
 #cmakedefine01 EXI_INVARIANTS
 #cmakedefine01 EXI_LOGGING
+#cmakedefine EXI_MIN_LOG_LEVEL
 
 #cmakedefine01 EXI_ENABLE_DUMP
 #cmakedefine01 EXI_ENABLE_NODISCARD
@@ -48,6 +49,10 @@
 #cmakedefine01 EXI_ON_UNIX
 
 #define EXI_ANSI 1
+
+#ifndef EXI_MIN_LOG_LEVEL
+# define EXI_MIN_LOG_LEVEL VERBOSE
+#endif
 
 #if EXI_ENABLE_EXPENSIVE_CHECKS
 # define EXPENSIVE_CHECKS
