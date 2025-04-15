@@ -78,6 +78,7 @@ using Transform = Option<TransformImpl<F, T>>;
 //////////////////////////////////////////////////////////////////////////
 
 template <typename T> struct RefStorage;
+struct EmptyTag {}; // TODO: [[no_unique_address]]
 
 /// Default storage for `Option`, this is trivially destructible.
 template <typename T,
@@ -94,7 +95,7 @@ public:
 		std::in_place_t, auto&&...Args) :
 	 Data(EXI_FWD(Args)...), Active(true) {}
 	
-	EXI_INLINE void reset() noexcept {}
+	EXI_INLINE constexpr void reset() noexcept {}
 };
 
 /// Default storage for `Option`, this is NOT trivially destructible.
@@ -102,8 +103,7 @@ template <typename T>
 struct Storage<T, false> {
 	union {
 		char Empty;
-		// T Data;
-		std::conditional_t<concrete<T>, T, u8[sizeof(T)]> Data;
+		T Data;
 	};
 	bool Active = false;
 public:
@@ -212,7 +212,7 @@ public:
 // Optional type which internal storage can be specialized by providing
 // OptionStorage. The interface follows std::optional.
 template <typename T> class Option {
-  OptionStorage<T> Storage;
+  EXI_NO_UNIQUE_ADDRESS OptionStorage<T> Storage;
 public:
   using type = T;
   using value_type = T;
@@ -270,6 +270,8 @@ public:
   
   constexpr explicit operator bool() const { return has_value(); }
   constexpr bool has_value() const { return Storage.has_value(); }
+  constexpr bool is_some() const { return Storage.has_value(); }
+  constexpr bool is_none() const { return !Storage.has_value(); }
 
   constexpr const auto* operator->() const& { return &Storage.value(); }
   constexpr auto* operator->() & { return &Storage.value(); }
@@ -386,6 +388,8 @@ public:
   constexpr RefStorage(Option<type>&&) = delete;
 
   constexpr bool has_value() const { return Storage != nullptr; }
+  constexpr bool is_some() const { return has_value(); }
+  constexpr bool is_none() const { return !has_value(); }
 
   /// Reserved for `Option<T&>`. Converts the contained reference to
   /// an `Option<T>`, if it exists.
