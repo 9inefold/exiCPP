@@ -32,6 +32,8 @@
 #include <optional>
 #include <utility>
 
+// TODO: Annotate more lifetimebounds
+
 namespace exi {
 
 template <typename T> class Option;
@@ -44,11 +46,9 @@ concept is_const = std::is_const_v<T>;
 template <typename T>
 concept not_const = !is_const<T>;
 
-// TODO: Unify with Poly traits?
 template <typename T>
 concept abstract = std::is_abstract_v<T>;
 
-// TODO: Unify with Poly traits?
 template <typename T>
 concept concrete = !abstract<T>;
 
@@ -189,12 +189,12 @@ public:
 
 	inline constexpr void reset() { BaseT::reset(); }
 
-	constexpr const T& value() const& {
+	constexpr const T& value() const& EXI_LIFETIMEBOUND {
 		exi_invariant(has_value(), "value is inactive!");
 		return BaseT::Data;
 	}
 
-	constexpr T& value() & {
+	constexpr T& value() & EXI_LIFETIMEBOUND {
 		exi_invariant(has_value(), "value is inactive!");
 		return BaseT::Data;
 	}

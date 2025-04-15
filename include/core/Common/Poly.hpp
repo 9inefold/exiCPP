@@ -43,11 +43,8 @@ class Poly;
 
 namespace poly_detail {
 
-template <typename T>
-concept abstract = std::is_abstract_v<T>;
-
-template <typename T>
-concept concrete = !abstract<T>;
+using option_detail::abstract;
+using option_detail::concrete;
 
 template <typename T>
 concept polymorphic = std::is_polymorphic_v<T>;
