@@ -132,7 +132,7 @@ class OptionStorage : public option_detail::Storage<T> {
 		exi_invariant(!this->has_value(),
 			"Cannot construct from active OptionStorage!");
 		if (Other.Active) [[likely]] {
-			new (std::addressof(BaseT::Data)) T(EXI_FWD(Other).Data);
+      std::construct_at(std::addressof(BaseT::Data), EXI_FWD(Other).Data);
 			BaseT::Active = true;
 		}
 	}
@@ -213,6 +213,16 @@ public:
 // OptionStorage. The interface follows std::optional.
 template <typename T> class Option {
   EXI_NO_UNIQUE_ADDRESS OptionStorage<T> Storage;
+
+  EXI_INLINE static constexpr void DoPartialSwap(
+   Option& Active, Option& Inactive) noexcept {
+    exi_invariant(Active.is_some() && Inactive.is_none());
+    // Move value to Inactive.
+    Inactive.emplace(std::move(Active.value()));
+    // Destroy old value.
+    Active.reset();
+  }
+
 public:
   using type = T;
   using value_type = T;
@@ -251,6 +261,21 @@ public:
   /// Create a new object by constructing it in place with the given arguments.
   constexpr T& emplace(auto&&...Args) {
     return Storage.emplace(EXI_FWD(Args)...);
+  }
+
+  constexpr void swap(Option& O) noexcept {
+    if (this->has_value()) {
+      if (O.has_value()) {
+        using std::swap;
+        std::swap(this->value(), O.value());
+      } else {
+        // Swap half inactive.
+        return Option::DoPartialSwap(*this, O);
+      }
+    } else if (O.has_value()) {
+      // Swap half inactive.
+      return Option::DoPartialSwap(O, *this);
+    }
   }
 
   constexpr Option& operator=(const T& V) {
@@ -450,6 +475,11 @@ public:
   }
 	constexpr T& emplace(T&&) = delete;
 
+  constexpr void swap(Option& O) noexcept {
+    using std::swap;
+    swap(BaseT::Storage, O.Storage);
+  }
+
   constexpr Option& operator=(T& In EXI_LIFETIMEBOUND) {
     Storage = std::addressof(In);
     return *this;
@@ -504,6 +534,11 @@ public:
 
 using std::nullopt_t;
 using std::nullopt;
+
+template <typename T>
+constexpr void swap(Option<T>& LHS, Option<T>& RHS) noexcept {
+  LHS.swap(RHS);
+}
 
 template <typename T, typename U>
 constexpr bool operator==(const Option<T>& X,
