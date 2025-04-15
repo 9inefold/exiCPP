@@ -82,42 +82,42 @@ struct EmptyTag {}; // TODO: [[no_unique_address]]
 
 /// Default storage for `Option`, this is trivially destructible.
 template <typename T,
-	bool = std::is_trivially_destructible_v<T>>
+  bool = std::is_trivially_destructible_v<T>>
 struct Storage {
-	union {
-		char Empty;
-		T Data;
-	};
-	bool Active = false;
+  union {
+    char Empty;
+    T Data;
+  };
+  bool Active = false;
 public:
-	constexpr Storage() : Empty() {}
-	inline constexpr Storage(
-		std::in_place_t, auto&&...Args) :
-	 Data(EXI_FWD(Args)...), Active(true) {}
-	
-	EXI_INLINE constexpr void reset() noexcept {}
+  constexpr Storage() : Empty() {}
+  inline constexpr Storage(
+    std::in_place_t, auto&&...Args) :
+   Data(EXI_FWD(Args)...), Active(true) {}
+  
+  EXI_INLINE constexpr void reset() noexcept {}
 };
 
 /// Default storage for `Option`, this is NOT trivially destructible.
 template <typename T>
 struct Storage<T, false> {
-	union {
-		char Empty;
-		T Data;
-	};
-	bool Active = false;
+  union {
+    char Empty;
+    T Data;
+  };
+  bool Active = false;
 public:
-	constexpr Storage() : Empty() {}
-	inline constexpr Storage(
-		std::in_place_t, auto&&...Args) : 
-	 Data(EXI_FWD(Args)...), Active(true) {}
-	
-	inline constexpr ~Storage() { reset(); }
-	constexpr void reset() noexcept {
-		if (Active)
-			Data.~T();
-		Active = false;
-	}
+  constexpr Storage() : Empty() {}
+  inline constexpr Storage(
+    std::in_place_t, auto&&...Args) : 
+   Data(EXI_FWD(Args)...), Active(true) {}
+  
+  inline constexpr ~Storage() { reset(); }
+  constexpr void reset() noexcept {
+    if (Active)
+      Data.~T();
+    Active = false;
+  }
 };
 
 } // namespace option_detail
@@ -126,87 +126,87 @@ public:
 /// Works like `std::optional`.
 template <typename T>
 class OptionStorage : public option_detail::Storage<T> {
-	using BaseT = option_detail::Storage<T>;
+  using BaseT = option_detail::Storage<T>;
 
-	inline constexpr void construct(auto&& Other) {
-		exi_invariant(!this->has_value(),
-			"Cannot construct from active OptionStorage!");
-		if (Other.Active) [[likely]] {
+  inline constexpr void construct(auto&& Other) {
+    exi_invariant(!this->has_value(),
+      "Cannot construct from active OptionStorage!");
+    if (Other.Active) [[likely]] {
       std::construct_at(std::addressof(BaseT::Data), EXI_FWD(Other).Data);
-			BaseT::Active = true;
-		}
-	}
+      BaseT::Active = true;
+    }
+  }
 
-	inline constexpr void assign(auto&& Other) {
-		if (BaseT::Active == Other.Active) {
-			if (BaseT::Active)
-				BaseT::Data = EXI_FWD(Other).Data;
-		} else {
-			if (BaseT::Active)
-				BaseT::reset();
-			else
-				this->construct(EXI_FWD(Other));
-		}
-	}
+  inline constexpr void assign(auto&& Other) {
+    if (BaseT::Active == Other.Active) {
+      if (BaseT::Active)
+        BaseT::Data = EXI_FWD(Other).Data;
+    } else {
+      if (BaseT::Active)
+        BaseT::reset();
+      else
+        this->construct(EXI_FWD(Other));
+    }
+  }
 
 public:
-	using BaseT::BaseT;
+  using BaseT::BaseT;
 
-	constexpr OptionStorage(const OptionStorage& Other) {
-		this->construct(Other);
-	}
-	constexpr OptionStorage(OptionStorage&& Other) noexcept {
-		this->construct(std::move(Other));
-	}
+  constexpr OptionStorage(const OptionStorage& Other) {
+    this->construct(Other);
+  }
+  constexpr OptionStorage(OptionStorage&& Other) noexcept {
+    this->construct(std::move(Other));
+  }
 
-	constexpr OptionStorage& operator=(const T& V) noexcept {
+  constexpr OptionStorage& operator=(const T& V) noexcept {
     BaseT::Data = V;
-		BaseT::Active = true;
+    BaseT::Active = true;
     return *this;
   }
 
-	constexpr OptionStorage& operator=(T&& V) noexcept {
+  constexpr OptionStorage& operator=(T&& V) noexcept {
     BaseT::Data = std::move(V);
-		BaseT::Active = true;
+    BaseT::Active = true;
     return *this;
   }
 
-	constexpr OptionStorage& operator=(const OptionStorage& Other) {
-		this->assign(Other);
-		return *this;
-	}
-	constexpr OptionStorage& operator=(OptionStorage&& Other) {
-		this->assign(std::move(Other));
-		return *this;
-	}
+  constexpr OptionStorage& operator=(const OptionStorage& Other) {
+    this->assign(Other);
+    return *this;
+  }
+  constexpr OptionStorage& operator=(OptionStorage&& Other) {
+    this->assign(std::move(Other));
+    return *this;
+  }
 
-	inline constexpr T& emplace(auto&&...Args) {
-		BaseT::reset();
-		new (std::addressof(BaseT::Data)) T(EXI_FWD(Args)...);
-		BaseT::Active = true;
-		return value();
-	}
+  inline constexpr T& emplace(auto&&...Args) {
+    BaseT::reset();
+    new (std::addressof(BaseT::Data)) T(EXI_FWD(Args)...);
+    BaseT::Active = true;
+    return value();
+  }
 
-	inline constexpr void reset() { BaseT::reset(); }
+  inline constexpr void reset() { BaseT::reset(); }
 
-	constexpr const T& value() const& EXI_LIFETIMEBOUND {
-		exi_invariant(has_value(), "value is inactive!");
-		return BaseT::Data;
-	}
+  constexpr const T& value() const& EXI_LIFETIMEBOUND {
+    exi_invariant(has_value(), "value is inactive!");
+    return BaseT::Data;
+  }
 
-	constexpr T& value() & EXI_LIFETIMEBOUND {
-		exi_invariant(has_value(), "value is inactive!");
-		return BaseT::Data;
-	}
+  constexpr T& value() & EXI_LIFETIMEBOUND {
+    exi_invariant(has_value(), "value is inactive!");
+    return BaseT::Data;
+  }
 
-	constexpr T&& value() && {
-		exi_invariant(has_value(), "value is inactive!");
-		return std::move(BaseT::Data);
-	}
+  constexpr T&& value() && {
+    exi_invariant(has_value(), "value is inactive!");
+    return std::move(BaseT::Data);
+  }
 
-	constexpr bool has_value() const {
-		return BaseT::Active;
-	} 
+  constexpr bool has_value() const {
+    return BaseT::Active;
+  } 
 };
 
 // Optional type which internal storage can be specialized by providing
@@ -291,7 +291,7 @@ public:
 
   constexpr const T& value() const& { return Storage.value(); }
   constexpr T& value() & { return Storage.value(); }
-	constexpr T&& value() && { return std::move(Storage.value()); }
+  constexpr T&& value() && { return std::move(Storage.value()); }
   
   constexpr explicit operator bool() const { return has_value(); }
   constexpr bool has_value() const { return Storage.has_value(); }
@@ -304,7 +304,7 @@ public:
 
   constexpr const T& operator*() const& { return Storage.value(); }
   constexpr T& operator*() & { return Storage.value(); }
-	constexpr T&& operator*() && { return std::move(Storage.value()); }
+  constexpr T&& operator*() && { return std::move(Storage.value()); }
 
   /// Reserved for `Option<T>`. Converts the contained value to an `Option<T&>`,
   /// if it exists.
@@ -404,7 +404,7 @@ public:
       : Storage(V ? &*V : nullptr) {}
   constexpr RefStorage(std::optional<type>&&) = delete;
 
-	// Allow conversion from Option<T>.
+  // Allow conversion from Option<T>.
   constexpr RefStorage(Option<type>& O)
       : Storage(O ? &*O : nullptr) {}
   constexpr RefStorage(const Option<type>& V)
@@ -471,9 +471,9 @@ public:
   /// Create a new object by constructing it in place with the given arguments.
   constexpr T& emplace(T& In EXI_LIFETIMEBOUND) {
     Storage = std::addressof(In);
-		return In;
+    return In;
   }
-	constexpr T& emplace(T&&) = delete;
+  constexpr T& emplace(T&&) = delete;
 
   constexpr void swap(Option& O) noexcept {
     using std::swap;
@@ -486,29 +486,29 @@ public:
   }
   constexpr Option& operator=(const Option&) = default;
 
-	Option& operator=(T&& V) = delete;
+  Option& operator=(T&& V) = delete;
   Option& operator=(Option&& O) = default;
 
   void reset() { Storage = nullptr; }
 
   constexpr T* data() const { return Storage; }
   constexpr T& value() const {
-		exi_assert(has_value(), "value is inactive!");
-		return *Storage;
-	}
+    exi_assert(has_value(), "value is inactive!");
+    return *Storage;
+  }
   
   constexpr explicit operator bool() const { return has_value(); }
   using BaseT::has_value;
 
   constexpr T* operator->() const {
-		exi_invariant(has_value(), "value is inactive!");
-		return Storage;
-	}
+    exi_invariant(has_value(), "value is inactive!");
+    return Storage;
+  }
 
   constexpr T& operator*() const {
-		exi_invariant(has_value(), "value is inactive!");
-		return *Storage;
-	}
+    exi_invariant(has_value(), "value is inactive!");
+    return *Storage;
+  }
 
   T& expect(const Twine& Msg) const {
     if EXI_UNLIKELY(!has_value())
