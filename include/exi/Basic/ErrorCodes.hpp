@@ -25,6 +25,7 @@
 
 #include <core/Common/Fundamental.hpp>
 #include <core/Common/StrRef.hpp>
+#include <core/Common/Result.hpp>
 #include <system_error>
 
 namespace exi {
@@ -226,5 +227,8 @@ EXI_CONST ExiError ExiError::TODO = ExiError::kUnimplemented;
 EXI_CONST ExiError ExiError::OOB  = ExiError::kOutOfBounds;
 
 static_assert(sizeof(ExiError) == 16);
+
+template <typename T>
+using ExiResult = Result<T, ExiError>;
 
 } // namespace exi
