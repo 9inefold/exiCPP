@@ -24,6 +24,7 @@
 #include <Common/MaybeBox.hpp>
 #include <Common/PointerIntPair.hpp>
 #include <Common/Poly.hpp>
+#include <Common/Result.hpp>
 #include <Common/SmallStr.hpp>
 #include <Common/StringSwitch.hpp>
 #include <Common/Twine.hpp>
@@ -58,7 +59,56 @@ enum NodeDataKind {
   NDK_Unnest  = 0b010,
 };
 
-using EmbeddedNode = PointerIntPair<XMLNode*, 3, NodeDataKind>;
+static void TestResult() {
+  /*Result<T, E>*/ {
+    Result<int, float> X(0);
+    exi_assert(X.is_ok());
+    exi_assert(!X.is_err());
+
+    X.emplace_error(0.0f);
+    exi_assert(!X.is_ok());
+    exi_assert(X.is_err());
+
+    float F = 7.0f;
+    Result<float, int> Y(Err(F));
+    exi_assert(!Y.is_ok());
+    exi_assert(Y.is_err());
+  }
+  /*Result<T&, E>*/ {
+    int I = 0;
+    Result<int&, float> X(I);
+    exi_assert(X.is_ok());
+    exi_assert(!X.is_err());
+
+    X.emplace_error(0.0f);
+    exi_assert(!X.is_ok());
+    exi_assert(X.is_err());
+
+    X.emplace(I);
+    exi_assert(&*X == &I);
+    exi_assert(X.data() == &I);
+    exi_assert(X.value() == I);
+    exi_assert(&X.value() == &I);
+
+    float F = 7.0f;
+    Result<float&, int> Y(Err(F));
+    exi_assert(!Y.is_ok());
+    exi_assert(Y.is_err());
+  }
+  /*Result<T, E&>*/ {
+    float F = 7.0f;
+    Result<int, float&> X(Err(F));
+    exi_assert(!X.is_ok());
+    exi_assert(X.is_err());
+
+    X.emplace(0);
+    exi_assert(X.is_ok());
+    exi_assert(!X.is_err());
+  }
+  /*Result<T&, E&>*/ {
+    // Result<int, float> X(std::in_place, 0);
+  }
+}
 
 static Option<bool> EnvAsBoolean(StrRef Env) {
   return StringSwitch<Option<bool>>(Env)
@@ -132,11 +182,13 @@ static void TestSchema(StrRef Name, ExiOptions::PreserveOpts Preserve) {
 }
 
 static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
+  LOG_INFO("Decoding header...");
   if (auto E = Decoder.decodeHeader(MB)) {
     Decoder.diagnose(E);
     return 1;
   }
 
+  LOG_INFO("Decoding body...");
   if (auto E = Decoder.decodeBody()) {
     Decoder.diagnose(E);
     return 1;
@@ -156,6 +208,7 @@ static int DecodeBasic(XMLManagerRef Mgr) {
   ExiOptions Opts {};
   Opts.SchemaID.emplace(nullptr);
 
+  LOG_INFO("Decoding: \"{}\"", HiddenFile);
   ExiDecoder Decoder(Opts, errs());
   return Decode(Decoder, MB);
 }
@@ -171,6 +224,7 @@ static int DecodeCustomers(XMLManagerRef Mgr) {
   ExiOptions Opts {.Preserve { .Prefixes = true }};
   Opts.SchemaID.emplace(nullptr);
 
+  LOG_INFO("Decoding: \"{}\"", HiddenFile);
   ExiDecoder Decoder(Opts, errs());
   return Decode(Decoder, MB);
 }
@@ -190,23 +244,26 @@ static constexpr u8 Example[] {
 };
 
 int main(int Argc, char* Argv[]) {
-  exi::DebugFlag = LogLevel::VERBOSE;
+  exi::DebugFlag = LogLevel::INFO;
   HandleEscapeCodeSetup();
 
   outs().enable_colors(true);
   errs().enable_colors(true);
   dbgs().enable_colors(true);
 
+  TestResult();
+
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
-#if 0
+#if 1
   if (int Ret = DecodeBasic(Mgr))
     return Ret;
-  if (int Ret = DecodeCustomers(Mgr))
-    return Ret;
+  // if (int Ret = DecodeCustomers(Mgr))
+  //   return Ret;
+  return 0;
 #endif
 
   exi::DebugFlag = LogLevel::INFO;
-
+#if 0
   TestSchema("Preserve.{CM}", {
     .Comments = true,
   });
@@ -224,10 +281,10 @@ int main(int Argc, char* Argv[]) {
     .PIs = true,
     .Prefixes = true,
   });
-
+#endif
   exi::DebugFlag = LogLevel::VERBOSE;
 
-  ExiDecoder Decoder(errs());
+  ExiDecoder Decoder(outs());
   ExiOptions Opts {};
   Opts.SchemaID.emplace(nullptr);
   if (auto E = Decoder.setOptions(Opts)) {
