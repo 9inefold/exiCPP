@@ -219,9 +219,9 @@ ExiError ExiDecoder::decodeHeader(UnifiedBuffer Buffer) {
   
   if (Out == ExiError::OK) {
     if (ExiError E = this->init())
-      this->diagnose(E, /*Force=*/true);
+      return E;
     return ExiError::OK;
   }
 
-  return this->diagnoseme(Out);
+  return Out;
 }
