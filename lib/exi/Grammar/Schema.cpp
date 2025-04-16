@@ -92,6 +92,15 @@ namespace {
 /// schema can have is 7, with `StartTagContent.{CM, PI}` with `SC` enabled.
 alignas(16) static constexpr u8 SmallLog2[10] {0, 0, 1, 2, 2, 3, 3, 3, 3, 4};
 
+static constexpr StringLiteral BIGrammarNames[] {
+  "Document",
+  "DocContent",
+  "DocEnd",
+  "StartTagContent",
+  "ElementContent",
+  "Fragment"
+};
+
 /// Small EventCode for use in `BIInfo`.
 struct SEventCode {
   Array<u8, 3> Data = {}; // [x.y.z]
@@ -136,14 +145,15 @@ public:
   void dump() const override {
     outs() << "Document[1] <@0>:\n"
            << "  SD      0\n\n";
-    PrintGrammar(Grammar::DocContent, "DocContent");
-    PrintGrammar(Grammar::DocEnd, "DocEnd");
-    PrintGrammar(Grammar::StartTagContent, "StartTagContent");
-    PrintGrammar(Grammar::ElementContent, "ElementContent");
+    PrintGrammar(Grammar::DocContent);
+    PrintGrammar(Grammar::DocEnd);
+    PrintGrammar(Grammar::StartTagContent);
+    PrintGrammar(Grammar::ElementContent);
     outs().flush();
   }
 
-  void PrintGrammar(BuiltinSchema::Grammar G, StrRef Name) const {
+  void PrintGrammar(BuiltinSchema::Grammar G) const {
+    const StrRef Name = GetGrammarName(G);
     auto [Off, Code] = Info[G];
     const EventTerm* Base = BaseT::data() + Off;
 
@@ -199,6 +209,14 @@ public:
   }
 
 private:
+  static StrRef GetGrammarName(Grammar G) {
+    constexpr int BIMax = std::size(BIGrammarNames);
+    const auto Ix = exi::to_underlying(G);
+    if (Ix < BIMax && Ix >= 0)
+      return BIGrammarNames[Ix];
+    return "???"_str;
+  }
+
   ALWAYS_INLINE void pushGrammar(BuiltinSchema::Grammar New) {
     Prev = Current;
     Current = New;
@@ -228,6 +246,8 @@ private:
   }
 
   CC EventTerm getTermImpl(StreamReader& Strm) {
+    LOG_EXTRA("Grammar: {}", GetGrammarName(Current));
+
     // Very rarely set. In most (or all?) cases it only happens once.
     if EXI_UNLIKELY(Current == Document) {
       // Document is always empty, and therefore never reads.
