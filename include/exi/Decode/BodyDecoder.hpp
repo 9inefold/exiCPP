@@ -109,10 +109,9 @@ protected:
   ExiError decodeNS();
   ExiError decodeCH();
 
-  Option<String> decodeString();
-  Option<StrRef> decodeString(SmallVecImpl<char>& Storage);
-
-  Option<StrRef> readString(u64 Size, SmallVecImpl<char>& Storage);
+  ExiResult<String> decodeString();
+  ExiResult<StrRef> decodeString(SmallVecImpl<char>& Storage);
+  ExiResult<StrRef> readString(u64 Size, SmallVecImpl<char>& Storage);
 };
 
 } // namespace exi

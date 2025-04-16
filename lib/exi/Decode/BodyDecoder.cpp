@@ -28,8 +28,16 @@
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/Runes.hpp>
+#include <fmt/ranges.h>
 
 #define DEBUG_TYPE "BodyDecoder"
+
+#if 0
+# define LOG_POSITION(...)                                                    \
+  LOG_EXTRA("@[{}]:", ((__VA_ARGS__)->Reader->bitPos()))
+#else
+# define LOG_POSITION(...) ((void)(0))
+#endif
 
 using namespace exi;
 
@@ -150,7 +158,8 @@ ExiError ExiDecoder::decodeBody() {
 
 ExiError ExiDecoder::decodeEvent() {
   const EventTerm Term = CurrentSchema->getTerm(Reader);
-  LOG_EXTRA("> {}: {}",
+  LOG_POSITION(this);
+  LOG_INFO("> {}: {}",
     get_event_name(Term),
     get_event_signature(Term)
   );
@@ -173,7 +182,7 @@ ExiError ExiDecoder::decodeEvent() {
   case EventTerm::NS:       // Namespace Declaration (uri, prefix, local-element-ns)
     return this->decodeNS();
   case EventTerm::CH:       // Characters (value)
-    return this->decodeCH();
+    // return this->decodeCH();
   case EventTerm::CM:       // Comment text (text)  
   case EventTerm::PI:       // Processing Instruction (name, text)
   case EventTerm::DT:       // DOCTYPE (name, public, system, text)
@@ -194,6 +203,7 @@ ExiError ExiDecoder::decodeSE(EventTerm Term) {
   
   u64 UID; {
     const u64 NBits = Idents.getURILog();
+    LOG_POSITION(this);
     LOG_EXTRA("Decoding <{}>", NBits);
     exi_try(Reader->readBits64(UID, NBits));
   }
@@ -201,19 +211,21 @@ ExiError ExiDecoder::decodeSE(EventTerm Term) {
   StrRef URI;
   if (UID == 0) {
     SmallStr<32> Data;
-    Option Str = decodeString(Data);
+    Result Str = decodeString(Data);
     if EXI_UNLIKELY(!Str)
-      return ErrorCode::kInvalidStringOp;
+      return Str.error();
     std::tie(URI, UID) = Idents.addURI(*Str);
   } else {
     UID -= 1;
     URI = Idents.getURI(UID);
   }
-  LOG_EXTRA(">> URI @{}: \"{}\"", UID, URI);
+  LOG_INFO(">> URI @{}: \"{}\"", UID, URI);
 
   u64 LnID; {
+    LOG_POSITION(this);
     LOG_EXTRA("Decoding UInt");
     exi_try(Reader->readUInt(LnID));
+    LOG_EXTRA(">>> UInt {}", LnID);
   }
 
   StrRef LocalName;
@@ -223,13 +235,14 @@ ExiError ExiDecoder::decodeSE(EventTerm Term) {
     exi_try(Reader->readBits64(LnID, NBits));
     LocalName = Idents.getLocalName(UID, LnID);
   } else {
+    LnID -= 1;
     SmallStr<32> Data;
-    Option Str = readString(LnID, Data);
+    Result Str = readString(LnID, Data);
     if EXI_UNLIKELY(!Str)
-      return ErrorCode::kInvalidStringOp;
-    LocalName = Idents.addLocalName(UID, *Str);
+      return Str.error();
+    std::tie(LocalName, LnID) = Idents.addLocalName(UID, *Str);
   }
-  LOG_EXTRA(">> LN @{}: \"{}\"", LnID, LocalName);
+  LOG_INFO(">> LN @{}: \"{}\"", LnID, LocalName);
   
   // TODO: Prefixes...
 
@@ -246,7 +259,6 @@ ExiError ExiDecoder::decodeEE() {
 ExiError ExiDecoder::decodeAT(EventTerm Term) {
   if (Term != EventTerm::AT)
     return ErrorCode::kUnimplemented;
-  
   return ErrorCode::kUnimplemented;
 }
 
@@ -257,39 +269,47 @@ ExiError ExiDecoder::decodeNS() {
 
 // Characters (value)
 ExiError ExiDecoder::decodeCH() {
+  LOG_POSITION(this);
+  SmallStr<32> Data;
+  Result Str = decodeString(Data);
+  if EXI_UNLIKELY(!Str)
+    return Str.error();
+  LOG_INFO(">> CH \"{}\"", *Str);
   return ErrorCode::kUnimplemented;
 }
 
-Option<String> ExiDecoder::decodeString() {
+ExiResult<String> ExiDecoder::decodeString() {
   SmallStr<64> Data;
-  if (!this->decodeString(Data))
-    return std::nullopt;
+  if (auto E = this->decodeString(Data)
+      .error_or(ExiError::OK)) [[unlikely]] {
+    return Err(E);
+  }
   return String(Data);
 }
 
-Option<StrRef> ExiDecoder::decodeString(SmallVecImpl<char>& Storage) {
+ExiResult<StrRef> ExiDecoder::decodeString(SmallVecImpl<char>& Storage) {
   u64 Size = 0;
-  if (auto E = Reader->readUInt(Size)) {
-    this->diagnose(E);
-    return std::nullopt;
-  }
-
+  if (auto E = Reader->readUInt(Size))
+    return Err(E);
   return readString(Size, Storage);
 }
 
-Option<StrRef> ExiDecoder::readString(u64 Size, SmallVecImpl<char>& Storage) {
+ExiResult<StrRef> ExiDecoder::readString(u64 Size, SmallVecImpl<char>& Storage) {
   if (Size == 0)
     return ""_str;
 
+  LOG_POSITION(this);
   Storage.clear();
   for (u64 Ix = 0; Ix < Size; ++Ix) {
     u64 Rune;
-    if (auto E = Reader->readUInt(Rune)) {
-      this->diagnose(E);
-      return std::nullopt;
+    if (auto E = Reader->readUInt(Rune)) [[unlikely]] {
+      LOG_ERROR("Invalid Rune at [{}:{}].", Ix, Size);
+      return Err(E);
     }
     auto Buf = RuneEncoder::Encode(Rune);
     Storage.append(Buf.data(), Buf.data() + Buf.size());
+    LOG_EXTRA(">>> {}: {}", Buf.str(), 
+      fmt::format("0x{:02X}", fmt::join(Buf, " 0x")));
   }
 
   return StrRef(Storage.data(), Size);
