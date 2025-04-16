@@ -147,7 +147,7 @@ public:
   /// Associates a new Prefix with a URI.
   StrRef addPrefix(CompactID URI, StrRef Pfx);
   /// Associates a new LocalName with a URI.
-  StrRef addLocalName(CompactID URI, StrRef Name);
+  IDPair addLocalName(CompactID URI, StrRef Name);
 
   /// Creates a new Value.
   StrRef addValue(StrRef Value);

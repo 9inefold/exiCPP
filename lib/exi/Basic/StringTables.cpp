@@ -119,15 +119,15 @@ StrRef StringTable::addPrefix(CompactID URI, StrRef Pfx) {
   return PfxP->str();
 }
 
-StrRef StringTable::addLocalName(CompactID URI, StrRef Name) {
+IDPair StringTable::addLocalName(CompactID URI, StrRef Name) {
   exi_invariant(URI < URIMap.size());
   this->assertPartitionsInSync();
 
-  ++URIMap[URI].LNElts;
+  const CompactID ID = URIMap[URI].LNElts++;
   LocalName* LN = createLocalName(Name);
   LNMap[URI].push_back(LN);
 
-  return LN->Name;
+  return {LN->Name, ID};
 }
 
 StrRef StringTable::addValue(StrRef Value) {
