@@ -46,16 +46,6 @@ public:
 };
 } // namespace `anonymous`
 
-static BitStreamReader GetReader(StreamReader& Strm) {
-  if (auto* BitS = dyn_cast<BitStreamReader>(&Strm))
-    return BitStreamReader(BitS->getProxy());
-  else {
-    auto& ByteS = cast<ByteStreamReader>(Strm);
-    return BitStreamReader(ByteS.getProxy());
-    // exi_unreachable("use of ByteStreamReader is currently unsupported");
-  }
-}
-
 static void SetReader(StreamReader& Strm, BitStreamReader& MyReader) {
   auto Proxy = MyReader.getProxy();
   if (auto* BitS = dyn_cast<BitStreamReader>(&Strm))
