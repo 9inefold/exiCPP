@@ -25,6 +25,7 @@
 #include <Common/Map.hpp>
 #include <Common/PointerUnion.hpp>
 #include <Common/Poly.hpp>
+#include <Common/Result.hpp>
 #include <Common/String.hpp>
 #include <Common/SmallStr.hpp>
 #include <Common/SmallVec.hpp>
@@ -876,7 +877,7 @@ static void MaybeBoxTests(int, char*[]) noexcept {
 // Poly
 //===----------------------------------------------------------------===//
 
-//namespace {
+namespace poly_tests {
 
 struct MyBase {
   void saySomething() const { std::printf("Center!\n"); }
@@ -906,8 +907,6 @@ struct Woofer : public MyVBase {
 };
 
 using VPoly = Poly<MyVBase, Meower, Woofer>;
-
-//} // namespace `anonymous`
 
 static void SaySomething(const SPoly& Val) {
   Val.visit([](auto& Val) { Val.saySomething(); });
@@ -981,9 +980,137 @@ static void VPolyTests() {
 #endif
 }
 
+} // namespace poly_tests
+
 static void PolyTests(int, char*[]) {
-  SPolyTests();
-  VPolyTests();
+  poly_tests::SPolyTests();
+  poly_tests::VPolyTests();
+}
+
+//===----------------------------------------------------------------===//
+// Result
+//===----------------------------------------------------------------===//
+
+namespace result_tests {
+
+static int Global = 0;
+static constexpr Result<int&, int> TestCxprResult(int In) {
+  if (In == 0)
+    return Ok(Global);
+  else
+    return Err(In);
+}
+
+static constexpr auto TCR_true = TestCxprResult(0);
+static constexpr auto TCR_false = TestCxprResult(7);
+
+static_assert(TCR_true.is_ok());
+static_assert(TCR_false.is_err());
+
+struct Base {
+  virtual ~Base() = default;
+  virtual int f() const { return 0; }
+};
+struct Derived : public Base {
+  int f() const override{ return 1; }
+};
+
+} // namespace result_tests
+
+static void ResultTests(int, char*[]) {
+  using namespace result_tests;
+  /*Result<T, E>*/ {
+    Result<int, float> X(0);
+    exi_assert(X.is_ok());
+
+    X.emplace_error(0.0f);
+    exi_assert(X.is_err());
+
+    float F = 7.0f;
+    Result<float, int> Y(Err(F));
+    exi_assert(Y.is_err());
+
+    Result<String, int> Z("Hello!");
+    exi_assert(Z.is_ok());
+
+    Z.emplace_error(1);
+    exi_assert(Z.is_err());
+
+    Result<const char*, short> A("Hello world!");
+    exi_assert(A.is_ok());
+
+    Z = A;
+    exi_assert(Z.is_ok());
+    exi_assert(Z->ends_with("world!"));
+  }
+  /*Result<T&, E>*/ {
+    int I = 0;
+    Result<int&, float> X(I);
+    exi_assert(X.is_ok());
+
+    X.emplace_error(0.0f);
+    exi_assert(X.is_err());
+
+    X.emplace(I);
+    exi_assert(&*X == &I);
+    exi_assert(X.data() == &I);
+    exi_assert(X.value() == I);
+    exi_assert(&X.value() == &I);
+
+    float F = 7.0f;
+    Result<float&, int> Y(Err(F));
+    exi_assert(Y.is_err());
+
+    Derived D;
+    Result<Base&, int> Z(D);
+    exi_assert(Z->f() == 1);
+  }
+  /*Result<T, E&>*/ {
+    float F = 7.0f;
+    Result<int, float&> X(Err(F));
+    exi_assert(X.is_err());
+
+    X.emplace(0);
+    exi_assert(X.is_ok());
+
+    Derived D;
+    Result<int, Derived&> Y(X.value());
+    exi_assert(Y.is_ok());
+
+    Y = Err(D);
+    exi_assert(Y.is_err());
+
+    Result<int, Base&> Z(0);
+    exi_assert(Z.is_ok());
+
+    Z = Y;
+    exi_assert(Z.is_err());
+    exi_assert(Z.error().f() == 1);
+  }
+  /*Result<T&, E&>*/ {
+    int I = 0;
+    float F = 7.0f;
+    Result<int&, float&> X(I);
+    exi_assert(X.is_ok());
+
+    X = Err(F);
+    exi_assert(X.is_err());
+
+    Result<int&, float&> Y(X);
+    exi_assert(Y.is_err());
+
+    Y = Ok(I);
+    exi_assert(Y.is_ok());
+
+    X = Y;
+    exi_assert(X.is_ok());
+
+    Result<int, float> Z(I);
+    exi_assert(X.is_ok());
+
+    X = Z.ref();
+    exi_assert(&X.value() == &Z.value());
+  }
 }
 
 //===----------------------------------------------------------------===//
@@ -999,4 +1126,5 @@ void root::tests_main(int Argc, char* Argv[]) {
   // BoundedTests(Argc, Argv);
   // MaybeBoxTests(Argc, Argv);
   // PolyTests(Argc, Argv);
+  ResultTests(Argc, Argv);
 }

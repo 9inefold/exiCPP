@@ -26,95 +26,14 @@
 
 #include <Common/Features.hpp>
 #include <Common/Option.hpp>
+#include <Common/D/Expect.hpp>
 
-// EXI_NO_UNIQUE_ADDRESS
+// TODO: expect/expect_error
 
 namespace exi {
 
-template <typename T, typename E> class Result;
-
-/// Recreation of `std::unexpect_t`.
-struct unexpect_t { explicit constexpr unexpect_t() = default; };
-/// Recreation of `std::unexpect_t`.
-inline constexpr unexpect_t unexpect;
-
-/// Reimplementation of `std::unexpected`.
-template <typename E> class Unexpect {
-  static_assert(!std::same_as<E, std::in_place_t>);
-  static_assert(!std::same_as<E, unexpect_t>);
-  template <typename T, typename G> friend class Result;
-  E Data;
-public:
-  constexpr Unexpect(const Unexpect&) = default;
-  constexpr Unexpect(Unexpect&&) = default;
-
-  template <typename X = E>
-  constexpr explicit Unexpect(X&& Val) : Data(EXI_FWD(Val)) {}
-  
-  constexpr explicit Unexpect(
-    std::in_place_t, auto&&...Args)
-   : Data(EXI_FWD(Args)...) {}
-  
-  constexpr Unexpect& operator=(const Unexpect&) = default;
-  constexpr Unexpect& operator=(Unexpect&&) = default;
-
-  constexpr E& error() & noexcept { return Data; }
-  constexpr const E& error() const& noexcept { return Data; }
-  constexpr E&& error() && noexcept { return std::move(Data); }
-};
-
-/// Reimplementation of `std::unexpected`.
-template <typename E> class Unexpect<E&> {
-  static_assert(!std::same_as<E, std::in_place_t>);
-  static_assert(!std::same_as<E, unexpect_t>);
-  template <typename T, typename G> friend class Result;
-  E* Data = nullptr;
-public:
-  constexpr Unexpect(const Unexpect&) = default;
-  constexpr Unexpect(Unexpect&&) = default;
-
-  template <typename X = E>
-  requires std::convertible_to<X*, E*>
-  constexpr explicit Unexpect(
-    X& Val EXI_LIFETIMEBOUND) :
-   Data(std::addressof(Val)) {}
-
-  constexpr Unexpect& operator=(const Unexpect&) = default;
-  constexpr Unexpect& operator=(Unexpect&&) = default;
-
-  constexpr E& error() const noexcept { return *Data; }
-};
-
-template <typename E> Unexpect(E&) -> Unexpect<E&>;
-template <typename E> Unexpect(const E&) -> Unexpect<const E&>;
-template <typename E> Unexpect(E&&) -> Unexpect<E>;
-
-template <typename E> Unexpect(Unexpect<E&>) -> Unexpect<E&>;
-template <typename E> Unexpect(Unexpect<const E&>) -> Unexpect<const E&>;
-template <typename E> Unexpect(Unexpect<E>) -> Unexpect<E>;
-
 template <typename T>
-EXI_INLINE constexpr decltype(auto) Ok(T&& Val) noexcept {
-  return EXI_FWD(Val);
-}
-
-template <typename E>
-EXI_INLINE constexpr decltype(auto) Err(E&& Val) noexcept {
-  return Unexpect(EXI_FWD(Val));
-}
-
-namespace H {
-template <typename>
-struct IsUnexpect : std::false_type {};
-
-template <typename E>
-struct IsUnexpect<Unexpect<E>> : std::true_type {};
-} // namespace H
-
-template <typename T>
-concept is_unexpect = H::IsUnexpect<T>::value;
-
-//////////////////////////////////////////////////////////////////////////
+concept is_result_proxy = is_expect<T> || is_unexpect<T>;
 
 namespace result_detail {
 
@@ -467,6 +386,7 @@ public:
 template <typename T, typename E>
 class EXI_EMPTY_BASES Storage : public StorageUnex<T, E> {
   using BaseT = StorageUnex<T, E>;
+  using error_type = std::remove_reference_t<E>;
 
   ALWAYS_INLINE constexpr T& reference() noexcept {
     return BaseT::X.Data;
@@ -507,8 +427,24 @@ public:
    : BaseT(std::in_place) {}
   
   template <class U = std::remove_cv_t<T>>
+  requires(!is_result_proxy<std::remove_cvref_t<U>>)
   constexpr explicit(!std::is_convertible_v<U, T>) Storage(U&& Val) :
    BaseT(std::in_place, EXI_FWD(Val)) {}
+  
+  template <typename U>
+  constexpr explicit(!std::is_convertible_v<std::add_const_t<U>&, E>)
+    Storage(Expect<U&> V) : BaseT(std::in_place, V.value()) {
+  }
+
+  template <typename U>
+  constexpr explicit(!std::is_convertible_v<const U&, E>)
+    Storage(const Expect<U>& V) : BaseT(std::in_place, V.value()) {
+  }
+
+  template <typename U>
+  constexpr explicit(!std::is_convertible_v<U, E>)
+    Storage(Expect<U>&& V) : BaseT(std::in_place, std::move(V).value()) {
+  }
 
   /// Constructs a value `T` in place, then returns a reference.
   constexpr T& emplace(auto&&...Args) noexcept EXI_LIFETIMEBOUND {
@@ -556,6 +492,20 @@ public:
   constexpr T& operator*() & { return value(); }
   constexpr T&& operator*() && { return std::move(value()); }
 
+  constexpr Result<T&, error_type&> ref()& noexcept {
+    if (has_value())
+      return Ok(reference());
+    else
+      return Err(BaseT::X.Unex);
+  }
+  // TODO: Fix this, error_type should be smarter.
+  constexpr Result<const T&, const error_type&> ref() const& noexcept {
+    if (has_value())
+      return Ok(reference());
+    else
+      return Err(BaseT::X.Unex);
+  }
+
   constexpr bool has_value() const noexcept { return BaseT::Active; }
 
   template <typename U> constexpr T value_or(U&& Alt) const& {
@@ -570,6 +520,7 @@ public:
 template <typename T, typename E>
 class EXI_EMPTY_BASES Storage<T&, E> : public StorageUnex<T&, E> {
   using BaseT = StorageUnex<T&, E>;
+  using error_type = std::remove_reference_t<E>;
 
   ALWAYS_INLINE constexpr T& reference() const noexcept {
     return *BaseT::X.Data;
@@ -604,8 +555,14 @@ public:
    BaseT(std::in_place, std::addressof(In)) {}
 
   template <class U = std::remove_cv_t<T>>
+  requires(!is_result_proxy<std::remove_cv_t<U>>)
   constexpr explicit(!std::is_convertible_v<U*, T*>) Storage(U& Val) :
    BaseT(std::in_place, std::addressof(Val)) {}
+  
+  template <typename U>
+  constexpr explicit(!std::is_convertible_v<U*, T*>)
+    Storage(Expect<U&> V) : Storage(std::in_place, V.value()) {
+  }
 
   /// Creates a value `T&` in place, then returns a reference.
   constexpr T& emplace(T& In EXI_LIFETIMEBOUND) noexcept {
@@ -630,6 +587,27 @@ public:
   constexpr T& operator*() const {
     exi_assert(has_value(), "value is inactive!");
     return reference();
+  }
+
+  constexpr Result<T&, error_type&> ref()& noexcept {
+    if (has_value())
+      return Ok(reference());
+    else
+      return Err(BaseT::X.Unex);
+  }
+  // TODO: Fix this, error_type should be smarter.
+  constexpr Result<const T&, const error_type&> ref() const& noexcept {
+    if (has_value())
+      return Ok(reference());
+    else
+      return Err(BaseT::X.Unex);
+  }
+  constexpr Result<T&, error_type&> ref() && noexcept
+   requires(std::is_reference_v<E>) {
+    if (has_value())
+      return Ok(reference());
+    else
+      return Err(BaseT::X.Unex);
   }
 
   EXI_INLINE constexpr bool has_value() const noexcept {
@@ -773,7 +751,7 @@ public:
   template <typename U>
   constexpr Result& operator=(U&& Val) requires(
       !std::same_as<std::remove_cvref_t<U>, Result>
-   && !is_unexpect<std::remove_cvref_t<U>>
+   && !is_result_proxy<std::remove_cvref_t<U>>
    && BaseT::template can_move_value<U>
    && result_detail::can_assign<T, U>) {
     if (this->is_ok()) {
