@@ -123,6 +123,7 @@ using option_detail::not_const;
 using option_detail::abstract;
 using option_detail::concrete;
 using option_detail::EmptyTag;
+struct ImplInvokeTag {};
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -197,7 +198,6 @@ template <typename T, typename E> class Storage;
 
 template <typename T, typename E> class StorageBase {
 protected:
-  struct impl_invoke_tag {};
   union Impl {
     EXI_NO_UNIQUE_ADDRESS result_storage<T> Data;
     EXI_NO_UNIQUE_ADDRESS result_storage<E> Unex;
@@ -251,7 +251,7 @@ public:
    : X(unexpect, EXI_FWD(Args)...), Active(false) {}
 
 protected:
-  inline constexpr StorageBase(impl_invoke_tag, bool IsActive, auto&& O) :
+  inline constexpr StorageBase(ImplInvokeTag, bool IsActive, auto&& O) :
    X(StorageBase::MakeUnion(IsActive, EXI_FWD(O))), Active(IsActive) {}
 
   EXI_INLINE constexpr Impl& get_union() noexcept { return X; }
@@ -669,7 +669,7 @@ class Result : public result_detail::Storage<T, E> {
   using Ex = result_detail::result_storage<E>;
 
   using BaseT = result_detail::Storage<T, E>;
-  using InvokeTag = BaseT::impl_invoke_tag;
+  using InvokeTag = result_detail::ImplInvokeTag;
 
   template <typename U, typename G>
   static constexpr bool can_copy
