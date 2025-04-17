@@ -53,12 +53,6 @@
 
 using namespace exi;
 
-enum NodeDataKind {
-  NDK_None    = 0b000,
-  NDK_Nest    = 0b001,
-  NDK_Unnest  = 0b010,
-};
-
 static Option<bool> EnvAsBoolean(StrRef Env) {
   return StringSwitch<Option<bool>>(Env)
     .Cases("TRUE", "YES", "ON", true)
