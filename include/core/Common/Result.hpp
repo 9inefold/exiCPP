@@ -764,6 +764,30 @@ public:
     return *this;
   }
 
+  template <typename U>
+  requires(std::is_assignable_v<Result, std::add_lvalue_reference_t<U>>)
+  constexpr Result& operator=(const Expect<U>& O) {
+    if (this->is_ok()) {
+      this->get_data() = O.Data;
+    } else {
+      this->reset();
+      this->construct(std::in_place, O.Data);
+    }
+    return *this;
+  }
+
+  template <typename U>
+  requires(std::is_assignable_v<Result, U>)
+  constexpr Result& operator=(Expect<U>&& O) {
+    if (this->is_ok()) {
+      this->get_data() = std::move(O.Data);
+    } else {
+      this->reset();
+      this->construct(std::in_place, std::move(O.Data));
+    }
+    return *this;
+  }
+
   template <typename G>
   constexpr Result& operator=(const Unexpect<G>& O) {
     if (this->is_ok()) {

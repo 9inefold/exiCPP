@@ -1070,7 +1070,7 @@ static void ResultTests(int, char*[]) {
     Result<int, float&> X(Err(F));
     exi_assert(X.is_err());
 
-    X.emplace(0);
+    X = Ok(0);
     exi_assert(X.is_ok());
 
     Derived D;
