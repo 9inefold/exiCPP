@@ -26,12 +26,12 @@
 
 using namespace exi;
 
-APInt NBitIntBase::MakeAPInt(i64 Val, unsigned Bits) {
+APInt NBitIntBase::MakeAPInt(SInt Val, unsigned Bits) {
   // Create signed APInt without truncation.
-  return APInt(Bits, static_cast<u64>(Val), true, false);
+  return APInt(Bits, static_cast<UInt>(Val), true, false);
 }
 
-APInt NBitIntBase::MakeAPInt(u64 Val, unsigned Bits) {
+APInt NBitIntBase::MakeAPInt(UInt Val, unsigned Bits) {
   // Create unsigned APInt without truncation.
   return APInt(Bits, Val, false, false);
 }
