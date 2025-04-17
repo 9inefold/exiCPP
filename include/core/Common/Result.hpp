@@ -302,191 +302,10 @@ private:
   }
 };
 
-/// Implements functions for `Result<T, ?>`.
-template <typename T, typename E>
-class EXI_EMPTY_BASES StorageData : public StorageBase<T, E> {
-  using BaseT = StorageBase<T, E>;
-
-  ALWAYS_INLINE constexpr T& reference() noexcept {
-    return BaseT::X.Data;
-  }
-
-  ALWAYS_INLINE constexpr const T& reference() const noexcept {
-    return BaseT::X.Data;
-  }
-
-  ALWAYS_INLINE constexpr T* address() noexcept {
-    return std::addressof(BaseT::X.Data);
-  }
-
-protected:
-  template <typename U>
-  static constexpr bool can_copy_value
-    = std::is_convertible_v<const U&, T>;
-  
-  template <typename U>
-  static constexpr bool can_move_value
-    = std::is_convertible_v<U, T>;
-
-  ALWAYS_INLINE constexpr T& get_data() & noexcept {
-    return BaseT::X.Data;
-  }
-  ALWAYS_INLINE constexpr const T& get_data() const& noexcept {
-    return BaseT::X.Data;
-  }
-  ALWAYS_INLINE constexpr T&& get_data() && noexcept {
-    return std::move(BaseT::X.Data);
-  }
-
-public:
-  using BaseT::BaseT;
-
-  constexpr StorageData()
-    requires(std::is_default_constructible_v<T>)
-   : BaseT(std::in_place) {}
-  
-  template <class U = std::remove_cv_t<T>>
-  constexpr explicit(!std::is_convertible_v<U, T>) StorageData(U&& Val) :
-   BaseT(std::in_place, EXI_FWD(Val)) {}
-
-  /// Constructs a value `T` in place, then returns a reference.
-  constexpr T& emplace(auto&&...Args) noexcept EXI_LIFETIMEBOUND {
-    BaseT::reset();
-    BaseT::construct(std::in_place, EXI_FWD(Args)...);
-    return reference();
-  }
-
-  constexpr const auto* data() const {
-    exi_assert(has_value(), "value is inactive!");
-    return &BaseT::X.Data;
-  }
-  constexpr auto* data() {
-    exi_assert(has_value(), "value is inactive!");
-    return &BaseT::X.Data;
-  }
-
-  constexpr const T& value() const& EXI_LIFETIMEBOUND {
-    exi_assert(has_value(), "value is inactive!");
-    return BaseT::X.Data;
-  }
-  constexpr T& value() & EXI_LIFETIMEBOUND {
-    exi_assert(has_value(), "value is inactive!");
-    return BaseT::X.Data;
-  }
-  constexpr T&& value() && EXI_LIFETIMEBOUND {
-    exi_assert(has_value(), "value is inactive!");
-    return std::move(BaseT::X.Data);
-  }
-
-  constexpr const auto* operator->() const& {
-    exi_assert(has_value(), "value is inactive!");
-    return &BaseT::X.Data;
-  }
-  constexpr auto* operator->() & {
-    exi_assert(has_value(), "value is inactive!");
-    return &BaseT::X.Data;
-  }
-  constexpr auto* operator->() && {
-    exi_assert(has_value(), "value is inactive!");
-    return &BaseT::X.Data;
-  }
-
-  constexpr const T& operator*() const& { return value(); }
-  constexpr T& operator*() & { return value(); }
-  constexpr T&& operator*() && { return std::move(value()); }
-
-  constexpr bool has_value() const noexcept { return BaseT::Active; }
-
-  template <typename U> constexpr T value_or(U&& Alt) const& {
-    return has_value() ? reference() : EXI_FWD(Alt);
-  }
-  template <typename U> T value_or(U&& Alt) && {
-    return has_value() ? std::move(reference()) : EXI_FWD(Alt);
-  }
-};
-
-/// Implements functions for `Result<T&, ?>`.
-template <typename T, typename E>
-class EXI_EMPTY_BASES StorageData<T&, E> : public StorageBase<T&, E> {
-  using BaseT = StorageBase<T&, E>;
-
-  ALWAYS_INLINE constexpr T& reference() const noexcept {
-    return *BaseT::X.Data;
-  }
-
-  ALWAYS_INLINE constexpr T* address() const noexcept {
-    return BaseT::X.Data;
-  }
-
-protected:
-  template <typename U>
-  static constexpr bool can_copy_value
-    =  std::is_lvalue_reference_v<U>
-    && std::is_convertible_v<std::remove_reference_t<U>*, T*>;
-  
-  template <typename U>
-  static constexpr bool can_move_value
-    =  std::is_lvalue_reference_v<U>
-    && std::is_convertible_v<std::remove_reference_t<U>*, T*>;
-
-  ALWAYS_INLINE constexpr T*& get_data() noexcept {
-    return BaseT::X.Data;
-  }
-  ALWAYS_INLINE constexpr T* const& get_data() const noexcept {
-    return BaseT::X.Data;
-  }
-
-public:
-  using BaseT::BaseT;
-
-  explicit constexpr StorageData(std::in_place_t, T& In EXI_LIFETIMEBOUND) :
-   BaseT(std::in_place, std::addressof(In)) {}
-
-  template <class U = std::remove_cv_t<T>>
-  constexpr explicit(!std::is_convertible_v<U*, T*>) StorageData(U& Val) :
-   BaseT(std::in_place, std::addressof(Val)) {}
-
-  /// Creates a value `T&` in place, then returns a reference.
-  constexpr T& emplace(T& In EXI_LIFETIMEBOUND) noexcept {
-    BaseT::reset();
-    BaseT::construct(std::in_place, std::addressof(In));
-    return In;
-  }
-
-  constexpr T* data() const {
-    exi_assert(has_value(), "value is inactive!");
-    return address();
-  }
-  constexpr T& value() const {
-    exi_assert(has_value(), "value is inactive!");
-    return reference();
-  }
-
-  constexpr T* operator->() const {
-    exi_assert(has_value(), "value is inactive!");
-    return address();
-  }
-  constexpr T& operator*() const {
-    exi_assert(has_value(), "value is inactive!");
-    return reference();
-  }
-
-  EXI_INLINE constexpr bool has_value() const noexcept {
-    return BaseT::Active;
-  }
-
-  template <typename U> constexpr T& value_or(U&& Alt EXI_LIFETIMEBOUND) const {
-    if (has_value())
-      return reference();
-    else
-      return EXI_FWD(Alt);
-  }
-};
-
 /// Implements functions for `Result<?, E>`.
 template <typename T, typename E>
-class EXI_EMPTY_BASES StorageUnex : public StorageData<T, E> {
-  using BaseT = StorageData<T, E>;
+class EXI_EMPTY_BASES StorageUnex : public StorageBase<T, E> {
+  using BaseT = StorageBase<T, E>;
 
   ALWAYS_INLINE constexpr E& reference() noexcept {
     return BaseT::X.Unex;
@@ -578,8 +397,8 @@ public:
 
 /// Implements functions for `Result<?, E&>`.
 template <typename T, typename E>
-class EXI_EMPTY_BASES StorageUnex<T, E&> : public StorageData<T, E&> {
-  using BaseT = StorageData<T, E&>;
+class EXI_EMPTY_BASES StorageUnex<T, E&> : public StorageBase<T, E&> {
+  using BaseT = StorageBase<T, E&>;
 
   ALWAYS_INLINE constexpr E& reference() const noexcept {
     return *BaseT::X.Unex;
@@ -644,15 +463,185 @@ public:
   }
 };
 
-/// Implements functions for `Result<?, ?>`.
+/// Implements functions for `Result<T, ?>`.
 template <typename T, typename E>
 class EXI_EMPTY_BASES Storage : public StorageUnex<T, E> {
   using BaseT = StorageUnex<T, E>;
+
+  ALWAYS_INLINE constexpr T& reference() noexcept {
+    return BaseT::X.Data;
+  }
+
+  ALWAYS_INLINE constexpr const T& reference() const noexcept {
+    return BaseT::X.Data;
+  }
+
+  ALWAYS_INLINE constexpr T* address() noexcept {
+    return std::addressof(BaseT::X.Data);
+  }
+
+protected:
+  template <typename U>
+  static constexpr bool can_copy_value
+    = std::is_convertible_v<const U&, T>;
+  
+  template <typename U>
+  static constexpr bool can_move_value
+    = std::is_convertible_v<U, T>;
+
+  ALWAYS_INLINE constexpr T& get_data() & noexcept {
+    return BaseT::X.Data;
+  }
+  ALWAYS_INLINE constexpr const T& get_data() const& noexcept {
+    return BaseT::X.Data;
+  }
+  ALWAYS_INLINE constexpr T&& get_data() && noexcept {
+    return std::move(BaseT::X.Data);
+  }
+
 public:
   using BaseT::BaseT;
-  constexpr bool is_ok() const noexcept { return BaseT::has_value(); }
-  constexpr bool is_err() const noexcept { return BaseT::has_error(); }
-  constexpr explicit operator bool() const noexcept { return is_ok(); }
+
+  constexpr Storage()
+    requires(std::is_default_constructible_v<T>)
+   : BaseT(std::in_place) {}
+  
+  template <class U = std::remove_cv_t<T>>
+  constexpr explicit(!std::is_convertible_v<U, T>) Storage(U&& Val) :
+   BaseT(std::in_place, EXI_FWD(Val)) {}
+
+  /// Constructs a value `T` in place, then returns a reference.
+  constexpr T& emplace(auto&&...Args) noexcept EXI_LIFETIMEBOUND {
+    BaseT::reset();
+    BaseT::construct(std::in_place, EXI_FWD(Args)...);
+    return reference();
+  }
+
+  constexpr const auto* data() const {
+    exi_assert(has_value(), "value is inactive!");
+    return &BaseT::X.Data;
+  }
+  constexpr auto* data() {
+    exi_assert(has_value(), "value is inactive!");
+    return &BaseT::X.Data;
+  }
+
+  constexpr const T& value() const& EXI_LIFETIMEBOUND {
+    exi_assert(has_value(), "value is inactive!");
+    return BaseT::X.Data;
+  }
+  constexpr T& value() & EXI_LIFETIMEBOUND {
+    exi_assert(has_value(), "value is inactive!");
+    return BaseT::X.Data;
+  }
+  constexpr T&& value() && EXI_LIFETIMEBOUND {
+    exi_assert(has_value(), "value is inactive!");
+    return std::move(BaseT::X.Data);
+  }
+
+  constexpr const auto* operator->() const& {
+    exi_assert(has_value(), "value is inactive!");
+    return &BaseT::X.Data;
+  }
+  constexpr auto* operator->() & {
+    exi_assert(has_value(), "value is inactive!");
+    return &BaseT::X.Data;
+  }
+  constexpr auto* operator->() && {
+    exi_assert(has_value(), "value is inactive!");
+    return &BaseT::X.Data;
+  }
+
+  constexpr const T& operator*() const& { return value(); }
+  constexpr T& operator*() & { return value(); }
+  constexpr T&& operator*() && { return std::move(value()); }
+
+  constexpr bool has_value() const noexcept { return BaseT::Active; }
+
+  template <typename U> constexpr T value_or(U&& Alt) const& {
+    return has_value() ? reference() : EXI_FWD(Alt);
+  }
+  template <typename U> T value_or(U&& Alt) && {
+    return has_value() ? std::move(reference()) : EXI_FWD(Alt);
+  }
+};
+
+/// Implements functions for `Result<T&, ?>`.
+template <typename T, typename E>
+class EXI_EMPTY_BASES Storage<T&, E> : public StorageUnex<T&, E> {
+  using BaseT = StorageUnex<T&, E>;
+
+  ALWAYS_INLINE constexpr T& reference() const noexcept {
+    return *BaseT::X.Data;
+  }
+
+  ALWAYS_INLINE constexpr T* address() const noexcept {
+    return BaseT::X.Data;
+  }
+
+protected:
+  template <typename U>
+  static constexpr bool can_copy_value
+    =  std::is_lvalue_reference_v<U>
+    && std::is_convertible_v<std::remove_reference_t<U>*, T*>;
+  
+  template <typename U>
+  static constexpr bool can_move_value
+    =  std::is_lvalue_reference_v<U>
+    && std::is_convertible_v<std::remove_reference_t<U>*, T*>;
+
+  ALWAYS_INLINE constexpr T*& get_data() noexcept {
+    return BaseT::X.Data;
+  }
+  ALWAYS_INLINE constexpr T* const& get_data() const noexcept {
+    return BaseT::X.Data;
+  }
+
+public:
+  using BaseT::BaseT;
+
+  explicit constexpr Storage(std::in_place_t, T& In EXI_LIFETIMEBOUND) :
+   BaseT(std::in_place, std::addressof(In)) {}
+
+  template <class U = std::remove_cv_t<T>>
+  constexpr explicit(!std::is_convertible_v<U*, T*>) Storage(U& Val) :
+   BaseT(std::in_place, std::addressof(Val)) {}
+
+  /// Creates a value `T&` in place, then returns a reference.
+  constexpr T& emplace(T& In EXI_LIFETIMEBOUND) noexcept {
+    BaseT::reset();
+    BaseT::construct(std::in_place, std::addressof(In));
+    return In;
+  }
+
+  constexpr T* data() const {
+    exi_assert(has_value(), "value is inactive!");
+    return address();
+  }
+  constexpr T& value() const {
+    exi_assert(has_value(), "value is inactive!");
+    return reference();
+  }
+
+  constexpr T* operator->() const {
+    exi_assert(has_value(), "value is inactive!");
+    return address();
+  }
+  constexpr T& operator*() const {
+    exi_assert(has_value(), "value is inactive!");
+    return reference();
+  }
+
+  EXI_INLINE constexpr bool has_value() const noexcept {
+    return BaseT::Active;
+  }
+
+  template <typename U> constexpr T& value_or(U&& Alt EXI_LIFETIMEBOUND) const {
+    if (has_value())
+      return reference();
+    else
+      return EXI_FWD(Alt);
+  }
 };
 
 /// Implements functions for `Result<T, void>`.
@@ -818,6 +807,13 @@ public:
     }
     return *this;
   }
+
+  /// Returns `true` if value is active.
+  constexpr bool is_ok() const noexcept { return BaseT::has_value(); }
+  /// Returns `true` if error is active.
+  constexpr bool is_err() const noexcept { return BaseT::has_error(); }
+  /// Returns `true` if value is active.
+  constexpr explicit operator bool() const noexcept { return is_ok(); }
 };
 
 } // namespace exi
