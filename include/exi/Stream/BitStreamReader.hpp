@@ -81,10 +81,14 @@ private:
     return Peeked;
   }
 
+  /// Dispatch peek implementation.
   u64 peekBitsImpl(i64 Bits) const;
+  /// Used for peeking byte-aligned streams.
   u64 peekBitsFast(i64 Bits) const;
+  /// Used for peeking unaligned streams.
   u64 peekBitsSlow(i64 Bits) const;
 
+  /// Peeks byte at offset in unaligned stream.
   u64 peekByteSlow(const i64 POff = 0) const {
     exi_assume(POff >= 0);
     exi_expensive_invariant(!BaseT::isByteAligned(),

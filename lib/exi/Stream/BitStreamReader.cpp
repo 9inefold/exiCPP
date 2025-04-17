@@ -124,6 +124,7 @@ u64 BitStreamReader::peekBitsFast(i64 Bits) const {
   if (Bits != 0) {
     // exi_invariant(Bits >= 0, "Negative bit number??");
     u64 Curr = u64(BaseT::Stream[Pos]) >> (8 - Bits);
+    Curr &= 0xFF >> (8 - Bits);
     Result |= Curr << Offset;
   }
 
@@ -146,9 +147,8 @@ u64 BitStreamReader::peekBitsSlow(i64 Bits) const {
   }
 
   if (Bits != 0) {
-    // exi_invariant(Bits >= 0, "Negative bit number??");
-    const u64 CurrPos = (BaseT::bitPos() + Offset) / 8;
-    u64 Curr = u64(BaseT::Stream[CurrPos]) >> (8 - Bits);
+    u64 Curr = peekByteSlow(Pos) >> (8 - Bits);
+    Curr &= 0xFF >> (8 - Bits);
     Result |= Curr << Offset;
   }
 
