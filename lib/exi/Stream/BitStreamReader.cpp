@@ -107,7 +107,7 @@ u64 BitStreamReader::peekBitsSlow(i64 Bits) const {
 #endif
 
 u64 BitStreamReader::peekBitsFast(i64 Bits) const {
-  exi_invariant(Bits > 0);
+  exi_assume(Bits > 0);
   i64 Offset = 0, Pos = BaseT::bytePos();
   u64 Result = 0;
 
@@ -132,7 +132,7 @@ u64 BitStreamReader::peekBitsFast(i64 Bits) const {
 }
 
 u64 BitStreamReader::peekBitsSlow(i64 Bits) const {
-  exi_invariant(Bits > 0);
+  exi_assume(Bits > 0);
   i64 Pos = 0, Offset = 0;
   u64 Result = 0;
 
