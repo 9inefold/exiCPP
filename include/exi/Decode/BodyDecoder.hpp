@@ -50,8 +50,14 @@ struct DecoderFlags {
 
 /// The EXI decoding processor.
 class ExiDecoder {
+  friend class Schema::Get;
+
+  /// The provided Header.
   ExiHeader Header;
+  /// The provided `StreamReader`.
   Poly<BitStreamReader, ByteStreamReader> Reader;
+  /// A BumpPtrAllocator for processor internals.
+  exi::BumpPtrAllocator BP;
   /// The table holding decoded string values (QNames, LocalNames, etc.)
   decode::StringTable Idents;
   /// The schema for the current document.

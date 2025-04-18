@@ -32,6 +32,8 @@
 namespace exi {
 
 struct ExiOptions;
+class ExiDecoder;
+class ExiEncoder;
 
 /// The base for all schemas.
 class Schema : public RTTIExtends<Schema, RTTIRoot> {
@@ -41,6 +43,10 @@ public:
   [[nodiscard]] virtual EventTerm getTerm(StreamReader& Strm) = 0;
   /// TODO: writeTerm(StreamWriter& Strm, EventCode);
   virtual void dump() const {}
+protected:
+  friend class ExiDecoder;
+  friend class ExiEncoder;
+  class Get;
 private:
   virtual void anchor();
 };
@@ -61,12 +67,6 @@ protected:
   
 public:
   static const char ID;
-
-  /// @brief Gets a builtin schema.
-  /// @param SelfContained If SC terms should be considered.
-  /// FIXME: THIS DOESN'T WORK!!! Need to take Preserve into account.
-  [[nodiscard]] static Box<BuiltinSchema> GetSchema(bool SelfContained);
-
   /// @brief Gets a builtin schema.
   [[nodiscard]] static Box<BuiltinSchema> New(const ExiOptions& Opts);
 private:

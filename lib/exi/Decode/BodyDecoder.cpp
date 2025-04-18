@@ -295,11 +295,13 @@ ExiResult<StrRef> ExiDecoder::decodeString(SmallVecImpl<char>& Storage) {
 }
 
 ExiResult<StrRef> ExiDecoder::readString(u64 Size, SmallVecImpl<char>& Storage) {
+  LOG_POSITION(this);
   if (Size == 0)
     return ""_str;
 
-  LOG_POSITION(this);
   Storage.clear();
+  Storage.reserve(Size);
+
   for (u64 Ix = 0; Ix < Size; ++Ix) {
     u64 Rune;
     if (auto E = Reader->readUInt(Rune)) [[unlikely]] {

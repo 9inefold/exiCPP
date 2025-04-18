@@ -21,7 +21,7 @@
 ///
 //===----------------------------------------------------------------===//
 
-#include <exi/Grammar/Schema.hpp>
+#include "SchemaGet.hpp"
 #include <core/Common/EnumArray.hpp>
 #include <core/Common/MMatch.hpp>
 #include <core/Common/SmallVec.hpp>
@@ -539,10 +539,6 @@ Box<DynBuiltinSchema> DynBuiltinSchema::New(const ExiOptions& Opts) {
     BuiltinInfo = B.Info[Ix];
   
   return Box<DynBuiltinSchema>(Schema);
-}
-
-Box<BuiltinSchema> BuiltinSchema::GetSchema(bool SelfContained) {
-  exi_unreachable("why........");
 }
 
 Box<BuiltinSchema> BuiltinSchema::New(const ExiOptions& Opts) {
