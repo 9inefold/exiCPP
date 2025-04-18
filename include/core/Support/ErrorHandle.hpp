@@ -21,6 +21,8 @@
 #include <Common/Features.hpp>
 #include <cassert>
 
+// TODO: Macro "compiler" would make this all a lot nicer...
+
 #if !defined(NDEBUG) || EXI_INVARIANTS
 # define EXI_ASSERTS 1
 #else
@@ -113,19 +115,22 @@ class Twine;
   ? (void(0))                                                                 \
   : (exi_fail(KIND, ("`" #EXPR "`" __VA_OPT__(". Reason: ") #__VA_ARGS__))))
 
-#if defined(EXI_UNREACHABLE) && EXI_HAS_BUILTIN(__builtin_is_constant_evaluated)
+#if EXI_HAS_BUILTIN(__builtin_is_constant_evaluated)
 # define EXI_HAS_CTASSERT 1
 /// This version will have better error messages, as it uses unreachable instead
 /// of invoking a non-constexpr function.
-# define exi_assertCT_(EXPR)                                                  \
-  ((__builtin_is_constant_evaluated() && (!EXI_LIKELY(EXPR)))                 \
-    ? (EXI_UNREACHABLE) : (void(0)))
+# define exi_assertCT_(EXPR, ...) do {                                        \
+    if (__builtin_is_constant_evaluated()) {                                  \
+      if (!static_cast<bool>(EXPR))                                           \
+        asm("constexpr assertion failed.");                                   \
+    }                                                                         \
+  } while(0)
 #else
 # define exi_assertCT_(EXPR) (void(0))
 #endif
 
 #define exi_assert_(KIND, EXPR, ...) do {                                     \
-  exi_assertCT_(EXPR);                                                        \
+  exi_assertCT_(EXPR __VA_OPT__(,) __VA_ARGS__);                              \
   exi_assertRT_(KIND, EXPR __VA_OPT__(,) __VA_ARGS__);                        \
 } while(0)
 
@@ -163,7 +168,7 @@ class Twine;
  exi_assert_(ASK_Invariant, EXPR __VA_OPT__(,) __VA_ARGS__)
 #else
 /// Noop in this mode.
-# define exi_invariant(EXPR, ...) exi_assertCT_(EXPR)
+# define exi_invariant(EXPR, ...) exi_assertCT_(EXPR __VA_OPT__(,) __VA_ARGS__)
 #endif
 
 #ifdef EXPENSIVE_CHECKS
