@@ -88,6 +88,7 @@ include_items(EXICPP_SRC "lib/exi"
   Decode/BodyDecoder.cpp
   Decode/HeaderDecoder.cpp
 
+  Grammar/Grammar.cpp
   Grammar/Schema.cpp
 
   Stream/BitStreamReader.cpp
