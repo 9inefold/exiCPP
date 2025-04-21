@@ -27,6 +27,7 @@
 #include <Common/Fundamental.hpp>
 #include <Common/STLExtras.hpp>
 #include <Support/Alignment.hpp>
+#include <Support/AllocatorBase.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <memory>
 
@@ -88,6 +89,16 @@ protected:
     static_assert(std::is_final_v<Derived>,
       "Derived is required to be final to avoid array overlap.");
     void* const Ptr = ::operator new(TrailingArray::NewSize(N));
+    // TODO: Check alignment?
+    return static_cast<Derived*>(Ptr);
+  }
+
+  template <typename Alloc>
+  [[nodiscard]] static Derived* New(unsigned N, AllocatorBase<Alloc>& A) {
+    static_assert(std::is_final_v<Derived>,
+      "Derived is required to be final to avoid array overlap.");
+    constexpr usize Align = alignof(Derived);
+    void* const Ptr = A.Allocate(TrailingArray::NewSize(N), Align);
     // TODO: Check alignment?
     return static_cast<Derived*>(Ptr);
   }
