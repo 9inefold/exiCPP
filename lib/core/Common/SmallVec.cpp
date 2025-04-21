@@ -40,6 +40,8 @@
 
 using namespace exi;
 
+// TODO: Support mi_expand for non-trivial types.
+
 // Check that no bytes are wasted and everything is well-aligned.
 namespace {
 // These structures may cause binary compat warnings on AIX. Suppress the
