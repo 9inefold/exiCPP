@@ -179,3 +179,7 @@ class Twine;
 /// Noop in this mode.
 # define exi_expensive_invariant(EXPR, ...) (void(0))
 #endif
+
+/// Takes `(condition, "message")`, always asserts. Use sparingly.
+# define exi_relassert(EXPR, ...) \
+ exi_assert_(ASK_Assert, EXPR __VA_OPT__(,) __VA_ARGS__)
