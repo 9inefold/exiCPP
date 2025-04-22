@@ -47,6 +47,13 @@
 // Setup
 //======================================================================//
 
+#ifndef EXI_IS_LANG_SERVER
+# if defined(__INTELLISENSE__) || defined(__CLION_IDE__)
+/// This macro is defined for language servers, speeding up suggestions.
+#  define EXI_IS_LANG_SERVER 1
+# endif
+#endif
+
 #undef EXI_MSVC
 #if (defined(_MSC_VER) || defined(_MSVC_LANG)) && !defined(__MINGW32__)
 # define EXI_MSVC 1
@@ -87,7 +94,7 @@
 #endif
 
 #if defined(__cplusplus) && defined(__has_cpp_attribute)
-# ifdef __INTELLISENSE__
+# if EXI_IS_LANG_SERVER
 /// Always true because intellisense messes up here lol
 #  define EXI_HAS_CPPATTR(x) 1
 # else
@@ -348,6 +355,17 @@
 # define EXI_UNINITIALIZED __attribute__((uninitialized))
 #else
 # define EXI_UNINITIALIZED
+#endif
+
+#if !EXI_IS_LANG_SERVER && EXI_HAS_ATTR(enable_if)
+# define EXI_ENABLE_IF(...) __attribute__((enable_if(__VA_ARGS__)))
+#else
+# define EXI_ENABLE_IF(...)
+#endif
+#if !EXI_IS_LANG_SERVER && defined(__clang__)
+# define EXI_ENABLE_IF_CL(...) EXI_ENABLE_IF(__VA_ARGS__)
+#else
+# define EXI_ENABLE_IF_CL(...)
 #endif
 
 #if EXI_HAS_CPPATTR(clang::musttail)
