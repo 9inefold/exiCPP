@@ -27,6 +27,7 @@
 #include <core/Common/Result.hpp>
 #include <core/Common/SmallVec.hpp>
 #include <exi/Basic/EventCodes.hpp>
+#include <exi/Stream/StreamVariant.hpp>
 
 namespace exi {
 
@@ -36,16 +37,22 @@ class ExiEncoder;
 /// Represents the first part of an event code.
 using FirstLevelProd = u64;
 /// Value is a full event code, error is the first part of an event code.
-using GrammarTerm = Result<EventQName, FirstLevelProd>;
+using GrammarTerm = Result<EventUID, FirstLevelProd>;
 
 /// The base for all grammars.
 class Grammar {
 public:
   /// Gets the terminal symbol at the current position, if it exists.
   /// Otherwise returns the first part of the event code.
-  virtual GrammarTerm getTerm(ExiDecoder& Decoder) = 0;
+  virtual GrammarTerm getTerm(StreamReader& Strm, bool IsStart) = 0;
+
+  /// Adds a new StartTag term to the list.
+  virtual void addTerm(EventUID Term, bool IsStart) = 0;
+
+  /// Dumps the current grammar.
   virtual void dump() const {}
   virtual ~Grammar() = default;
+
 private:
   virtual void anchor();
 };
@@ -53,15 +60,47 @@ private:
 /// The grammars for `BuiltinSchema`.
 /// TODO: Profile SmallVecs
 class BuiltinGrammar final : public Grammar {
-  /// One inline element for StartElement.
-  SmallVec<SmallQName, 1> StartTag;
-  /// One inline element for StartElement or CHaracters.
-  SmallVec<SmallQName, 1> Element;
+  u32 StartTagLog = 0, ElementLog = 1;
+  /// One inline element for StartElement. +1
+  SmallVec<EventUID, 1> StartTag;
+  /// One inline element for StartElement or CHaracters. +2
+  SmallVec<EventUID, 0> Element;
 
 public:
-  /// Gets the terminal symbol at the current position.
-  GrammarTerm getTerm(ExiDecoder& Decoder) override;
+  GrammarTerm getTerm(StreamReader& Reader, bool IsStart) override;
+  void addTerm(EventUID Term, bool IsStart) override;
   void dump() const override;
+
+private:
+  /// Sets the log for StartTag or Element.
+  void setLog(bool IsStart);
+
+  /// Returns a precalculated log for StartTag or Element.
+  u32 getLog(bool IsStart) const {
+    return IsStart ? StartTagLog : ElementLog;
+  }
+
+  /// Returns the backing for StartTag or Element.
+  SmallVecImpl<EventUID>& getElts(bool IsStart) {
+    if (IsStart)
+      return StartTag;
+    else
+      return Element;
+  }
+  /// Returns the backing for StartTag or Element.
+  const SmallVecImpl<EventUID>& getElts(bool IsStart) const {
+    if (IsStart)
+      return StartTag;
+    else
+      return Element;
+  }
+
+  usize getStartTagCount() const {
+    return StartTag.size() + 1;
+  }
+  usize getElementCount() const {
+    return Element.size() + 2;
+  }
 };
 
 } // namespace exi

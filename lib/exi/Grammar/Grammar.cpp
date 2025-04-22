@@ -22,6 +22,7 @@
 //===----------------------------------------------------------------===//
 
 #include <exi/Grammar/Grammar.hpp>
+#include <exi/Basic/CompactID.hpp>
 #include "SchemaGet.hpp"
 
 #define DEBUG_TYPE "Grammar"
@@ -30,8 +31,34 @@ using namespace exi;
 
 void Grammar::anchor() {}
 
-GrammarTerm BuiltinGrammar::getTerm(ExiDecoder& Decoder) {
-  return Err(0);
+static u64 ReadBits(StreamReader& Strm, u32 Bits) {
+  u64 Out = 0;
+  if (auto E = Strm->readBits64(Out, Bits)) [[unlikely]]
+    exi_unreachable("invalid stream read.");
+  return Out;
+}
+
+GrammarTerm BuiltinGrammar::getTerm(StreamReader& Strm, bool IsStart) {
+  auto& Elts = this->getElts(IsStart);
+  const u64 Out = ReadBits(Strm, this->getLog(IsStart));
+  if EXI_LIKELY(Out < Elts.size())
+    return Ok(Elts[Out]);
+  return Err(Out - Elts.size());
+}
+
+void BuiltinGrammar::addTerm(EventUID Term, bool IsStart) {
+  getElts(IsStart).push_back(Term);
+  this->setLog(IsStart);
+}
+
+void BuiltinGrammar::setLog(bool IsStart) {
+  if (IsStart) {
+    const u32 Log = getStartTagCount();
+    StartTagLog = CompactIDLog2(Log);
+  } else {
+    const u32 Log = getElementCount();
+    ElementLog = CompactIDLog2(Log);
+  }
 }
 
 void BuiltinGrammar::dump() const {}
