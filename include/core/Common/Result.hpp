@@ -432,17 +432,17 @@ public:
    BaseT(std::in_place, EXI_FWD(Val)) {}
   
   template <typename U>
-  constexpr explicit(!std::is_convertible_v<std::add_const_t<U>&, E>)
+  constexpr explicit(!std::is_convertible_v<std::add_const_t<U>&, T>)
     Storage(Expect<U&> V) : BaseT(std::in_place, V.value()) {
   }
 
   template <typename U>
-  constexpr explicit(!std::is_convertible_v<const U&, E>)
+  constexpr explicit(!std::is_convertible_v<const U&, T>)
     Storage(const Expect<U>& V) : BaseT(std::in_place, V.value()) {
   }
 
   template <typename U>
-  constexpr explicit(!std::is_convertible_v<U, E>)
+  constexpr explicit(!std::is_convertible_v<U, T>)
     Storage(Expect<U>&& V) : BaseT(std::in_place, std::move(V).value()) {
   }
 
