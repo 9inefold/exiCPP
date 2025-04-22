@@ -79,6 +79,13 @@ class Twine;
   }                                                                           \
 } while(0)
 
+#define exi_try_r(...) do {                                                   \
+  auto&& _u_Err = (__VA_ARGS__);                                              \
+  if EXI_UNLIKELY(_u_Err) {                                                   \
+    return ::exi::Err(_u_Err);                                                \
+  }                                                                           \
+} while(0)
+
 /// Simplified assertion handler, provides required arguments for you.
 #define exi_fail(KIND, MSG) ::exi::exi_assert_impl(                           \
   ::exi::H::KIND, MSG, EXI_FUNCTION, __LINE__)
