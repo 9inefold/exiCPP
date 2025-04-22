@@ -22,7 +22,6 @@
 //===----------------------------------------------------------------===//
 
 #include <Common/Features.hpp>
-#include <memory>
 #include <type_traits>
 
 namespace exi {
