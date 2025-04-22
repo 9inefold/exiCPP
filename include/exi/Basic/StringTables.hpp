@@ -36,6 +36,7 @@
 #include <core/Support/ErrorHandle.hpp>
 #include <core/Support/StringSaver.hpp>
 #include <exi/Basic/CompactID.hpp>
+#include <exi/Basic/EventCodes.hpp>
 
 namespace exi {
 
@@ -142,6 +143,9 @@ public:
     return std::launder(InlStr);
   }
 
+  ////////////////////////////////////////////////////////////////////////
+  // Setters
+
   /// Creates a new URI.
   IDPair addURI(StrRef URI, Option<StrRef> Pfx = std::nullopt);
   /// Associates a new Prefix with a URI.
@@ -149,22 +153,69 @@ public:
   /// Associates a new LocalName with a URI.
   IDPair addLocalName(CompactID URI, StrRef Name);
 
-  /// Creates a new Value.
+  /// Creates a new GlobalValue.
   StrRef addValue(StrRef Value);
-  /// Associates a new Value with a (URI, LocalNameID).
+  /// Associates a new LocalValue with a (URI, LocalNameID).
   StrRef addValue(CompactID URI, CompactID LocalID, StrRef Value);
 
+  ////////////////////////////////////////////////////////////////////////
+  // Getters
+
+  /// Gets a URI from an ID.
   StrRef getURI(CompactID URI) const {
     exi_invariant(URI < URIMap.size());
     this->assertPartitionsInSync();
     return URIMap[URI].Name;
   }
 
+  /// Gets a LocalName from a (URI, LocalID).
   StrRef getLocalName(CompactID URI, CompactID LocalID) const {
     exi_invariant(URI < URIMap.size());
+    exi_invariant(LocalID < URIMap[URI].LNElts);
     this->assertPartitionsInSync();
     return LNMap[URI][LocalID]->Name;
   }
+
+  /// Gets a LocalName from a [URI, LocalID].
+  StrRef getLocalName(SmallQName IDs) const {
+    return getLocalName(IDs.URI, IDs.LocalID);
+  }
+
+  /// Gets a GlobalValue from an ID.
+  StrRef getGlobalValue(CompactID GlobalID) const {
+    exi_invariant(GlobalID < *GValueCount);
+    return GValueMap[GlobalID]->str();
+  }
+
+  /// Gets a LocalValue from a (URI, LocalID, ValueID).
+  StrRef getLocalValue(CompactID URI, CompactID LocalID, CompactID ValueID) const {
+    exi_invariant(URI < URIMap.size());
+    exi_invariant(LocalID < URIMap[URI].LNElts);
+    this->assertPartitionsInSync();
+
+    const LocalName* LN = LNMap[URI][LocalID];
+    exi_invariant(ValueID < LN->LocalValues.size());
+    return LN->LocalValues[ValueID]->str();
+  }
+
+  /// Gets a LocalValue from a ([URI, LocalID], ValueID).
+  StrRef getLocalValue(SmallQName IDs, CompactID ValueID) const {
+    exi_relassert(IDs.isQName());
+    return getLocalValue(IDs.URI, IDs.LocalID, ValueID);
+  }
+
+  /// Gets a Local or Global Value from a ([URI, LocalID]?, ValueID).
+  StrRef getValue(EventUID IDs) const {
+    exi_relassert(IDs.hasValue());
+    if (IDs.isGlobal())
+      return getGlobalValue(IDs.ValueID);
+    else
+      // Use this overload for implicit QName validity checks.
+      return getLocalValue(IDs.Name, IDs.ValueID);
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Log Getters
 
   u64 getURILog() const { return URICount.bits(); }
 
