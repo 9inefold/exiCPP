@@ -37,6 +37,11 @@
   static_assert("$unwrap not available on MSVC!");                            \
   return ::exi::Expect{*(VAL)};                                               \
 }().value()
+/// Unwrapping not possible on MSVC.
+# define $unwrap_raw(VAL, ...) [&]() {                                        \
+  static_assert("$unwrap not available on MSVC!");                            \
+  return (VAL);                                                               \
+}()
 #else
 /// Uses GNU Statement Exprs to unwrap values.
 # define $unwrap(VAL, ...) ({                                                 \
@@ -45,6 +50,13 @@
     return ::exi::H::unwrap_fail(EXI_FWD(_u_Obj), ##__VA_ARGS__);             \
   ::exi::Expect{*EXI_FWD(_u_Obj)};                                            \
 }).value()
+/// Uses GNU Statement Exprs to unwrap values. Gets raw value on success.
+# define $unwrap_raw(VAL, ...) ({                                             \
+  auto&& _u_Obj = (VAL);                                                      \
+  if EXI_UNLIKELY(!::exi::H::unwrap_chk(_u_Obj))                              \
+    return ::exi::H::unwrap_fail(EXI_FWD(_u_Obj), ##__VA_ARGS__);             \
+  EXI_FWD(_u_Obj);                                                            \
+})
 #endif
 
 namespace exi::H {
