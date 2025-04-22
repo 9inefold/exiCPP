@@ -157,7 +157,7 @@ ExiError ExiDecoder::decodeBody() {
 }
 
 ExiError ExiDecoder::decodeEvent() {
-  const EventTerm Term = CurrentSchema->getTerm(Reader);
+  const EventTerm Term = CurrentSchema->decode(this);
   LOG_POSITION(this);
   LOG_INFO("> {}: {}",
     get_event_name(Term),

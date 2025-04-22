@@ -21,7 +21,7 @@
 ///
 //===----------------------------------------------------------------===//
 
-#include "SchemaGet.hpp"
+#include <exi/Grammar/Schema.hpp>
 #include <core/Common/EnumArray.hpp>
 #include <core/Common/MMatch.hpp>
 #include <core/Common/SmallVec.hpp>
@@ -30,8 +30,10 @@
 #include <core/Support/Logging.hpp>
 #include <core/Support/TrailingArray.hpp>
 #include <exi/Basic/ExiOptions.hpp>
+#include <exi/Grammar/Grammar.hpp>
 #include <exi/Stream/StreamVariant.hpp>
 #include <fmt/ranges.h>
+#include "SchemaGet.hpp"
 
 using namespace exi;
 
@@ -48,6 +50,10 @@ using namespace exi;
 #else
 # define CC
 #endif
+
+//===----------------------------------------------------------------===//
+// Built-in Grammar
+//===----------------------------------------------------------------===//
 
 /// The transitions for schemaless encodings are defined as the following.
 /// If SC is not enabled, then the ChildContentItems for StartTagContent will
@@ -103,9 +109,9 @@ static constexpr StringLiteral BIGrammarNames[] {
 
 /// Small EventCode for use in `BIInfo`.
 struct SEventCode {
-  Array<u8, 3> Data = {}; // [x.y.z]
-  Array<u8, 3> Bits = {}; // [[x].[y].[z]]
-  i8 Length = 0;          // Number of pieces.
+  Array<u8, 3> Data = {};  // [x.y.z]
+  Array<u8, 3> Bits = {};  // [[x].[y].[z]]
+  i8 Length = 0;           // Number of pieces.
 };
 
 struct BIInfo {
@@ -123,9 +129,12 @@ class DynBuiltinSchema final
   using BaseT = TrailingArray<DynBuiltinSchema, EventTerm>;
   using InfoT = EnumeratedArray<BIInfo, Grammar, Last, DocContent>;
   using MatchT = MMatch<EventTerm, EventTerm>;
+  using GrammarT = PointerIntPair<BuiltinGrammar*, 1, bool>;
 
   /// Contains info on the compressed grammars.
   InfoT Info;
+  /// The grammar stack.
+  SmallVec<GrammarT, 0> GStack;
   /// The pseudo grammar stack.
   BuiltinSchema::Grammar Current, Prev = Document;
   /// Current depth of SE to EE events.
@@ -138,75 +147,12 @@ class DynBuiltinSchema final
 public:
   static Box<DynBuiltinSchema> New(const ExiOptions& Opts);
 
-  EventTerm getTerm(StreamReader& Strm) override {
-    tail_return this->getTermImpl(Strm);
+  EventTerm decode(ExiDecoder* D) override {
+    tail_return this->getTermImpl(D);
   }
 
-  void dump() const override {
-    outs() << "Document[1] <@0>:\n"
-           << "  SD      0\n\n";
-    PrintGrammar(Grammar::DocContent);
-    PrintGrammar(Grammar::DocEnd);
-    PrintGrammar(Grammar::StartTagContent);
-    PrintGrammar(Grammar::ElementContent);
-    outs().flush();
-  }
-
-  void PrintGrammar(BuiltinSchema::Grammar G) const {
-    const StrRef Name = GetGrammarName(G);
-    auto [Off, Code] = Info[G];
-    const EventTerm* Base = BaseT::data() + Off;
-
-    /*Format*/ {
-      const int MaxIx = (Code.Length - 1);
-      outs() << Name << '[';
-      for (int Ix = 0; Ix < MaxIx; ++Ix)
-        outs() << format("{}.", Code.Data[Ix]);
-      outs() << format("{}] <", Code.Data[MaxIx]);
-      
-      for (int Ix = 0; Ix < MaxIx; ++Ix)
-        outs() << format("@{}, ", Code.Bits[Ix]);
-      outs() << format("@{}>:\n", Code.Bits[MaxIx]);
-    }
-
-    if (Code.Length == 0) {
-      outs() << '\n';
-      return;
-    }
-
-    SmallStr<8> Pre;
-    int At = 0;
-
-    auto PrintEvent = [&] (int Ix) {
-      exi_assert(IntCast<unsigned>(At) < BaseT::size());
-      StrRef Name = get_event_fullname(Base[At++]);
-      outs() << "  "
-        << format("{: <8}", Name)
-        << format("{}{}", Pre, Ix) << '\n';
-    };
-
-    PrintEvent(0);
-    for (int IC = 0; IC < Code.Length; ++IC) {
-      const int ICMax = i32(Code.Data[IC]) - 1;
-      for (int Ix = 1; Ix < ICMax; ++Ix)
-        PrintEvent(Ix);
-      
-      if (IC + 1 == Code.Length) {
-        if (ICMax >= 1)
-          PrintEvent(ICMax);
-        break;
-      } else if (IC + 2 == Code.Length) {
-        if (Code.Data[IC + 1] <= 1) {
-          PrintEvent(ICMax);
-          break;
-        }
-      }
-      wrap_stream(Pre) << format("{}.", ICMax);
-      PrintEvent(0);
-    }
-
-    outs() << '\n';
-  }
+  void dump() const override;
+  void PrintGrammar(BuiltinSchema::Grammar G) const;
 
 private:
   static StrRef GetGrammarName(Grammar G) {
@@ -222,13 +168,15 @@ private:
     Current = New;
   }
 
-  MatchT decodeTerm(StreamReader& Strm) {
+  MatchT decodeTerm(StreamReader& Strm, const int Start, unsigned At = 0) {
     const unsigned Offset = Info[Current].Offset;
     const auto& Code = Info[Current].Code;
-    // EventTerm* const Base = BaseT::data() + Offset;
 
-    unsigned At = 0;
-    for (int Ix = 0, E = Code.Length; Ix < E; ++Ix) {
+    for (int Ix = Start, E = Code.Length; Ix < E; ++Ix) {
+      if (Code.Data[Ix] == 0)
+        /// The only level allowed to have zero elements is the first.
+        continue;
+      
       const u64 Bits = Code.Bits[Ix];
       const u64 Data = Strm->readBits64(Bits);
       At += Data;
@@ -245,7 +193,29 @@ private:
     return MatchT(Term);
   }
 
-  CC EventTerm getTermImpl(StreamReader& Strm) {
+  MatchT decodeTerm(StreamReader& Strm) {
+    return this->decodeTerm(Strm, /*Start=*/0, /*At=*/0);
+  }
+
+  ALWAYS_INLINE MatchT decodeTerm(ExiDecoder* D) {
+    auto& Strm = Get::Reader(D);
+    return this->decodeTerm(Strm);
+  }
+
+  EventUID decodeTermGrammar(ExiDecoder* D) {
+    exi_invariant(!GStack.empty());
+    GrammarT G = GStack.back();
+
+    auto& Strm = Get::Reader(D);
+    const auto Ret = G->getTerm(Strm, G.getInt());
+    if (Ret.is_ok())
+      return *Ret;
+    
+    const MatchT M = this->decodeTerm(Strm, Ret.error(), 1);
+    return EventUID::NewTerm(M.Data);
+  }
+
+  CC EventTerm getTermImpl(ExiDecoder* D) {
     LOG_EXTRA("Grammar: {}", GetGrammarName(Current));
 
     // Very rarely set. In most (or all?) cases it only happens once.
@@ -257,13 +227,13 @@ private:
 
     switch (Current) {
     case DocContent:
-      tail_return this->handleDocContent(Strm);
+      tail_return this->handleDocContent(D);
     case DocEnd:
-      tail_return this->handleDocEnd(Strm);
+      tail_return this->handleDocEnd(D);
     case StartTagContent:
-      tail_return this->handleStartTag(Strm);
+      tail_return this->handleStartTag(D);
     case ElementContent:
-      tail_return this->handleElement(Strm);
+      tail_return this->handleElement(D);
     case Fragment:
       exi_unreachable("SC elements are currently unsupported");
     default:
@@ -271,9 +241,9 @@ private:
     }
   }
 
-  CC EventTerm handleDocContent(StreamReader& Strm) {
+  CC EventTerm handleDocContent(ExiDecoder* D) {
     using enum EventTerm;
-    const auto M = this->decodeTerm(Strm);
+    const auto M = this->decodeTerm(D);
 
     if (M.is(SE)) {
       this->pushGrammar(StartTagContent);
@@ -285,9 +255,9 @@ private:
     exi_unreachable("invalid DocContent");
   }
 
-  CC GNU_ATTR(cold) EventTerm handleDocEnd(StreamReader& Strm) {
+  CC GNU_ATTR(cold) EventTerm handleDocEnd(ExiDecoder* D) {
     using enum EventTerm;
-    const auto M = this->decodeTerm(Strm);
+    const auto M = this->decodeTerm(D);
 
     if (M.is(ED)) {
       exi_assert(SEDepth == 0, "invalid nesting");
@@ -298,14 +268,35 @@ private:
     exi_unreachable("invalid DocEnd");
   }
 
-  CC GNU_ATTR(hot) EventTerm handleStartTag(StreamReader& Strm) {
+  CC GNU_ATTR(hot) EventTerm handleStartTag(ExiDecoder* D) {
     using enum EventTerm;
-    const auto M = this->decodeTerm(Strm);
+    if EXI_UNLIKELY(GStack.empty())
+      tail_return this->handleStartTagFirst(D);
+
+    const auto Val = this->decodeTermGrammar(D);
+    // TODO: Handle
+    exi_unreachable("invalid StartTagContent");
+  }
+
+  CC GNU_ATTR(hot) EventTerm handleElement(ExiDecoder* D) {
+    using enum EventTerm;
+    if EXI_UNLIKELY(GStack.empty())
+      tail_return this->handleElementFirst(D);
+    
+    const auto Val = this->decodeTermGrammar(D);
+    // TODO: Handle
+    exi_unreachable("invalid ElementContent");
+  }
+
+  /// Handles StartTag on an empty grammar stack.
+  CC GNU_ATTR(cold) EventTerm handleStartTagFirst(ExiDecoder* D) {
+    using enum EventTerm;
+    const auto M = this->decodeTerm(D);
 
     if (M.is(EE))
-      return this->handleEE(Strm);
+      return this->handleEE(D);
     else if (M.is(SE))
-      return this->handleSE(Strm);
+      return this->handleSE(D);
     else if (M.is(AT, NS)) {
       this->pushGrammar(ElementContent);
       ++SEDepth;
@@ -319,27 +310,28 @@ private:
     exi_unreachable("invalid StartTagContent");
   }
 
-  CC GNU_ATTR(hot) EventTerm handleElement(StreamReader& Strm) {
+  /// Handles Element on an empty grammar stack.
+  CC GNU_ATTR(cold) EventTerm handleElementFirst(ExiDecoder* D) {
     using enum EventTerm;
-    const auto M = this->decodeTerm(Strm);
+    const auto M = this->decodeTerm(D);
 
     if (M.is(EE))
-      return this->handleEE(Strm);
+      return this->handleEE(D);
     else if (M.is(SE))
-      return this->handleSE(Strm);
+      return this->handleSE(D);
     else if (M.is(CH, ER, CM, PI))
       return M.Data;
     
     exi_unreachable("invalid ElementContent");
   }
 
-  CC ALWAYS_INLINE EventTerm handleSE(StreamReader&) {
+  CC ALWAYS_INLINE EventTerm handleSE(ExiDecoder*) {
     this->pushGrammar(ElementContent);
     ++SEDepth;
     return EventTerm::SE;
   }
 
-  CC EventTerm handleEE(StreamReader&) {
+  CC EventTerm handleEE(ExiDecoder*) {
     --SEDepth;
     // TODO: Check this... I'm doing everything in my power to avoid a stack.
     this->pushGrammar(SEDepth > 0 ? Prev : DocEnd);
@@ -511,16 +503,10 @@ void DynBuiltinSchema::Builder::CalculateLog(SEventCode* EC) {
     Length -= 1;
   }
 
-  // If we have `[0.y.z]`, make it `[y.z].0`.
-  // If we have `[0.y].0`, make it `[y].0.0`.
-  if (Length >= 1 && !Data[0]) {
-    Data[0] = Data[1];
-    Data[1] = Data[2];
-    Data[2] = 0;
-    Length -= 1;
-  }
+  // We can't remove the first level event code, as it's possible grammars will
+  // extend the base values. This would lead to inaccuracies.
 
-  /// Calculate log for all elements.
+  // Calculate log for all elements.
   for (int Ix = 0; Ix < 3; ++Ix)
     EC->Bits[Ix] = SmallLog2[Data[Ix]];
 }
@@ -541,10 +527,80 @@ Box<DynBuiltinSchema> DynBuiltinSchema::New(const ExiOptions& Opts) {
   return Box<DynBuiltinSchema>(Schema);
 }
 
+void DynBuiltinSchema::dump() const {
+  outs() << "Document[1] <@0>:\n"
+         << "  SD      0\n\n";
+  PrintGrammar(Grammar::DocContent);
+  PrintGrammar(Grammar::DocEnd);
+  PrintGrammar(Grammar::StartTagContent);
+  PrintGrammar(Grammar::ElementContent);
+  outs().flush();
+}
+
+void DynBuiltinSchema::PrintGrammar(BuiltinSchema::Grammar G) const {
+  const StrRef Name = GetGrammarName(G);
+  auto [Off, Code] = Info[G];
+  const EventTerm* Base = BaseT::data() + Off;
+
+  /*Format*/ {
+    const int MaxIx = (Code.Length - 1);
+    outs() << Name << '[';
+    for (int Ix = 0; Ix < MaxIx; ++Ix)
+      outs() << format("{}.", Code.Data[Ix]);
+    outs() << format("{}] <", Code.Data[MaxIx]);
+    
+    for (int Ix = 0; Ix < MaxIx; ++Ix)
+      outs() << format("@{}, ", Code.Bits[Ix]);
+    outs() << format("@{}>:\n", Code.Bits[MaxIx]);
+  }
+
+  if (Code.Length == 0) {
+    outs() << '\n';
+    return;
+  }
+
+  SmallStr<8> Pre;
+  int At = 0;
+
+  auto PrintEvent = [&] (int Ix) {
+    exi_assert(IntCast<unsigned>(At) < BaseT::size());
+    StrRef Name = get_event_fullname(Base[At++]);
+    outs() << "  "
+      << format("{: <8}", Name)
+      << format("{}{}", Pre, Ix) << '\n';
+  };
+
+  PrintEvent(0);
+  for (int IC = 0; IC < Code.Length; ++IC) {
+    const int ICMax = i32(Code.Data[IC]) - 1;
+    for (int Ix = 1; Ix < ICMax; ++Ix)
+      PrintEvent(Ix);
+    
+    if (IC + 1 == Code.Length) {
+      if (ICMax >= 1)
+        PrintEvent(ICMax);
+      break;
+    } else if (IC + 2 == Code.Length) {
+      if (Code.Data[IC + 1] <= 1) {
+        PrintEvent(ICMax);
+        break;
+      }
+    }
+    wrap_stream(Pre) << format("{}.", ICMax);
+    PrintEvent(0);
+  }
+
+  outs() << '\n';
+}
+
 Box<BuiltinSchema> BuiltinSchema::New(const ExiOptions& Opts) {
   // exi_unreachable("TODO");
   return DynBuiltinSchema::New(Opts);
 }
+
+//===----------------------------------------------------------------===//
+// Miscellaneous
+//===----------------------------------------------------------------===//
 
 void Schema::anchor() {}
 void BuiltinSchema::anchor() {}
