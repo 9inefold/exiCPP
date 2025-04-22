@@ -260,6 +260,10 @@ protected:
 public:
   using BaseT::BaseT;
   
+  constexpr StorageUnex(Unexpect<void>)
+   requires std::is_default_constructible_v<E> : BaseT(unexpect) {
+  }
+
   template <typename G>
   constexpr explicit(!std::is_convertible_v<std::add_const_t<G>&, E>)
     StorageUnex(Unexpect<G&> V) : BaseT(unexpect, V.error()) {
@@ -788,6 +792,13 @@ public:
     return *this;
   }
 
+  constexpr Result& operator=(Unexpect<void>)
+   requires std::is_default_constructible_v<E> {
+    this->reset();
+    this->construct(unexpect);
+    return *this;
+  }
+
   template <typename G>
   constexpr Result& operator=(const Unexpect<G>& O) {
     if (this->is_ok()) {
@@ -817,5 +828,44 @@ public:
   /// Returns `true` if value is active.
   constexpr explicit operator bool() const noexcept { return is_ok(); }
 };
+
+//////////////////////////////////////////////////////////////////////////
+// Unwrapping
+
+template <typename T, typename E>
+ALWAYS_INLINE constexpr bool
+ exi_unwrap_chk(const Result<T, E>& Val) noexcept {
+  return Val.is_ok();
+}
+
+template <typename T, typename E>
+ALWAYS_INLINE constexpr auto
+ exi_unwrap_fail(Result<T, E>& Val) noexcept {
+  return Err(Val.error());
+}
+
+template <typename T, typename E>
+ALWAYS_INLINE constexpr auto
+ exi_unwrap_fail(const Result<T, E>& Val) noexcept {
+  return Err(Val.error());
+}
+
+template <typename T, typename E>
+ALWAYS_INLINE constexpr auto
+ exi_unwrap_fail(Result<T, E>&& Val) noexcept {
+  return Err(std::move(Val).error());
+}
+
+template <typename T, typename E>
+ALWAYS_INLINE constexpr auto
+ exi_unwrap_fail(const Result<T, E&>& Val) noexcept {
+  return Err(Val.error());
+}
+
+template <typename T, typename E>
+ALWAYS_INLINE constexpr auto
+ exi_unwrap_fail(Result<T&, E&> Val) noexcept {
+  return Err(Val.error());
+}
 
 } // namespace exi

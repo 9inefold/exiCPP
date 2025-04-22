@@ -27,6 +27,7 @@
 
 #include <Common/Features.hpp>
 #include <Common/Fundamental.hpp>
+#include <Common/D/Expect.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <new>
 #include <optional>
@@ -528,6 +529,33 @@ public:
     return has_value() ? OutT(EXI_FWD(Fn)(**this)) : std::nullopt;
   }
 };
+
+//////////////////////////////////////////////////////////////////////////
+// Unwrapping
+
+template <typename T>
+ALWAYS_INLINE constexpr bool
+ exi_unwrap_chk(const Option<T>& O) noexcept {
+  return O.has_value();
+}
+
+template <typename T>
+ALWAYS_INLINE constexpr auto
+ exi_unwrap_fail(const Option<T>&) noexcept {
+  return Err();
+}
+
+template <typename T>
+ALWAYS_INLINE constexpr auto
+ exi_unwrap_fail(Option<T>&&) noexcept {
+  return Err();
+}
+
+template <typename T>
+ALWAYS_INLINE constexpr auto
+ exi_unwrap_fail(Option<T&>) noexcept {
+  return Err();
+}
 
 //////////////////////////////////////////////////////////////////////////
 // Other Functions
