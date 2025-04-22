@@ -357,15 +357,20 @@
 # define EXI_UNINITIALIZED
 #endif
 
-#if !EXI_IS_LANG_SERVER && EXI_HAS_ATTR(enable_if)
+#if !EXI_IS_LANG_SERVER && defined(__clang__)
+/// Attribute enable_if, for now it is clang-specific.
 # define EXI_ENABLE_IF(...) __attribute__((enable_if(__VA_ARGS__)))
 #else
-# define EXI_ENABLE_IF(...)
+/// Attribute enable_if, disabled in language servers.
+# define EXI_ENABLE_IF(...) 
 #endif
+
 #if !EXI_IS_LANG_SERVER && defined(__clang__)
-# define EXI_ENABLE_IF_CL(...) EXI_ENABLE_IF(__VA_ARGS__)
+/// Attribute enable_if, provides a message on failure.
+# define EXI_REQUIRES_IF(EXPR, MSG) __attribute__((enable_if(EXPR, MSG)))
 #else
-# define EXI_ENABLE_IF_CL(...)
+/// Generic requires, used on non-clang and language servers.
+# define EXI_REQUIRES_IF(EXPR, MSG) requires(EXPR)
 #endif
 
 #if EXI_HAS_CPPATTR(clang::musttail)
