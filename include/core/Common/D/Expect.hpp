@@ -155,6 +155,19 @@ public:
   constexpr E& error() const noexcept { return *Data; }
 };
 
+/// Empty unexpected value.
+template <> class Unexpect<void> {
+public:
+  constexpr Unexpect() = default;
+  constexpr Unexpect(const Unexpect&) = default;
+  constexpr Unexpect(Unexpect&&) = default;
+  constexpr Unexpect& operator=(const Unexpect&) = default;
+  constexpr Unexpect& operator=(Unexpect&&) = default;
+  constexpr void error() const noexcept {}
+};
+
+Unexpect() -> Unexpect<void>;
+
 template <typename E> Unexpect(E&) -> Unexpect<E&>;
 template <typename E> Unexpect(const E&) -> Unexpect<const E&>;
 template <typename E> Unexpect(E&&) -> Unexpect<E>;
@@ -166,6 +179,10 @@ template <typename E> Unexpect(Unexpect<E>) -> Unexpect<E>;
 template <typename E>
 EXI_INLINE constexpr decltype(auto) Err(E&& Val) noexcept {
   return Unexpect(EXI_FWD(Val));
+}
+
+ALWAYS_INLINE constexpr Unexpect<void> Err() noexcept {
+  return Unexpect<void>{};
 }
 
 namespace H {
