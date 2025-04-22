@@ -21,8 +21,12 @@
 ///
 //===----------------------------------------------------------------===//
 
+#pragma once
+
 #include <Common/Features.hpp>
+#include <concepts>
 #include <type_traits>
+#include <utility>
 
 namespace exi {
 
