@@ -161,11 +161,26 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Getters
 
+  /// Checks if URI has prefixes.
+  bool hasPrefix(CompactID URI) const {
+    exi_invariant(URI < URIMap.size());
+    this->assertPartitionsInSync();
+    return URIMap[URI].PrefixElts > 0;
+  }
+
   /// Gets a URI from an ID.
   StrRef getURI(CompactID URI) const {
     exi_invariant(URI < URIMap.size());
     this->assertPartitionsInSync();
     return URIMap[URI].Name;
+  }
+
+  /// Gets a URI from an ID.
+  StrRef getPrefix(CompactID URI, CompactID PfxID) const {
+    exi_assert(this->hasPrefix(URI));
+    auto& Pfx = PrefixMap[URI];
+    exi_invariant(PfxID < Pfx.size());
+    return Pfx[PfxID]->str();
   }
 
   /// Gets a LocalName from a (URI, LocalID).
@@ -218,6 +233,15 @@ public:
   // Log Getters
 
   u64 getURILog() const { return URICount.bits(); }
+
+  /// Gets a URI from an ID.
+  u64 getPrefixLog(CompactID URI) const {
+    exi_invariant(URI < URIMap.size());
+    this->assertPartitionsInSync();
+    const u64 Count = URIMap[URI].PrefixElts;
+    exi_assert(Count > 0);
+    return CompactIDLog2(Count - 1);
+  }
 
   u64 getLocalNameLog(CompactID URI) const {
     exi_invariant(URI < URIMap.size());
