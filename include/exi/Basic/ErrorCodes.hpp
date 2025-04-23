@@ -144,11 +144,15 @@ public:
 
   ////////////////////////////////////////////////////////////////////////
   // Ctors
-
+  
   /// Construct an error from a code.
   constexpr ExiError(ErrorCode E) : EC(E) {}
   /// Construct an error from a code.
   static ExiError New(ErrorCode E) noexcept EXI_READONLY;
+
+  // template <typename T>
+  // constexpr ExiError(Unexpect<T> Val) : ExiError(Val.error()) {}
+  constexpr ExiError(Unexpect<ExiError> Val) : ExiError(Val.error()) {}
 
   /// Default full error code.
   constexpr static ExiError Full() {
