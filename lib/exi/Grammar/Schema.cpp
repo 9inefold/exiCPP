@@ -570,12 +570,18 @@ void DynBuiltinSchema::PrintGrammar(BuiltinSchema::Grammar G) const {
       << format("{}{}", Pre, Ix) << '\n';
   };
 
-  PrintEvent(0);
   for (int IC = 0; IC < Code.Length; ++IC) {
-    const int ICMax = i32(Code.Data[IC]) - 1;
+    if (Code.Data[IC] == 0) {
+      Pre.append("0.");
+      continue;
+    }
+
+    PrintEvent(0);
+    int ICMax = i32(Code.Data[IC]) - 1;
     for (int Ix = 1; Ix < ICMax; ++Ix)
       PrintEvent(Ix);
     
+    ICMax = std::max(ICMax, 0);
     if (IC + 1 == Code.Length) {
       if (ICMax >= 1)
         PrintEvent(ICMax);
@@ -586,8 +592,8 @@ void DynBuiltinSchema::PrintGrammar(BuiltinSchema::Grammar G) const {
         break;
       }
     }
+
     wrap_stream(Pre) << format("{}.", ICMax);
-    PrintEvent(0);
   }
 
   outs() << '\n';
