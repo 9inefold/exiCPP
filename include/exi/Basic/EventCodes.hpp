@@ -186,7 +186,14 @@ public:
   /// Creates a new UID with only a term.
   static constexpr EventUID NewTerm(EventTerm Term) {
     return { .Term = static_cast<u64>(Term) };
-  } 
+  }
+
+  /// Creates a new unbound QName.
+  static constexpr EventUID NewQName(
+   SmallQName Name, Option<u64> Pfx = std::nullopt) {
+    const u64 RealPfx = Pfx.value_or(kInvalidPrefix);
+    return { .Prefix = RealPfx, .Name = Name };
+  }
 
   /// Checks if Prefix is active.
   constexpr bool hasTerm() const {
