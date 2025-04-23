@@ -23,6 +23,7 @@
 
 #include <exi/Decode/BodyDecoder.hpp>
 #include <core/Common/MMatch.hpp>
+#include <core/Common/Unwrap.hpp>
 #include <core/Support/Casting.hpp>
 #include <core/Support/Format.hpp>
 #include <core/Support/Logging.hpp>
@@ -45,6 +46,9 @@ ExiDecoder::ExiDecoder(MaybeBox<ExiOptions> Opts,
                        Option<raw_ostream&> OS) : ExiDecoder(OS) {
   Header.Opts = std::move(Opts);
 }
+
+//////////////////////////////////////////////////////////////////////////
+// Initialization
 
 ExiError ExiDecoder::readerExists() const {
   if (!Reader.empty()) {
@@ -108,9 +112,10 @@ ExiError ExiDecoder::init() {
   }
 
   CurrentSchema->dump();
-  
   // TODO: Load schema
   Idents.setup(Opts);
+
+  Preserve = Opts.Preserve;
   Flags.DidHeader = true;
   Flags.DidInit = true;
 
@@ -194,6 +199,9 @@ ExiError ExiDecoder::decodeEvent() {
   }
 }
 
+//////////////////////////////////////////////////////////////////////////
+// Terms
+
 // Start Element (*)
 // Start Element (uri:*)
 // Start Element (qname)
@@ -201,50 +209,9 @@ ExiError ExiDecoder::decodeSE(EventTerm Term) {
   if (Term != EventTerm::SE)
     return ErrorCode::kUnimplemented;
   
-  u64 UID; {
-    const u64 NBits = Idents.getURILog();
-    LOG_POSITION(this);
-    LOG_EXTRA("Decoding <{}>", NBits);
-    exi_try(Reader->readBits64(UID, NBits));
-  }
-
-  StrRef URI;
-  if (UID == 0) {
-    SmallStr<32> Data;
-    Result Str = decodeString(Data);
-    if EXI_UNLIKELY(!Str)
-      return Str.error();
-    std::tie(URI, UID) = Idents.addURI(*Str);
-  } else {
-    UID -= 1;
-    URI = Idents.getURI(UID);
-  }
-  LOG_INFO(">> URI @{}: \"{}\"", UID, URI);
-
-  u64 LnID; {
-    LOG_POSITION(this);
-    LOG_EXTRA("Decoding UInt");
-    exi_try(Reader->readUInt(LnID));
-    LOG_EXTRA(">>> UInt {}", LnID);
-  }
-
-  StrRef LocalName;
-  if (LnID == 0) {
-    const u64 NBits = Idents.getLocalNameLog(UID);
-    LOG_EXTRA("Decoding <{}>", NBits);
-    exi_try(Reader->readBits64(LnID, NBits));
-    LocalName = Idents.getLocalName(UID, LnID);
-  } else {
-    LnID -= 1;
-    SmallStr<32> Data;
-    Result Str = readString(LnID, Data);
-    if EXI_UNLIKELY(!Str)
-      return Str.error();
-    std::tie(LocalName, LnID) = Idents.addLocalName(UID, *Str);
-  }
-  LOG_INFO(">> LN @{}: \"{}\"", LnID, LocalName);
-  
-  // TODO: Prefixes...
+  const CompactID URI = $unwrap(decodeURI());
+  $unwrap(decodeName(URI));
+  $unwrap(decodePfx(URI));
 
   return ExiError::OK;
 }
@@ -276,6 +243,95 @@ ExiError ExiDecoder::decodeCH() {
     return Str.error();
   LOG_INFO(">> CH \"{}\"", *Str);
   return ErrorCode::kUnimplemented;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Values
+
+ExiResult<EventUID> ExiDecoder::decodeQName() {
+  const CompactID URI = $unwrap(decodeURI());
+  const CompactID LNI = $unwrap(decodeName(URI));
+  Option Pfx = $unwrap(decodePfx(URI));
+
+  auto QName = SmallQName::MakeQName(URI, LNI);
+  return Ok(EventUID::NewQName(QName, Pfx));
+}
+
+ExiResult<CompactID> ExiDecoder::decodeURI() {
+  CompactID URI; {
+    const u64 NBits = Idents.getURILog();
+    LOG_POSITION(this);
+    LOG_EXTRA("Decoding <{}>", NBits);
+    exi_try_r(Reader->readBits64(URI, NBits));
+  }
+
+  StrRef URIStr;
+  if (URI == 0) {
+    // Cache miss
+    SmallStr<32> Data;
+    StrRef Str = $unwrap(decodeString(Data));
+    std::tie(URIStr, URI) = Idents.addURI(Str);
+  } else {
+    // Cache hit
+    URI -= 1;
+    URIStr = Idents.getURI(URI);
+  }
+
+  LOG_INFO(">> URI @{}: \"{}\"", URI, URIStr);
+  return URI;
+}
+
+ExiResult<CompactID> ExiDecoder::decodeName(CompactID URI) {
+  CompactID LnID; {
+    LOG_POSITION(this);
+    LOG_EXTRA("Decoding UInt");
+    exi_try_r(Reader->readUInt(LnID));
+    LOG_EXTRA(">>> UInt {}", LnID);
+  }
+
+  StrRef LocalName;
+  if (LnID == 0) {
+    // Cache hit
+    const u64 NBits = Idents.getLocalNameLog(URI);
+    LOG_EXTRA("Decoding <{}>", NBits);
+    exi_try_r(Reader->readBits64(LnID, NBits));
+#if EXI_LOGGING
+    LocalName = Idents.getLocalName(URI, LnID);
+#endif
+  } else {
+    // Cache miss
+    LnID -= 1;
+    SmallStr<32> Data;
+    // StrRef Str = $unwrap(readString(LnID, Data));
+    StrRef Str = "";
+    std::tie(LocalName, LnID) = Idents.addLocalName(URI, Str);
+  }
+
+  LOG_INFO(">> LN @{}: \"{}\"", LnID, LocalName);
+  return LnID;
+}
+
+ExiResult<Option<CompactID>> ExiDecoder::decodePfx(CompactID URI) {
+  if (!Preserve.Prefixes)
+    return Ok(std::nullopt);
+  if (!Idents.hasPrefix(URI))
+    return Ok(std::nullopt);
+  
+  CompactID PfxID = 0;
+  const u64 NBits = Idents.getPrefixLog(URI);
+
+  if (NBits) {
+    LOG_POSITION(this);
+    LOG_EXTRA("Decoding <{}>", NBits);
+    exi_try_r(Reader->readBits64(PfxID, NBits));
+  }
+
+#if EXI_LOGGING
+  StrRef Pfx = Idents.getPrefix(URI, PfxID);
+  LOG_INFO(">> LN @{}: \"{}\"", PfxID, Pfx);
+#endif
+
+  return Ok(PfxID);
 }
 
 ExiResult<String> ExiDecoder::decodeString() {
@@ -317,9 +373,8 @@ ExiResult<StrRef> ExiDecoder::readString(u64 Size, SmallVecImpl<char>& Storage) 
   return StrRef(Storage.data(), Size);
 }
 
-//===----------------------------------------------------------------===//
+//////////////////////////////////////////////////////////////////////////
 // Miscellaneous
-//===----------------------------------------------------------------===//
 
 raw_ostream& ExiDecoder::os() const {
   return OS.value_or(errs());

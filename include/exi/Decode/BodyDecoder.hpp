@@ -70,6 +70,8 @@ class ExiDecoder {
   Option<raw_ostream&> OS;
   /// State of the decoder in terms of progression.
   DecoderFlags Flags;
+  /// Preserve options.
+  ExiOptions::PreserveOpts Preserve;
 
 public:
   ExiDecoder(Option<raw_ostream&> OS = std::nullopt) : OS(OS) {}
@@ -91,6 +93,9 @@ public:
     return E;
   }
 
+  ////////////////////////////////////////////////////////////////////////
+  // Initialization
+
   /// Returns an error if the reader is empty.
   ExiError readerExists() const;
   /// Sets options out-of-band.
@@ -109,14 +114,51 @@ protected:
   ExiError init();
   ExiError decodeEvent();
 
+  ////////////////////////////////////////////////////////////////////////
+  // Terms
+
   ExiError decodeSE(EventTerm Term);
   ExiError decodeEE();
   ExiError decodeAT(EventTerm Term);
   ExiError decodeNS();
   ExiError decodeCH();
 
+  ////////////////////////////////////////////////////////////////////////
+  // Values
+
+  /// Decodes a QName.
+  ExiResult<EventUID> decodeQName();
+
+  /// Decodes a QName URI.
+  ExiResult<CompactID> decodeURI();
+
+  /// Decodes a QName LocalName.
+  /// @param URI The bucket to search in.
+  ExiResult<CompactID> decodeName(CompactID URI);
+
+  /// Same as `decodeName`, decodes a QName LocalName.
+  ALWAYS_INLINE auto decodeLocalName(CompactID URI) {
+    return this->decodeName(URI);
+  }
+
+  /// Decodes a QName Prefix, if `Preserve.Prefixes` is enabled.
+  /// @param URI The bucket to search in.
+  ExiResult<Option<CompactID>> decodePfx(CompactID URI);
+
+  /// @brief Decodes an encoded string with the default character set.
+  /// @return An owning `String`, or an error.
+  /// @overload
   ExiResult<String> decodeString();
+
+  /// @brief Decodes an encoded string with the default character set.
+  /// @param Storage Where the string will be stored.
+  /// @return An non-owning `StrRef`, or an error.
   ExiResult<StrRef> decodeString(SmallVecImpl<char>& Storage);
+
+  /// @brief Decodes a string with with the size already decoded.
+  /// @param Size The length of the string.
+  /// @param Storage Where the string will be stored.
+  /// @return An non-owning `StrRef`, or an error.
   ExiResult<StrRef> readString(u64 Size, SmallVecImpl<char>& Storage);
 };
 
