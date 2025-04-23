@@ -29,35 +29,43 @@
 #include <Common/D/Expect.hpp>
 #include <concepts>
 
-// TODO: Check EXI_IS_LANG_SERVER?
-
 #if defined(_MSC_VER) && !defined(__GNUC__)
 /// Unwrapping not possible on MSVC.
-# define $unwrap(VAL, ...) [&](){                                             \
+# define EXI_UNWRAP(VAL, ...) [&]() {                                         \
   static_assert("$unwrap not available on MSVC!");                            \
-  return ::exi::Expect{*(VAL)};                                               \
+  auto&& _u_Obj = VAL;                                                        \
+  return ::exi::Expect{*EXI_FWD(_u_Obj)};                                     \
 }().value()
 /// Unwrapping not possible on MSVC.
-# define $unwrap_raw(VAL, ...) [&]() {                                        \
-  static_assert("$unwrap not available on MSVC!");                            \
-  return (VAL);                                                               \
+# define EXI_UNWRAP_RAW(VAL, ...) [&]() {                                     \
+  static_assert("$unwrap_raw not available on MSVC!");                        \
+  auto&& _u_Obj = VAL;                                                        \
+  return EXI_FWD(_u_Obj);                                                     \
 }()
+#elif EXI_IS_LANG_SERVER && 0
+/// Uses GNU Statement Exprs to unwrap values.
+# define EXI_UNWRAP(VAL, ...) (::exi::Expect{*VAL}).value()
+/// Uses GNU Statement Exprs to unwrap values. Gets raw value on success.
+# define EXI_UNWRAP_RAW(VAL, ...) VAL
 #else
 /// Uses GNU Statement Exprs to unwrap values.
-# define $unwrap(VAL, ...) ({                                                 \
-  auto&& _u_Obj = (VAL);                                                      \
+# define EXI_UNWRAP(VAL, ...) ({                                              \
+  auto&& _u_Obj = VAL;                                                        \
   if EXI_UNLIKELY(!::exi::H::unwrap_chk(_u_Obj))                              \
     return ::exi::H::unwrap_fail(EXI_FWD(_u_Obj), ##__VA_ARGS__);             \
   ::exi::Expect{*EXI_FWD(_u_Obj)};                                            \
 }).value()
 /// Uses GNU Statement Exprs to unwrap values. Gets raw value on success.
-# define $unwrap_raw(VAL, ...) ({                                             \
-  auto&& _u_Obj = (VAL);                                                      \
+# define EXI_UNWRAP_RAW(VAL, ...) ({                                          \
+  auto&& _u_Obj = VAL;                                                        \
   if EXI_UNLIKELY(!::exi::H::unwrap_chk(_u_Obj))                              \
     return ::exi::H::unwrap_fail(EXI_FWD(_u_Obj), ##__VA_ARGS__);             \
   EXI_FWD(_u_Obj);                                                            \
 })
 #endif
+
+#define $unwrap(VAL, ...) (EXI_UNWRAP((VAL) __VA_OPT__(,) __VA_ARGS__))
+#define $unwrap_raw(VAL, ...) (EXI_UNWRAP_RAW((VAL) __VA_OPT__(,) __VA_ARGS__))
 
 namespace exi::H {
 
