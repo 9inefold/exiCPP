@@ -864,6 +864,12 @@ ALWAYS_INLINE constexpr auto
 
 template <typename T, typename E>
 ALWAYS_INLINE constexpr auto
+ exi_unwrap_fail(Result<T, E&>&& Val) noexcept {
+  return Err(Val.error());
+}
+
+template <typename T, typename E>
+ALWAYS_INLINE constexpr auto
  exi_unwrap_fail(Result<T&, E&> Val) noexcept {
   return Err(Val.error());
 }
