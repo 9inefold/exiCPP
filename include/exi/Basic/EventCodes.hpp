@@ -43,6 +43,8 @@ enum class EventTerm : i32 {
   ATUri,    // Attribute (uri:*, value)
   ATQName,  // Attribute (qname, value)
   CH,       // Characters (value)
+  CHGlobal, // Characters (local-value)
+  CHLocal,  // Characters (global-value)
   NS,       // Namespace Declaration (uri, prefix, local-element-ns)
   CM,       // Comment text (text)
   PI,       // Processing Instruction (name, text)
@@ -105,6 +107,7 @@ public:
   /// Creates a SmallQName with a `(uri:name)` value.
   static constexpr SmallQName MakeQName(u64 URI, u64 LocalName) {
     // TODO: Add checks?
+    exi_invariant(URI < kInvalidURI && LocalName < kInvalidLNI);
     return {.LocalID = LocalName, .URI = URI};
   }
 
@@ -183,6 +186,9 @@ struct EventUID {
   SmallQName Name = {};
 
 public:
+  /// Creates a new null UID.
+  static constexpr EventUID NewNull() { return {}; }
+
   /// Creates a new UID with only a term.
   static constexpr EventUID NewTerm(EventTerm Term) {
     return { .Term = static_cast<u64>(Term) };
@@ -260,6 +266,10 @@ public:
 
   constexpr operator EventTerm() const {
     return EventUID::GetTerm(Term);
+  }
+
+  explicit constexpr operator bool() const {
+    return hasTerm() || hasName() || hasValue();
   }
 };
 
