@@ -162,7 +162,9 @@ ExiError ExiDecoder::decodeBody() {
 }
 
 ExiError ExiDecoder::decodeEvent() {
-  const EventTerm Term = CurrentSchema->decode(this);
+  const EventUID Event = CurrentSchema->decode(this);
+  const EventTerm Term = Event.getTerm();
+
   LOG_POSITION(this);
   LOG_INFO("> {}: {}",
     get_event_name(Term),
@@ -206,13 +208,8 @@ ExiError ExiDecoder::decodeEvent() {
 // Start Element (uri:*)
 // Start Element (qname)
 ExiError ExiDecoder::decodeSE(EventTerm Term) {
-  if (Term != EventTerm::SE)
-    return ErrorCode::kUnimplemented;
-  
-  const CompactID URI = $unwrap(decodeURI());
-  $unwrap(decodeName(URI));
-  $unwrap(decodePfx(URI));
-
+  // const auto Event = $unwrap(decodeQName());
+  LOG_EXTRA("Decoded QName");
   return ExiError::OK;
 }
 
@@ -274,7 +271,9 @@ ExiResult<CompactID> ExiDecoder::decodeURI() {
   } else {
     // Cache hit
     URI -= 1;
+#if EXI_LOGGING
     URIStr = Idents.getURI(URI);
+#endif
   }
 
   LOG_INFO(">> URI @{}: \"{}\"", URI, URIStr);
@@ -302,8 +301,7 @@ ExiResult<CompactID> ExiDecoder::decodeName(CompactID URI) {
     // Cache miss
     LnID -= 1;
     SmallStr<32> Data;
-    // StrRef Str = $unwrap(readString(LnID, Data));
-    StrRef Str = "";
+    StrRef Str = $unwrap(readString(LnID, Data));
     std::tie(LocalName, LnID) = Idents.addLocalName(URI, Str);
   }
 

@@ -34,6 +34,8 @@ public:
 	static StreamReader& Reader(ExiDecoder* D) { return D->Reader; }
 	static BumpPtrAllocator& BP(ExiDecoder* D) { return D->BP; }
 	static decode::StringTable& Idents(ExiDecoder* D) { return D->Idents; }
+
+	static auto DecodeQName(ExiDecoder* D) { return D->decodeQName(); }
 };
 
 } // namespace exi
