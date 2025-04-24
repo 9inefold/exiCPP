@@ -40,10 +40,16 @@ static u64 ReadBits(StreamReader& Strm, u32 Bits) {
 
 GrammarTerm BuiltinGrammar::getTerm(StreamReader& Strm, bool IsStart) {
   auto& Elts = this->getElts(IsStart);
+  const usize Size = Elts.size();
   const u64 Out = ReadBits(Strm, this->getLog(IsStart));
-  if EXI_LIKELY(Out < Elts.size())
+  // Check if this is a valid offset.
+  if (Out < Size) {
+    // Values are always pushed in reverse order, so remap the position.
+    const auto Pos = (Size - 1) - Out;
     return Ok(Elts[Out]);
-  return Err(Out - Elts.size());
+  }
+  // Get the base event code offset.
+  return Err(Out - Size);
 }
 
 void BuiltinGrammar::addTerm(EventUID Term, bool IsStart) {
