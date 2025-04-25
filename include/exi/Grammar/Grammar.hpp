@@ -75,6 +75,8 @@ public:
 
   GrammarTerm getTerm(StreamReader& Reader, bool IsStart) override;
   void addTerm(EventUID Term, bool IsStart) override;
+
+  SmallQName getName() const { return Name; }
   void dump() const override;
 
 private:
