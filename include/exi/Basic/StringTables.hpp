@@ -196,6 +196,22 @@ public:
     return getLocalName(IDs.URI, IDs.LocalID);
   }
 
+  /// Gets a [URI, LocalName] from a [URI, LocalID].
+  std::pair<StrRef, StrRef> getQName(CompactID URI, CompactID LocalID) const {
+    exi_invariant(URI < URIMap.size());
+    exi_invariant(LocalID < URIMap[URI].LNElts);
+    this->assertPartitionsInSync();
+    
+    StrRef Name = URIMap[URI].Name;
+    StrRef LocalName = LNMap[URI][LocalID]->Name;
+    return {Name, LocalName};
+  }
+
+  /// Gets a [URI, LocalName] from a [URI, LocalID].
+  std::pair<StrRef, StrRef> getQName(SmallQName IDs) const {
+    return getQName(IDs.URI, IDs.LocalID);
+  }
+
   /// Gets a GlobalValue from an ID.
   StrRef getGlobalValue(CompactID GlobalID) const {
     exi_invariant(GlobalID < *GValueCount);
