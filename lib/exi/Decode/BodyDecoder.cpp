@@ -327,6 +327,59 @@ ExiResult<Option<CompactID>> ExiDecoder::decodePfx(CompactID URI) {
   return Ok(PfxID);
 }
 
+ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
+  exi_invariant(Name.isQName());
+  CompactID ValID; {
+    LOG_POSITION(this);
+    LOG_EXTRA("Decoding UInt");
+    exi_try_r(Reader->readUInt(ValID));
+    LOG_EXTRA(">>> UInt {}", ValID);
+  }
+
+  if (ValID == 0) {
+    // LocalValue hit
+    const u64 NBits = Idents.getLocalValueLog(Name);
+    LOG_EXTRA("Decoding <{}>", NBits);
+    exi_try_r(Reader->readBits64(ValID, NBits));
+
+#if EXI_LOGGING
+    auto [URI, LocalName] = Idents.getQName(Name);
+    StrRef LocalVal = Idents.getLocalValue(Name, ValID);
+    LOG_INFO(">> LV @[{}:{}]:{}: \"{}\"",
+      URI, LocalName, ValID, LocalVal);
+#endif
+    // Create unbound LocalValue.
+    return EventUID::NewLocalValue(Name, ValID);
+  } else if (ValID == 1) {
+    // GlobalValue hit
+    const u64 NBits = Idents.getGlobalValueLog();
+    LOG_EXTRA("Decoding <{}>", NBits);
+    exi_try_r(Reader->readBits64(ValID, NBits));
+
+#if EXI_LOGGING
+    StrRef GlobalVal = Idents.getGlobalValue(ValID);
+    LOG_INFO(">> GV @{}: \"{}\"", ValID, GlobalVal);
+#endif
+    // Create unbound GlobalValue.
+    return EventUID::NewGlobalValue(ValID);
+  } else {
+    // Cache miss
+    const u64 Size = (ValID - 2);
+    SmallStr<32> Data;
+    StrRef Str = $unwrap(readString(Size, Data));
+    auto [Value, GID, LnID] = Idents.addValue(Name, Str);
+
+#if EXI_LOGGING
+    auto [URI, LocalName] = Idents.getQName(Name);
+    LOG_INFO(">> LV @[{}:{}]:{}: \"{}\"",
+      URI, LocalName, LnID, Value);
+#endif
+    // Newly created values are always returned as locals.
+    // This makes implementations a bit simpler.
+    return EventUID::NewLocalValue(Name, LnID);
+  }
+}
+
 ExiResult<String> ExiDecoder::decodeString() {
   SmallStr<64> Data;
   if (auto E = this->decodeString(Data)

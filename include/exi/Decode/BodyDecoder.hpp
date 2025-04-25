@@ -145,6 +145,13 @@ protected:
   /// @param URI The bucket to search in.
   ExiResult<Option<CompactID>> decodePfx(CompactID URI);
 
+  /// Decodes a Value.
+  ExiResult<EventUID> decodeValue(CompactID URI, CompactID Name) {
+    return this->decodeValue(SmallQName::MakeQName(URI, Name));
+  }
+  /// Decodes a Value.
+  ExiResult<EventUID> decodeValue(SmallQName Name);
+
   /// @brief Decodes an encoded string with the default character set.
   /// @return An owning `String`, or an error.
   /// @overload
