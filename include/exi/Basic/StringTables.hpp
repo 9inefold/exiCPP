@@ -51,7 +51,15 @@ namespace decode {
 
 class StringTable;
 
+/// For single associations.
 using IDPair = std::pair<StrRef, CompactID>;
+
+/// For double associations in Global/LocalValue additions.
+struct IDTriple {
+  StrRef Value;
+  CompactID GlobalID = 0;
+  CompactID LocalID = 0;
+};
 
 /// The value stored for each entry in the URI map.
 struct URIInfo {
@@ -149,14 +157,27 @@ public:
   /// Creates a new URI.
   IDPair addURI(StrRef URI, Option<StrRef> Pfx = std::nullopt);
   /// Associates a new Prefix with a URI.
-  StrRef addPrefix(CompactID URI, StrRef Pfx);
+  IDPair addPrefix(CompactID URI, StrRef Pfx);
   /// Associates a new LocalName with a URI.
   IDPair addLocalName(CompactID URI, StrRef Name);
 
   /// Creates a new GlobalValue.
-  StrRef addValue(StrRef Value);
+  IDPair addGlobalValue(StrRef Value);
   /// Associates a new LocalValue with a (URI, LocalNameID).
-  StrRef addValue(CompactID URI, CompactID LocalID, StrRef Value);
+  IDPair addLocalValue(CompactID URI, CompactID LocalID, StrRef Value);
+  /// Associates a new LocalValue with a QName.
+  IDPair addLocalValue(SmallQName IDs, StrRef Value) {
+    exi_invariant(IDs.isQName());
+    return this->addLocalValue(IDs.URI, IDs.LocalID, Value);
+  }
+
+  /// Creates a new GlobalValue AND associates a new LocalValue with QName.
+  IDTriple addValue(CompactID URI, CompactID LocalID, StrRef Value);
+  /// Creates a new GlobalValue AND associates a new LocalValue with QName.
+  IDTriple addValue(SmallQName IDs, StrRef Value) {
+    exi_invariant(IDs.isQName());
+    return this->addValue(IDs.URI, IDs.LocalID, Value);
+  }
 
   ////////////////////////////////////////////////////////////////////////
   // Getters
@@ -193,6 +214,7 @@ public:
 
   /// Gets a LocalName from a [URI, LocalID].
   StrRef getLocalName(SmallQName IDs) const {
+    exi_assert(IDs.isQName());
     return getLocalName(IDs.URI, IDs.LocalID);
   }
 
@@ -231,7 +253,7 @@ public:
 
   /// Gets a LocalValue from a ([URI, LocalID], ValueID).
   StrRef getLocalValue(SmallQName IDs, CompactID ValueID) const {
-    exi_relassert(IDs.isQName());
+    exi_assert(IDs.isQName());
     return getLocalValue(IDs.URI, IDs.LocalID, ValueID);
   }
 
@@ -248,7 +270,9 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Log Getters
 
-  u64 getURILog() const { return URICount.bits(); }
+  EXI_INLINE u64 getURILog() const {
+    return URICount.bits();
+  }
 
   /// Gets a URI from an ID.
   u64 getPrefixLog(CompactID URI) const {
@@ -263,6 +287,24 @@ public:
     exi_invariant(URI < URIMap.size());
     this->assertPartitionsInSync();
     return CompactIDLog2<>(URIMap[URI].LNElts);
+  }
+
+  EXI_INLINE u64 getGlobalValueLog() const {
+    return GValueCount.bits();
+  }
+
+  u64 getLocalValueLog(CompactID URI, CompactID LocalID) const {
+    exi_invariant(URI < URIMap.size());
+    exi_invariant(LocalID < URIMap[URI].LNElts);
+    this->assertPartitionsInSync();
+
+    const LocalName* LN = LNMap[URI][LocalID];
+    return CompactIDLog2<>(LN->LocalValues.size());
+  }
+
+  EXI_INLINE u64 getLocalValueLog(SmallQName IDs) const {
+    exi_assert(IDs.isQName());
+    return this->getLocalValueLog(IDs.URI, IDs.LocalID);
   }
 
 private:

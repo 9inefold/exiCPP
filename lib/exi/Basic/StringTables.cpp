@@ -108,15 +108,15 @@ IDPair StringTable::addURI(StrRef URI, Option<StrRef> Pfx) {
   return {Info->Name, ID};
 }
 
-StrRef StringTable::addPrefix(CompactID URI, StrRef Pfx) {
+IDPair StringTable::addPrefix(CompactID URI, StrRef Pfx) {
   exi_invariant(URI < URIMap.size());
   this->assertPartitionsInSync();
 
-  ++URIMap[URI].PrefixElts;
+  const CompactID ID = URIMap[URI].PrefixElts++;
   InlineStr* PfxP = intern(Pfx);
   PrefixMap[URI].push_back(PfxP);
 
-  return PfxP->str();
+  return {PfxP->str(), ID};
 }
 
 IDPair StringTable::addLocalName(CompactID URI, StrRef Name) {
@@ -130,21 +130,32 @@ IDPair StringTable::addLocalName(CompactID URI, StrRef Name) {
   return {LN->Name, ID};
 }
 
-StrRef StringTable::addValue(StrRef Value) {
+IDPair StringTable::addGlobalValue(StrRef Value) {
+  const CompactID ID = *GValueCount;
   // Add to the global table, no other interaction needed.
-  return createGlobalValue(Value)->str();
+  return {createGlobalValue(Value)->str(), ID};
 }
 
-StrRef StringTable::addValue(CompactID URI, CompactID LocalID, StrRef Value) {
+IDPair StringTable::addLocalValue(CompactID URI, CompactID LocalID, StrRef Value) {
   exi_invariant(URI < URIMap.size());
   exi_invariant(LocalID < *LNCount);
   this->assertPartitionsInSync();
 
+  auto& Values = LNMap[URI][LocalID]->LocalValues;
+  const CompactID ID = Values.size();
   // Add to the global table.
   InlineStr* Str = createGlobalValue(Value);
   // Add to the local table for URI:LocalID.
-  LNMap[URI][LocalID]->LocalValues.push_back(Str);
-  return Str->str();
+  Values.push_back(Str);
+
+  return {Str->str(), ID};
+}
+
+/// Creates a new GlobalValue AND associates a new LocalValue with QName.
+IDTriple StringTable::addValue(CompactID URI, CompactID LocalID, StrRef Value) {
+  auto [Str, GID] = this->addGlobalValue(Value);
+  auto [_, LnID] = this->addLocalValue(URI, LocalID, Value);
+  return {.Value = Str, .GlobalID = GID, .LocalID = LnID};
 }
 
 void StringTable::createInitialEntries(bool UsesSchema) {
