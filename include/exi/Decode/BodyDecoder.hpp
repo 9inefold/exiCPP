@@ -117,9 +117,9 @@ protected:
   ////////////////////////////////////////////////////////////////////////
   // Terms
 
-  ExiError decodeSE(EventTerm Term);
+  ExiError decodeSE(EventUID Event);
   ExiError decodeEE();
-  ExiError decodeAT(EventTerm Term);
+  ExiError decodeAT(EventUID Event);
   ExiError decodeNS();
   ExiError decodeCH();
 

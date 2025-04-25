@@ -164,9 +164,8 @@ ExiError ExiDecoder::decodeBody() {
 ExiError ExiDecoder::decodeEvent() {
   LOG_POSITION(this);
   const EventUID Event = CurrentSchema->decode(this);
-  const EventTerm Term = Event.getTerm();
   
-  switch (Term) {
+  switch (Event.getTerm()) {
   case EventTerm::SD:       // Start Document
     return ExiError::OK;
   case EventTerm::ED:       // End Document
@@ -174,13 +173,13 @@ ExiError ExiDecoder::decodeEvent() {
   case EventTerm::SE:       // Start Element (*)
   case EventTerm::SEUri:    // Start Element (uri:*)
   case EventTerm::SEQName:  // Start Element (qname)
-    return this->decodeSE(Term);
+    return this->decodeSE(Event);
   case EventTerm::EE:       // End Element
     return this->decodeEE();
   case EventTerm::AT:       // Attribute (*, value)
   case EventTerm::ATUri:    // Attribute (uri:*, value)
   case EventTerm::ATQName:  // Attribute (qname, value)
-    return this->decodeAT(Term);
+    return this->decodeAT(Event);
   case EventTerm::NS:       // Namespace Declaration (uri, prefix, local-element-ns)
     return this->decodeNS();
   case EventTerm::CH:       // Characters (value)
@@ -202,9 +201,8 @@ ExiError ExiDecoder::decodeEvent() {
 // Start Element (*)
 // Start Element (uri:*)
 // Start Element (qname)
-ExiError ExiDecoder::decodeSE(EventTerm Term) {
-  // const auto Event = $unwrap(decodeQName());
-  LOG_EXTRA("Decoded QName");
+ExiError ExiDecoder::decodeSE(EventUID Event) {
+  LOG_EXTRA("Decoded SE");
   return ExiError::OK;
 }
 
@@ -215,10 +213,10 @@ ExiError ExiDecoder::decodeEE() {
 // Attribute (*, value)
 // Attribute (uri:*, value)
 // Attribute (qname, value)
-ExiError ExiDecoder::decodeAT(EventTerm Term) {
-  if (Term != EventTerm::AT)
-    return ErrorCode::kUnimplemented;
-  return ErrorCode::kUnimplemented;
+ExiError ExiDecoder::decodeAT(EventUID Event) {
+  const auto Value = $unwrap(decodeValue(Event.Name));
+  LOG_EXTRA("Decoded AT");
+  return ExiError::OK;
 }
 
 // Namespace Declaration (uri, prefix, local-element-ns)

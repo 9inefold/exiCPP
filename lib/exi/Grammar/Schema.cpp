@@ -310,7 +310,9 @@ private:
 
     switch (Term) {
     case AT:
+      tail_return this->handleAT(D);
     case ATQName:
+      tail_return this->handleATQName(D);
     case NS:
       return NewTerm(Term);
     case CHGlobal:
@@ -420,6 +422,29 @@ private:
       this->pushGrammar(DocEnd);
     
     return NewTerm(EventTerm::EE);
+  }
+
+  template <bool Cached = false>
+  CC EventUID handleAT(ExiDecoder* D) {
+    const auto Event = Get::DecodeQName(D);
+    if EXI_UNLIKELY(Event.is_err()) {
+      D->diagnose(Event.error());
+      return EventUID::NewNull();
+    }
+
+    this->Event = *Event;
+    tail_return this->handleATQName<Cached>(D);
+  }
+
+  template <bool Cached = true>
+  CC EventUID handleATQName(ExiDecoder* D) {
+    using enum EventTerm;
+    exi_invariant(Event.hasQName());
+    if constexpr (!Cached)
+      this->addTerm<ATQName>(Event);
+
+    Event.setTerm(Cached ? ATQName : AT);
+    return Event;
   }
 
   ////////////////////////////////////////////////////////////////////////
