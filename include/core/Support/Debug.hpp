@@ -111,13 +111,18 @@ do {                                                                          \
 
 #if EXI_LOGGING
 
+/// `hasDbgLogLevelType` macro - Checks if the log level/type are active.
+# define hasDbgLogLevelType(LEVEL, TYPE)                                      \
+  (hasLogLevel(LEVEL, ::exi::DebugFlag) && isCurrentDebugType(TYPE))
+
+/// `hasDbgLogLevel` macro - Checks if the log level is active.
+# define hasDbgLogLevel(LEVEL) hasDbgLogLevelType(LEVEL, DEBUG_TYPE)
+
 /// `LOG_WITH_LEVEL_AND_TYPE` macro - Same as `DEBUG_WITH_TYPE`, but with the
 /// logging level specified as well.
 # define LOG_WITH_LEVEL_AND_TYPE(LEVEL, TYPE, ...)                            \
 do {                                                                          \
-  if (hasLogLevel(LEVEL, ::exi::DebugFlag) && isCurrentDebugType(TYPE)) {     \
-    __VA_ARGS__;                                                              \
-  }                                                                           \
+  if (hasDbgLogLevelType(LEVEL, TYPE)) { __VA_ARGS__; }                       \
 } while (false)
 
 /// `LOG_WITH_LEVEL` macro - This macro should be used to emit optional relevant
@@ -133,6 +138,8 @@ do {                                                                          \
  LOG_WITH_LEVEL_AND_TYPE(LEVEL, DEBUG_TYPE, __VA_ARGS__)
 
 #else
+# define hasDbgLogLevelType(LEVEL, TYPE) (false)
+# define hasDbgLogLevel(LEVEL) (false)
 # define LOG_WITH_LEVEL_AND_TYPE(LEVEL, TYPE, ...) do { } while(false)
 # define LOG_WITH_LEVEL(LEVEL, ...) do { } while(false)
 #endif
