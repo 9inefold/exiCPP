@@ -22,6 +22,7 @@
 //===----------------------------------------------------------------===//
 
 #include <exi/Grammar/Grammar.hpp>
+#include <core/Support/Logging.hpp>
 #include <exi/Basic/CompactID.hpp>
 #include "SchemaGet.hpp"
 
