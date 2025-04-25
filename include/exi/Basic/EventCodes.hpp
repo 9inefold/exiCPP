@@ -201,6 +201,16 @@ public:
     return { .Prefix = RealPfx, .Name = Name };
   }
 
+  /// Creates a new unbound GlobalValue.
+  static constexpr EventUID NewGlobalValue(u64 ID) {
+    return {.ValueID = ID, .IsLocal = false};
+  }
+
+  /// Creates a new unbound GlobalValue.
+  static constexpr EventUID NewLocalValue(SmallQName Name, u64 ID) {
+    return {.ValueID = ID, .IsLocal = true, .Name = Name};
+  }
+
   /// Checks if Prefix is active.
   constexpr bool hasTerm() const {
     return Term != kInvalidTerm;
