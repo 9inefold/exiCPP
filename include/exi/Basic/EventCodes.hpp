@@ -213,6 +213,10 @@ public:
   constexpr bool hasName() const {
     return Name.hasLocalName();
   }
+  /// Checks if Name has a `(uri:name)`.
+  constexpr bool hasQName() const {
+    return Name.isQName();
+  }
   /// Checks if Prefix is active.
   constexpr bool hasPrefix() const {
     return Prefix != kInvalidPrefix;

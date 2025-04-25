@@ -162,14 +162,9 @@ ExiError ExiDecoder::decodeBody() {
 }
 
 ExiError ExiDecoder::decodeEvent() {
+  LOG_POSITION(this);
   const EventUID Event = CurrentSchema->decode(this);
   const EventTerm Term = Event.getTerm();
-
-  LOG_POSITION(this);
-  LOG_INFO("> {}: {}",
-    get_event_name(Term),
-    get_event_signature(Term)
-  );
   
   switch (Term) {
   case EventTerm::SD:       // Start Document

@@ -61,12 +61,18 @@ private:
 /// TODO: Profile SmallVecs
 class BuiltinGrammar final : public Grammar {
   u32 StartTagLog = 0, ElementLog = 1;
+  /// QName of the current element.
+  SmallQName Name = SmallQName::MakeAny();
   /// One inline element for StartElement. +1
   SmallVec<EventUID, 1> StartTag;
   /// One inline element for StartElement or CHaracters. +2
   SmallVec<EventUID, 0> Element;
 
+
 public:
+  BuiltinGrammar() = default;
+  explicit BuiltinGrammar(SmallQName Name) : Name(Name) {}
+
   GrammarTerm getTerm(StreamReader& Reader, bool IsStart) override;
   void addTerm(EventUID Term, bool IsStart) override;
   void dump() const override;
