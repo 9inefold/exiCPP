@@ -109,8 +109,8 @@ static constexpr StringLiteral BIGrammarNames[] {
   "Document",
   "DocContent",
   "DocEnd",
-  "StartTagContent",
-  "ElementContent",
+  "StartTag",
+  "Element",
   "Fragment"
 };
 
@@ -165,15 +165,17 @@ public:
   }
 
 private:
-  MatchT decodeTerm(StreamReader& Strm, const int Start, unsigned At = 0) {
+  MatchT decodeTerm(StreamReader& Strm, int Start, unsigned At = 0) {
     const unsigned Offset = Info[Current].Offset;
     const auto& Code = Info[Current].Code;
 
+    if (Code.Length && Start == 0) {
+      /// The only level allowed to have zero elements is the first.
+      if (Code.Data[0] == 0)
+        Start = 1;
+    }
+
     for (int Ix = Start, E = Code.Length; Ix < E; ++Ix) {
-      if (Code.Data[Ix] == 0)
-        /// The only level allowed to have zero elements is the first.
-        continue;
-      
       const u64 Bits = Code.Bits[Ix];
       const u64 Data = Strm->readBits64(Bits);
       At += Data;
@@ -207,10 +209,12 @@ private:
     auto& Strm = Get::Reader(D);
     const auto Ret = G->getTerm(Strm, G.getInt());
     if (Ret.is_ok()) {
+      LOG_EXTRA("Grammar hit");
       this->Event = *Ret;
       return *Ret;
     }
     
+    LOG_EXTRA("Grammar miss: {}", Ret.error());
     const MatchT M = this->decodeTerm(Strm, Ret.error(), 1);
     return this->Event;
   }
@@ -220,7 +224,7 @@ private:
   }
 
   CC_INLINE EventUID getTermImpl(ExiDecoder* D) {
-    LOG_EXTRA("\nGrammar: {}", GetGrammarName(Current));
+    this->logCurrentGrammar(D);
 
     switch (Current) {
     case StartTagContent:
@@ -264,14 +268,14 @@ private:
   CC_INLINE GNU_ATTR(cold) EventUID handleDocument(ExiDecoder*) {
     // Document is always empty, and therefore never reads.
     this->pushGrammar(DocContent);
-    this->dumpEvent(EventTerm::SD);
+    this->logEvent(EventTerm::SD);
     return NewTerm(EventTerm::SD);
   }
 
   CC EventUID handleDocContent(ExiDecoder* D) {
     using enum EventTerm;
     const auto M = this->decodeTerm(D);
-    this->dumpEvent(M.Data);
+    this->logEvent(M.Data);
 
     if (M.is(SE)) {
       // This should only be called once, at the start of processing.
@@ -286,7 +290,7 @@ private:
   CC EventUID handleDocEnd(ExiDecoder* D) {
     using enum EventTerm;
     const auto M = this->decodeTerm(D);
-    this->dumpEvent(M.Data);
+    this->logEvent(M.Data);
 
     if (M.is(ED)) {
       exi_relassert(GStack.empty(), "invalid nesting");
@@ -302,7 +306,7 @@ private:
     using enum EventTerm;
     this->decodeTermGrammar(D);
     const EventTerm Term = this->Event.getTerm();
-    this->dumpEvent(Term);
+    this->logEvent(Term);
 
     switch (Term) {
     case AT:
@@ -325,7 +329,7 @@ private:
   CC GNU_ATTR(hot) EventUID handleElement(ExiDecoder* D) {
     using enum EventTerm;
     this->decodeTermGrammar(D);
-    this->dumpCurrentEvent();
+    this->logCurrentEvent();
     tail_return this->handleSharedContent<false>(D);
   }
 
@@ -468,11 +472,13 @@ private:
   }
 
 #if EXI_LOGGING
-  void dumpCurrentEvent();
-  void dumpEvent(EventTerm Term);
+  void logCurrentGrammar(ExiDecoder* D);
+  void logCurrentEvent();
+  void logEvent(EventTerm Term);
 #else
-  ALWAYS_INLINE constexpr void dumpCurrentEvent() {}
-  ALWAYS_INLINE constexpr void dumpEvent(EventTerm) {}
+  ALWAYS_INLINE constexpr void logCurrentGrammar(ExiDecoder*) {}
+  ALWAYS_INLINE constexpr void logCurrentEvent() {}
+  ALWAYS_INLINE constexpr void logEvent(EventTerm) {}
 #endif
 };
 
@@ -736,14 +742,39 @@ void DynBuiltinSchema::PrintGrammar(BuiltinSchema::Grammar G) const {
 }
 
 #if EXI_LOGGING
-void DynBuiltinSchema::dumpCurrentEvent() {
-  if EXI_UNLIKELY(!Event.hasTerm())
+void DynBuiltinSchema::logCurrentGrammar(ExiDecoder* D) {
+  using enum raw_ostream::Colors;
+  if (!hasDbgLogLevel(INFO))
+    // Don't do any work if log level is insufficient.
     return;
-  this->dumpEvent(Event.getTerm());
+  
+  const auto OldColor = dbgs().getColor();
+  dbgs().changeColor(BRIGHT_WHITE) << '\n';
+  
+  if (hasDbgLogLevel(VERBOSE)) {
+    dbgs() << "Grammar State: " << GetGrammarName(Current);
+    const bool IsContent = mmatch(Current).is(StartTagContent, ElementContent);
+    if EXI_LIKELY(IsContent && !GStack.empty()) {
+      const SmallQName ID = GStack.back()->getName();
+      auto [URI, Name] = Get::Idents(D).getQName(ID);
+      if (URI.empty())
+        dbgs() << format("[{}]", Name);
+      else
+        dbgs() << format("[{}:{}]", URI, Name);
+    }
+  }
+
+  dbgs().changeColor(OldColor) << '\n';
 }
 
-void DynBuiltinSchema::dumpEvent(EventTerm Term) {
-  LOG_INFO("> {}: {}",
+void DynBuiltinSchema::logCurrentEvent() {
+  if EXI_UNLIKELY(!Event.hasTerm())
+    return;
+  this->logEvent(Event.getTerm());
+}
+
+void DynBuiltinSchema::logEvent(EventTerm Term) {
+  LOG_INFO("> With {}: {}",
     get_event_name(Term),
     get_event_signature(Term)
   );
