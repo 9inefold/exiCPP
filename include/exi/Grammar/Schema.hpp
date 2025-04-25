@@ -42,7 +42,7 @@ class Schema : public RTTIExtends<Schema, RTTIRoot> {
 public:
   static const char ID;
   /// Gets the terminal symbol at the current position.
-  [[nodiscard]] virtual EventTerm decode(ExiDecoder* D) = 0;
+  [[nodiscard]] virtual EventUID decode(ExiDecoder* D) = 0;
   /// TODO: encode(StreamWriter& Strm, EventCode);
   virtual void dump() const {}
 protected:

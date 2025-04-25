@@ -22,6 +22,7 @@
 //===----------------------------------------------------------------===//
 
 #include <exi/Grammar/Schema.hpp>
+#include <core/Common/DenseMap.hpp>
 #include <core/Common/EnumArray.hpp>
 #include <core/Common/MMatch.hpp>
 #include <core/Common/SmallVec.hpp>
@@ -46,9 +47,15 @@ using namespace exi;
 #endif
 
 #if EXI_HAS_ATTR(preserve_none)
+/// Preserves none.
 # define CC __attribute__((preserve_none))
+/// Preserves none, inlines the function when unavailable.
+# define CC_INLINE __attribute__((preserve_none))
 #else
+/// Empty attribute.
 # define CC
+/// Inlines the function.
+# define CC_INLINE ALWAYS_INLINE
 #endif
 
 //===----------------------------------------------------------------===//
@@ -133,41 +140,31 @@ class DynBuiltinSchema final
 
   /// Contains info on the compressed grammars.
   InfoT Info;
-  /// The grammar stack.
-  SmallVec<GrammarT, 0> GStack;
+  /// The current event ID
+  EventUID Event = EventUID::NewNull();
   /// The pseudo grammar stack.
-  BuiltinSchema::Grammar Current, Prev = Document;
-  /// Current depth of SE to EE events.
-  i64 SEDepth = 0;
+  BuiltinSchema::Grammar Current = Document;
+  /// The grammar stack.
+  /// TODO: Profile...
+  SmallVec<GrammarT, 0> GStack;
+  /// The generated grammars.
+  DenseMap<SmallQName, BuiltinGrammar*> Grammars;
 
   DynBuiltinSchema(const SmallVecImpl<EventTerm>& Terms) : 
-   BaseT(Terms.size(), Terms.begin(), Terms.end()), Current(Document) {
+   BaseT(Terms.size(), Terms.begin(), Terms.end()) {
   }
 
 public:
   static Box<DynBuiltinSchema> New(const ExiOptions& Opts);
 
-  EventTerm decode(ExiDecoder* D) override {
+  ////////////////////////////////////////////////////////////////////////
+  // Decoding
+
+  EventUID decode(ExiDecoder* D) override {
     tail_return this->getTermImpl(D);
   }
 
-  void dump() const override;
-  void PrintGrammar(BuiltinSchema::Grammar G) const;
-
 private:
-  static StrRef GetGrammarName(Grammar G) {
-    constexpr int BIMax = std::size(BIGrammarNames);
-    const auto Ix = exi::to_underlying(G);
-    if (Ix < BIMax && Ix >= 0)
-      return BIGrammarNames[Ix];
-    return "???"_str;
-  }
-
-  ALWAYS_INLINE void pushGrammar(BuiltinSchema::Grammar New) {
-    Prev = Current;
-    Current = New;
-  }
-
   MatchT decodeTerm(StreamReader& Strm, const int Start, unsigned At = 0) {
     const unsigned Offset = Info[Current].Offset;
     const auto& Code = Info[Current].Code;
@@ -190,6 +187,7 @@ private:
     }
 
     const auto Term = BaseT::at(Offset + At);
+    this->Event = EventUID::NewTerm(Term);
     return MatchT(Term);
   }
 
@@ -208,28 +206,23 @@ private:
 
     auto& Strm = Get::Reader(D);
     const auto Ret = G->getTerm(Strm, G.getInt());
-    if (Ret.is_ok())
+    if (Ret.is_ok()) {
+      this->Event = *Ret;
       return *Ret;
+    }
     
     const MatchT M = this->decodeTerm(Strm, Ret.error(), 1);
-    return EventUID::NewTerm(M.Data);
+    return this->Event;
   }
 
-  CC EventTerm getTermImpl(ExiDecoder* D) {
-    LOG_EXTRA("Grammar: {}", GetGrammarName(Current));
+  ALWAYS_INLINE void pushGrammar(BuiltinSchema::Grammar New) {
+    Current = New;
+  }
 
-    // Very rarely set. In most (or all?) cases it only happens once.
-    if EXI_UNLIKELY(Current == Document) {
-      // Document is always empty, and therefore never reads.
-      this->pushGrammar(DocContent);
-      return EventTerm::SD;
-    }
+  CC_INLINE EventUID getTermImpl(ExiDecoder* D) {
+    LOG_EXTRA("\nGrammar: {}", GetGrammarName(Current));
 
     switch (Current) {
-    case DocContent:
-      tail_return this->handleDocContent(D);
-    case DocEnd:
-      tail_return this->handleDocEnd(D);
     case StartTagContent:
       tail_return this->handleStartTag(D);
     case ElementContent:
@@ -237,107 +230,250 @@ private:
     case Fragment:
       exi_unreachable("SC elements are currently unsupported");
     default:
+      tail_return this->getDocTerm(D);
+    }
+  }
+
+  CC_INLINE GNU_ATTR(cold) EventUID getDocTerm(ExiDecoder* D) {
+    switch (Current) {
+    case Document:
+      // Very rarely set. It only happens once at the start.
+      tail_return this->handleDocument(D);
+    case DocContent:
+      tail_return this->handleDocContent(D);
+    case DocEnd:
+      tail_return this->handleDocEnd(D);
+    default:
       exi_unreachable("invalid state?");
     }
   }
 
-  CC EventTerm handleDocContent(ExiDecoder* D) {
+  ////////////////////////////////////////////////////////////////////////
+  // States
+
+  /// Invokes `EventUID::NewTerm`.
+  ALWAYS_INLINE constexpr EventUID NewTerm(EventTerm Term) {
+    this->Event = EventUID::NewTerm(Term);
+    return Event;
+  }
+
+  ALWAYS_INLINE constexpr bool MatchTerm(auto...Terms) {
+    return MatchT(this->Event.getTerm()).is(Terms...);
+  }
+
+  CC_INLINE GNU_ATTR(cold) EventUID handleDocument(ExiDecoder*) {
+    // Document is always empty, and therefore never reads.
+    this->pushGrammar(DocContent);
+    this->dumpEvent(EventTerm::SD);
+    return NewTerm(EventTerm::SD);
+  }
+
+  CC EventUID handleDocContent(ExiDecoder* D) {
     using enum EventTerm;
     const auto M = this->decodeTerm(D);
+    this->dumpEvent(M.Data);
 
     if (M.is(SE)) {
-      this->pushGrammar(StartTagContent);
-      ++SEDepth;
-      return EventTerm::SE;
+      // This should only be called once, at the start of processing.
+      exi_assert(GStack.empty() && Grammars.empty());
+      tail_return this->handleSE</*IsRoot=*/true>(D);
     } else if (M.is(DT, CM, PI))
-      return M.Data;
+      return NewTerm(M.Data);
     
     exi_unreachable("invalid DocContent");
   }
 
-  CC GNU_ATTR(cold) EventTerm handleDocEnd(ExiDecoder* D) {
+  CC EventUID handleDocEnd(ExiDecoder* D) {
     using enum EventTerm;
     const auto M = this->decodeTerm(D);
+    this->dumpEvent(M.Data);
 
     if (M.is(ED)) {
-      exi_assert(SEDepth == 0, "invalid nesting");
-      return EventTerm::ED;
+      exi_relassert(GStack.empty(), "invalid nesting");
+      return NewTerm(EventTerm::ED);
     } else if (M.is(CM, PI))
-      return M.Data;
+      return NewTerm(M.Data);
     
     exi_unreachable("invalid DocEnd");
   }
 
-  CC GNU_ATTR(hot) EventTerm handleStartTag(ExiDecoder* D) {
+  /// Handles StartTag unique elements.
+  CC GNU_ATTR(hot) EventUID handleStartTag(ExiDecoder* D) {
     using enum EventTerm;
-    if EXI_UNLIKELY(GStack.empty())
-      tail_return this->handleStartTagFirst(D);
+    this->decodeTermGrammar(D);
+    const EventTerm Term = this->Event.getTerm();
+    this->dumpEvent(Term);
 
-    const auto Val = this->decodeTermGrammar(D);
-    // TODO: Handle
-    exi_unreachable("invalid StartTagContent");
-  }
-
-  CC GNU_ATTR(hot) EventTerm handleElement(ExiDecoder* D) {
-    using enum EventTerm;
-    if EXI_UNLIKELY(GStack.empty())
-      tail_return this->handleElementFirst(D);
-    
-    const auto Val = this->decodeTermGrammar(D);
-    // TODO: Handle
-    exi_unreachable("invalid ElementContent");
-  }
-
-  /// Handles StartTag on an empty grammar stack.
-  CC GNU_ATTR(cold) EventTerm handleStartTagFirst(ExiDecoder* D) {
-    using enum EventTerm;
-    const auto M = this->decodeTerm(D);
-
-    if (M.is(EE))
-      return this->handleEE(D);
-    else if (M.is(SE))
-      return this->handleSE(D);
-    else if (M.is(AT, NS)) {
+    switch (Term) {
+    case AT:
+    case ATQName:
+    case NS:
+      return NewTerm(Term);
+    case CHGlobal:
+    case CHLocal:
       this->pushGrammar(ElementContent);
-      ++SEDepth;
-      return M.Data;
-    } else if (M.is(SC)) {
+      return NewTerm(Term);
+    case SC:
       this->pushGrammar(Fragment);
-      return EventTerm::SC;
-    } else if (M.is(CH, ER, CM, PI))
-      return M.Data;
-    
-    exi_unreachable("invalid StartTagContent");
+      return NewTerm(EventTerm::SC);
+    default:
+      tail_return this->handleSharedContent<true>(D);
+    }
   }
 
-  /// Handles Element on an empty grammar stack.
-  CC GNU_ATTR(cold) EventTerm handleElementFirst(ExiDecoder* D) {
+  /// Forwards to shared content.
+  CC GNU_ATTR(hot) EventUID handleElement(ExiDecoder* D) {
     using enum EventTerm;
-    const auto M = this->decodeTerm(D);
+    this->decodeTermGrammar(D);
+    this->dumpCurrentEvent();
+    tail_return this->handleSharedContent<false>(D);
+  }
 
-    if (M.is(EE))
-      return this->handleEE(D);
-    else if (M.is(SE))
-      return this->handleSE(D);
-    else if (M.is(CH, ER, CM, PI))
-      return M.Data;
+  /// Events shared between StartTag and Element.
+  template <bool IsStart>
+  CC EventUID handleSharedContent(ExiDecoder* D) {
+    using enum EventTerm;
+    const EventTerm Term = Event.getTerm();
+
+    switch (Term) {
+    case EE:
+      tail_return this->handleEE(D);
+    case SEQName:
+      // SE(qname) events are cached.
+      tail_return this->handleSEQName(D);
+    case CHGlobal:
+    case CHLocal:
+      this->pushGrammar(ElementContent);
+      return NewTerm(Term);
+    default:
+      tail_return this->handleChildContent<IsStart>(D);
+    }
+  }
+
+  /// Events under the ChildContentItems macro.
+  template <bool IsStart>
+  CC_INLINE EventUID handleChildContent(ExiDecoder* D) {
+    static constexpr const char* UnreachableMsg
+      = IsStart ? "invalid StartTagContent" : "invalid ElementContent";
+    using enum EventTerm;
+    const EventTerm Term = Event.getTerm();
     
-    exi_unreachable("invalid ElementContent");
+    switch (Term) {
+    case SE:
+      // SE(*) events can only be uncached.
+      tail_return this->handleSE(D);
+    case CH:
+      this->pushGrammar(ElementContent);
+    case ER:
+    case CM:
+    case PI:
+      this->pushGrammar(ElementContent);
+      return NewTerm(Term);
+    default:
+      exi_unreachable(UnreachableMsg);
+    }
   }
 
-  CC ALWAYS_INLINE EventTerm handleSE(ExiDecoder*) {
-    this->pushGrammar(ElementContent);
-    ++SEDepth;
-    return EventTerm::SE;
+  ////////////////////////////////////////////////////////////////////////
+  // Event Handling
+
+  template <bool IsRoot = false>
+  CC EventUID handleSE(ExiDecoder* D) {
+    const auto Event = Get::DecodeQName(D);
+    if EXI_UNLIKELY(Event.is_err()) {
+      D->diagnose(Event.error());
+      return EventUID::NewNull();
+    }
+
+    this->Event = *Event;
+    tail_return this->handleSEQName</*KnownCached=*/IsRoot>(D);
   }
 
-  CC EventTerm handleEE(ExiDecoder*) {
-    --SEDepth;
-    // TODO: Check this... I'm doing everything in my power to avoid a stack.
-    this->pushGrammar(SEDepth > 0 ? Prev : DocEnd);
-    exi_invariant(SEDepth >= 0, "invalid nesting");
-    return EventTerm::EE;
+  template <bool KnownCached = true>
+  CC EventUID handleSEQName(ExiDecoder* D) {
+    using enum EventTerm;
+    exi_invariant(Event.hasQName());
+    auto [G, IsCached] = loadGrammar(D, Event.Name);
+
+    if constexpr (!KnownCached)
+      this->addTerm<SEQName>(Event);
+    this->pushGrammar(StartTagContent);
+
+    Event.setTerm(IsCached ? SEQName : SE);
+    GStack.emplace_back(G, /*IsStart=*/true);
+    return Event;
   }
+
+  CC EventUID handleEE(ExiDecoder*) {
+    exi_invariant(!GStack.empty(), "invalid nesting");
+    GStack.pop_back();
+
+    if EXI_LIKELY(!GStack.empty()) {
+      auto& G = GStack.back();
+      this->pushGrammar(ElementContent);
+      G.setInt(false);
+    } else
+      this->pushGrammar(DocEnd);
+    
+    return NewTerm(EventTerm::EE);
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Grammar
+
+  template <EventTerm Term>
+  EXI_INLINE void addTerm(EventUID Event) {
+    // If it's not the root element, it shouldn't be empty.
+    exi_invariant(!GStack.empty());
+    Event.setTerm(Term);
+    GStack.back()->addTerm(Event, Current == StartTagContent);
+  }
+
+  /// Returns `[Grammar, Cached]`.
+  std::pair<BuiltinGrammar*, bool>
+   loadGrammar(ExiDecoder* D, SmallQName Name) {
+    if (auto* G = Grammars.lookup(Name))
+      return {G, true};
+    // Cache miss
+    auto* G = this->makeGrammar(D, Name);
+    return {G, false};
+  }
+
+  BuiltinGrammar* makeGrammar(ExiDecoder* D, SmallQName Name) {
+    auto& BP = Get::BP(D);
+    auto* G = new (BP) BuiltinGrammar(Name);
+    auto [It, DidEmplace] = Grammars.try_emplace(Name, G);
+    exi_invariant(DidEmplace, "grammar already added");
+    return G;
+  }
+
+  EXI_INLINE BuiltinGrammar* getGrammar(SmallQName Name) const {
+    return Grammars.at(Name);
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Printing
+
+public:
+  void dump() const override;
+  void PrintGrammar(BuiltinSchema::Grammar G) const;
+
+private:
+  static StrRef GetGrammarName(Grammar G) {
+    constexpr int BIMax = std::size(BIGrammarNames);
+    const auto Ix = exi::to_underlying(G);
+    if (Ix < BIMax && Ix >= 0)
+      return BIGrammarNames[Ix];
+    return "???"_str;
+  }
+
+#if EXI_LOGGING
+  void dumpCurrentEvent();
+  void dumpEvent(EventTerm Term);
+#else
+  ALWAYS_INLINE constexpr void dumpCurrentEvent() {}
+  ALWAYS_INLINE constexpr void dumpEvent(EventTerm) {}
+#endif
 };
 
 class DynBuiltinSchema::Builder {
@@ -598,6 +734,21 @@ void DynBuiltinSchema::PrintGrammar(BuiltinSchema::Grammar G) const {
 
   outs() << '\n';
 }
+
+#if EXI_LOGGING
+void DynBuiltinSchema::dumpCurrentEvent() {
+  if EXI_UNLIKELY(!Event.hasTerm())
+    return;
+  this->dumpEvent(Event.getTerm());
+}
+
+void DynBuiltinSchema::dumpEvent(EventTerm Term) {
+  LOG_INFO("> {}: {}",
+    get_event_name(Term),
+    get_event_signature(Term)
+  );
+}
+#endif // EXI_LOGGING
 
 Box<BuiltinSchema> BuiltinSchema::New(const ExiOptions& Opts) {
   // exi_unreachable("TODO");

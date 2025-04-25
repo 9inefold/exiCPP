@@ -204,7 +204,7 @@ int main(int Argc, char* Argv[]) {
 #endif
 
   exi::DebugFlag = LogLevel::INFO;
-#if 1
+#if 0
   TestSchema("Preserve.{CM}", {
     .Comments = true,
   });
