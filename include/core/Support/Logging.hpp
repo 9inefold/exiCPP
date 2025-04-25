@@ -59,7 +59,7 @@ LOG_WITH_LEVEL_AND_TYPE(LEVEL, TYPE, [&]() {                                  \
 /// Formats to `dbgs()` if the log level is at least `INFO`.
 #define LOG_INFO(...)  LOG_FORMAT(INFO,  BRIGHT_WHITE,   __VA_ARGS__)
 /// Formats to `dbgs()` if the log level is `EXTRA` (on `-verbose`).
-#define LOG_EXTRA(...) LOG_FORMAT(EXTRA, BRIGHT_WHITE,   __VA_ARGS__)
+#define LOG_EXTRA(...) LOG_FORMAT(EXTRA, BRIGHT_BLUE,   __VA_ARGS__)
 
 /// Formats to `dbgs()` if the log level is at least `ERROR`.
 #define LOG_ERROR_WITH(TYPE, ...)                                             \
@@ -72,4 +72,4 @@ LOG_WITH_LEVEL_AND_TYPE(LEVEL, TYPE, [&]() {                                  \
  LOG_FORMAT_WITH(INFO,  TYPE, BRIGHT_WHITE, __VA_ARGS__)
 /// Formats to `dbgs()` if the log level is `EXTRA` (on `-verbose`).
 #define LOG_EXTRA_WITH(TYPE, ...)                                             \
- LOG_FORMAT_WITH(EXTRA, TYPE, BRIGHT_WHITE, __VA_ARGS__)
+ LOG_FORMAT_WITH(EXTRA, TYPE, BRIGHT_BLUE, __VA_ARGS__)
