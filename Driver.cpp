@@ -186,6 +186,23 @@ static constexpr u8 Example[] {
   0x0D, 0x0D, 0xED, 0xCC, 0xAF, 0x25
 };
 
+static void PrintExample(raw_ostream& OS) {
+  WithColor C(OS, raw_ostream::BRIGHT_WHITE);
+
+  bool JustPrinted = false;
+  for (auto [Ix, Val] : exi::enumerate(Example)) {
+    JustPrinted = false;
+    OS << format("{:08b} ", Val);
+    if (((Ix + 1) & 0b111) == 0) {
+      JustPrinted = true;
+      OS << '\n';
+    }
+  }
+
+  if (!JustPrinted)
+    OS << '\n';
+}
+
 int main(int Argc, char* Argv[]) {
   exi::DebugFlag = LogLevel::INFO;
   HandleEscapeCodeSetup();
@@ -223,7 +240,9 @@ int main(int Argc, char* Argv[]) {
     .Prefixes = true,
   });
 #endif
+
   exi::DebugFlag = LogLevel::VERBOSE;
+  // PrintExample(outs());
 
   ExiDecoder Decoder(outs());
   ExiOptions Opts {};
