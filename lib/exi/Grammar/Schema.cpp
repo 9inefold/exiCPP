@@ -209,13 +209,13 @@ private:
     auto& Strm = Get::Reader(D);
     const auto Ret = G->getTerm(Strm, G.getInt());
     if (Ret.is_ok()) {
-      LOG_EXTRA("Grammar hit");
+      // LOG_EXTRA("Grammar hit");
       this->Event = *Ret;
       return *Ret;
     }
     
-    LOG_EXTRA("Grammar miss: {}", Ret.error());
-    const MatchT M = this->decodeTerm(Strm, Ret.error(), 1);
+    // LOG_EXTRA("Grammar miss: {}", Ret.error());
+    const MatchT M = this->decodeTerm(Strm, 1, Ret.error());
     return this->Event;
   }
 
