@@ -46,6 +46,7 @@ ALWAYS_INLINE static InlineStr*
  SaveWithRaw(BumpPtrAllocator& Alloc, StrRef S) {
   const usize Size = S.size();
   InlineStr *P = CreateInlineStr(Alloc, Size);
+  P->Size = Size;
   if (!S.empty()) [[likely]]
     std::memcpy(P->Data, S.data(), Size);
   P->Data[Size] = '\0';
