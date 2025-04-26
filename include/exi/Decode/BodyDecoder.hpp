@@ -121,7 +121,7 @@ protected:
   ExiError decodeEE();
   ExiError decodeAT(EventUID Event);
   ExiError decodeNS();
-  ExiError decodeCH();
+  ExiError decodeCH(EventUID Event);
 
   ////////////////////////////////////////////////////////////////////////
   // Values
