@@ -183,8 +183,7 @@ ExiError ExiDecoder::decodeEvent() {
   case EventTerm::NS:       // Namespace Declaration (uri, prefix, local-element-ns)
     return this->handleNS();
   case EventTerm::CH:       // Characters (value)
-  case EventTerm::CHGlobal: // Characters (global-value)
-  case EventTerm::CHLocal:  // Characters (local-value)
+  case EventTerm::CHExtern: // Characters (external-value)
     return this->handleCH(Event);
   case EventTerm::CM:       // Comment text (text)  
   case EventTerm::PI:       // Processing Instruction (name, text)
@@ -193,7 +192,8 @@ ExiError ExiDecoder::decodeEvent() {
   case EventTerm::SC:       // Self Contained
     return ErrorCode::kUnimplemented;
   default:
-    exi_unreachable("unknown term");
+    exi_assert("unknown term");
+    return ErrorCode::kInvalidEXIInput;
   }
 }
 
@@ -226,25 +226,13 @@ ExiError ExiDecoder::handleAT(EventUID Event) {
 
 // Namespace Declaration (uri, prefix, local-element-ns)
 ExiError ExiDecoder::handleNS() {
-  return ErrorCode::kUnimplemented;
+  const auto Event = $unwrap(decodeNS());
+  LOG_EXTRA("Decoded NS");
+  return ExiError::OK;
 }
 
 // Characters (value)
 ExiError ExiDecoder::handleCH(EventUID Event) {
-  if (0 && Event.getTerm() != EventTerm::CH) {
-    const auto ValID = Event.getValue();
-    if (Event.isGlobal()) {
-      StrRef GlobalVal = Idents.getGlobalValue(ValID);
-      LOG_INFO(">> GV @{}: \"{}\"", ValID, GlobalVal);
-    } else {
-      exi_invariant(Event.hasQName());
-      const auto Name = Event.Name;
-      auto [URI, LocalName] = Idents.getQName(Name);
-      StrRef LocalVal = Idents.getLocalValue(Name, ValID);
-      LOG_INFO(">> LV @[{}:{}]:{}: \"{}\"",
-        URI, LocalName, ValID, LocalVal);
-    }
-  }
   LOG_EXTRA("Decoded CH");
   return ExiError::OK;
 }
