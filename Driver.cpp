@@ -287,16 +287,21 @@ int main(int Argc, char* Argv[]) {
   dbgs().enable_colors(true);
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
+#if !EXI_LOGGING
+  // Stress testing in release.
+  for (int NIters = 0; NIters < 1000000; ++NIters)
+#endif
+  {
+    exi::DebugFlag = LogLevel::INFO;
+    if (int Ret = DecodeBasic(Mgr))
+      return Ret;
+    if (int Ret = DecodeCustomers(Mgr))
+      return Ret;
 
-  exi::DebugFlag = LogLevel::INFO;
-  if (int Ret = DecodeBasic(Mgr))
-    return Ret;
-  if (int Ret = DecodeCustomers(Mgr))
-    return Ret;
-
-  exi::DebugFlag = LogLevel::VERBOSE;
-  if (int Ret = DecodeExample(Mgr))
-    return Ret;
+    exi::DebugFlag = LogLevel::VERBOSE;
+    if (int Ret = DecodeExample(Mgr))
+      return Ret;
+  }
   
   WithColor OS(outs(), raw_ostream::BRIGHT_GREEN);
   OS << "Decoding successful!\n";
