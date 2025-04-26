@@ -180,8 +180,10 @@ private:
       const u64 Data = Strm->readBits64(Bits);
       At += Data;
 
+      LOG_EXTRA("Code[{}]: @{}:{}", Ix, Bits, Data);
       exi_invariant(Code.Data[Ix] != 0,
         "EventCode node not pruned!");
+
       const u64 CData = Code.Data[Ix] - 1;
       exi_invariant(Data <= CData);
       if (Data != CData)
@@ -209,7 +211,7 @@ private:
     auto& Strm = Get::Reader(D);
     const auto Ret = G->getTerm(Strm, G.getInt());
     if (Ret.is_ok()) {
-      // LOG_EXTRA("Grammar hit");
+      LOG_EXTRA("Grammar hit");
       this->Event = *Ret;
       return *Ret;
     }

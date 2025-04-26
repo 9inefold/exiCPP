@@ -36,6 +36,7 @@ static u64 ReadBits(StreamReader& Strm, u32 Bits) {
   u64 Out = 0;
   if (auto E = Strm->readBits64(Out, Bits)) [[unlikely]]
     exi_unreachable("invalid stream read.");
+  LOG_EXTRA("Code[0]: @{}:{}", Bits, Out);
   return Out;
 }
 
