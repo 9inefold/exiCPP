@@ -264,11 +264,11 @@ int main(int Argc, char* Argv[]) {
   dbgs().enable_colors(true);
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
-#if 0
+#if 1
   if (int Ret = DecodeBasic(Mgr))
     return Ret;
-  // if (int Ret = DecodeCustomers(Mgr))
-  //   return Ret;
+  if (int Ret = DecodeCustomers(Mgr))
+    return Ret;
   return 0;
 #endif
 
