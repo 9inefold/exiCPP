@@ -101,7 +101,7 @@ public:
     return {};
   }
   /// Creates a SmallQName with a `(uri:*)` value.
-  static constexpr SmallQName MakeAny(u64 URI) {
+  static constexpr SmallQName MakeURI(u64 URI) {
     return {.URI = URI};
   }
   /// Creates a SmallQName with a `(uri:name)` value.
@@ -199,6 +199,12 @@ public:
    SmallQName Name, Option<u64> Pfx = std::nullopt) {
     const u64 RealPfx = Pfx.value_or(kInvalidPrefix);
     return { .Prefix = RealPfx, .Name = Name };
+  }
+
+  /// Creates a new unbound Namespace.
+  static constexpr EventUID NewNS(
+   SmallQName Name, u64 Pfx, bool IsLocal = false) {
+    return { .Prefix = Pfx, .IsLocal = IsLocal, .Name = Name };
   }
 
   /// Creates a new unbound GlobalValue.
