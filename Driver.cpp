@@ -158,7 +158,8 @@ static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
     return 1;
   }
 
-  dbgs() << '\n';
+  if (hasDbgLogLevel(INFO))
+    dbgs() << '\n';
   return 0;
 }
 

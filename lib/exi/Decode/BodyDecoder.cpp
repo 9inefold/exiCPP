@@ -113,7 +113,8 @@ ExiError ExiDecoder::init() {
     return ErrorCode::kInvalidMemoryAlloc;
   }
 
-  CurrentSchema->dump();
+  if (hasDbgLogLevel(INFO))
+    CurrentSchema->dump();
   // TODO: Load schema
   Idents.setup(Opts);
 
