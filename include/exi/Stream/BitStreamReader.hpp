@@ -97,6 +97,12 @@ private:
     const u64 Pos = BaseT::bytePos() + POff;
     const auto Off = BaseT::farBitOffset();
 
+    if EXI_UNLIKELY(Pos + 1 == BaseT::Stream.size()) {
+      // If we happen to be at the end of the stream, just get the rest.
+      // TODO: Add boolean template masking switch? May be better for users.
+      return BaseT::Stream[Pos] << (8 - Off);
+    }
+
     u64 Result = BaseT::Stream[Pos] << (8 - Off);
     Result |= BaseT::Stream[Pos + 1] >> Off;
 
