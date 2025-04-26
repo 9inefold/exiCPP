@@ -36,6 +36,9 @@ public:
 	static decode::StringTable& Idents(ExiDecoder* D) { return D->Idents; }
 
 	static auto DecodeQName(ExiDecoder* D) { return D->decodeQName(); }
+	static auto DecodeValue(ExiDecoder* D, SmallQName Name) {
+		return D->decodeValue(Name);
+	}
 };
 
 } // namespace exi

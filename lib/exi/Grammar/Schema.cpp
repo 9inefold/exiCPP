@@ -165,6 +165,13 @@ public:
   }
 
 private:
+  MatchT createDecodedTerm(unsigned At) {
+    const unsigned Offset = Info[Current].Offset;
+    const auto Term = BaseT::at(Offset + At);
+    this->Event = EventUID::NewTerm(Term);
+    return MatchT(Term);
+  }
+
   MatchT decodeTerm(StreamReader& Strm, int Start, unsigned At = 0) {
     const unsigned Offset = Info[Current].Offset;
     const auto& Code = Info[Current].Code;
@@ -173,6 +180,10 @@ private:
       /// The only level allowed to have zero elements is the first.
       if (Code.Data[0] == 0)
         Start = 1;
+    } else if (Start == 1 && Code.Data[0]) {
+      const u64 CData = Code.Data[0] - 1;
+      if (At != CData)
+        return this->createDecodedTerm(At);
     }
 
     for (int Ix = Start, E = Code.Length; Ix < E; ++Ix) {
@@ -190,9 +201,7 @@ private:
         break;
     }
 
-    const auto Term = BaseT::at(Offset + At);
-    this->Event = EventUID::NewTerm(Term);
-    return MatchT(Term);
+    return this->createDecodedTerm(At);
   }
 
   MatchT decodeTerm(StreamReader& Strm) {
@@ -314,12 +323,9 @@ private:
     case AT:
       tail_return this->handleAT(D);
     case ATQName:
+      // GStack.back()->dump(D);
       tail_return this->handleATQName(D);
     case NS:
-      return NewTerm(Term);
-    case CHGlobal:
-    case CHLocal:
-      this->pushGrammar(ElementContent);
       return NewTerm(Term);
     case SC:
       this->pushGrammar(Fragment);
@@ -351,8 +357,7 @@ private:
       tail_return this->handleSEQName(D);
     case CHGlobal:
     case CHLocal:
-      this->pushGrammar(ElementContent);
-      return NewTerm(Term);
+      tail_return this->handleCH<true>(D);
     default:
       tail_return this->handleChildContent<IsStart>(D);
     }
@@ -371,7 +376,7 @@ private:
       // SE(*) events can only be uncached.
       tail_return this->handleSE(D);
     case CH:
-      this->pushGrammar(ElementContent);
+      tail_return this->handleCH(D);
     case ER:
     case CM:
     case PI:
@@ -446,6 +451,35 @@ private:
       this->addTerm<ATQName>(Event);
 
     Event.setTerm(Cached ? ATQName : AT);
+    return Event;
+  }
+
+  template <bool Cached = false>
+  CC EventUID handleCH(ExiDecoder* D) {
+    exi_invariant(!GStack.empty());
+    const SmallQName Name = GStack.back()->getName();
+    const auto Event = Get::DecodeValue(D, Name);
+    if EXI_UNLIKELY(Event.is_err()) {
+      D->diagnose(Event.error());
+      return EventUID::NewNull();
+    }
+
+    this->Event = *Event;
+    this->Event.Name = Name;
+    tail_return this->handleCHValue<Cached>(D);
+  }
+
+  template <bool Cached = true>
+  CC EventUID handleCHValue(ExiDecoder* D) {
+    using enum EventTerm;
+    exi_invariant(Event.hasQName());
+    if constexpr (!Cached)
+      this->addTerm<CHLocal>(Event);
+    
+    this->pushGrammar(ElementContent);
+    GStack.back().setInt(false);
+
+    Event.setTerm(Cached ? CHLocal : CH);
     return Event;
   }
 
@@ -785,13 +819,13 @@ void DynBuiltinSchema::logCurrentGrammar(ExiDecoder* D) {
       const SmallQName ID = GStack.back()->getName();
       auto [URI, Name] = Get::Idents(D).getQName(ID);
       if (URI.empty())
-        dbgs() << format("[{}]", Name);
+        dbgs() << format("[{}]\n", Name);
       else
-        dbgs() << format("[{}:{}]", URI, Name);
+        dbgs() << format("[{}:{}]\n", URI, Name);
     }
   }
 
-  dbgs().changeColor(OldColor) << '\n';
+  dbgs().changeColor(OldColor);
 }
 
 void DynBuiltinSchema::logCurrentEvent() {
