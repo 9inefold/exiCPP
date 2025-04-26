@@ -124,6 +124,27 @@ static void TestSchema(StrRef Name, ExiOptions::PreserveOpts Preserve) {
   S->dump();
 }
 
+static void TestSchemas() {
+  ScopedSave S(DebugFlag, LogLevel::INFO);
+  TestSchema("Preserve.{CM}", {
+    .Comments = true,
+  });
+  TestSchema("Preserve.{CM, DT}", {
+    .Comments = true,
+    .DTDs = true,
+  });
+  TestSchema("Preserve.{PI, NS}", {
+    .PIs = true,
+    .Prefixes = true,
+  });
+  TestSchema("Preserve.All", {
+    .Comments = true,
+    .DTDs = true,
+    .PIs = true,
+    .Prefixes = true,
+  });
+}
+
 static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
   LOG_INFO("Decoding header...");
   if (auto E = Decoder.decodeHeader(MB)) {
@@ -137,6 +158,7 @@ static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
     return 1;
   }
 
+  dbgs() << '\n';
   return 0;
 }
 
@@ -264,60 +286,17 @@ int main(int Argc, char* Argv[]) {
   dbgs().enable_colors(true);
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
-#if 1
+
+  exi::DebugFlag = LogLevel::INFO;
   if (int Ret = DecodeBasic(Mgr))
     return Ret;
   if (int Ret = DecodeCustomers(Mgr))
     return Ret;
-  return 0;
-#endif
-
-  exi::DebugFlag = LogLevel::INFO;
-#if 0
-  TestSchema("Preserve.{CM}", {
-    .Comments = true,
-  });
-  TestSchema("Preserve.{CM, DT}", {
-    .Comments = true,
-    .DTDs = true,
-  });
-  TestSchema("Preserve.{PI, NS}", {
-    .PIs = true,
-    .Prefixes = true,
-  });
-  TestSchema("Preserve.All", {
-    .Comments = true,
-    .DTDs = true,
-    .PIs = true,
-    .Prefixes = true,
-  });
-#endif
 
   exi::DebugFlag = LogLevel::VERBOSE;
-  // PrintExample(outs(), 988);
-
-#if 1
   if (int Ret = DecodeExample(Mgr))
     return Ret;
-  return 0;
-#endif
-
-  ExiDecoder Decoder(outs());
-  ExiOptions Opts {};
-  Opts.SchemaID.emplace(nullptr);
-  if (auto E = Decoder.setOptions(Opts)) {
-    Decoder.diagnose(E);
-    return 1;
-  }
-
-  ArrayRef Ex(Example);
-  if (auto E = Decoder.setReader(Ex)) {
-    Decoder.diagnose(E);
-    return 1;
-  }
-
-  if (auto E = Decoder.decodeBody()) {
-    Decoder.diagnose(E);
-    return 1;
-  }
+  
+  WithColor OS(outs(), raw_ostream::BRIGHT_GREEN);
+  OS << "Decoding successful!\n";
 }
