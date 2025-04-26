@@ -50,7 +50,7 @@ public:
   virtual void addTerm(EventUID Term, bool IsStart) = 0;
 
   /// Dumps the current grammar.
-  virtual void dump() const {}
+  virtual void dump(ExiDecoder* D) const {}
   virtual ~Grammar() = default;
 
 private:
@@ -77,7 +77,7 @@ public:
   void addTerm(EventUID Term, bool IsStart) override;
 
   SmallQName getName() const { return Name; }
-  void dump() const override;
+  void dump(ExiDecoder* D) const override;
 
 private:
   /// Sets the log for StartTag or Element.
