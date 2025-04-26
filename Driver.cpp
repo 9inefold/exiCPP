@@ -294,10 +294,13 @@ int main(int Argc, char* Argv[]) {
 #endif
 
   exi::DebugFlag = LogLevel::VERBOSE;
-  // PrintExample(outs(), 251);
+  // PrintExample(outs(), 988);
 
+#if 1
   if (int Ret = DecodeExample(Mgr))
     return Ret;
+  return 0;
+#endif
 
   ExiDecoder Decoder(outs());
   ExiOptions Opts {};
