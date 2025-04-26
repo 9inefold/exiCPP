@@ -138,8 +138,8 @@ IDPair StringTable::addGlobalValue(StrRef Value) {
 
 IDPair StringTable::addLocalValue(CompactID URI, CompactID LocalID, StrRef Value) {
   exi_invariant(URI < URIMap.size());
-  exi_invariant(LocalID < *LNCount);
   this->assertPartitionsInSync();
+  exi_invariant(LocalID < URIMap[URI].LNElts);
 
   auto& Values = LNMap[URI][LocalID]->LocalValues;
   const CompactID ID = Values.size();
