@@ -153,8 +153,9 @@ IDPair StringTable::addLocalValue(CompactID URI, CompactID LocalID, StrRef Value
 
 /// Creates a new GlobalValue AND associates a new LocalValue with QName.
 IDTriple StringTable::addValue(CompactID URI, CompactID LocalID, StrRef Value) {
-  auto [Str, GID] = this->addGlobalValue(Value);
-  auto [_, LnID] = this->addLocalValue(URI, LocalID, Value);
+  // auto [Str, GID] = this->addGlobalValue(Value);
+  auto [Str, LnID] = this->addLocalValue(URI, LocalID, Value);
+  const CompactID GID = (*GValueCount - 1);
   return {.Value = Str, .GlobalID = GID, .LocalID = LnID};
 }
 
