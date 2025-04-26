@@ -24,10 +24,8 @@
 #pragma once
 
 #include <Support/Debug.hpp>
-#if EXI_LOGGING
-# include <Support/Format.hpp>
-# include <Support/raw_ostream.hpp>
-#endif
+#include <Support/Format.hpp>
+#include <Support/raw_ostream.hpp>
 
 #if EXI_LOGGING
 
