@@ -286,9 +286,7 @@ public:
   u64 getLocalNameLog(CompactID URI) const {
     exi_invariant(URI < URIMap.size());
     this->assertPartitionsInSync();
-    const u64 Count = URIMap[URI].LNElts;
-    // exi_assert(Count > 0);
-    return CompactIDLog2(Count);
+    return CompactIDLog2(URIMap[URI].LNElts);
   }
 
   EXI_INLINE u64 getGlobalValueLog() const {
