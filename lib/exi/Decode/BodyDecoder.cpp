@@ -183,7 +183,9 @@ ExiError ExiDecoder::decodeEvent() {
   case EventTerm::NS:       // Namespace Declaration (uri, prefix, local-element-ns)
     return this->decodeNS();
   case EventTerm::CH:       // Characters (value)
-    // return this->decodeCH();
+  case EventTerm::CHGlobal: // Characters (global-value)
+  case EventTerm::CHLocal:  // Characters (local-value)
+    return this->decodeCH(Event);
   case EventTerm::CM:       // Comment text (text)  
   case EventTerm::PI:       // Processing Instruction (name, text)
   case EventTerm::DT:       // DOCTYPE (name, public, system, text)
@@ -207,14 +209,17 @@ ExiError ExiDecoder::decodeSE(EventUID Event) {
 }
 
 ExiError ExiDecoder::decodeEE() {
-  return ErrorCode::kUnimplemented;
+  LOG_EXTRA("Decoded EE");
+  return ExiError::OK;
 }
 
 // Attribute (*, value)
 // Attribute (uri:*, value)
 // Attribute (qname, value)
 ExiError ExiDecoder::decodeAT(EventUID Event) {
-  const auto Value = $unwrap(decodeValue(Event.Name));
+  exi_invariant(Event.hasQName());
+  Result R = decodeValue(Event.Name);
+  const auto Value = $unwrap(std::move(R));
   LOG_EXTRA("Decoded AT");
   return ExiError::OK;
 }
@@ -225,14 +230,23 @@ ExiError ExiDecoder::decodeNS() {
 }
 
 // Characters (value)
-ExiError ExiDecoder::decodeCH() {
-  LOG_POSITION(this);
-  SmallStr<32> Data;
-  Result Str = decodeString(Data);
-  if EXI_UNLIKELY(!Str)
-    return Str.error();
-  LOG_INFO(">> CH \"{}\"", *Str);
-  return ErrorCode::kUnimplemented;
+ExiError ExiDecoder::decodeCH(EventUID Event) {
+  if (0 && Event.getTerm() != EventTerm::CH) {
+    const auto ValID = Event.getValue();
+    if (Event.isGlobal()) {
+      StrRef GlobalVal = Idents.getGlobalValue(ValID);
+      LOG_INFO(">> GV @{}: \"{}\"", ValID, GlobalVal);
+    } else {
+      exi_invariant(Event.hasQName());
+      const auto Name = Event.Name;
+      auto [URI, LocalName] = Idents.getQName(Name);
+      StrRef LocalVal = Idents.getLocalValue(Name, ValID);
+      LOG_INFO(">> LV @[{}:{}]:{}: \"{}\"",
+        URI, LocalName, ValID, LocalVal);
+    }
+  }
+  LOG_EXTRA("Decoded CH");
+  return ExiError::OK;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -255,21 +269,23 @@ ExiResult<CompactID> ExiDecoder::decodeURI() {
     exi_try_r(Reader->readBits64(URI, NBits));
   }
 
-  StrRef URIStr;
   if (URI == 0) {
     // Cache miss
+    StrRef URIStr;
     SmallStr<32> Data;
+    LOG_POSITION(this);
     StrRef Str = $unwrap(decodeString(Data));
     std::tie(URIStr, URI) = Idents.addURI(Str);
+    LOG_INFO(">> URI(Miss) @{}: \"{}\"", URI, URIStr);
   } else {
     // Cache hit
     URI -= 1;
 #if EXI_LOGGING
-    URIStr = Idents.getURI(URI);
+    StrRef URIStr = Idents.getURI(URI);
+    LOG_INFO(">> URI(Hit) @{}: \"{}\"", URI, URIStr);
 #endif
   }
 
-  LOG_INFO(">> URI @{}: \"{}\"", URI, URIStr);
   return URI;
 }
 
@@ -285,6 +301,7 @@ ExiResult<CompactID> ExiDecoder::decodeName(CompactID URI) {
   if (LnID == 0) {
     // Cache hit
     const u64 NBits = Idents.getLocalNameLog(URI);
+    LOG_POSITION(this);
     LOG_EXTRA("Decoding <{}>", NBits);
     exi_try_r(Reader->readBits64(LnID, NBits));
 #if EXI_LOGGING
@@ -337,6 +354,7 @@ ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
   if (ValID == 0) {
     // LocalValue hit
     const u64 NBits = Idents.getLocalValueLog(Name);
+    LOG_POSITION(this);
     LOG_EXTRA("Decoding <{}>", NBits);
     exi_try_r(Reader->readBits64(ValID, NBits));
 
@@ -351,6 +369,7 @@ ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
   } else if (ValID == 1) {
     // GlobalValue hit
     const u64 NBits = Idents.getGlobalValueLog();
+    LOG_POSITION(this);
     LOG_EXTRA("Decoding <{}>", NBits);
     exi_try_r(Reader->readBits64(ValID, NBits));
 
