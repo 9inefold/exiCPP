@@ -36,20 +36,24 @@ static u64 ReadBits(StreamReader& Strm, u32 Bits) {
   u64 Out = 0;
   if (auto E = Strm->readBits64(Out, Bits)) [[unlikely]]
     exi_unreachable("invalid stream read.");
-  LOG_EXTRA("Code[0]: @{}:{}", Bits, Out);
   return Out;
 }
 
 GrammarTerm BuiltinGrammar::getTerm(StreamReader& Strm, bool IsStart) {
   auto& Elts = this->getElts(IsStart);
   const usize Size = Elts.size();
-  const u64 Out = ReadBits(Strm, this->getLog(IsStart));
+  const u32 Bits = this->getLog(IsStart);
+  const u64 Out = ReadBits(Strm, Bits);
   // Check if this is a valid offset.
   if (Out < Size) {
     // Values are always pushed in reverse order, so remap the position.
     const auto Pos = (Size - 1) - Out;
-    return Ok(Elts[Out]);
+    // const auto Pos = Out;
+    LOG_EXTRA("Code[0]*: @{}:{}", Bits, Out);
+    return Ok(Elts[Pos]);
   }
+
+  LOG_EXTRA("Code[0]: @{}:{}", Bits, Out);
   // Get the base event code offset.
   return Err(Out - Size);
 }
@@ -69,4 +73,12 @@ void BuiltinGrammar::setLog(bool IsStart) {
   }
 }
 
-void BuiltinGrammar::dump() const {}
+void BuiltinGrammar::dump(ExiDecoder* D) const {
+  outs() << "StartTag:\n";
+  for (auto [Ix, Val] : exi::enumerate(exi::reverse(this->StartTag))) {
+    outs() << "  " << get_event_name(Val.getTerm())
+      << "  " << Ix << '\n';
+  }
+
+  // outs() << "Element\n";
+}
