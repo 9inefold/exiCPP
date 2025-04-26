@@ -180,7 +180,7 @@ public:
   }
 
   ////////////////////////////////////////////////////////////////////////
-  // Getters
+  // Validators
 
   /// Checks if URI has prefixes.
   bool hasPrefix(CompactID URI) const {
@@ -188,6 +188,16 @@ public:
     this->assertPartitionsInSync();
     return URIMap[URI].PrefixElts > 0;
   }
+
+  /// Checks if URI has a prefix.
+  bool hasPrefix(CompactID URI, CompactID PfxID) const {
+    exi_invariant(URI < URIMap.size());
+    this->assertPartitionsInSync();
+    return PfxID < URIMap[URI].PrefixElts;
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Getters
 
   /// Gets a URI from an ID.
   StrRef getURI(CompactID URI) const {
@@ -274,13 +284,21 @@ public:
     return URICount.bits();
   }
 
-  /// Gets a URI from an ID.
-  u64 getPrefixLog(CompactID URI) const {
+  /// Gets the bit number for QName prefixes.
+  u64 getPrefixLogQ(CompactID URI) const {
     exi_invariant(URI < URIMap.size());
     this->assertPartitionsInSync();
     const u64 Count = URIMap[URI].PrefixElts;
-    exi_assert(Count > 0);
+    if EXI_UNLIKELY(Count == 0)
+      return 0;
     return CompactIDLog2(Count - 1);
+  }
+
+  /// Gets the bit number for QName prefixes.
+  u64 getPrefixLog(CompactID URI) const {
+    exi_invariant(URI < URIMap.size());
+    this->assertPartitionsInSync();
+    return CompactIDLog2(URIMap[URI].PrefixElts);
   }
 
   u64 getLocalNameLog(CompactID URI) const {
