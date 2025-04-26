@@ -36,8 +36,10 @@
 #if 0
 # define LOG_POSITION(...)                                                    \
   LOG_EXTRA("@[{}]:", ((__VA_ARGS__)->Reader->bitPos()))
+# define LOG_META(...) LOG_EXTRA(__VA_ARGS__)
 #else
 # define LOG_POSITION(...) ((void)(0))
+# define LOG_META(...) ((void)(0))
 #endif
 
 using namespace exi;
@@ -175,13 +177,13 @@ ExiError ExiDecoder::decodeEvent() {
   case EventTerm::SEQName:  // Start Element (qname)
     return this->handleSE(Event);
   case EventTerm::EE:       // End Element
-    return this->handleEE();
+    return this->handleEE(Event);
   case EventTerm::AT:       // Attribute (*, value)
   case EventTerm::ATUri:    // Attribute (uri:*, value)
   case EventTerm::ATQName:  // Attribute (qname, value)
     return this->handleAT(Event);
   case EventTerm::NS:       // Namespace Declaration (uri, prefix, local-element-ns)
-    return this->handleNS();
+    return this->handleNS(Event);
   case EventTerm::CH:       // Characters (value)
   case EventTerm::CHExtern: // Characters (external-value)
     return this->handleCH(Event);
@@ -208,8 +210,18 @@ ExiError ExiDecoder::handleSE(EventUID Event) {
   return ExiError::OK;
 }
 
-ExiError ExiDecoder::handleEE() {
-  LOG_EXTRA("Decoded EE");
+ExiError ExiDecoder::handleEE(EventUID Event) {
+#if EXI_LOGGING
+  if (Event.hasQName()) {
+    StrRef URI = this->getPfxOrURI(Event);
+    StrRef LocalName = Idents.getLocalName(Event.Name);
+    LOG_INFO(">> EE[{}:{}]\n", URI, LocalName);
+  } else {
+    LOG_EXTRA("Decoded EE");
+    if (hasDbgLogLevel(INFO))
+      dbgs() << '\n';
+  }
+#endif
   return ExiError::OK;
 }
 
@@ -225,7 +237,7 @@ ExiError ExiDecoder::handleAT(EventUID Event) {
 }
 
 // Namespace Declaration (uri, prefix, local-element-ns)
-ExiError ExiDecoder::handleNS() {
+ExiError ExiDecoder::handleNS(EventUID) {
   const auto Event = $unwrap(decodeNS());
   LOG_EXTRA("Decoded NS");
   return ExiError::OK;
@@ -235,6 +247,50 @@ ExiError ExiDecoder::handleNS() {
 ExiError ExiDecoder::handleCH(EventUID Event) {
   LOG_EXTRA("Decoded CH");
   return ExiError::OK;
+}
+
+StrRef ExiDecoder::getPfxOrURI(EventUID Event) {
+  if (!Event.hasQName())
+    return "*"_str;
+  
+  const CompactID URI = Event.getURI();
+  if (!Idents.hasPrefix(URI)) {
+    LOG_META("No Prefix for @{}: {}", URI, Preserve.Prefixes);
+    if (Idents.hasURI(URI))
+      return Idents.getURI(URI);
+    else
+      return "?"_str;
+  }
+  
+  if (Event.hasPrefix()) {
+    const CompactID PfxID = Event.getPrefix();
+    if (auto X = tryGetPfx(URI, PfxID)) {
+      LOG_META("Prefix for @{}: {}", URI, PfxID);
+      return *X;
+    }
+  }
+
+  // Try the default if no match.
+  if (auto X = tryGetPfx(URI, 0)) {
+    LOG_META("Default Prefix for @{}", URI);
+    return *X;
+  }
+
+  return Idents.getURI(URI);
+}
+
+Option<StrRef> ExiDecoder::tryGetPfx(CompactID URI, CompactID PfxID) {
+  if (!Idents.hasPrefix(URI, PfxID))
+    return std::nullopt;
+  
+  StrRef Pfx = Idents.getPrefix(URI, PfxID);
+  if (Pfx.empty() && URI != 0) {
+    // Don't allow arbitrary empty prefixes when printing.
+    // May be confusing for the reader.
+    return std::nullopt;
+  }
+
+  return Pfx;
 }
 
 //////////////////////////////////////////////////////////////////////////

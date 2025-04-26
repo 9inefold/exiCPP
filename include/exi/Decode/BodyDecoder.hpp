@@ -118,10 +118,13 @@ protected:
   // Terms
 
   ExiError handleSE(EventUID Event);
-  ExiError handleEE();
+  ExiError handleEE(EventUID Event);
   ExiError handleAT(EventUID Event);
-  ExiError handleNS();
+  ExiError handleNS(EventUID Event);
   ExiError handleCH(EventUID Event);
+
+  StrRef getPfxOrURI(EventUID Event);
+  Option<StrRef> tryGetPfx(CompactID URI, CompactID PfxID);
 
   ////////////////////////////////////////////////////////////////////////
   // Values
