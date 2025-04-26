@@ -117,17 +117,20 @@ protected:
   ////////////////////////////////////////////////////////////////////////
   // Terms
 
-  ExiError decodeSE(EventUID Event);
-  ExiError decodeEE();
-  ExiError decodeAT(EventUID Event);
-  ExiError decodeNS();
-  ExiError decodeCH(EventUID Event);
+  ExiError handleSE(EventUID Event);
+  ExiError handleEE();
+  ExiError handleAT(EventUID Event);
+  ExiError handleNS();
+  ExiError handleCH(EventUID Event);
 
   ////////////////////////////////////////////////////////////////////////
   // Values
 
   /// Decodes a QName.
   ExiResult<EventUID> decodeQName();
+
+  /// Decodes a Namespace.
+  ExiResult<EventUID> decodeNS();
 
   /// Decodes a QName URI.
   ExiResult<CompactID> decodeURI();
@@ -143,7 +146,11 @@ protected:
 
   /// Decodes a QName Prefix, if `Preserve.Prefixes` is enabled.
   /// @param URI The bucket to search in.
-  ExiResult<Option<CompactID>> decodePfx(CompactID URI);
+  ExiResult<Option<CompactID>> decodePfxQ(CompactID URI);
+
+  /// Decodes a NS Prefix, `Preserve.Prefixes` must be enabled.
+  /// @param URI The bucket to search in.
+  ExiResult<CompactID> decodePfx(CompactID URI);
 
   /// Decodes a Value.
   ExiResult<EventUID> decodeValue(CompactID URI, CompactID Name) {

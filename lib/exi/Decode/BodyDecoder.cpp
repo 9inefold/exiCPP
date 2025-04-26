@@ -173,19 +173,19 @@ ExiError ExiDecoder::decodeEvent() {
   case EventTerm::SE:       // Start Element (*)
   case EventTerm::SEUri:    // Start Element (uri:*)
   case EventTerm::SEQName:  // Start Element (qname)
-    return this->decodeSE(Event);
+    return this->handleSE(Event);
   case EventTerm::EE:       // End Element
-    return this->decodeEE();
+    return this->handleEE();
   case EventTerm::AT:       // Attribute (*, value)
   case EventTerm::ATUri:    // Attribute (uri:*, value)
   case EventTerm::ATQName:  // Attribute (qname, value)
-    return this->decodeAT(Event);
+    return this->handleAT(Event);
   case EventTerm::NS:       // Namespace Declaration (uri, prefix, local-element-ns)
-    return this->decodeNS();
+    return this->handleNS();
   case EventTerm::CH:       // Characters (value)
   case EventTerm::CHGlobal: // Characters (global-value)
   case EventTerm::CHLocal:  // Characters (local-value)
-    return this->decodeCH(Event);
+    return this->handleCH(Event);
   case EventTerm::CM:       // Comment text (text)  
   case EventTerm::PI:       // Processing Instruction (name, text)
   case EventTerm::DT:       // DOCTYPE (name, public, system, text)
@@ -203,12 +203,12 @@ ExiError ExiDecoder::decodeEvent() {
 // Start Element (*)
 // Start Element (uri:*)
 // Start Element (qname)
-ExiError ExiDecoder::decodeSE(EventUID Event) {
+ExiError ExiDecoder::handleSE(EventUID Event) {
   LOG_EXTRA("Decoded SE");
   return ExiError::OK;
 }
 
-ExiError ExiDecoder::decodeEE() {
+ExiError ExiDecoder::handleEE() {
   LOG_EXTRA("Decoded EE");
   return ExiError::OK;
 }
@@ -216,7 +216,7 @@ ExiError ExiDecoder::decodeEE() {
 // Attribute (*, value)
 // Attribute (uri:*, value)
 // Attribute (qname, value)
-ExiError ExiDecoder::decodeAT(EventUID Event) {
+ExiError ExiDecoder::handleAT(EventUID Event) {
   exi_invariant(Event.hasQName());
   Result R = decodeValue(Event.Name);
   const auto Value = $unwrap(std::move(R));
@@ -225,12 +225,12 @@ ExiError ExiDecoder::decodeAT(EventUID Event) {
 }
 
 // Namespace Declaration (uri, prefix, local-element-ns)
-ExiError ExiDecoder::decodeNS() {
+ExiError ExiDecoder::handleNS() {
   return ErrorCode::kUnimplemented;
 }
 
 // Characters (value)
-ExiError ExiDecoder::decodeCH(EventUID Event) {
+ExiError ExiDecoder::handleCH(EventUID Event) {
   if (0 && Event.getTerm() != EventTerm::CH) {
     const auto ValID = Event.getValue();
     if (Event.isGlobal()) {
@@ -255,10 +255,21 @@ ExiError ExiDecoder::decodeCH(EventUID Event) {
 ExiResult<EventUID> ExiDecoder::decodeQName() {
   const CompactID URI = $unwrap(decodeURI());
   const CompactID LNI = $unwrap(decodeName(URI));
-  Option Pfx = $unwrap(decodePfx(URI));
+  Option Pfx = $unwrap(decodePfxQ(URI));
 
   auto QName = SmallQName::MakeQName(URI, LNI);
   return Ok(EventUID::NewQName(QName, Pfx));
+}
+
+ExiResult<EventUID> ExiDecoder::decodeNS() {
+  const CompactID URI = $unwrap(decodeURI());
+  const CompactID PfxID = $unwrap(decodePfx(URI));
+
+  bool IsLocal = false;
+  exi_try_r(Reader->readBit(IsLocal));
+
+  auto QName = SmallQName::MakeURI(URI);
+  return Ok(EventUID::NewNS(QName, PfxID, IsLocal));
 }
 
 ExiResult<CompactID> ExiDecoder::decodeURI() {
@@ -319,14 +330,14 @@ ExiResult<CompactID> ExiDecoder::decodeName(CompactID URI) {
   return LnID;
 }
 
-ExiResult<Option<CompactID>> ExiDecoder::decodePfx(CompactID URI) {
+ExiResult<Option<CompactID>> ExiDecoder::decodePfxQ(CompactID URI) {
   if (!Preserve.Prefixes)
     return Ok(std::nullopt);
   if (!Idents.hasPrefix(URI))
     return Ok(std::nullopt);
   
   CompactID PfxID = 0;
-  const u64 NBits = Idents.getPrefixLog(URI);
+  const u64 NBits = Idents.getPrefixLogQ(URI);
 
   if (NBits) {
     LOG_POSITION(this);
@@ -336,9 +347,38 @@ ExiResult<Option<CompactID>> ExiDecoder::decodePfx(CompactID URI) {
 
 #if EXI_LOGGING
   StrRef Pfx = Idents.getPrefix(URI, PfxID);
-  LOG_INFO(">> LN @{}: \"{}\"", PfxID, Pfx);
+  LOG_INFO(">> PXQ @{}: \"{}\"", PfxID, Pfx);
 #endif
 
+  return Ok(PfxID);
+}
+
+ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
+  exi_invariant(Preserve.Prefixes, "NS event occurred without prefixes.");
+  CompactID PfxID = 0;
+  const u64 NBits = Idents.getPrefixLog(URI);
+
+  LOG_POSITION(this);
+  LOG_EXTRA("Decoding <{}>", NBits);
+  exi_try_r(Reader->readBits64(PfxID, NBits));
+
+  StrRef Pfx;
+  if (PfxID != 0) {
+    // Cache hit
+    PfxID -= 1;
+    if EXI_UNLIKELY(!Idents.hasPrefix(URI, PfxID))
+      return Err(ErrorCode::kInvalidEXIInput);
+#if EXI_LOGGING
+    Pfx = Idents.getPrefix(URI, PfxID);
+#endif
+  } else {
+    // Cache miss
+    SmallStr<32> Data;
+    StrRef Str = $unwrap(decodeString(Data));
+    std::tie(Pfx, PfxID) = Idents.addPrefix(URI, Str);
+  }
+
+  LOG_INFO(">> PXNS @{}: \"{}\"", PfxID, Pfx);
   return Ok(PfxID);
 }
 
