@@ -41,11 +41,8 @@ EXI_INLINE constexpr u32 CompactIDLog2(CompactID ID) noexcept {
     if EXI_UNLIKELY(ID == 0)
       return 0;
   }
-
-  const int Ret = std::countl_zero(ID);
-  const u32 Extra = !!(ID & (ID - 1));
-  __builtin_assume(Ret >= 0);
-  return u32(63u - Ret) + Extra;
+  // Faster algorithm.
+  return Log2_64(ID - 1) + 1;
 }
 
 namespace H {
