@@ -320,6 +320,11 @@ private:
     this->logEvent(Term);
 
     switch (Term) {
+    case SE:
+      // TODO: Early dispatch... check this.
+      tail_return this->handleChildContent<true>(D);
+    case EE:
+      tail_return this->handleEEStartTag(D);
     case AT:
       tail_return this->handleAT(D);
     case ATQName:
@@ -355,8 +360,7 @@ private:
     case SEQName:
       // SE(qname) events are cached.
       tail_return this->handleSEQName(D);
-    case CHGlobal:
-    case CHLocal:
+    case CHExtern:
       tail_return this->handleCH<true>(D);
     default:
       tail_return this->handleChildContent<IsStart>(D);
@@ -417,18 +421,32 @@ private:
     return Event;
   }
 
+  /// Since element grammars always have single term EE event codes, we don't
+  /// need to add it to the grammar.
+  template <bool IsStart = false>
   CC EventUID handleEE(ExiDecoder*) {
     exi_invariant(!GStack.empty(), "invalid nesting");
+    if constexpr (!IsStart)
+      this->addQNameToEvent();
     GStack.pop_back();
 
     if EXI_LIKELY(!GStack.empty()) {
-      auto& G = GStack.back();
       this->pushGrammar(ElementContent);
-      G.setInt(false);
+      GStack.back().setInt(false);
     } else
       this->pushGrammar(DocEnd);
     
-    return NewTerm(EventTerm::EE);
+    return Event;
+  }
+
+  CC_INLINE EventUID handleEEStartTag(ExiDecoder* D) {
+    using enum EventTerm;
+    if EXI_UNLIKELY(!Event.hasQName()) {
+      this->addQNameToEvent();
+      // Cache event for current grammar.
+      GStack.back()->addTerm(Event, /*IsStart=*/true);
+    }
+    tail_return this->handleEE</*IsStart=*/true>(D);
   }
 
   template <bool Cached = false>
@@ -459,6 +477,7 @@ private:
     exi_invariant(!GStack.empty());
     const SmallQName Name = GStack.back()->getName();
     const auto Event = Get::DecodeValue(D, Name);
+
     if EXI_UNLIKELY(Event.is_err()) {
       D->diagnose(Event.error());
       return EventUID::NewNull();
@@ -473,13 +492,15 @@ private:
   CC EventUID handleCHValue(ExiDecoder* D) {
     using enum EventTerm;
     exi_invariant(Event.hasQName());
-    if constexpr (!Cached)
-      this->addTerm<CHLocal>(Event);
+    if constexpr (!Cached) {
+      constexpr auto E = EventUID::NewNull();
+      this->addTerm<CHExtern>(E);
+    }
     
     this->pushGrammar(ElementContent);
     GStack.back().setInt(false);
 
-    Event.setTerm(Cached ? CHLocal : CH);
+    Event.setTerm(Cached ? CHExtern : CH);
     return Event;
   }
 
@@ -492,6 +513,12 @@ private:
     exi_invariant(!GStack.empty());
     Event.setTerm(Term);
     GStack.back()->addTerm(Event, Current == StartTagContent);
+  }
+
+  /// Uses the current grammar's QName as the event's.
+  ALWAYS_INLINE void addQNameToEvent() {
+    exi_invariant(!GStack.empty());
+    this->Event.Name = GStack.back()->getName();
   }
 
   /// Returns `[Grammar, Cached]`.
@@ -805,24 +832,22 @@ void DynBuiltinSchema::PrintGrammar(BuiltinSchema::Grammar G) const {
 #if EXI_LOGGING
 void DynBuiltinSchema::logCurrentGrammar(ExiDecoder* D) {
   using enum raw_ostream::Colors;
-  if (!hasDbgLogLevel(INFO))
+  if (!hasDbgLogLevel(VERBOSE))
     // Don't do any work if log level is insufficient.
     return;
   
   const auto OldColor = dbgs().getColor();
   dbgs().changeColor(BRIGHT_WHITE) << '\n';
-  
-  if (hasDbgLogLevel(VERBOSE)) {
-    dbgs() << "Grammar State: " << GetGrammarName(Current);
-    const bool IsContent = mmatch(Current).is(StartTagContent, ElementContent);
-    if EXI_LIKELY(IsContent && !GStack.empty()) {
-      const SmallQName ID = GStack.back()->getName();
-      auto [URI, Name] = Get::Idents(D).getQName(ID);
-      if (URI.empty())
-        dbgs() << format("[{}]\n", Name);
-      else
-        dbgs() << format("[{}:{}]\n", URI, Name);
-    }
+
+  dbgs() << "Grammar State: " << GetGrammarName(Current);
+  const bool IsContent = mmatch(Current).is(StartTagContent, ElementContent);
+  if EXI_LIKELY(IsContent && !GStack.empty()) {
+    const SmallQName ID = GStack.back()->getName();
+    auto [URI, Name] = Get::Idents(D).getQName(ID);
+    if (URI.empty())
+      dbgs() << format("[{}]\n", Name);
+    else
+      dbgs() << format("[{}:{}]\n", URI, Name);
   }
 
   dbgs().changeColor(OldColor);
