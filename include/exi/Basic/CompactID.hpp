@@ -32,6 +32,7 @@ namespace exi {
 /// The Compact ID type.
 using CompactID = u64;
 
+/// Calculates `⌈ log2(ID) ⌉`.
 template <bool NeverZero = false>
 EXI_INLINE constexpr u32 CompactIDLog2(CompactID ID) noexcept {
   if constexpr (NeverZero)
@@ -40,8 +41,11 @@ EXI_INLINE constexpr u32 CompactIDLog2(CompactID ID) noexcept {
     if EXI_UNLIKELY(ID == 0)
       return 0;
   }
-  // Same as Log2_64 for now, may change in the future.
-  return 63 - std::countl_zero(ID);
+
+  const int Ret = std::countl_zero(ID);
+  const u32 Extra = !!(ID & (ID - 1));
+  __builtin_assume(Ret >= 0);
+  return u32(63u - Ret) + Extra;
 }
 
 namespace H {
