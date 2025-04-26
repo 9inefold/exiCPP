@@ -140,6 +140,22 @@ static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
   return 0;
 }
 
+static int DecodeExample(XMLManagerRef Mgr) {
+  // Basic.xml with default settings and no options.
+  StrRef HiddenFile = "examples/SpecExample.exi"_str;
+  XMLContainerRef Exi
+    = Mgr->getOptXMLRef(HiddenFile, errs())
+      .expect("could not locate file!");
+  auto MB = Exi.getBufferRef();
+  
+  ExiOptions Opts {};
+  Opts.SchemaID.emplace(nullptr);
+
+  LOG_INFO("Decoding: \"{}\"", HiddenFile);
+  ExiDecoder Decoder(Opts, errs());
+  return Decode(Decoder, MB);
+}
+
 static int DecodeBasic(XMLManagerRef Mgr) {
   // Basic.xml with default settings and no options.
   StrRef HiddenFile = "examples/BasicNoopt.exi"_str;
@@ -186,16 +202,52 @@ static constexpr u8 Example[] {
   0x0D, 0x0D, 0xED, 0xCC, 0xAF, 0x25
 };
 
-static void PrintExample(raw_ostream& OS) {
+static void PrintExample(raw_ostream& OS, int Skip = 0) {
   WithColor C(OS, raw_ostream::BRIGHT_WHITE);
+  bool JustPrinted = true;
+  int Ix = 0;
 
-  bool JustPrinted = false;
-  for (auto [Ix, Val] : exi::enumerate(Example)) {
+  while (Skip >= 64) {
+    Skip -= 64;
+    Ix += 8;
+  }
+
+  OS << format("{:03}: ", Ix);
+
+  const int SkipN = Skip / 8;
+  for (int Ix2 = 0; Ix2 < SkipN; ++Ix, ++Ix2) {
     JustPrinted = false;
-    OS << format("{:08b} ", Val);
+    OS << "[      ] ";
     if (((Ix + 1) & 0b111) == 0) {
       JustPrinted = true;
-      OS << '\n';
+      OS << format("\n{:03}: ", (Ix + 1));
+    }
+    Skip -= 8;
+  }
+
+  if (Skip != 0) {
+    exi_invariant(Skip < 8);
+    JustPrinted = false;
+
+    auto Str = fmt::format("{:08b} ", Example[Ix]);
+    auto Slice = StrRef(Str.data(), 8).drop_front(Skip);
+    OS << format("{: >8} ", Slice);
+
+    if (((Ix + 1) & 0b111) == 0) {
+      JustPrinted = true;
+      OS << format("\n{:03}: ", (Ix + 1));
+    }
+
+    ++Ix;
+    Skip = 0;
+  }
+
+  for (; Ix < sizeof(Example); ++Ix) {
+    JustPrinted = false;
+    OS << format("{:08b} ", Example[Ix]);
+    if (((Ix + 1) & 0b111) == 0) {
+      JustPrinted = true;
+      OS << format("\n{:03}: ", (Ix + 1));
     }
   }
 
@@ -242,7 +294,10 @@ int main(int Argc, char* Argv[]) {
 #endif
 
   exi::DebugFlag = LogLevel::VERBOSE;
-  // PrintExample(outs());
+  // PrintExample(outs(), 251);
+
+  if (int Ret = DecodeExample(Mgr))
+    return Ret;
 
   ExiDecoder Decoder(outs());
   ExiOptions Opts {};
