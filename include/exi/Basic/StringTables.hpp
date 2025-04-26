@@ -182,17 +182,22 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Validators
 
+  bool hasURI(CompactID URI) const {
+    return URI < URIMap.size();
+  }
+
   /// Checks if URI has prefixes.
   bool hasPrefix(CompactID URI) const {
-    exi_invariant(URI < URIMap.size());
+    if EXI_UNLIKELY(!this->hasURI(URI))
+      return false;
     this->assertPartitionsInSync();
     return URIMap[URI].PrefixElts > 0;
   }
 
   /// Checks if URI has a prefix.
   bool hasPrefix(CompactID URI, CompactID PfxID) const {
-    exi_invariant(URI < URIMap.size());
-    this->assertPartitionsInSync();
+    if EXI_UNLIKELY(!this->hasPrefix(URI))
+      return false;
     return PfxID < URIMap[URI].PrefixElts;
   }
 
