@@ -58,6 +58,15 @@ using namespace exi;
 # define CC_INLINE ALWAYS_INLINE
 #endif
 
+#ifdef __clang__
+/// Keep debug information clean when using clang.
+# define INTERNAL_LINKAGE [[clang::internal_linkage]]
+# define INTERNAL_NS exi
+#else
+# define INTERNAL_LINKAGE
+# define INTERNAL_NS
+#endif
+
 //===----------------------------------------------------------------===//
 // Built-in Grammar
 //===----------------------------------------------------------------===//
@@ -99,7 +108,7 @@ using namespace exi;
 ///   PI ElementContent  		 n.(m+3).1
 ///
 
-namespace {
+namespace INTERNAL_NS {
 
 /// A small log2 table for deducing bit counts. The maximum value a builtin
 /// schema can have is 7, with `StartTagContent.{CM, PI}` with `SC` enabled.
@@ -127,7 +136,7 @@ struct BIInfo {
 };
 
 // TODO: Implement...
-class DynBuiltinSchema final
+class INTERNAL_LINKAGE DynBuiltinSchema final
     : public BuiltinSchema, 
       public TrailingArray<DynBuiltinSchema, EventTerm> {
   using enum BuiltinSchema::Grammar;
@@ -710,7 +719,7 @@ private:
   }
 };
 
-} // namespace `anonymous`
+} // namespace INTERNAL_NS
 
 void DynBuiltinSchema::Builder::CalculateLog(SEventCode* EC) {
   exi_invariant(EC);
