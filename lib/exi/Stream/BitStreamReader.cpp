@@ -283,19 +283,24 @@ APInt BitStreamReader::readBits(i64 Bits) {
 }
 
 ExiError BitStreamReader::readUInt(u64& Out) {
-  u64 Multiplier = 1;
-  u64 Value = 0;
+  u64 Multiplier = 0, Value = 0;
   Out = 0;
 
+  // While the codegen for this loop is identical for the multiplication/bitwise
+  // variants on Clang, it makes a difference on GCC. Because of this, I've
+  // updated it to use bitwise operations.
+
   static constexpr i64 OctetsPerWord = kOctetsPerWord;
+  u8 Octet = 0;
   for (i64 N = 0; N < OctetsPerWord; ++N) {
-    u8 Octet;
     exi_try(readByte(Octet));
     const u64 Lo = Octet & 0b0111'1111;
 
-    Value += (Lo * Multiplier);
+    // Same as (Lo * Multiplier)
+    Value += (Lo << Multiplier);
     if (Octet & 0b1000'0000) {
-      Multiplier *= 128;
+      // Same as (Multiplier *= 128).
+      Multiplier += 7;
       continue;
     }
 
