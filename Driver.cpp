@@ -288,8 +288,10 @@ int main(int Argc, char* Argv[]) {
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
 #if !EXI_LOGGING
+  constexpr int MaxIters = 1'000'000;
+  outs() << "Running tests... " << MaxIters << " iterations.\n";
   // Stress testing in release.
-  for (int NIters = 0; NIters < 1000000; ++NIters)
+  for (int NIters = 0; NIters < MaxIters; ++NIters)
 #endif
   {
     exi::DebugFlag = LogLevel::INFO;
