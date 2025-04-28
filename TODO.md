@@ -10,10 +10,11 @@ This is a TODO list for the C++ version of exiCPP.
 - Little endian read/write for `BitStream`
 - `BitStream*` implementation
 - Skeleton for the EXI Header parser
+- Decode event codes
 
 ## In Progress
 
-- Decode event codes
+- Refactor reader streams
 - Update rapidxml
 - `ErrorCode` customization
 - `DenseMap` and friends
