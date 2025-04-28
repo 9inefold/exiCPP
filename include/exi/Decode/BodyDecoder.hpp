@@ -55,7 +55,7 @@ class ExiDecoder {
   /// The provided Header.
   ExiHeader Header;
   /// The provided `StreamReader`.
-  Poly<BitStreamReader, ByteStreamReader> Reader;
+  StreamReader Reader;
   /// A BumpPtrAllocator for processor internals.
   exi::BumpPtrAllocator BP;
   /// The table holding decoded string values (QNames, LocalNames, etc.)
