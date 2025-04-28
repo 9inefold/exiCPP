@@ -19,6 +19,7 @@
 #pragma once
 
 #include <Common/Features.hpp>
+#include <Common/D/Scalar128.hpp>
 #include <climits>
 #include <cstddef>
 #include <cstdint>
@@ -47,6 +48,11 @@ using u8  = unsigned char;
 using u16 = std::uint16_t;
 using u32 = std::uint32_t;
 using u64 = std::uint64_t;
+
+#if EXI_HAS_I128
+using i128 = __int128;
+using u128 = unsigned __int128;
+#endif
 
 using ptrdiff = std::ptrdiff_t;
 
@@ -91,6 +97,10 @@ using uhalfptr = exi::uintn_t<sizeof(void*) / 2>;
 
 using f32 = float;
 using f64 = double;
+
+#if EXI_HAS_F128
+using f128 = __float128;
+#endif
 
 static_assert(bitsizeof_v<f32> == 32);
 static_assert(bitsizeof_v<f64> == 64);
