@@ -69,13 +69,17 @@ template <> struct SIntN<1UL>  { using type = i8; };
 template <> struct SIntN<2UL>  { using type = i16; };
 template <> struct SIntN<4UL>  { using type = i32; };
 template <> struct SIntN<8UL>  { using type = i64; };
-// template <> struct SIntN<16UL> { using type = i128; };
+#if EXI_HAS_I128
+template <> struct SIntN<16UL> { using type = i128; };
+#endif
 
 template <> struct UIntN<1UL>  { using type = u8; };
 template <> struct UIntN<2UL>  { using type = u16; };
 template <> struct UIntN<4UL>  { using type = u32; };
 template <> struct UIntN<8UL>  { using type = u64; };
-// template <> struct UIntN<16UL> { using type = u128; };
+#if EXI_HAS_I128
+template <> struct UIntN<16UL> { using type = u128; };
+#endif
 
 } // namespace H
 
@@ -91,6 +95,14 @@ using uptr = std::uintptr_t;
 
 using ihalfptr = exi::intn_t<sizeof(void*) / 2>;
 using uhalfptr = exi::uintn_t<sizeof(void*) / 2>;
+
+#if EXI_HAS_I128
+using ilargest = i128;
+using ulargest = u128;
+#else
+using ilargest = i64;
+using ulargest = u64;
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 // Floats
