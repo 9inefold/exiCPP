@@ -405,6 +405,7 @@ private:
   template <typename Ret>
   ALWAYS_INLINE bool Default(Option<Ret>& Out) const {
     if constexpr (std::default_initializable<Ret>) {
+      // TODO: Add warning? API deviations may be unintended.
       Out.emplace();
       return true;
     }
