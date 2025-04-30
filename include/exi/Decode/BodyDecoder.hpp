@@ -49,6 +49,7 @@ struct DecoderFlags {
 };
 
 /// The EXI decoding processor.
+/// FIXME: Split this up into more implementations.
 class ExiDecoder {
   friend class Schema::Get;
 

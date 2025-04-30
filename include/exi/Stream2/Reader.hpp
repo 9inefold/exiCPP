@@ -25,6 +25,7 @@
 
 #include <core/Common/StringExtras.hpp>
 #include <core/Common/MemoryBufferRef.hpp>
+#include <core/Support/Endian.hpp>
 #include <exi/Stream2/Stream.hpp>
 
 namespace exi {
@@ -39,6 +40,7 @@ public:
   using BufferT  = buffer_t;
   using ProxyT 	 = proxy_t;
 
+public:
   /// Returns the type of the current stream.
   virtual StreamKind getStreamKind() const = 0;
   
@@ -49,6 +51,8 @@ private:
   virtual void anchor();
 };
 
+/// The bases for BitReader/ByteReader, which consume data in the order it
+/// appears. This allows for a much simpler implementation.
 class OrderedReader : public ReaderBase {
 protected:
   /// The current stream data.
@@ -62,7 +66,32 @@ protected:
   unsigned BitsInStore = 0;
 
 public:
+  
+  ExiError fillStore() {
+    if EXI_UNLIKELY(ByteOffset >= Stream.size())
+      // Read of an empty buffer.
+      return ExiError::OOB;
 
+    // Read the next "word" from the stream.
+    const u8* WordPtr = Stream.data() + ByteOffset;
+    unsigned BytesRead;
+    if EXI_LIKELY(Stream.size() >= ByteOffset + sizeof(word_t)) {
+      // Read full "word" of data.
+      BytesRead = sizeof(word_t);
+      // TODO: Change this on arm?
+      Store = support::endian::read<word_t, endianness::little>(WordPtr);
+    } else {
+      // Partial read.
+      BytesRead = Stream.size() - ByteOffset;
+      ByteOffset = 0;
+      for (unsigned Ix = 0; Ix != BytesRead; ++Ix)
+        CurWord |= u64(WordPtr[Ix]) << (Ix * 8);
+    }
+
+    ByteOffset += BytesRead;
+    BitsInStore = (BytesRead * 8);
+    return ExiError::OK;
+  }
 
 private:
   virtual void anchor();
