@@ -144,17 +144,16 @@ ExiError ExiDecoder::decodeBody() {
   LOG_EXTRA("Beginning decoding...");
 
   auto* SchemaPtr = CurrentSchema.get();
-  if (auto* CS = dyn_cast<CompiledSchema>(SchemaPtr)) {
+  if (!isa<BuiltinSchema>(*SchemaPtr)) {
     // TODO: Schemas!!!
-    exi_unreachable("compiled schemas currently unsupported.");
+    exi_unreachable("dynamic and compiled schemas currently unsupported.");
   }
 
-  exi_assert(isa<BuiltinSchema>(*SchemaPtr));
   while (!Reader->isFull()) {
     ExiError E = this->decodeEvent();
     if (E == ExiError::OK)
       continue;
-    else if (E == ErrorCode::kParsingComplete)
+    else if (E == ExiError::DONE)
       break;
     // Some other error code.
     return E;
