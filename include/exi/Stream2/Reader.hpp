@@ -23,75 +23,89 @@
 
 #pragma once
 
+#include <core/Common/CRTPTraits.hpp>
 #include <core/Common/StringExtras.hpp>
-#include <core/Common/MemoryBufferRef.hpp>
 #include <core/Support/Endian.hpp>
+#include <core/Support/MemoryBufferRef.hpp>
+#include <exi/Basic/NBitInt.hpp>
 #include <exi/Stream2/Stream.hpp>
 
 namespace exi {
 
+template <typename Derived> struct ReaderMethods {
+  /// Reads a static number of bits (max of 64).
+  /// This means data is peeked, then the position is advanced.
+  template <unsigned Bits>
+  ExiError readBits(ubit<Bits>& Out) {
+    u64 ProxyOut;
+    // TODO: Change read type?
+    const ExiError Status
+      = super()->readBits64(ProxyOut, Bits);
+    Out = ubit<Bits>::FromBits(ProxyOut);
+    return Status;
+  }
+
+  /// Reads a static number of bits (max of 64).
+  /// This means data is peeked, then the position is advanced.
+  /// @attention This function ignores errors.
+  template <unsigned Bits>
+  ExiResult<ubit<Bits>> readBits() {
+    auto Data = super()->readBits64(Bits);
+    if EXI_UNLIKELY(Data.is_err())
+      return Err(Data.error());
+    // TODO: Mask data?
+    return ubit<Bits>::FromBits(*Data);
+  }
+
+  void TempFunction() {}
+
+private:
+  EXI_CRTP_DEFINE_SUPER(Derived)
+};
+
+#define EXI_USE_READER_METHODS(CLASSNAME, VISIBILITY)                         \
+  EXI_USE_READER_METHODS_I(ReaderMethods<CLASSNAME>)                          \
+VISIBILITY:
+
+#define EXI_USE_READER_METHODS_I(IMPL)                                        \
+public:                                                                       \
+  friend struct IMPL;                                                         \
+  using IMPL::readBits;                                                       \
+protected:                                                                    \
+  using IMPL::TempFunction; // TODO: Temp, remove when done.
+
 /// The base for all reader types, allows for a single API.
 /// TODO: Investigate if this is actually the best option. It may be better to
 /// split up OrderedReader and ChannelReader, and the decoders as well.
-class ReaderBase : public StreamBase {
+class EXI_EMPTY_BASES ReaderBase
+    : public StreamBase, public ReaderMethods<ReaderBase> {
 public:
   using buffer_t = ArrayRef<u8>;
   using proxy_t  = StreamProxy<buffer_t>;
   using BufferT  = buffer_t;
-  using ProxyT 	 = proxy_t;
+  using ProxyT    = proxy_t;
 
 public:
+  EXI_USE_READER_METHODS(ReaderBase, public)
+
+  /// Reads a single bit.
+  virtual ExiResult<bool> readBit() = 0;
+
+  /// Reads a single byte.
+  virtual ExiResult<u8> readByte() = 0;
+
+  /// Reads a variable number of bits (max of 64).
+  virtual ExiResult<u64> readBits64(unsigned Bits) = 0;
+
+  /// Reads an `Unsigned Integer` with a maximum of 8 octets.
+  /// See https://www.w3.org/TR/exi/#encodingUnsignedInteger.
+  virtual ExiResult<u64> readUInt() = 0;
+
   /// Returns the type of the current stream.
   virtual StreamKind getStreamKind() const = 0;
   
   /// Make virtual.
   virtual ~ReaderBase() = default;
-
-private:
-  virtual void anchor();
-};
-
-/// The bases for BitReader/ByteReader, which consume data in the order it
-/// appears. This allows for a much simpler implementation.
-class OrderedReader : public ReaderBase {
-protected:
-  /// The current stream data.
-  buffer_t Stream;
-  /// The offset of the current stream in bytes.
-  size_t ByteOffset = 0;
-  /// The current word, cached data from the stream.
-  word_t Store = 0;
-  /// This is the number of bits in Store that are valid. This is always from
-  /// `[0 ... bitsizeof(size_t) - 1]` inclusive.
-  unsigned BitsInStore = 0;
-
-public:
-  
-  ExiError fillStore() {
-    if EXI_UNLIKELY(ByteOffset >= Stream.size())
-      // Read of an empty buffer.
-      return ExiError::OOB;
-
-    // Read the next "word" from the stream.
-    const u8* WordPtr = Stream.data() + ByteOffset;
-    unsigned BytesRead;
-    if EXI_LIKELY(Stream.size() >= ByteOffset + sizeof(word_t)) {
-      // Read full "word" of data.
-      BytesRead = sizeof(word_t);
-      // TODO: Change this on arm?
-      Store = support::endian::read<word_t, endianness::little>(WordPtr);
-    } else {
-      // Partial read.
-      BytesRead = Stream.size() - ByteOffset;
-      ByteOffset = 0;
-      for (unsigned Ix = 0; Ix != BytesRead; ++Ix)
-        CurWord |= u64(WordPtr[Ix]) << (Ix * 8);
-    }
-
-    ByteOffset += BytesRead;
-    BitsInStore = (BytesRead * 8);
-    return ExiError::OK;
-  }
 
 private:
   virtual void anchor();
