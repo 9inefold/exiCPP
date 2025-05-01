@@ -251,7 +251,8 @@ constexpr inline To promotion_cast(const From X) noexcept {
     else
       // More complex case, types are different sizes.
       // Assert the representation will stay the same.
-      tail_return IntCast<To>(X);
+      // FIXME: Revert tailcall once cleanup skipping is allowed.
+      return IntCast<To>(X);
   } else {
     using U = swap_sign_t<From>;
     if constexpr (sizeof(To) >= sizeof(From))
