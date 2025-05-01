@@ -517,7 +517,7 @@ ExiResult<StrRef> ExiDecoder::readString(u64 Size, SmallVecImpl<char>& Storage) 
       fmt::format("0x{:02X}", fmt::join(Buf, " 0x")));
   }
 
-  return StrRef(Storage.data(), Size);
+  return StrRef(Storage.data(), Storage.size());
 }
 
 //////////////////////////////////////////////////////////////////////////
