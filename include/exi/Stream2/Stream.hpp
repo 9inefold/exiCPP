@@ -83,8 +83,8 @@ struct StreamBase {
     SK_Deflate, // Compression
   };
 
-  using size_type = u64;
-  using word_t 		= size_t;
+  using size_type = usize;
+  using word_t    = u64;
   using WordType  = word_t;
 
   static constexpr size_type kWordSize = sizeof(WordType);
