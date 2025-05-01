@@ -21,10 +21,20 @@
 ///
 //===----------------------------------------------------------------===//
 
-#include <Stream2/Reader.hpp>
-#include <Stream2/OrderedReader.hpp>
+#include <exi/Stream2/Reader.hpp>
+#include <exi/Stream2/OrderedReader.hpp>
 
 using namespace exi;
 
 void ReaderBase::anchor() {}
+// void WriterBase::anchor() {}
+
 void OrderedReader::anchor() {}
+void BitReader::anchor() {}
+// TODO: void ByteReader::anchor() {}
+
+#if EXI_HAS_CHANNEL_READER
+void ChannelReader::anchor() {}
+void BlockReader::anchor() {}
+void DeflateReader::anchor() {}
+#endif
