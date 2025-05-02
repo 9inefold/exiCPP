@@ -64,18 +64,18 @@ static ExiError DecodeCookieAndBits(ExiHeader& Header, BitReader* Strm) {
   // The [Distinguishing Bits].
   ubit<2> DistinguishingBits;
 
-  exi_try(Strm->readBits(DistinguishingBits));
+  exi_try(Strm->peekBits(DistinguishingBits));
   if (DistinguishingBits == 0b00) {
-    const u64 First = *Strm->readBits<6>();
-    char Read = promotion_cast<char>(First);
-    if EXI_UNLIKELY('$' != Read) {
-      LOG_ERROR("invalid cookie byte at '$'");
-      return ExiError::HeaderSig(Read);
-    }
+    // const u64 First = *Strm->readBits<6>();
+    // char Read = promotion_cast<char>(First);
+    // if EXI_UNLIKELY('$' != Read) {
+    //   LOG_ERROR("invalid cookie byte at '$'");
+    //   return ExiError::HeaderSig(Read);
+    // }
 
     // Consume [EXI Cookie], if possible.
-    for (const char C : "EXI"_str) {
-      Read = promotion_cast<char>(*Strm->readByte());
+    for (const char C : "$EXI"_str) {
+      const char Read = promotion_cast<char>(*Strm->readByte());
       if EXI_UNLIKELY(C != Read) {
         LOG_ERROR("invalid cookie byte at '{}'", C);
         return ExiError::HeaderSig(Read);
@@ -86,6 +86,7 @@ static ExiError DecodeCookieAndBits(ExiHeader& Header, BitReader* Strm) {
     LOG_EXTRA("header has cookie.");
   }
   
+  exi_try(Strm->readBits(DistinguishingBits));
   if (DistinguishingBits != 0b10) {
     // File does not start with a valid sequence.
     return ExiError::HeaderBits(DistinguishingBits);
