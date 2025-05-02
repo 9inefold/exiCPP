@@ -1,4 +1,4 @@
-//===- exi/Stream/Stream.cpp ----------------------------------------===//
+//===- exi/Stream/OrderedReader.hpp ---------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -17,27 +17,16 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines anchors for readers and writers.
+/// This file defines the in-order readers.
 ///
 //===----------------------------------------------------------------===//
 
-#include <exi/Stream2/Reader.hpp>
-#include <exi/Stream2/OrderedReader.hpp>
-#include <exi/Stream2/ChannelReader.hpp>
+#pragma once
+
+#include <exi/Stream/Reader.hpp>
+
+#define EXI_HAS_CHANNEL_READER 0
 
 namespace exi {
-
-void ReaderBase::anchor() {}
-// void WriterBase::anchor() {}
-
-void OrderedReader::anchor() {}
-void BitReader::anchor() {}
-void ByteReader::anchor() {}
-
-#if EXI_HAS_CHANNEL_READER
-void ChannelReader::anchor() {}
-void BlockReader::anchor() {}
-void DeflateReader::anchor() {}
-#endif
 
 } // namespace exi
