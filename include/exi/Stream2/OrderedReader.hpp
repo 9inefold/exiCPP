@@ -200,12 +200,11 @@ public:
 
   ExiResult<StrRef> readString(
    u64 Size, SmallVecImpl<char>& Data) override {
+    Data.clear();
     if (Size == 0)
       return ""_str;
 
-    Data.clear();
     Data.reserve(Size);
-
     for (u64 Ix = 0; Ix < Size; ++Ix) {
       ExiResult<u64> Rune = this->readNByteUInt<4>();
       if EXI_UNLIKELY(Rune.is_err()) {
@@ -287,7 +286,7 @@ private:
       const auto Octet = *R;
       const u64 Lo = Octet & 0b0111'1111;
 
-      // Same as (Lo * Multiplier)
+      // Same as (Lo * 2^Multiplier)
       Value += (Lo << Multiplier);
       if (Octet & 0b1000'0000) {
         // Same as (Multiplier *= 128).
@@ -383,6 +382,68 @@ public:
     }
 
     tail_return this->readPartialBits64(Bits);
+  }
+
+  ExiResult<u64> readUInt() override {
+    u64 Multiplier = 0, Value = 0;
+
+    // While the codegen for this loop is identical for the multiplication/bitwise
+    // variants on Clang, it makes a difference on GCC. Because of this, I've
+    // updated it to use bitwise operations.
+
+    // TODO: Add some bit hacks to this? Should be even easier.
+    for (isize N = 0; N < 8; ++N) {
+      const Result R = this->readNBits<8>();
+      if EXI_UNLIKELY(R.is_err())
+        return R;
+      
+      const auto Octet = *R;
+      const u64 Lo = Octet & 0b0111'1111;
+
+      // Same as (Lo * 2^Multiplier)
+      Value += (Lo << Multiplier);
+      if (Octet & 0b1000'0000) {
+        // Same as (Multiplier *= 128).
+        Multiplier += 7;
+        continue;
+      }
+
+      return Ok(Value);
+    }
+
+    LOG_WARN("uint exceeded 8 octets.\n");
+    return Err(ErrorCode::kInvalidEXIInput);
+  }
+
+  ExiResult<StrRef> decodeString(SmallVecImpl<char>& Data) override {
+    const auto R = this->readUInt();
+    if EXI_UNLIKELY(R.is_err())
+      return Err(R.error());
+    return this->readString(*R, Data);
+  }
+
+  ExiResult<StrRef> readString(
+   u64 Size, SmallVecImpl<char>& Data) override {
+    Data.clear();
+    if (Size == 0)
+      return ""_str;
+
+    Data.reserve(Size);
+    for (u64 Ix = 0; Ix < Size; ++Ix) {
+      ExiResult<u64> Rune = this->readUInt();
+      if EXI_UNLIKELY(Rune.is_err()) {
+        LOG_ERROR("Invalid Rune at [{}:{}].", Ix, Size);
+        return Err(Rune.error());
+      }
+
+      auto Buf = RuneEncoder::Encode(*Rune);
+      Data.append(Buf.data(), Buf.data() + Buf.size());
+      
+      LOG_EXTRA(">>> {}: {}", Buf.str(), 
+        fmt::format("0x{:02X}", fmt::join(Buf, " 0x")));
+    }
+
+    return StrRef(Data.data(), Data.size());
   }
 
   ExiError fillStore() {
