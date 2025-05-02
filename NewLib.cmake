@@ -33,6 +33,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/Path.cpp
   Support/Process.cpp
   Support/Program.cpp
+  Support/PureVirtual.cpp
   Support/SafeAlloc.cpp
   Support/Signals.cpp
   Support/StringSaver.cpp
