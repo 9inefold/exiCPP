@@ -217,6 +217,7 @@ public:
       return 0;
 
     if (Bits <= BitsInStore) {
+      // TODO: Fix reading strategy
       const word_t Out = Store & MakeMask(Bits);
       Store >>= (Bits & ShiftMask);
       BitsInStore -= Bits;
