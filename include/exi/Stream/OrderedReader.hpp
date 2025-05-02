@@ -47,8 +47,8 @@ protected:
   word_t Store = 0;
 
   static_assert(kBitsPerWord >= 64, "Work on this...");
-  /// Masks shifts to avoid UB.
-  static constexpr word_t ShiftMask = ((kBitsPerWord << 1) - 1);
+  /// Masks shifts to avoid UB (even larger sizes will use a max of 64 bits).
+  static constexpr word_t ShiftMask = 0x3f;
 
   /// Creates a mask for the current word type.
   inline static constexpr word_t MakeNBitMask(unsigned Bits) EXI_READNONE {
@@ -105,6 +105,7 @@ protected:
       // Read full "word" of data.
       BytesRead = sizeof(word_t);
       // TODO: Change this on arm?
+      // std::memcpy(&Store, WordPtr, sizeof(word_t));
       Store = support::endian::read<word_t, endianness::little>(WordPtr);
     } else {
       // Partial read.
@@ -148,13 +149,42 @@ class BitReader final : public OrderedReader {
 
   /// Creates a mask for the current word type.
   inline static constexpr word_t MakeMask(unsigned Bits) EXI_READNONE {
-    return (~word_t(0) >> Bits);
+    // return (~word_t(0) >> Bits);
+    tail_return MakeNBitMask(Bits);
   }
 
 public:
   using BaseT::BaseT;
 # define CLASSNAME BitReader
 # include "D/OrdReaderMethods.mac"
+
+  BitReader(proxy_t Proxy) : OrderedReader() {
+    this->setProxy(Proxy);
+  }
+
+  /// Peeks a static number of bits (max of 64).
+  template <unsigned Bits>
+  ExiError peekBits(ubit<Bits>& Out) requires(Bits <= 8) {
+    if constexpr (Bits == 0) {
+      Out = 0;
+      return ExiError::OK;
+    }
+    
+    const word_t Mask = MakeMask(Bits);
+    if EXI_LIKELY(BitsInStore >= Bits) {
+      Out = (Store & Mask);
+      return ExiError::OK;
+    } else {
+      if EXI_UNLIKELY(!BaseT::hasData()) {
+        Out = 0;
+        return ExiError::OOB;
+      }
+
+      const word_t Data = BaseT::Stream[BaseT::ByteOffset];
+      Out = (Data & Mask);
+      return ExiError::OK;
+    }
+  }
 
   ExiResult<bool> readBit() override {
     if EXI_UNLIKELY(BitsInStore == 0) {
@@ -187,7 +217,7 @@ public:
       return 0;
 
     if (Bits <= BitsInStore) {
-      const word_t Out = Store & MakeMask(BitsInStore - Bits);
+      const word_t Out = Store & MakeMask(Bits);
       Store >>= (Bits & ShiftMask);
       BitsInStore -= Bits;
       return Out;
@@ -350,7 +380,7 @@ private:
     if EXI_UNLIKELY(HeadBits > BitsInStore)
       return Err(ExiError::OOB);
     
-    const word_t R = Store & MakeMask(BitsInStore - HeadBits);
+    const word_t R = Store & MakeMask(HeadBits);
 
     Store >>= (HeadBits & ShiftMask);
     BitsInStore -= HeadBits;
@@ -390,6 +420,10 @@ public:
   using BaseT::BaseT;
 # define CLASSNAME ByteReader
 # include "D/OrdReaderMethods.mac"
+
+  ByteReader(proxy_t Proxy) : OrderedReader() {
+    this->setProxy(Proxy);
+  }
 
   ExiResult<bool> readBit() override {
     return this->readNBits<1, bool>();
