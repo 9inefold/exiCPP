@@ -92,10 +92,9 @@ include_items(EXICPP_SRC "lib/exi"
   Grammar/Grammar.cpp
   Grammar/Schema.cpp
 
-  Stream/BitStreamReader.cpp
-  Stream/BitStreamWriter.cpp
-
-  Stream2/Stream.cpp
+  #Stream/BitStreamReader.cpp
+  #Stream/BitStreamWriter.cpp
+  Stream/Stream.cpp
 )
 
 add_library(exicpp STATIC ${EXICPP_SRC})

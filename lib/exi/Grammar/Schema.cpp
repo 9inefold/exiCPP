@@ -32,7 +32,7 @@
 #include <core/Support/TrailingArray.hpp>
 #include <exi/Basic/ExiOptions.hpp>
 #include <exi/Grammar/Grammar.hpp>
-#include <exi/Stream/StreamVariant.hpp>
+#include <exi/Stream/OrderedReader.hpp>
 #include <fmt/ranges.h>
 #include "SchemaGet.hpp"
 
@@ -181,7 +181,7 @@ private:
     return MatchT(Term);
   }
 
-  MatchT decodeTerm(StreamReader& Strm, int Start, unsigned At = 0) {
+  MatchT decodeTerm(OrdReader& Strm, int Start, unsigned At = 0) {
     const unsigned Offset = Info[Current].Offset;
     const auto& Code = Info[Current].Code;
 
@@ -197,7 +197,7 @@ private:
 
     for (int Ix = Start, E = Code.Length; Ix < E; ++Ix) {
       const u64 Bits = Code.Bits[Ix];
-      const u64 Data = Strm->readBits64(Bits);
+      const u64 Data = *Strm->readBits64(Bits);
       At += Data;
 
       LOG_EXTRA("Code[{}]: @{}:{}", Ix, Bits, Data);
@@ -213,7 +213,7 @@ private:
     return this->createDecodedTerm(At);
   }
 
-  MatchT decodeTerm(StreamReader& Strm) {
+  MatchT decodeTerm(OrdReader& Strm) {
     return this->decodeTerm(Strm, /*Start=*/0, /*At=*/0);
   }
 

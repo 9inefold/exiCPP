@@ -32,14 +32,14 @@ using namespace exi;
 
 void Grammar::anchor() {}
 
-static u64 ReadBits(StreamReader& Strm, u32 Bits) {
-  u64 Out = 0;
-  if (auto E = Strm->readBits64(Out, Bits)) [[unlikely]]
+static u64 ReadBits(OrdReader& Strm, u32 Bits) {
+  auto Out = Strm->readBits64(Bits);
+  if EXI_UNLIKELY(Out.is_err())
     exi_unreachable("invalid stream read.");
-  return Out;
+  return *Out;
 }
 
-GrammarTerm BuiltinGrammar::getTerm(StreamReader& Strm, bool IsStart) {
+GrammarTerm BuiltinGrammar::getTerm(OrdReader& Strm, bool IsStart) {
   auto& Elts = this->getElts(IsStart);
   const usize Size = Elts.size();
   const u32 Bits = this->getLog(IsStart);

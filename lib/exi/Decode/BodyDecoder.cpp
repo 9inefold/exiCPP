@@ -80,9 +80,9 @@ ExiError ExiDecoder::setReader(UnifiedBuffer Buffer) {
   }
 
   if (Header.Opts->Alignment == AlignKind::BitPacked)
-    Reader.emplace<bitstream::BitReader>(Buffer.arr());
+    Reader.emplace<BitReader>(Buffer.arr());
   else
-    Reader.emplace<bitstream::ByteReader>(Buffer.arr());
+    Reader.emplace<ByteReader>(Buffer.arr());
 
   Flags.DidHeader = true;
   Flags.SetReader = true;
@@ -149,7 +149,7 @@ ExiError ExiDecoder::decodeBody() {
     exi_unreachable("dynamic and compiled schemas currently unsupported.");
   }
 
-  while (!Reader->isFull()) {
+  while (Reader->hasData()) {
     ExiError E = this->decodeEvent();
     if (E == ExiError::OK)
       continue;
@@ -534,7 +534,7 @@ void ExiDecoder::diagnose(ExiError E, bool Force) const {
     return;
   
   if EXI_LIKELY(!Reader.empty()) {
-    os() << "At [" << Reader->bitPos() << "]: ";
+    // os() << "At [" << Reader->bitPos() << "]: ";
   }
   os() << E << '\n';
 }

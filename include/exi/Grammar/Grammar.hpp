@@ -27,7 +27,7 @@
 #include <core/Common/Result.hpp>
 #include <core/Common/SmallVec.hpp>
 #include <exi/Basic/EventCodes.hpp>
-#include <exi/Stream/StreamVariant.hpp>
+#include <exi/Stream/OrderedReader.hpp>
 
 namespace exi {
 
@@ -44,7 +44,7 @@ class Grammar {
 public:
   /// Gets the terminal symbol at the current position, if it exists.
   /// Otherwise returns the first part of the event code.
-  virtual GrammarTerm getTerm(StreamReader& Strm, bool IsStart) = 0;
+  virtual GrammarTerm getTerm(OrdReader& Strm, bool IsStart) = 0;
 
   /// Adds a new StartTag term to the list.
   virtual void addTerm(EventUID Term, bool IsStart) = 0;
@@ -73,7 +73,7 @@ public:
   BuiltinGrammar() = default;
   explicit BuiltinGrammar(SmallQName Name) : Name(Name) {}
 
-  GrammarTerm getTerm(StreamReader& Reader, bool IsStart) override;
+  GrammarTerm getTerm(OrdReader& Reader, bool IsStart) override;
   void addTerm(EventUID Term, bool IsStart) override;
 
   SmallQName getName() const { return Name; }

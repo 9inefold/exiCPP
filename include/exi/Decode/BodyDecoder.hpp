@@ -35,7 +35,7 @@
 #include <exi/Decode/HeaderDecoder.hpp>
 #include <exi/Decode/UnifyBuffer.hpp>
 #include <exi/Grammar/Schema.hpp>
-#include <exi/Stream/StreamVariant.hpp>
+#include <exi/Stream/OrderedReader.hpp>
 
 namespace exi {
 
@@ -56,7 +56,7 @@ class ExiDecoder {
   /// The provided Header.
   ExiHeader Header;
   /// The provided `StreamReader`.
-  StreamReader Reader;
+  OrdReader Reader;
   /// A BumpPtrAllocator for processor internals.
   exi::BumpPtrAllocator BP;
   /// The table holding decoded string values (QNames, LocalNames, etc.)

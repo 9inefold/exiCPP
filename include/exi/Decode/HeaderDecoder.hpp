@@ -25,13 +25,13 @@
 
 #include <core/Common/Poly.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
-#include <exi/Stream/StreamVariant.hpp>
+#include <exi/Stream/OrderedReader.hpp>
 
 namespace exi {
 
 struct ExiHeader;
 
 /// Decodes an EXI header given an arbitrary stream.
-ExiError decodeHeader(ExiHeader& Header, StreamReader& Strm);
+ExiError decodeHeader(ExiHeader& Header, OrdReader& Strm);
 
 } // namespace exi

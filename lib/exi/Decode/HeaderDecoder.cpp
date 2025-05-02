@@ -38,17 +38,17 @@ namespace {
 /// Used to update the input stream position on exit.
 /// Makes error handling simpler.
 class RTTISetter {
-  BitStreamReader& In;
-  StreamReader& Out;
+  BitReader& In;
+  OrdReader& Out;
 public:
-  RTTISetter(BitStreamReader& In, StreamReader& Out) : In(In), Out(Out) {}
+  RTTISetter(BitReader& In, OrdReader& Out) : In(In), Out(Out) {}
   ~RTTISetter();
 };
 } // namespace `anonymous`
 
-static void SetReader(StreamReader& Strm, BitStreamReader& MyReader) {
+static void SetReader(OrdReader& Strm, BitReader& MyReader) {
   auto Proxy = MyReader.getProxy();
-  if (auto* BitS = dyn_cast<BitStreamReader>(&Strm))
+  if (auto* BitS = dyn_cast<BitReader>(&Strm))
     BitS->setProxy(Proxy);
   else {
     /* TODO: When supported...
@@ -60,15 +60,22 @@ static void SetReader(StreamReader& Strm, BitStreamReader& MyReader) {
 
 RTTISetter::~RTTISetter() { SetReader(Out, In); }
 
-static ExiError DecodeCookieAndBits(ExiHeader& Header, BitStreamReader* Strm) {
+static ExiError DecodeCookieAndBits(ExiHeader& Header, BitReader* Strm) {
   // The [Distinguishing Bits].
   ubit<2> DistinguishingBits;
 
-  exi_try(Strm->peekBits(DistinguishingBits));
+  exi_try(Strm->readBits(DistinguishingBits));
   if (DistinguishingBits == 0b00) {
+    const u64 First = *Strm->readBits<6>();
+    char Read = promotion_cast<char>(First);
+    if EXI_UNLIKELY('$' != Read) {
+      LOG_ERROR("invalid cookie byte at '$'");
+      return ExiError::HeaderSig(Read);
+    }
+
     // Consume [EXI Cookie], if possible.
-    for (const char C : "$EXI"_str) {
-      const char Read = char(Strm->readByte());
+    for (const char C : "EXI"_str) {
+      Read = promotion_cast<char>(*Strm->readByte());
       if EXI_UNLIKELY(C != Read) {
         LOG_ERROR("invalid cookie byte at '{}'", C);
         return ExiError::HeaderSig(Read);
@@ -79,7 +86,6 @@ static ExiError DecodeCookieAndBits(ExiHeader& Header, BitStreamReader* Strm) {
     LOG_EXTRA("header has cookie.");
   }
   
-  exi_try(Strm->readBits(DistinguishingBits));
   if (DistinguishingBits != 0b10) {
     // File does not start with a valid sequence.
     return ExiError::HeaderBits(DistinguishingBits);
@@ -90,7 +96,7 @@ static ExiError DecodeCookieAndBits(ExiHeader& Header, BitStreamReader* Strm) {
 
 #if 0
 [[maybe_unused]] static ExiError
- DecodePresenceBit(ExiHeader& Header, BitStreamReader* Strm) {
+ DecodePresenceBit(ExiHeader& Header, BitReader* Strm) {
   safe_bool PresenceBit;
   exi_try(Strm->readBits(PresenceBit));
 
@@ -110,7 +116,7 @@ static ExiError DecodeCookieAndBits(ExiHeader& Header, BitStreamReader* Strm) {
 }
 #endif
 
-static ExiError DecodeVersion(ExiHeader& Header, BitStreamReader* Strm) {
+static ExiError DecodeVersion(ExiHeader& Header, BitReader* Strm) {
   safe_bool PreviewBit;
   ubit<4> VersionChunk;
 
@@ -132,7 +138,7 @@ static ExiError ValidateOptions(ExiOptions& Opts) {
   return ExiError::OK;
 }
 
-static ExiError decodeHeaderImpl(ExiHeader& Header, BitStreamReader& Strm) {
+static ExiError decodeHeaderImpl(ExiHeader& Header, BitReader& Strm) {
   safe_bool PresenceBit;
   exi_try(DecodeCookieAndBits(Header, &Strm));
   exi_try(Strm.readBits(PresenceBit));
@@ -178,13 +184,13 @@ static ExiError decodeHeaderImpl(ExiHeader& Header, BitStreamReader& Strm) {
   return ExiError::OK;
 }
 
-ExiError exi::decodeHeader(ExiHeader& Header, StreamReader& In) {
+ExiError exi::decodeHeader(ExiHeader& Header, OrdReader& In) {
   if EXI_UNLIKELY(In.empty()) {
     LOG_WARN("Stream was not initialized.");
     return ErrorCode::kNullptrRef;
   }
 
-  BitStreamReader Strm(In->getProxy());
+  BitReader Strm(In->getProxy());
   RTTISetter SetOnExit(Strm, In);
   return decodeHeaderImpl(Header, Strm);
 }
@@ -195,16 +201,17 @@ ExiError ExiDecoder::decodeHeader(UnifiedBuffer Buffer) {
     return this->readerExists();
   }
 
-  BitStreamReader Strm(Buffer.arr());
+  BitReader Strm(Buffer.arr());
   ExiError Out = decodeHeaderImpl(Header, Strm);
 
   Flags.SetReader = false;
   const auto Pos = Strm.getProxy();
   if (Out || Header.Opts->Alignment == AlignKind::BitPacked)
-    Reader.emplace<bitstream::BitReader>(Pos);
+    Reader.emplace<BitReader>(Pos);
   else {
-    exi_assert(Strm.bitOffset() == 0, "Misaligned stream!");
-    Reader.emplace<bitstream::ByteReader>(Pos);
+    // TODO: Check alignment
+    // exi_assert(Strm.bitOffset() == 0, "Misaligned stream!");
+    Reader.emplace<ByteReader>(Pos);
   }
   
   if (Out == ExiError::OK) {

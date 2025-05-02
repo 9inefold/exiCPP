@@ -44,7 +44,7 @@
 #include <exi/Basic/XMLManager.hpp>
 #include <exi/Basic/XMLContainer.hpp>
 #include <exi/Decode/BodyDecoder.hpp>
-#include <exi/Stream/StreamVariant.hpp>
+#include <exi/Stream/OrderedReader.hpp>
 
 #include <algorithm>
 #include <rapidxml.hpp>

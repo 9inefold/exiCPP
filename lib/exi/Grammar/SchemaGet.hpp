@@ -31,7 +31,7 @@ namespace exi {
 
 class Schema::Get {
 public:
-	static StreamReader& Reader(ExiDecoder* D) { return D->Reader; }
+	static OrdReader& Reader(ExiDecoder* D) { return D->Reader; }
 	static BumpPtrAllocator& BP(ExiDecoder* D) { return D->BP; }
 	static decode::StringTable& Idents(ExiDecoder* D) { return D->Idents; }
 

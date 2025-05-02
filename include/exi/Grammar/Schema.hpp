@@ -27,7 +27,6 @@
 #include <core/Common/MaybeBox.hpp>
 #include <core/Support/ExtensibleRTTI.hpp>
 #include <exi/Basic/EventCodes.hpp>
-#include <exi/Stream/StreamVariant.hpp>
 
 namespace exi {
 
