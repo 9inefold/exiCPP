@@ -387,8 +387,11 @@ private:
     
     // Always starts off aligned.
     const u64 R = readLowBits(HeadBits);
-    Out |= R << (Bits - HeadBits);
-    return Out;
+    Out <<= HeadBits;
+    return (Out | R);
+
+    // Out |= R << (Bits - HeadBits);
+    // return Out;
   }
 
   ////////////////////////////////////////////////////////////////////////
