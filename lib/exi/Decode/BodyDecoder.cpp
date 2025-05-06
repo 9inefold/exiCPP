@@ -491,14 +491,17 @@ ExiResult<String> ExiDecoder::decodeString() {
 }
 
 ExiResult<StrRef> ExiDecoder::decodeString(SmallVecImpl<char>& Storage) {
-  u64 Size = 0;
-  if (auto E = Reader->readUInt(Size))
-    return Err(E);
-  return readString(Size, Storage);
+  // u64 Size = 0;
+  // if (auto E = Reader->readUInt(Size))
+  //   return Err(E);
+  // return readString(Size, Storage);
+  return Reader->decodeString(Storage);
 }
 
 ExiResult<StrRef> ExiDecoder::readString(u64 Size, SmallVecImpl<char>& Storage) {
   LOG_POSITION(this);
+  return Reader->readString(Size, Storage);
+/*
   if (Size == 0)
     return ""_str;
 
@@ -518,6 +521,7 @@ ExiResult<StrRef> ExiDecoder::readString(u64 Size, SmallVecImpl<char>& Storage) 
   }
 
   return StrRef(Storage.data(), Storage.size());
+*/  
 }
 
 //////////////////////////////////////////////////////////////////////////
