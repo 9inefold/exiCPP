@@ -854,12 +854,12 @@ void DynBuiltinSchema::logCurrentGrammar(ExiDecoder* D) {
     const SmallQName ID = GStack.back()->getName();
     auto [URI, Name] = Get::Idents(D).getQName(ID);
     if (URI.empty())
-      dbgs() << format("[{}]\n", Name);
+      dbgs() << format("[{}]", Name);
     else
-      dbgs() << format("[{}:{}]\n", URI, Name);
+      dbgs() << format("[{}:{}]", URI, Name);
   }
 
-  dbgs().changeColor(OldColor);
+  dbgs() << '\n' << OldColor;
 }
 
 void DynBuiltinSchema::logCurrentEvent() {
