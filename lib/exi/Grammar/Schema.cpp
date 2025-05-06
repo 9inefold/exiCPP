@@ -220,14 +220,18 @@ private:
   ALWAYS_INLINE MatchT decodeTerm(ExiDecoder* D) {
     auto& Strm = Get::Reader(D);
     return this->decodeTerm(Strm);
-  }
+  }  
 
-  EventUID decodeTermGrammar(ExiDecoder* D) {
+  inline GrammarTerm getGrammarTerm(ExiDecoder* D) {
     exi_invariant(!GStack.empty());
     GrammarT G = GStack.back();
 
     auto& Strm = Get::Reader(D);
-    const auto Ret = G->getTerm(Strm, G.getInt());
+    return G->getTerm(Strm, G.getInt());
+  }
+
+  EventUID decodeTermGrammar(ExiDecoder* D) {
+    const auto Ret = getGrammarTerm(D);
     if (Ret.is_ok()) {
       LOG_EXTRA("Grammar hit");
       this->Event = *Ret;
@@ -235,6 +239,7 @@ private:
     }
     
     // LOG_EXTRA("Grammar miss: {}", Ret.error());
+    auto& Strm = Get::Reader(D);
     const MatchT M = this->decodeTerm(Strm, 1, Ret.error());
     return this->Event;
   }
