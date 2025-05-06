@@ -16,6 +16,7 @@
 //
 //===----------------------------------------------------------------===//
 
+// TODO: Remove NOUNDEF_CLASSNAME?
 #define NOUNDEF_CLASSNAME
 
 using ReaderBase::readBit;
@@ -24,8 +25,14 @@ using ReaderBase::readBits64;
 using ReaderBase::readUInt;
 
 // TODO: OrdReaderMethods
+// TODO: UNDEF_READBITS
 
 #include "ReaderMethods.mac"
 
+#ifndef UNDEF_OVERRIDES
+// TODO: !UNDEF_OVERRIDES
+#endif
+
 #undef CLASSNAME
+#undef UNDEF_OVERRIDES
 #undef NOUNDEF_CLASSNAME

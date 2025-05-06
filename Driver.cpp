@@ -279,7 +279,7 @@ static void PrintExample(raw_ostream& OS, int Skip = 0) {
 }
 
 int main(int Argc, char* Argv[]) {
-  exi::DebugFlag = LogLevel::INFO;
+  exi::DebugFlag = LogLevel::VERBOSE;
   HandleEscapeCodeSetup();
 
   outs().enable_colors(true);

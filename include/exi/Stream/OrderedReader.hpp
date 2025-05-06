@@ -144,6 +144,8 @@ class BitReader final : public OrderedReader {
   /// `[0 ... bitsizeof(size_t) - 1]` inclusive.
   unsigned BitsInStore = 0;
 
+  static constexpr unsigned ByteAlignMask = 0b111;
+
   using BaseT::ShiftMask;
   using BaseT::MakeNBitMask;
 
@@ -156,34 +158,11 @@ class BitReader final : public OrderedReader {
 public:
   using BaseT::BaseT;
 # define CLASSNAME BitReader
+# define UNDEF_OVERRIDES
 # include "D/OrdReaderMethods.mac"
 
   BitReader(proxy_t Proxy) : OrderedReader() {
     this->setProxy(Proxy);
-  }
-
-  /// Peeks a static number of bits (max of 64).
-  template <unsigned Bits>
-  ExiError peekBits(ubit<Bits>& Out) requires(Bits <= 8) {
-    if constexpr (Bits == 0) {
-      Out = 0;
-      return ExiError::OK;
-    }
-    
-    const word_t Mask = MakeMask(Bits);
-    if EXI_LIKELY(BitsInStore >= Bits) {
-      Out = (Store & Mask);
-      return ExiError::OK;
-    } else {
-      if EXI_UNLIKELY(!BaseT::hasData()) {
-        Out = 0;
-        return ExiError::OOB;
-      }
-
-      const word_t Data = BaseT::Stream[BaseT::ByteOffset];
-      Out = (Data & Mask);
-      return ExiError::OK;
-    }
   }
 
   ExiResult<bool> readBit() override {
@@ -191,16 +170,9 @@ public:
       // Refill the store and grab the next set of bits.
       // No need for other checks, as it will error when the stream is empty.
       exi_try_r(fillStore());
-      // TODO: Remove sanity check.
-      exi_invariant(BitsInStore > 0);
     }
 
-    const word_t Out = Store & 0x1;
-
-    Store >>= 1;
-    BitsInStore -= 1;
-
-    return static_cast<bool>(Out);
+    return this->readNBits<1, bool>();
   }
 
   ExiResult<u8> readByte() override {
@@ -216,14 +188,11 @@ public:
       // Do nothing...
       return 0;
 
-    if (Bits <= BitsInStore) {
-      // TODO: Fix reading strategy
-      const word_t Out = Store & MakeMask(Bits);
-      Store >>= (Bits & ShiftMask);
-      BitsInStore -= Bits;
-      return Out;
-    }
+    if (Bits <= BitsInStore)
+      // Handle cases which don't need loading.
+      tail_return this->readFullBits64(Bits);
 
+    // Handle cases which need loading.
     tail_return this->readPartialBits64(Bits);
   }
 
@@ -295,10 +264,10 @@ public:
   }
 
   void align() {
-    const auto Bits = (BitsInStore & 0x7);
+    const auto Bits = (BitsInStore & ByteAlignMask);
     if (Bits == 0)
       return;
-    Store >>= Bits;
+    Store >>= 8;
     BitsInStore -= Bits;
   }
 
@@ -316,13 +285,14 @@ private:
 
     if EXI_LIKELY(BitsInStore >= Bits) {
       // Create a simple static mask for the bits.
-      static constexpr word_t Mask = MakeNBitMask(Bits);
-      const word_t Out = Store & Mask;
+      //static constexpr word_t Mask = MakeNBitMask(Bits);
+      //const word_t Out = Store & Mask;
 
-      Store >>= Bits;
-      BitsInStore -= Bits;
+      //Store >>= Bits;
+      //BitsInStore -= Bits;
   
-      return promotion_cast<Ret>(Out);
+      const auto Out = this->readFullBits64(Bits);
+      return promotion_cast<Ret>(*Out);
     }
 
     // Handle fallback case with a partial read.
@@ -370,10 +340,44 @@ private:
     return Err(ErrorCode::kInvalidEXIInput);
   }
 
+  ////////////////////////////////////////////////////////////////////////
+  // Dynamic Reads
+
+  /// Do a read where the result CAN fit in the current space.
+  inline ExiResult<u64> readFullBits64(unsigned Bits) {
+    // TODO: Fix reading strategy
+    // const word_t Out = Store & MakeMask(Bits);
+    // Store >>= (Bits & ShiftMask);
+    // BitsInStore -= Bits;
+    // return Out;
+
+    u64 Out = 0;
+    const unsigned Hi = (BitsInStore & ByteAlignMask);
+    if (Bits <= Hi) {
+      Out = (Store >> (Hi - Bits)) & MakeMask(Bits);
+      BitsInStore -= Bits;
+      if (Bits == Hi)
+        Store >>= 8;
+      return Out;
+    }
+
+    if (Hi) {
+      Out = Store & MakeMask(Hi);
+      Store >>= 8;
+      BitsInStore -= Hi;
+
+      Bits -= Hi;
+      Out <<= Bits;
+    }
+
+    Out |= readLowBits(Bits);
+    return Out;
+  }
+
   /// Do a read where the result can't fit in the current space.
   inline ExiResult<u64> readPartialBits64(unsigned Bits) {
-    word_t Out = BitsInStore ? Store : 0;
     const unsigned HeadBits = (Bits - BitsInStore);
+    u64 Out = BitsInStore ? *readFullBits64(BitsInStore) : 0;
 
     // Refill the store and grab the next set of bits.
     exi_try_r(fillStore());
@@ -381,14 +385,33 @@ private:
     if EXI_UNLIKELY(HeadBits > BitsInStore)
       return Err(ExiError::OOB);
     
-    const word_t R = Store & MakeMask(HeadBits);
-
-    Store >>= (HeadBits & ShiftMask);
-    BitsInStore -= HeadBits;
-
+    // Always starts off aligned.
+    const u64 R = readLowBits(HeadBits);
     Out |= R << (Bits - HeadBits);
     return Out;
   }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Dynamic Read Sections
+
+  inline u64 readLowBits(unsigned Bits) {
+    u64 Out = 0;
+    for (unsigned I = 0, E = (Bits / 8); I < E; ++I) {
+      Out <<= 8;
+      Out |= (Store & 0xFF);
+      Store >>= 8;
+    }
+
+    if (const unsigned Lo = (Bits & ByteAlignMask)) {
+      Out <<= (Lo & 0b111);
+      const u64 Curr = (Store & 0xFF);
+      Out |= (Curr >> (8 - Lo));
+    }
+
+    BitsInStore -= Bits;
+    return Out;
+  }
+
 
   void anchor() override;
 };
