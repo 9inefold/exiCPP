@@ -35,7 +35,7 @@
 #include <exi/Decode/HeaderDecoder.hpp>
 #include <exi/Decode/UnifyBuffer.hpp>
 #include <exi/Grammar/Schema.hpp>
-#include <exi/Stream/StreamVariant.hpp>
+#include <exi/Stream/OrderedReader.hpp>
 
 namespace exi {
 
@@ -49,13 +49,14 @@ struct DecoderFlags {
 };
 
 /// The EXI decoding processor.
+/// FIXME: Split this up into more implementations.
 class ExiDecoder {
   friend class Schema::Get;
 
   /// The provided Header.
   ExiHeader Header;
   /// The provided `StreamReader`.
-  StreamReader Reader;
+  OrdReader Reader;
   /// A BumpPtrAllocator for processor internals.
   exi::BumpPtrAllocator BP;
   /// The table holding decoded string values (QNames, LocalNames, etc.)
@@ -170,13 +171,18 @@ protected:
   /// @brief Decodes an encoded string with the default character set.
   /// @param Storage Where the string will be stored.
   /// @return An non-owning `StrRef`, or an error.
-  ExiResult<StrRef> decodeString(SmallVecImpl<char>& Storage);
+  ExiResult<StrRef> decodeString(SmallVecImpl<char>& Storage) {
+    return Reader->decodeString(Storage);
+  }
 
   /// @brief Decodes a string with with the size already decoded.
   /// @param Size The length of the string.
   /// @param Storage Where the string will be stored.
   /// @return An non-owning `StrRef`, or an error.
-  ExiResult<StrRef> readString(u64 Size, SmallVecImpl<char>& Storage);
+  ExiResult<StrRef> readString(u64 Size, SmallVecImpl<char>& Storage) {
+    // FIXME: LOG_POSITION(this);
+    return Reader->readString(Size, Storage);
+  }
 };
 
 } // namespace exi

@@ -98,10 +98,10 @@ struct IntCastIsPossible<To, From> {
     } else {
       if constexpr (std::is_signed_v<To>) {
         if (X < 0)
-          return (X > From(min_v<To>));
+          return (X >= From(min_v<To>));
       }
       // Either unsigned or positive.
-      return (X < From(max_v<To>));
+      return (X <= From(max_v<To>));
     }
   }
 };
@@ -125,10 +125,10 @@ struct IntCastIsPossible<To, From> {
       return true;
     } else if constexpr (std::is_signed_v<To>) {
       using UTo = std::make_unsigned_t<To>;
-      return (X < From(static_cast<UTo>(max_v<To>)));
+      return (X <= From(static_cast<UTo>(max_v<To>)));
     } else /* To is unsigned */ {
       using UFrom = std::make_unsigned_t<From>;
-      return (X < From(static_cast<UFrom>(max_v<To>)));
+      return (X <= From(static_cast<UFrom>(max_v<To>)));
     }
   }
 };
@@ -251,7 +251,8 @@ constexpr inline To promotion_cast(const From X) noexcept {
     else
       // More complex case, types are different sizes.
       // Assert the representation will stay the same.
-      tail_return IntCast<To>(X);
+      // FIXME: Revert tailcall once cleanup skipping is allowed.
+      return IntCast<To>(X);
   } else {
     using U = swap_sign_t<From>;
     if constexpr (sizeof(To) >= sizeof(From))

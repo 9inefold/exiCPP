@@ -32,7 +32,7 @@
 #include <core/Support/TrailingArray.hpp>
 #include <exi/Basic/ExiOptions.hpp>
 #include <exi/Grammar/Grammar.hpp>
-#include <exi/Stream/StreamVariant.hpp>
+#include <exi/Stream/OrderedReader.hpp>
 #include <fmt/ranges.h>
 #include "SchemaGet.hpp"
 
@@ -181,7 +181,7 @@ private:
     return MatchT(Term);
   }
 
-  MatchT decodeTerm(StreamReader& Strm, int Start, unsigned At = 0) {
+  MatchT decodeTerm(OrdReader& Strm, int Start, unsigned At = 0) {
     const unsigned Offset = Info[Current].Offset;
     const auto& Code = Info[Current].Code;
 
@@ -197,7 +197,7 @@ private:
 
     for (int Ix = Start, E = Code.Length; Ix < E; ++Ix) {
       const u64 Bits = Code.Bits[Ix];
-      const u64 Data = Strm->readBits64(Bits);
+      const u64 Data = *Strm->readBits64(Bits);
       At += Data;
 
       LOG_EXTRA("Code[{}]: @{}:{}", Ix, Bits, Data);
@@ -213,21 +213,25 @@ private:
     return this->createDecodedTerm(At);
   }
 
-  MatchT decodeTerm(StreamReader& Strm) {
+  MatchT decodeTerm(OrdReader& Strm) {
     return this->decodeTerm(Strm, /*Start=*/0, /*At=*/0);
   }
 
   ALWAYS_INLINE MatchT decodeTerm(ExiDecoder* D) {
     auto& Strm = Get::Reader(D);
     return this->decodeTerm(Strm);
-  }
+  }  
 
-  EventUID decodeTermGrammar(ExiDecoder* D) {
+  inline GrammarTerm getGrammarTerm(ExiDecoder* D) {
     exi_invariant(!GStack.empty());
     GrammarT G = GStack.back();
 
     auto& Strm = Get::Reader(D);
-    const auto Ret = G->getTerm(Strm, G.getInt());
+    return G->getTerm(Strm, G.getInt());
+  }
+
+  EventUID decodeTermGrammar(ExiDecoder* D) {
+    const auto Ret = getGrammarTerm(D);
     if (Ret.is_ok()) {
       LOG_EXTRA("Grammar hit");
       this->Event = *Ret;
@@ -235,6 +239,7 @@ private:
     }
     
     // LOG_EXTRA("Grammar miss: {}", Ret.error());
+    auto& Strm = Get::Reader(D);
     const MatchT M = this->decodeTerm(Strm, 1, Ret.error());
     return this->Event;
   }
@@ -854,12 +859,12 @@ void DynBuiltinSchema::logCurrentGrammar(ExiDecoder* D) {
     const SmallQName ID = GStack.back()->getName();
     auto [URI, Name] = Get::Idents(D).getQName(ID);
     if (URI.empty())
-      dbgs() << format("[{}]\n", Name);
+      dbgs() << format("[{}]", Name);
     else
-      dbgs() << format("[{}:{}]\n", URI, Name);
+      dbgs() << format("[{}:{}]", URI, Name);
   }
 
-  dbgs().changeColor(OldColor);
+  dbgs() << '\n' << OldColor;
 }
 
 void DynBuiltinSchema::logCurrentEvent() {

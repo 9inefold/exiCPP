@@ -674,30 +674,26 @@ public:
 
   constexpr Result(const Result&) = delete;
   constexpr Result(const Result&) requires(
-      std::is_copy_constructible_v<Tx>
-   && std::is_copy_constructible_v<Ex> && 
-     (std::is_trivially_copy_constructible_v<Tx>
-   && std::is_trivially_copy_constructible_v<Ex>)) = default;
+      result_detail::trivial_copy_ctor<T>
+   && result_detail::trivial_copy_ctor<E>) = default;
   
   constexpr Result(const Result& O) requires(
       std::is_copy_constructible_v<Tx>
    && std::is_copy_constructible_v<Ex> && 
-     !(std::is_trivially_copy_constructible_v<Tx>
-   &&  std::is_trivially_copy_constructible_v<Ex>)) :
+    !(result_detail::trivial_copy_ctor<T>
+   && result_detail::trivial_copy_ctor<E>)) :
     BaseT(InvokeTag{}, O.is_ok(), O.get_union()) {}
   
   constexpr Result(Result&&) = delete;
   constexpr Result(Result&&) requires(
-      std::is_move_constructible_v<Tx>
-   && std::is_move_constructible_v<Ex> && 
-     (std::is_trivially_move_constructible_v<Tx>
-   && std::is_trivially_move_constructible_v<Ex>)) = default;
+      result_detail::trivial_move_ctor<T>
+   && result_detail::trivial_move_ctor<E>) = default;
   
   constexpr Result(Result&& O) requires(
       std::is_move_constructible_v<Tx>
    && std::is_move_constructible_v<Ex> && 
-     !(std::is_trivially_move_constructible_v<Tx>
-   &&  std::is_trivially_move_constructible_v<Ex>)) :
+    !(result_detail::trivial_move_ctor<T>
+   && result_detail::trivial_move_ctor<E>)) :
     BaseT(InvokeTag{}, O.is_ok(), std::move(O.get_union())) {}
   
   template <typename U, typename G>

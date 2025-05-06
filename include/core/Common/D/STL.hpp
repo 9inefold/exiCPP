@@ -1,6 +1,6 @@
-//===- exi/Basic/HeaderDecoder.hpp ----------------------------------===//
+//===- Common/D/STL.hpp ---------------------------------------------===//
 //
-// Copyright (C) 2025 Eightfold
+// Copyright (C) 2024 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,23 +15,24 @@
 //     limitations under the License.
 //
 //===----------------------------------------------------------------===//
-///
-/// \file
-/// This file implements decoding of the EXI Header from a stream.
-///
-//===----------------------------------------------------------------===//
 
 #pragma once
 
-#include <core/Common/Poly.hpp>
-#include <exi/Basic/ErrorCodes.hpp>
-#include <exi/Stream/OrderedReader.hpp>
+#if __has_include(<__config>) && defined(__clang__)
+# include <__config>
+# define EXI_STL_LIBCPP 1
+#elif __has_include(<yvals_core.h>) && (defined(_MSC_VER) && !defined(__GNUC__))
+# include <yvals_core.h>
+# define EXI_STL_MSVC 1
+#elif __has_include(<bits/c++config.h>)
+# include <bits/c++config.h>
+# define EXI_STL_GLIBCXX 1
+#endif
 
-namespace exi {
+#if __has_include(<sys/cdefs.h>)
+# include <sys/cdefs.h>
+#endif
 
-struct ExiHeader;
-
-/// Decodes an EXI header given an arbitrary stream.
-ExiError decodeHeader(ExiHeader& Header, OrdReader& Strm);
-
-} // namespace exi
+#if EXI_STL_GLIBCXX && defined(__STRICT_ANSI__)
+# define EXI_STL_GLIBC_STRICTANSI
+#endif

@@ -34,6 +34,7 @@
 #define DEBUG_TYPE "BodyDecoder"
 
 #if 0
+// FIXME: Update if needed...
 # define LOG_POSITION(...)                                                    \
   LOG_EXTRA("@[{}]:", ((__VA_ARGS__)->Reader->bitPos()))
 # define LOG_META(...) LOG_EXTRA(__VA_ARGS__)
@@ -80,9 +81,9 @@ ExiError ExiDecoder::setReader(UnifiedBuffer Buffer) {
   }
 
   if (Header.Opts->Alignment == AlignKind::BitPacked)
-    Reader.emplace<bitstream::BitReader>(Buffer.arr());
+    Reader.emplace<BitReader>(Buffer.arr());
   else
-    Reader.emplace<bitstream::ByteReader>(Buffer.arr());
+    Reader.emplace<ByteReader>(Buffer.arr());
 
   Flags.DidHeader = true;
   Flags.SetReader = true;
@@ -144,17 +145,16 @@ ExiError ExiDecoder::decodeBody() {
   LOG_EXTRA("Beginning decoding...");
 
   auto* SchemaPtr = CurrentSchema.get();
-  if (auto* CS = dyn_cast<CompiledSchema>(SchemaPtr)) {
+  if (!isa<BuiltinSchema>(*SchemaPtr)) {
     // TODO: Schemas!!!
-    exi_unreachable("compiled schemas currently unsupported.");
+    exi_unreachable("dynamic and compiled schemas currently unsupported.");
   }
 
-  exi_assert(isa<BuiltinSchema>(*SchemaPtr));
-  while (!Reader->isFull()) {
+  while (Reader->hasData()) {
     ExiError E = this->decodeEvent();
     if (E == ExiError::OK)
       continue;
-    else if (E == ErrorCode::kParsingComplete)
+    else if (E == ExiError::DONE)
       break;
     // Some other error code.
     return E;
@@ -330,7 +330,7 @@ ExiResult<CompactID> ExiDecoder::decodeURI() {
     StrRef URIStr;
     SmallStr<32> Data;
     LOG_POSITION(this);
-    StrRef Str = $unwrap(decodeString(Data));
+    StrRef Str = $unwrap(Reader->decodeString(Data));
     std::tie(URIStr, URI) = Idents.addURI(Str);
     LOG_INFO(">> URI(Miss) @{}: \"{}\"", URI, URIStr);
   } else {
@@ -367,7 +367,7 @@ ExiResult<CompactID> ExiDecoder::decodeName(CompactID URI) {
     // Cache miss
     LnID -= 1;
     SmallStr<32> Data;
-    StrRef Str = $unwrap(readString(LnID, Data));
+    StrRef Str = $unwrap(Reader->readString(LnID, Data));
     std::tie(LocalName, LnID) = Idents.addLocalName(URI, Str);
   }
 
@@ -419,7 +419,7 @@ ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
   } else {
     // Cache miss
     SmallStr<32> Data;
-    StrRef Str = $unwrap(decodeString(Data));
+    StrRef Str = $unwrap(Reader->decodeString(Data));
     std::tie(Pfx, PfxID) = Idents.addPrefix(URI, Str);
   }
 
@@ -491,36 +491,6 @@ ExiResult<String> ExiDecoder::decodeString() {
   return String(Data);
 }
 
-ExiResult<StrRef> ExiDecoder::decodeString(SmallVecImpl<char>& Storage) {
-  u64 Size = 0;
-  if (auto E = Reader->readUInt(Size))
-    return Err(E);
-  return readString(Size, Storage);
-}
-
-ExiResult<StrRef> ExiDecoder::readString(u64 Size, SmallVecImpl<char>& Storage) {
-  LOG_POSITION(this);
-  if (Size == 0)
-    return ""_str;
-
-  Storage.clear();
-  Storage.reserve(Size);
-
-  for (u64 Ix = 0; Ix < Size; ++Ix) {
-    u64 Rune;
-    if (auto E = Reader->readUInt(Rune)) [[unlikely]] {
-      LOG_ERROR("Invalid Rune at [{}:{}].", Ix, Size);
-      return Err(E);
-    }
-    auto Buf = RuneEncoder::Encode(Rune);
-    Storage.append(Buf.data(), Buf.data() + Buf.size());
-    LOG_EXTRA(">>> {}: {}", Buf.str(), 
-      fmt::format("0x{:02X}", fmt::join(Buf, " 0x")));
-  }
-
-  return StrRef(Storage.data(), Size);
-}
-
 //////////////////////////////////////////////////////////////////////////
 // Miscellaneous
 
@@ -535,7 +505,7 @@ void ExiDecoder::diagnose(ExiError E, bool Force) const {
     return;
   
   if EXI_LIKELY(!Reader.empty()) {
-    os() << "At [" << Reader->bitPos() << "]: ";
+    // os() << "At [" << Reader->bitPos() << "]: ";
   }
   os() << E << '\n';
 }

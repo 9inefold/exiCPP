@@ -1,4 +1,4 @@
-//===- exi/Grammar/SchemaGet.cpp ------------------------------------===//
+//===- exi/Stream/Stream.cpp ----------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -17,29 +17,27 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines the Schema::Get class, which exposes processor internals.
+/// This file defines anchors for readers and writers.
 ///
 //===----------------------------------------------------------------===//
 
-#pragma once
-
-#include <exi/Grammar/Schema.hpp>
-#include <exi/Decode/BodyDecoder.hpp>
-// #include <exi/Encode/BodyEncode.hpp>
+#include <exi/Stream/Reader.hpp>
+#include <exi/Stream/OrderedReader.hpp>
+#include <exi/Stream/ChannelReader.hpp>
 
 namespace exi {
 
-class Schema::Get {
-public:
-	static OrdReader& Reader(ExiDecoder* D) { return D->Reader; }
-	static BumpPtrAllocator& BP(ExiDecoder* D) { return D->BP; }
-	static decode::StringTable& Idents(ExiDecoder* D) { return D->Idents; }
+void ReaderBase::anchor() {}
+// void WriterBase::anchor() {}
 
-	static auto DecodeQName(ExiDecoder* D) { return D->decodeQName(); }
-	static auto DecodeNS(ExiDecoder* D) { return D->decodeNS(); }
-	static auto DecodeValue(ExiDecoder* D, SmallQName Name) {
-		return D->decodeValue(Name);
-	}
-};
+void OrderedReader::anchor() {}
+void BitReader::anchor() {}
+void ByteReader::anchor() {}
+
+#if EXI_HAS_CHANNEL_READER
+void ChannelReader::anchor() {}
+void BlockReader::anchor() {}
+void DeflateReader::anchor() {}
+#endif
 
 } // namespace exi

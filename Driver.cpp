@@ -44,7 +44,7 @@
 #include <exi/Basic/XMLManager.hpp>
 #include <exi/Basic/XMLContainer.hpp>
 #include <exi/Decode/BodyDecoder.hpp>
-#include <exi/Stream/StreamVariant.hpp>
+#include <exi/Stream/OrderedReader.hpp>
 
 #include <algorithm>
 #include <rapidxml.hpp>
@@ -279,7 +279,7 @@ static void PrintExample(raw_ostream& OS, int Skip = 0) {
 }
 
 int main(int Argc, char* Argv[]) {
-  exi::DebugFlag = LogLevel::INFO;
+  exi::DebugFlag = LogLevel::VERBOSE;
   HandleEscapeCodeSetup();
 
   outs().enable_colors(true);

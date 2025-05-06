@@ -19,6 +19,7 @@
 #pragma once
 
 #include <Common/Features.hpp>
+#include <Common/D/Scalar128.hpp>
 #include <climits>
 #include <cstddef>
 #include <cstdint>
@@ -48,6 +49,11 @@ using u16 = std::uint16_t;
 using u32 = std::uint32_t;
 using u64 = std::uint64_t;
 
+#if EXI_HAS_I128
+using i128 = __int128;
+using u128 = unsigned __int128;
+#endif
+
 using ptrdiff = std::ptrdiff_t;
 
 using isize = std::make_signed_t<std::size_t>;
@@ -63,13 +69,17 @@ template <> struct SIntN<1UL>  { using type = i8; };
 template <> struct SIntN<2UL>  { using type = i16; };
 template <> struct SIntN<4UL>  { using type = i32; };
 template <> struct SIntN<8UL>  { using type = i64; };
-// template <> struct SIntN<16UL> { using type = i128; };
+#if EXI_HAS_I128
+template <> struct SIntN<16UL> { using type = i128; };
+#endif
 
 template <> struct UIntN<1UL>  { using type = u8; };
 template <> struct UIntN<2UL>  { using type = u16; };
 template <> struct UIntN<4UL>  { using type = u32; };
 template <> struct UIntN<8UL>  { using type = u64; };
-// template <> struct UIntN<16UL> { using type = u128; };
+#if EXI_HAS_I128
+template <> struct UIntN<16UL> { using type = u128; };
+#endif
 
 } // namespace H
 
@@ -86,11 +96,23 @@ using uptr = std::uintptr_t;
 using ihalfptr = exi::intn_t<sizeof(void*) / 2>;
 using uhalfptr = exi::uintn_t<sizeof(void*) / 2>;
 
+#if EXI_HAS_I128
+using ilargest = i128;
+using ulargest = u128;
+#else
+using ilargest = i64;
+using ulargest = u64;
+#endif
+
 //////////////////////////////////////////////////////////////////////////
 // Floats
 
 using f32 = float;
 using f64 = double;
+
+#if EXI_HAS_F128
+using f128 = __float128;
+#endif
 
 static_assert(bitsizeof_v<f32> == 32);
 static_assert(bitsizeof_v<f64> == 64);

@@ -1,0 +1,84 @@
+//===- exi/Stream/D/ReaderMethods.hpp -------------------------------===//
+//
+// Copyright (C) 2024 Eightfold
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+//     limitations under the License.
+//
+//===----------------------------------------------------------------===//
+
+#ifndef CLASSNAME
+# error CLASSNAME must be defined to generate ReaderMethods!
+#endif
+
+private:
+  template <typename T>
+  static ExiError SetData(T& Out, const ExiResult<T>& R) {
+    if EXI_LIKELY(R.is_ok()) {
+      Out = *R;
+      return ExiError::OK;
+    } else {
+      Out = T{};
+      return R.error();
+    }
+  }
+
+public:
+  /// Reads a single bit.
+  ExiError readBit(bool& Out) {
+    const auto R = this->readBit();
+    return CLASSNAME::SetData(Out, R);
+  }
+
+  ExiError readByte(u8& Out) {
+    const auto R = this->readByte();
+    return CLASSNAME::SetData(Out, R);
+  }
+
+  /// Reads a variable number of bits (max of 64).
+  /// This means data is peeked, then the position is advanced.
+  ExiError readBits64(u64& Out, unsigned Bits) {
+    const auto R = this->readBits64(Bits);
+    return CLASSNAME::SetData(Out, R);
+  }
+
+  /// Reads an `Unsigned Integer` with a maximum of 8 octets.
+  /// See https://www.w3.org/TR/exi/#encodingUnsignedInteger.
+  ExiError readUInt(u64& Out) {
+    const auto R = this->readUInt();
+    return CLASSNAME::SetData(Out, R);
+  }
+
+  /// Reads a static number of bits (max of 64).
+  /// This means data is peeked, then the position is advanced.
+  template <unsigned Bits>
+  ExiError readBits(ubit<Bits>& Out) {
+    const auto R = this->readBits64(Bits);
+    Out = ubit<Bits>::FromBits(R.value_or(0));
+    return R.error_or(ExiError::OK);
+  }
+
+  /// Reads a static number of bits (max of 64).
+  /// This means data is peeked, then the position is advanced.
+  /// @attention This function ignores errors.
+  template <unsigned Bits>
+  ExiResult<ubit<Bits>> readBits() {
+    auto Data = this->readBits64(Bits);
+    if EXI_UNLIKELY(Data.is_err())
+      return Err(Data.error());
+    // TODO: Mask data?
+    return ubit<Bits>::FromBits(*Data);
+  }
+
+#ifndef NOUNDEF_CLASSNAME
+# undef CLASSNAME
+#endif

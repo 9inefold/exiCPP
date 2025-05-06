@@ -1,4 +1,4 @@
-//===- exi/Grammar/SchemaGet.cpp ------------------------------------===//
+//===- exi/Stream/OrderedReader.hpp ---------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -17,29 +17,16 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines the Schema::Get class, which exposes processor internals.
+/// This file defines the in-order readers.
 ///
 //===----------------------------------------------------------------===//
 
 #pragma once
 
-#include <exi/Grammar/Schema.hpp>
-#include <exi/Decode/BodyDecoder.hpp>
-// #include <exi/Encode/BodyEncode.hpp>
+#include <exi/Stream/Reader.hpp>
+
+#define EXI_HAS_CHANNEL_READER 0
 
 namespace exi {
-
-class Schema::Get {
-public:
-	static OrdReader& Reader(ExiDecoder* D) { return D->Reader; }
-	static BumpPtrAllocator& BP(ExiDecoder* D) { return D->BP; }
-	static decode::StringTable& Idents(ExiDecoder* D) { return D->Idents; }
-
-	static auto DecodeQName(ExiDecoder* D) { return D->decodeQName(); }
-	static auto DecodeNS(ExiDecoder* D) { return D->decodeNS(); }
-	static auto DecodeValue(ExiDecoder* D, SmallQName Name) {
-		return D->decodeValue(Name);
-	}
-};
 
 } // namespace exi

@@ -33,6 +33,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/Path.cpp
   Support/Process.cpp
   Support/Program.cpp
+  Support/PureVirtual.cpp
   Support/SafeAlloc.cpp
   Support/Signals.cpp
   Support/StringSaver.cpp
@@ -91,8 +92,9 @@ include_items(EXICPP_SRC "lib/exi"
   Grammar/Grammar.cpp
   Grammar/Schema.cpp
 
-  Stream/BitStreamReader.cpp
-  Stream/BitStreamWriter.cpp
+  #Stream/BitStreamReader.cpp
+  #Stream/BitStreamWriter.cpp
+  Stream/Stream.cpp
 )
 
 add_library(exicpp STATIC ${EXICPP_SRC})

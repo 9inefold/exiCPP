@@ -1,6 +1,6 @@
-//===- exi/Basic/HeaderDecoder.hpp ----------------------------------===//
+//===- exi/Stream/D/OrdReaderMethods.hpp ----------------------------===//
 //
-// Copyright (C) 2025 Eightfold
+// Copyright (C) 2024 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,23 +15,24 @@
 //     limitations under the License.
 //
 //===----------------------------------------------------------------===//
-///
-/// \file
-/// This file implements decoding of the EXI Header from a stream.
-///
-//===----------------------------------------------------------------===//
 
-#pragma once
+// TODO: Remove NOUNDEF_CLASSNAME?
+#define NOUNDEF_CLASSNAME
 
-#include <core/Common/Poly.hpp>
-#include <exi/Basic/ErrorCodes.hpp>
-#include <exi/Stream/OrderedReader.hpp>
+using ReaderBase::readBit;
+using ReaderBase::readByte;
+using ReaderBase::readBits64;
+using ReaderBase::readUInt;
 
-namespace exi {
+// TODO: OrdReaderMethods
+// TODO: UNDEF_READBITS
 
-struct ExiHeader;
+#include "ReaderMethods.mac"
 
-/// Decodes an EXI header given an arbitrary stream.
-ExiError decodeHeader(ExiHeader& Header, OrdReader& Strm);
+#ifndef UNDEF_OVERRIDES
+// TODO: !UNDEF_OVERRIDES
+#endif
 
-} // namespace exi
+#undef CLASSNAME
+#undef UNDEF_OVERRIDES
+#undef NOUNDEF_CLASSNAME
