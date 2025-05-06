@@ -171,13 +171,18 @@ protected:
   /// @brief Decodes an encoded string with the default character set.
   /// @param Storage Where the string will be stored.
   /// @return An non-owning `StrRef`, or an error.
-  ExiResult<StrRef> decodeString(SmallVecImpl<char>& Storage);
+  ExiResult<StrRef> decodeString(SmallVecImpl<char>& Storage) {
+    return Reader->decodeString(Storage);
+  }
 
   /// @brief Decodes a string with with the size already decoded.
   /// @param Size The length of the string.
   /// @param Storage Where the string will be stored.
   /// @return An non-owning `StrRef`, or an error.
-  ExiResult<StrRef> readString(u64 Size, SmallVecImpl<char>& Storage);
+  ExiResult<StrRef> readString(u64 Size, SmallVecImpl<char>& Storage) {
+    // FIXME: LOG_POSITION(this);
+    return Reader->readString(Size, Storage);
+  }
 };
 
 } // namespace exi

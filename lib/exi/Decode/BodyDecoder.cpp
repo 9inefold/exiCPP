@@ -490,40 +490,6 @@ ExiResult<String> ExiDecoder::decodeString() {
   return String(Data);
 }
 
-ExiResult<StrRef> ExiDecoder::decodeString(SmallVecImpl<char>& Storage) {
-  // u64 Size = 0;
-  // if (auto E = Reader->readUInt(Size))
-  //   return Err(E);
-  // return readString(Size, Storage);
-  return Reader->decodeString(Storage);
-}
-
-ExiResult<StrRef> ExiDecoder::readString(u64 Size, SmallVecImpl<char>& Storage) {
-  LOG_POSITION(this);
-  return Reader->readString(Size, Storage);
-/*
-  if (Size == 0)
-    return ""_str;
-
-  Storage.clear();
-  Storage.reserve(Size);
-
-  for (u64 Ix = 0; Ix < Size; ++Ix) {
-    u64 Rune;
-    if (auto E = Reader->readUInt(Rune)) [[unlikely]] {
-      LOG_ERROR("Invalid Rune at [{}:{}].", Ix, Size);
-      return Err(E);
-    }
-    auto Buf = RuneEncoder::Encode(Rune);
-    Storage.append(Buf.data(), Buf.data() + Buf.size());
-    LOG_EXTRA(">>> {}: {}", Buf.str(), 
-      fmt::format("0x{:02X}", fmt::join(Buf, " 0x")));
-  }
-
-  return StrRef(Storage.data(), Storage.size());
-*/  
-}
-
 //////////////////////////////////////////////////////////////////////////
 // Miscellaneous
 
