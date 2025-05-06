@@ -34,6 +34,7 @@
 #define DEBUG_TYPE "BodyDecoder"
 
 #if 0
+// FIXME: Update if needed...
 # define LOG_POSITION(...)                                                    \
   LOG_EXTRA("@[{}]:", ((__VA_ARGS__)->Reader->bitPos()))
 # define LOG_META(...) LOG_EXTRA(__VA_ARGS__)
@@ -329,7 +330,7 @@ ExiResult<CompactID> ExiDecoder::decodeURI() {
     StrRef URIStr;
     SmallStr<32> Data;
     LOG_POSITION(this);
-    StrRef Str = $unwrap(decodeString(Data));
+    StrRef Str = $unwrap(Reader->decodeString(Data));
     std::tie(URIStr, URI) = Idents.addURI(Str);
     LOG_INFO(">> URI(Miss) @{}: \"{}\"", URI, URIStr);
   } else {
@@ -366,7 +367,7 @@ ExiResult<CompactID> ExiDecoder::decodeName(CompactID URI) {
     // Cache miss
     LnID -= 1;
     SmallStr<32> Data;
-    StrRef Str = $unwrap(readString(LnID, Data));
+    StrRef Str = $unwrap(Reader->readString(LnID, Data));
     std::tie(LocalName, LnID) = Idents.addLocalName(URI, Str);
   }
 
@@ -418,7 +419,7 @@ ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
   } else {
     // Cache miss
     SmallStr<32> Data;
-    StrRef Str = $unwrap(decodeString(Data));
+    StrRef Str = $unwrap(Reader->decodeString(Data));
     std::tie(Pfx, PfxID) = Idents.addPrefix(URI, Str);
   }
 
