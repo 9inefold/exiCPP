@@ -64,17 +64,20 @@ class BuiltinGrammar final : public Grammar {
   /// QName of the current element.
   SmallQName Name = SmallQName::MakeAny();
   /// One inline element for StartElement. +1
-  SmallVec<EventUID, 1> StartTag;
+  SmallVec<EventUID, 3> StartTag;
   /// One inline element for StartElement or CHaracters. +2
-  SmallVec<EventUID, 0> Element;
-
+  SmallVec<EventUID, 1> Element;
 
 public:
   BuiltinGrammar() = default;
   explicit BuiltinGrammar(SmallQName Name) : Name(Name) {}
 
   GrammarTerm getTerm(OrdReader& Reader, bool IsStart) override;
-  void addTerm(EventUID Term, bool IsStart) override;
+
+  void addTerm(EventUID Term, bool IsStart) override {
+    getElts(IsStart).push_back(Term);
+    this->setLog(IsStart);
+  }
 
   SmallQName getName() const { return Name; }
   void dump(ExiDecoder* D) const override;

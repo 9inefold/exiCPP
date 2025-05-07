@@ -155,7 +155,7 @@ class INTERNAL_LINKAGE DynBuiltinSchema final
   BuiltinSchema::Grammar Current = Document;
   /// The grammar stack.
   /// TODO: Profile...
-  SmallVec<GrammarT, 0> GStack;
+  Vec<GrammarT> GStack;
   /// The generated grammars.
   DenseMap<SmallQName, BuiltinGrammar*> Grammars;
 
@@ -521,12 +521,16 @@ private:
   ////////////////////////////////////////////////////////////////////////
   // Grammar
 
+  ALWAYS_INLINE bool isStart() const {
+    return (Current == StartTagContent);
+  }
+
   template <EventTerm Term>
   EXI_INLINE void addTerm(EventUID Event) {
     // If it's not the root element, it shouldn't be empty.
     exi_invariant(!GStack.empty());
     Event.setTerm(Term);
-    GStack.back()->addTerm(Event, Current == StartTagContent);
+    GStack.back()->addTerm(Event, isStart());
   }
 
   /// Uses the current grammar's QName as the event's.
