@@ -58,11 +58,6 @@ GrammarTerm BuiltinGrammar::getTerm(OrdReader& Strm, bool IsStart) {
   return Err(Out - Size);
 }
 
-void BuiltinGrammar::addTerm(EventUID Term, bool IsStart) {
-  getElts(IsStart).push_back(Term);
-  this->setLog(IsStart);
-}
-
 void BuiltinGrammar::setLog(bool IsStart) {
   if (IsStart) {
     const u32 Log = getStartTagCount();
