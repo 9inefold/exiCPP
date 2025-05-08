@@ -71,9 +71,10 @@ struct URIInfo {
 
 /// The value stored for each entry in the LocalName map.
 struct LocalName {
+  using value_type = SmallVec<InlineStr*, 2>;
   StrRef Name; /// namespace:[local-name]
   InlineStr* FullName = nullptr; /// [namespace:local-name]
-  SmallVec<InlineStr*, 0> LocalValues;
+  value_type LocalValues;
 public:
   /// Returns the minimum bits required for current amount of local values.
   u32 bits() const {
@@ -124,6 +125,14 @@ class StringTable {
   PagedVec<LNMapType, kLNPageElts> LNMap;
   CompactIDCounter<> LNCount;
 
+  using LNPartition = LocalName::value_type;
+  /// Caches a mapping from a QName to a LocalName.
+  using LNCacheType = SmallLRUCache<SmallQName, LNPartition*, 4>;
+  /// Used to cache recently used values. Since you generally have repetitive
+  /// lookups, this may slightly increase performance, as it saves lookups.
+  /// TODO: Profile!!
+  mutable LNCacheType LNCache;
+
   /// Used to map LocalName IDs to GlobalValues.
   ///  Eg. `GValueMap[GlobalID]`
   SmallVec<InlineStr*, 0> GValueMap;
@@ -165,19 +174,34 @@ public:
   /// Creates a new GlobalValue.
   IDPair addGlobalValue(StrRef Value);
   /// Associates a new LocalValue with a (URI, LocalNameID).
-  IDPair addLocalValue(CompactID URI, CompactID LocalID, StrRef Value);
+  inline IDPair addLocalValue(CompactID URI, CompactID LocalID, StrRef Value) {
+    return this->addLocalValue(SmallQName::MakeQName(URI, LocalID), Value);
+  }
   /// Associates a new LocalValue with a QName.
   IDPair addLocalValue(SmallQName IDs, StrRef Value) {
     exi_invariant(IDs.isQName());
-    return this->addLocalValue(IDs.URI, IDs.LocalID, Value);
+
+    LNPartition& Values = *getLVPartition(IDs);
+    const CompactID ID = Values.size();
+    // Add to the global table.
+    InlineStr* Str = createGlobalValue(Value);
+    // Add to the local table for URI:LocalID.
+    Values.push_back(Str);
+
+    return {Str->str(), ID};
   }
 
   /// Creates a new GlobalValue AND associates a new LocalValue with QName.
-  IDTriple addValue(CompactID URI, CompactID LocalID, StrRef Value);
+  inline IDTriple addValue(CompactID URI, CompactID LocalID, StrRef Value) {
+    return this->addValue(SmallQName::MakeQName(URI, LocalID), Value);
+  }
   /// Creates a new GlobalValue AND associates a new LocalValue with QName.
   IDTriple addValue(SmallQName IDs, StrRef Value) {
     exi_invariant(IDs.isQName());
-    return this->addValue(IDs.URI, IDs.LocalID, Value);
+    // auto [Str, GID] = this->addGlobalValue(Value);
+    auto [Str, LnID] = this->addLocalValue(IDs, Value);
+    const CompactID GID = (*GValueCount - 1);
+    return {.Value = Str, .GlobalID = GID, .LocalID = LnID};
   }
 
   ////////////////////////////////////////////////////////////////////////
@@ -258,19 +282,15 @@ public:
 
   /// Gets a LocalValue from a (URI, LocalID, ValueID).
   StrRef getLocalValue(CompactID URI, CompactID LocalID, CompactID ValueID) const {
-    exi_invariant(URI < URIMap.size());
-    exi_invariant(LocalID < URIMap[URI].LNElts);
-    this->assertPartitionsInSync();
-
-    const LocalName* LN = LNMap[URI][LocalID];
-    exi_invariant(ValueID < LN->LocalValues.size());
-    return LN->LocalValues[ValueID]->str();
+    return this->getLocalValue(SmallQName::MakeQName(URI, LocalID), ValueID);
   }
 
   /// Gets a LocalValue from a ([URI, LocalID], ValueID).
   StrRef getLocalValue(SmallQName IDs, CompactID ValueID) const {
     exi_assert(IDs.isQName());
-    return getLocalValue(IDs.URI, IDs.LocalID, ValueID);
+    const LNPartition& Values = *getLVPartition(IDs);
+    exi_invariant(ValueID < Values.size());
+    return Values[ValueID]->str();
   }
 
   /// Gets a Local or Global Value from a ([URI, LocalID]?, ValueID).
@@ -317,18 +337,14 @@ public:
     return GValueCount.bits();
   }
 
-  u64 getLocalValueLog(CompactID URI, CompactID LocalID) const {
-    exi_invariant(URI < URIMap.size());
-    exi_invariant(LocalID < URIMap[URI].LNElts);
-    this->assertPartitionsInSync();
-
-    const LocalName* LN = LNMap[URI][LocalID];
-    return CompactIDLog2(LN->LocalValues.size());
+  EXI_INLINE u64 getLocalValueLog(CompactID URI, CompactID LocalID) const {
+    return this->getLocalValueLog(SmallQName::MakeQName(URI, LocalID));
   }
 
-  EXI_INLINE u64 getLocalValueLog(SmallQName IDs) const {
+  u64 getLocalValueLog(SmallQName IDs) const {
     exi_assert(IDs.isQName());
-    return this->getLocalValueLog(IDs.URI, IDs.LocalID);
+    const LNPartition* Values = getLVPartition(IDs);
+    return CompactIDLog2(Values->size());
   }
 
 private:
@@ -337,6 +353,27 @@ private:
   }
   [[nodiscard]] StrRef internStr(StrRef Str) {
     return NameValueCache.save(Str);
+  }
+
+  [[nodiscard]] LNPartition* getLVPartition(SmallQName IDs) {
+    // Our LRU policy currently prohibits null keys.
+    // TODO: Handle these cases?
+    LNPartition*& Partition = *LNCache.get(IDs);
+    if (Partition != nullptr)
+      return Partition;
+    
+    const u64 URI = IDs.URI, LocalID = IDs.LocalID;
+    exi_invariant(URI < URIMap.size());
+    exi_invariant(LocalID < URIMap[URI].LNElts);
+    this->assertPartitionsInSync();
+
+    // Set the value of the cached partition.
+    LocalName* LN = LNMap[URI][LocalID];
+    return (Partition = &LN->LocalValues);
+  }
+
+  [[nodiscard]] const LNPartition* getLVPartition(SmallQName IDs) const {
+    return const_cast<StringTable*>(this)->getLVPartition(IDs);
   }
 
   /// Checks if partitions are of equal size.

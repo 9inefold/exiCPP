@@ -136,29 +136,6 @@ IDPair StringTable::addGlobalValue(StrRef Value) {
   return {createGlobalValue(Value)->str(), ID};
 }
 
-IDPair StringTable::addLocalValue(CompactID URI, CompactID LocalID, StrRef Value) {
-  exi_invariant(URI < URIMap.size());
-  this->assertPartitionsInSync();
-  exi_invariant(LocalID < URIMap[URI].LNElts);
-
-  auto& Values = LNMap[URI][LocalID]->LocalValues;
-  const CompactID ID = Values.size();
-  // Add to the global table.
-  InlineStr* Str = createGlobalValue(Value);
-  // Add to the local table for URI:LocalID.
-  Values.push_back(Str);
-
-  return {Str->str(), ID};
-}
-
-/// Creates a new GlobalValue AND associates a new LocalValue with QName.
-IDTriple StringTable::addValue(CompactID URI, CompactID LocalID, StrRef Value) {
-  // auto [Str, GID] = this->addGlobalValue(Value);
-  auto [Str, LnID] = this->addLocalValue(URI, LocalID, Value);
-  const CompactID GID = (*GValueCount - 1);
-  return {.Value = Str, .GlobalID = GID, .LocalID = LnID};
-}
-
 void StringTable::createInitialEntries(bool UsesSchema) {
   // D.1 & D.2 - Initial Entries in Uri & Prefix Partition
   // Saving these is ok since we know there are at least 4 inline slots in

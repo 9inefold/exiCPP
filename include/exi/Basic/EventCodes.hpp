@@ -135,6 +135,8 @@ public:
   constexpr bool isQName() const {
     return hasURI() && hasName();
   }
+
+  constexpr bool operator==(const SmallQName& RHS) const = default;
 };
 
 // Provide DenseMapInfo for `SmallQName`.
