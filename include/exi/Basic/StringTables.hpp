@@ -28,6 +28,7 @@
 #include <core/Common/ArrayRef.hpp>
 #include <core/Common/Option.hpp>
 #include <core/Common/PagedVec.hpp>
+#include <core/Common/SmallLRUCache.hpp>
 #include <core/Common/SmallVec.hpp>
 #include <core/Common/StringMap.hpp>
 #include <core/Common/StrRef.hpp>

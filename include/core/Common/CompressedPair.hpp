@@ -24,16 +24,53 @@
 
 #pragma once
 
-#include <Common/Features.hpp>
+#include <Common/Fundamental.hpp>
 #include <utility>
 
 namespace exi {
 
 // TODO: Expand on this...
+
+/// Defines a pair where the key and value may be reordered. This allows for
+/// data to potentially be smaller than the combined size of their constituents.
 template <typename K, typename V>
 struct CompressedPair {
   EXI_NO_UNIQUE_ADDRESS K Key;
   EXI_NO_UNIQUE_ADDRESS V Value;
+
+public:
+  template <usize I>
+  EXI_INLINE auto&& get() & { return GetImpl<I>(*this); }
+
+  template <usize I>
+  EXI_INLINE auto&& get() const& { return GetImpl<I>(*this); }
+
+  template <usize I>
+  EXI_INLINE auto&& get() && { return GetImpl<I>(*this); }
+
+private:
+  template <usize I, class Self>
+  ALWAYS_INLINE static auto&& GetImpl(Self&& self) {
+    static_assert(I < 2, "Index out of bounds!");
+    if constexpr (I == 0)
+      return EXI_FWD(self).Key;
+    else if constexpr (I == 1)
+      return EXI_FWD(self).Value;
+  }
 };
 
 } // namespace exi
+
+namespace std {
+
+template <typename K, typename V>
+struct tuple_size<exi::CompressedPair<K, V>>
+  : integral_constant<usize, 2> {};
+
+template <usize I, typename K, typename V>
+struct tuple_element<I, exi::CompressedPair<K, V>>
+    : conditional<I == 0, K, V> {
+  static_assert(I < 2, "Index out of bounds!");
+};
+
+} // namespace std
