@@ -135,10 +135,13 @@ struct BIInfo {
   SEventCode Code = {};
 };
 
-// TODO: Implement...
+// TODO: Update other functions to use template.
+// It currently shows as slightly slower, but this may be because of split
+// behaviour in the IBP.
+template <class StrmT>
 class INTERNAL_LINKAGE DynBuiltinSchema final
-    : public BuiltinSchema, 
-      public TrailingArray<DynBuiltinSchema, EventTerm> {
+    : public BuiltinSchema,
+      public TrailingArray<DynBuiltinSchema<StrmT>, EventTerm> {
   using enum BuiltinSchema::Grammar;
   class Builder;
 
@@ -181,7 +184,7 @@ private:
     return MatchT(Term);
   }
 
-  GNU_ATTR(hot) MatchT decodeTerm(OrdReader& Strm, int Start, unsigned At = 0) {
+  GNU_ATTR(hot) MatchT decodeTerm(StrmT* Strm, int Start, unsigned At = 0) {
     const unsigned Offset = Info[Current].Offset;
     const auto& Code = Info[Current].Code;
 
@@ -213,12 +216,12 @@ private:
     return this->createDecodedTerm(At);
   }
 
-  MatchT decodeTerm(OrdReader& Strm) {
+  MatchT decodeTerm(StrmT* Strm) {
     return this->decodeTerm(Strm, /*Start=*/0, /*At=*/0);
   }
 
   ALWAYS_INLINE MatchT decodeTerm(ExiDecoder* D) {
-    auto& Strm = Get::Reader(D);
+    auto* Strm = Get::Reader<StrmT>(D);
     return this->decodeTerm(Strm);
   }  
 
@@ -226,7 +229,7 @@ private:
     exi_invariant(!GStack.empty());
     GrammarT G = GStack.back();
 
-    auto& Strm = Get::Reader(D);
+    auto& Strm = Get::Reader(D); // TODO: Update reader.
     return G->getTerm(Strm, G.getInt());
   }
 
@@ -239,7 +242,7 @@ private:
     }
     
     // LOG_EXTRA("Grammar miss: {}", Ret.error());
-    auto& Strm = Get::Reader(D);
+    auto* Strm = Get::Reader<StrmT>(D);
     const MatchT M = this->decodeTerm(Strm, 1, Ret.error());
     return this->Event;
   }
@@ -588,10 +591,12 @@ private:
 #endif
 };
 
-class DynBuiltinSchema::Builder {
+template <class StrmT>
+class DynBuiltinSchema<StrmT>::Builder {
+  using SuperT = DynBuiltinSchema<StrmT>;
 public:
   SmallVec<EventTerm, 8> Terms;
-  SmallVec<BIInfo, DynBuiltinSchema::InfoT::size()> Info;
+  SmallVec<BIInfo, SuperT::InfoT::size()> Info;
 
 private:
   ExiOptions::PreserveOpts Preserve;
@@ -730,7 +735,8 @@ private:
 
 } // namespace INTERNAL_NS
 
-void DynBuiltinSchema::Builder::CalculateLog(SEventCode* EC) {
+template <class StrmT>
+void DynBuiltinSchema<StrmT>::Builder::CalculateLog(SEventCode* EC) {
   exi_invariant(EC);
   exi_assert(EC->Length <= 3 && EC->Length >= 0);
 
@@ -759,7 +765,9 @@ void DynBuiltinSchema::Builder::CalculateLog(SEventCode* EC) {
     EC->Bits[Ix] = SmallLog2[Data[Ix]];
 }
 
-Box<DynBuiltinSchema> DynBuiltinSchema::New(const ExiOptions& Opts) {
+template <class StrmT>
+Box<DynBuiltinSchema<StrmT>>
+    DynBuiltinSchema<StrmT>::New(const ExiOptions& Opts) {
   Builder B(Opts);
   B.init();
 
@@ -775,7 +783,8 @@ Box<DynBuiltinSchema> DynBuiltinSchema::New(const ExiOptions& Opts) {
   return Box<DynBuiltinSchema>(Schema);
 }
 
-void DynBuiltinSchema::dump() const {
+template <class StrmT>
+void DynBuiltinSchema<StrmT>::dump() const {
   outs() << "Document[1] <@0>:\n"
          << "  SD      0\n\n";
   PrintGrammar(Grammar::DocContent);
@@ -785,7 +794,8 @@ void DynBuiltinSchema::dump() const {
   outs().flush();
 }
 
-void DynBuiltinSchema::PrintGrammar(BuiltinSchema::Grammar G) const {
+template <class StrmT>
+void DynBuiltinSchema<StrmT>::PrintGrammar(BuiltinSchema::Grammar G) const {
   const StrRef Name = GetGrammarName(G);
   auto [Off, Code] = Info[G];
   const EventTerm* Base = BaseT::data() + Off;
@@ -848,7 +858,8 @@ void DynBuiltinSchema::PrintGrammar(BuiltinSchema::Grammar G) const {
 }
 
 #if EXI_LOGGING
-void DynBuiltinSchema::logCurrentGrammar(ExiDecoder* D) {
+template <class StrmT>
+void DynBuiltinSchema<StrmT>::logCurrentGrammar(ExiDecoder* D) {
   using enum raw_ostream::Colors;
   if (!hasDbgLogLevel(VERBOSE))
     // Don't do any work if log level is insufficient.
@@ -871,13 +882,15 @@ void DynBuiltinSchema::logCurrentGrammar(ExiDecoder* D) {
   dbgs() << '\n' << OldColor;
 }
 
-void DynBuiltinSchema::logCurrentEvent() {
+template <class StrmT>
+void DynBuiltinSchema<StrmT>::logCurrentEvent() {
   if EXI_UNLIKELY(!Event.hasTerm())
     return;
   this->logEvent(Event.getTerm());
 }
 
-void DynBuiltinSchema::logEvent(EventTerm Term) {
+template <class StrmT>
+void DynBuiltinSchema<StrmT>::logEvent(EventTerm Term) {
   LOG_INFO("> With {}: {}",
     get_event_name(Term),
     get_event_signature(Term)
@@ -886,8 +899,12 @@ void DynBuiltinSchema::logEvent(EventTerm Term) {
 #endif // EXI_LOGGING
 
 Box<BuiltinSchema> BuiltinSchema::New(const ExiOptions& Opts) {
-  // exi_unreachable("TODO");
-  return DynBuiltinSchema::New(Opts);
+  const AlignKind A = Opts.Alignment;
+  if (A == AlignKind::BitPacked)
+    return DynBuiltinSchema<BitReader>::New(Opts);
+  else if (A == AlignKind::BytePacked)
+    return DynBuiltinSchema<ByteReader>::New(Opts);
+  exi_unreachable("Channel readers are currently unsupported!");
 }
 
 //===----------------------------------------------------------------===//

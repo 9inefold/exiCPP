@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <core/Support/Casting.hpp>
 #include <exi/Grammar/Schema.hpp>
 #include <exi/Decode/BodyDecoder.hpp>
 // #include <exi/Encode/BodyEncode.hpp>
@@ -31,9 +32,12 @@ namespace exi {
 
 class Schema::Get {
 public:
-	static OrdReader& Reader(ExiDecoder* D) { return D->Reader; }
 	static BumpPtrAllocator& BP(ExiDecoder* D) { return D->BP; }
 	static decode::StringTable& Idents(ExiDecoder* D) { return D->Idents; }
+
+  template <class StrmT>
+  static StrmT* Reader(ExiDecoder* D) { return &cast<StrmT>(D->Reader); }
+  static OrdReader& Reader(ExiDecoder* D) { return D->Reader; }
 
 	static auto DecodeQName(ExiDecoder* D) { return D->decodeQName(); }
 	static auto DecodeNS(ExiDecoder* D) { return D->decodeNS(); }
