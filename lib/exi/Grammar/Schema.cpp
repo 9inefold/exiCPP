@@ -181,7 +181,7 @@ private:
     return MatchT(Term);
   }
 
-  MatchT decodeTerm(OrdReader& Strm, int Start, unsigned At = 0) {
+  GNU_ATTR(hot) MatchT decodeTerm(OrdReader& Strm, int Start, unsigned At = 0) {
     const unsigned Offset = Info[Current].Offset;
     const auto& Code = Info[Current].Code;
 
