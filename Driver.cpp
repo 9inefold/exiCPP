@@ -163,52 +163,68 @@ static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
   return 0;
 }
 
-static int DecodeExample(XMLManagerRef Mgr) {
-  // Basic.xml with default settings and no options.
-  StrRef HiddenFile = "examples/SpecExample.exi"_str;
+static int Decode(XMLManager* Mgr, StrRef File, ExiOptions& Opts) {
   XMLContainerRef Exi
-    = Mgr->getOptXMLRef(HiddenFile, errs())
+    = Mgr->getOptXMLRef(File, errs())
       .expect("could not locate file!");
   auto MB = Exi.getBufferRef();
-  
-  ExiOptions Opts {};
-  Opts.SchemaID.emplace(nullptr);
 
-  LOG_INFO("Decoding: \"{}\"", HiddenFile);
+  LOG_INFO("Decoding: \"{}\"", File);
   ExiDecoder Decoder(Opts, errs());
   return Decode(Decoder, MB);
+}
+
+/// The example data provided by EXI.
+static int DecodeExample(XMLManagerRef Mgr) {
+  // SpecExample.xml with default settings and no options.
+  StrRef HiddenFile = "examples/SpecExample.exi"_str;
+  ExiOptions Opts {};
+  Opts.SchemaID.emplace(nullptr);
+  return Decode(Mgr.get(), HiddenFile, Opts);
 }
 
 static int DecodeBasic(XMLManagerRef Mgr) {
   // Basic.xml with default settings and no options.
   StrRef HiddenFile = "examples/BasicNoopt.exi"_str;
-  XMLContainerRef Exi
-    = Mgr->getOptXMLRef(HiddenFile, errs())
-      .expect("could not locate file!");
-  auto MB = Exi.getBufferRef();
-  
   ExiOptions Opts {};
   Opts.SchemaID.emplace(nullptr);
-
-  LOG_INFO("Decoding: \"{}\"", HiddenFile);
-  ExiDecoder Decoder(Opts, errs());
-  return Decode(Decoder, MB);
+  return Decode(Mgr.get(), HiddenFile, Opts);
 }
 
+/// Small namespace example.
 static int DecodeCustomers(XMLManagerRef Mgr) {
   // Customers.xml with Preserve.prefixes and no options.
   StrRef HiddenFile = "examples/BasicNoopt2.exi"_str;
-  XMLContainerRef Exi
-    = Mgr->getOptXMLRef(HiddenFile, errs())
-      .expect("could not locate file!");
-  auto MB = Exi.getBufferRef();
-  
   ExiOptions Opts {.Preserve { .Prefixes = true }};
   Opts.SchemaID.emplace(nullptr);
+  return Decode(Mgr.get(), HiddenFile, Opts);
+}
 
-  LOG_INFO("Decoding: \"{}\"", HiddenFile);
-  ExiDecoder Decoder(Opts, errs());
-  return Decode(Decoder, MB);
+/// Has a lot of data with minimal distinct keys.
+static int DecodeOrders(XMLManagerRef Mgr) {
+  // Orders.xml with Preserve.prefixes and no options.
+  StrRef HiddenFile = "examples/Orders.exi"_str;
+  ExiOptions Opts {.Preserve { .Prefixes = true }};
+  Opts.SchemaID.emplace(nullptr);
+  return Decode(Mgr.get(), HiddenFile, Opts);
+}
+
+/// Has a TON of data with minimal distinct keys.
+static int DecodeLineItem(XMLManagerRef Mgr) {
+  // LineItem.xml with Preserve.prefixes and no options.
+  StrRef HiddenFile = "examples/LineItem.exi"_str;
+  ExiOptions Opts {.Preserve { .Prefixes = true }};
+  Opts.SchemaID.emplace(nullptr);
+  return Decode(Mgr.get(), HiddenFile, Opts);
+}
+
+/// Has 100mb of data in XML form, quite a large test.
+static int DecodeTreebank(XMLManagerRef Mgr) {
+  // treebank_e.xml with Preserve.prefixes and no options.
+  StrRef HiddenFile = "examples/Treebank.exi"_str;
+  ExiOptions Opts {.Preserve { .Prefixes = true }};
+  Opts.SchemaID.emplace(nullptr);
+  return Decode(Mgr.get(), HiddenFile, Opts);
 }
 
 /// From https://www.w3.org/TR/exi-primer/#neitherDecoding
@@ -294,14 +310,30 @@ int main(int Argc, char* Argv[]) {
   for (int NIters = 0; NIters < MaxIters; ++NIters)
 #endif
   {
+    exi::DebugFlag = LogLevel::VERBOSE;
+    if (int Ret = DecodeExample(Mgr))
+      return Ret;
+    
     exi::DebugFlag = LogLevel::INFO;
     if (int Ret = DecodeBasic(Mgr))
       return Ret;
     if (int Ret = DecodeCustomers(Mgr))
       return Ret;
+  }
 
-    exi::DebugFlag = LogLevel::VERBOSE;
-    if (int Ret = DecodeExample(Mgr))
+  exi::DebugFlag = LogLevel::WARN;
+#if !EXI_LOGGING
+  constexpr int MaxLargeIters = 1'000;
+  outs() << "Running large tests... " << MaxLargeIters << " iterations.\n";
+  // Stress testing in release.
+  for (int NIters = 0; NIters < MaxLargeIters; ++NIters)
+#endif
+  {
+    if (int Ret = DecodeOrders(Mgr))
+      return Ret;
+    if (int Ret = DecodeLineItem(Mgr))
+      return Ret;
+    if (int Ret = DecodeTreebank(Mgr))
       return Ret;
   }
   
