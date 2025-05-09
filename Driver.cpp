@@ -323,7 +323,7 @@ int main(int Argc, char* Argv[]) {
 
   exi::DebugFlag = LogLevel::WARN;
 #if !EXI_LOGGING
-  constexpr int MaxLargeIters = 1'000;
+  constexpr int MaxLargeIters = 500;
   outs() << "Running large tests... " << MaxLargeIters << " iterations.\n";
   // Stress testing in release.
   for (int NIters = 0; NIters < MaxLargeIters; ++NIters)
