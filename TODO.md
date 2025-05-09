@@ -11,20 +11,20 @@ This is a TODO list for the C++ version of exiCPP.
 - `BitStream*` implementation
 - Skeleton for the EXI Header parser
 - Decode event codes
+- Refactor reader streams
 
 ## In Progress
 
-- Refactor reader streams
+- Fully tested `ByteStream*` implementation
+- Produce event codes
 - Update rapidxml
 - `ErrorCode` customization
 - `DenseMap` and friends
 
 ## Unfinished
 
-- Produce event codes
-- `Option<Unchecked<T>>` + `UncheckedOption`
 - `sys::` implementation on linux
-- `ByteStream*` implementation
+- `Option<Unchecked<T>>` + `UncheckedOption`
 - `CrashRecoveryContext` and `cpptrace`
 - Schema parser
 - Better `Chrono` and add `Duration`??
