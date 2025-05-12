@@ -22,7 +22,7 @@
 //===----------------------------------------------------------------===//
 
 #include <exi/Grammar/Grammar.hpp>
-#include <core/Support/Logging.hpp>
+#include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/CompactID.hpp>
 #include "SchemaGet.hpp"
 
@@ -32,6 +32,7 @@ using namespace exi;
 
 void Grammar::anchor() {}
 
+/*
 static u64 ReadBits(OrdReader& Strm, u32 Bits) {
   auto Out = Strm->readBits64(Bits);
   if EXI_UNLIKELY(Out.is_err())
@@ -57,6 +58,7 @@ GrammarTerm BuiltinGrammar::getTerm(OrdReader& Strm, bool IsStart) {
   // Get the base event code offset.
   return Err(Out - Size);
 }
+*/
 
 void BuiltinGrammar::setLog(bool IsStart) {
   if (IsStart) {

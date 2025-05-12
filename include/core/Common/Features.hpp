@@ -236,6 +236,12 @@
 # define EXI_INLINE inline
 #endif
 
+#if defined(__GNUC__)
+# define EXI_FLATTEN __attribute__((flatten))
+#else
+# define EXI_FLATTEN
+#endif
+
 #if EXI_HAS_ATTR(noinline)
 # define EXI_NO_INLINE __attribute__((noinline))
 #elif defined(_MSC_VER)

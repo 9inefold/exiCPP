@@ -26,8 +26,11 @@
 #include <core/Common/Box.hpp>
 #include <core/Common/Result.hpp>
 #include <core/Common/SmallVec.hpp>
+#include <core/Support/Logging.hpp>
 #include <exi/Basic/EventCodes.hpp>
 #include <exi/Stream/OrderedReader.hpp>
+
+#define DEBUG_TYPE "Grammar"
 
 namespace exi {
 
@@ -68,11 +71,39 @@ class BuiltinGrammar final : public Grammar {
   /// One inline element for StartElement or CHaracters. +2
   SmallVec<EventUID, 1> Element;
 
+  static u64 ReadBits(auto* Strm, u32 Bits) {
+    auto Out = Strm->readBits64(Bits);
+    if EXI_UNLIKELY(Out.is_err())
+      exi_unreachable("invalid stream read.");
+    return *Out;
+  }
+
 public:
   BuiltinGrammar() = default;
   explicit BuiltinGrammar(SmallQName Name) : Name(Name) {}
 
-  GrammarTerm getTerm(OrdReader& Reader, bool IsStart) override;
+  template <class Strm> GrammarTerm getTerm(OrdReader& Reader, bool IsStart) {
+    auto& Elts = this->getElts(IsStart);
+    const usize Size = Elts.size();
+    const u32 Bits = this->getLog(IsStart);
+    const u64 Out = ReadBits(cast<Strm>(&Reader), Bits);
+    // Check if this is a valid offset.
+    if (Out < Size) {
+      // Values are always pushed in reverse order, so remap the position.
+      const auto Pos = (Size - 1) - Out;
+      // const auto Pos = Out;
+      LOG_EXTRA("Code[0]*: @{}:{}", Bits, Out);
+      return Ok(Elts[Pos]);
+    }
+
+    LOG_EXTRA("Code[0]: @{}:{}", Bits, Out);
+    // Get the base event code offset.
+    return Err(Out - Size);
+  }
+
+  EXI_FLATTEN GrammarTerm getTerm(OrdReader& Reader, bool IsStart) override {
+    return this->getTerm<OrderedReader>(Reader, IsStart);
+  }
 
   void addTerm(EventUID Term, bool IsStart) override {
     getElts(IsStart).push_back(Term);
@@ -115,3 +146,5 @@ private:
 };
 
 } // namespace exi
+
+#undef DEBUG_TYPE
