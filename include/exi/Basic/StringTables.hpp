@@ -175,7 +175,7 @@ public:
   IDPair addGlobalValue(StrRef Value);
   /// Associates a new LocalValue with a (URI, LocalNameID).
   inline IDPair addLocalValue(CompactID URI, CompactID LocalID, StrRef Value) {
-    return this->addLocalValue(SmallQName::MakeQName(URI, LocalID), Value);
+    return this->addLocalValue(SmallQName::NewQName(URI, LocalID), Value);
   }
   /// Associates a new LocalValue with a QName.
   IDPair addLocalValue(SmallQName IDs, StrRef Value) {
@@ -193,7 +193,7 @@ public:
 
   /// Creates a new GlobalValue AND associates a new LocalValue with QName.
   inline IDTriple addValue(CompactID URI, CompactID LocalID, StrRef Value) {
-    return this->addValue(SmallQName::MakeQName(URI, LocalID), Value);
+    return this->addValue(SmallQName::NewQName(URI, LocalID), Value);
   }
   /// Creates a new GlobalValue AND associates a new LocalValue with QName.
   IDTriple addValue(SmallQName IDs, StrRef Value) {
@@ -282,7 +282,7 @@ public:
 
   /// Gets a LocalValue from a (URI, LocalID, ValueID).
   StrRef getLocalValue(CompactID URI, CompactID LocalID, CompactID ValueID) const {
-    return this->getLocalValue(SmallQName::MakeQName(URI, LocalID), ValueID);
+    return this->getLocalValue(SmallQName::NewQName(URI, LocalID), ValueID);
   }
 
   /// Gets a LocalValue from a ([URI, LocalID], ValueID).
@@ -338,7 +338,7 @@ public:
   }
 
   EXI_INLINE u64 getLocalValueLog(CompactID URI, CompactID LocalID) const {
-    return this->getLocalValueLog(SmallQName::MakeQName(URI, LocalID));
+    return this->getLocalValueLog(SmallQName::NewQName(URI, LocalID));
   }
 
   u64 getLocalValueLog(SmallQName IDs) const {

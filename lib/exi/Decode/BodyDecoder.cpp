@@ -302,7 +302,7 @@ ExiResult<EventUID> ExiDecoder::decodeQName() {
   const CompactID LNI = $unwrap(decodeName(URI));
   Option Pfx = $unwrap(decodePfxQ(URI));
 
-  auto QName = SmallQName::MakeQName(URI, LNI);
+  auto QName = SmallQName::NewQName(URI, LNI);
   return Ok(EventUID::NewQName(QName, Pfx));
 }
 
@@ -313,7 +313,7 @@ ExiResult<EventUID> ExiDecoder::decodeNS() {
   bool IsLocal = false;
   exi_try_r(Reader->readBit(IsLocal));
 
-  auto QName = SmallQName::MakeURI(URI);
+  auto QName = SmallQName::NewURI(URI);
   return Ok(EventUID::NewNS(QName, PfxID, IsLocal));
 }
 

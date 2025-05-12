@@ -96,15 +96,15 @@ struct SmallQName {
 
 public:
   /// Creates a SmallQName with a `(*)` value.
-  static constexpr SmallQName MakeAny() {
+  ALWAYS_INLINE static constexpr SmallQName NewAny() {
     return {};
   }
   /// Creates a SmallQName with a `(uri:*)` value.
-  static constexpr SmallQName MakeURI(u64 URI) {
+  ALWAYS_INLINE static constexpr SmallQName NewURI(u64 URI) {
     return {.URI = URI};
   }
   /// Creates a SmallQName with a `(uri:name)` value.
-  static constexpr SmallQName MakeQName(u64 URI, u64 LocalName) {
+  ALWAYS_INLINE static constexpr SmallQName NewQName(u64 URI, u64 LocalName) {
     // TODO: Add checks?
     exi_invariant(URI < kInvalidURI && LocalName < kInvalidLNI);
     return {.LocalID = LocalName, .URI = URI};
@@ -136,7 +136,7 @@ public:
     return hasURI() && hasName();
   }
 
-  constexpr bool operator==(const SmallQName& RHS) const = default;
+  EXI_INLINE constexpr bool operator==(const SmallQName& RHS) const = default;
 };
 
 // Provide DenseMapInfo for `SmallQName`.

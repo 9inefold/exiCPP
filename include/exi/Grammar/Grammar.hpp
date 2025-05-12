@@ -65,7 +65,7 @@ private:
 class BuiltinGrammar final : public Grammar {
   u32 StartTagLog = 0, ElementLog = 1;
   /// QName of the current element.
-  SmallQName Name = SmallQName::MakeAny();
+  SmallQName Name = SmallQName::NewAny();
   /// One inline element for StartElement. +1
   SmallVec<EventUID, 3> StartTag;
   /// One inline element for StartElement or CHaracters. +2

@@ -158,7 +158,7 @@ protected:
 
   /// Decodes a Value.
   ExiResult<EventUID> decodeValue(CompactID URI, CompactID Name) {
-    return this->decodeValue(SmallQName::MakeQName(URI, Name));
+    return this->decodeValue(SmallQName::NewQName(URI, Name));
   }
   /// Decodes a Value.
   ExiResult<EventUID> decodeValue(SmallQName Name);
