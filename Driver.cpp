@@ -294,7 +294,23 @@ static void PrintExample(raw_ostream& OS, int Skip = 0) {
     OS << '\n';
 }
 
+template <int Total>
+EXI_NO_INLINE EXI_NODEBUG static void PrintIters(int NIters) {
+  float Percent = (float(NIters) / float(Total)) * 100.f;
+  outs() << format(" {: >3.0f}% - {} iterations\n", Percent, NIters);
+}
+
+template <int Total, int Divisor = 10>
+EXI_INLINE static constexpr bool CheckIters(int& NIters) {
+  exi_assume(NIters > -1);
+  const bool Out = (NIters++ < Total);
+  if EXI_UNLIKELY(NIters % (Total / Divisor) == 0)
+    PrintIters<Total>(NIters);
+  return Out;
+}
+
 int main(int Argc, char* Argv[]) {
+  using enum raw_ostream::Colors;
   exi::DebugFlag = LogLevel::VERBOSE;
   HandleEscapeCodeSetup();
 
@@ -305,9 +321,10 @@ int main(int Argc, char* Argv[]) {
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
 #if !EXI_LOGGING
   constexpr int MaxIters = 1'000'000;
-  outs() << "Running tests... " << MaxIters << " iterations.\n";
+  WithColor(outs(), BRIGHT_WHITE)
+    << "Running tests... " << MaxIters << " iterations.\n";
   // Stress testing in release.
-  for (int NIters = 0; NIters < MaxIters; ++NIters)
+  for (int NIters = 0; CheckIters<MaxIters, 5>(NIters);)
 #endif
   {
     exi::DebugFlag = LogLevel::VERBOSE;
@@ -323,10 +340,11 @@ int main(int Argc, char* Argv[]) {
 
   exi::DebugFlag = LogLevel::WARN;
 #if !EXI_LOGGING
-  constexpr int MaxLargeIters = 500;
-  outs() << "Running large tests... " << MaxLargeIters << " iterations.\n";
+  constexpr int MaxLargeIters = 100;
+  WithColor(outs(), BRIGHT_WHITE)
+    << "Running large tests... " << MaxLargeIters << " iterations.\n";
   // Stress testing in release.
-  for (int NIters = 0; NIters < MaxLargeIters; ++NIters)
+  for (int NIters = 0; CheckIters<MaxLargeIters>(NIters);)
 #endif
   {
     if (int Ret = DecodeOrders(Mgr))
@@ -337,6 +355,6 @@ int main(int Argc, char* Argv[]) {
       return Ret;
   }
   
-  WithColor OS(outs(), raw_ostream::BRIGHT_GREEN);
+  WithColor OS(outs(), BRIGHT_GREEN);
   OS << "Decoding successful!\n";
 }
