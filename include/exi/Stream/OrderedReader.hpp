@@ -49,6 +49,8 @@ protected:
   static_assert(kBitsPerWord >= 64, "Work on this...");
   /// Masks shifts to avoid UB (even larger sizes will use a max of 64 bits).
   static constexpr word_t ShiftMask = 0x3f;
+  // This allows for `[0, 2,097,152)`, unicode only requiring `[0, 1,114,112)`.
+  static constexpr unsigned UnicodeReads = 3;
 
   /// Creates a mask for the current word type.
   inline static constexpr word_t MakeNBitMask(unsigned Bits) EXI_READNONE {
@@ -147,6 +149,7 @@ class BitReader final : public OrderedReader {
   static constexpr unsigned ByteAlignMask = 0b111;
 
   using BaseT::ShiftMask;
+  using BaseT::UnicodeReads;
   using BaseT::MakeNBitMask;
 
   /// Creates a mask for the current word type.
@@ -215,7 +218,7 @@ public:
 
     Data.reserve(Size);
     for (u64 Ix = 0; Ix < Size; ++Ix) {
-      ExiResult<u64> Rune = this->readNByteUInt<4>();
+      ExiResult<u64> Rune = this->readNByteUInt<UnicodeReads>();
       if EXI_UNLIKELY(Rune.is_err()) {
         LOG_ERROR("Invalid Rune at [{}:{}].", Ix, Size);
         return Err(Rune.error());
@@ -525,6 +528,7 @@ public:
 
     Data.reserve(Size);
     for (u64 Ix = 0; Ix < Size; ++Ix) {
+      // TODO: Use UnicodeReads blocks. May be possible to accelerate further.
       ExiResult<u64> Rune = this->readUInt();
       if EXI_UNLIKELY(Rune.is_err()) {
         LOG_ERROR("Invalid Rune at [{}:{}].", Ix, Size);
