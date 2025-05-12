@@ -124,15 +124,16 @@ public:
   }
 
   /// Checks if QName has a `(*)` value.
-  constexpr bool isAny() const {
-    return !hasURI() && !hasName();
+  EXI_INLINE constexpr bool isAny() const {
+    constexpr_static SmallQName AnyV = NewAny();
+    return *this == AnyV;
   }
   /// Checks if QName has a `(uri:*)` value.
-  constexpr bool isUri() const {
+  EXI_INLINE EXI_FLATTEN constexpr bool isUri() const {
     return hasURI() && !hasName();
   }
   /// Checks if QName has a `(uri:name)` value.
-  constexpr bool isQName() const {
+  EXI_INLINE EXI_FLATTEN constexpr bool isQName() const {
     return hasURI() && hasName();
   }
 
@@ -158,7 +159,7 @@ template <> struct DenseMapInfo<SmallQName> {
   }
 
 private:
-  ALWAYS_INLINE static u64 Get(const SmallQName& Val) {
+  EXI_FLATTEN static u64 Get(const SmallQName& Val) {
     return exi::bit_cast<u64>(Val);
   }
 };
