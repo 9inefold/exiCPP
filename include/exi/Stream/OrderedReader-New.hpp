@@ -187,18 +187,15 @@ public:
       exi_try_r(fillStore());
     }
 
-    static constexpr word_t Mask = MakeReverseMask(1);
-    const bool Out = (Store & Mask) != 0;
-
+    const word_t Out = Store >> (kBitsPerWord - 1);
     Store <<= 1;
     BitsInStore -= 1;
-
-    return Out;
+    return (Out != 0);
   }
 
   ExiResult<u8> readByte() override {
     // Handle 8 bit read with
-    return this->readNBits<8, u8>();
+    tail_return this->readNBits<8, u8>();
   }
   
   EXI_FLATTEN ExiResult<u64> readBits64(unsigned Bits) override {
@@ -303,22 +300,17 @@ public:
 
 private:
   template <unsigned Bits, std::integral Ret = u64>
-  inline ExiResult<Ret> readNBits() {
+  EXI_FLATTEN inline ExiResult<Ret> readNBits() {
     static_assert(Bits <= 64, "Read is too big!");
 
     if constexpr (Bits == 0)
       return static_cast<Ret>(0);
 
     if EXI_LIKELY(BitsInStore >= Bits) {
-      // Create a simple static mask for the bits.
-      //static constexpr word_t Mask = MakeNBitMask(Bits);
-      //const word_t Out = Store & Mask;
-
-      //Store >>= Bits;
-      //BitsInStore -= Bits;
-  
-      const auto Out = this->readFullBits64(Bits);
-      return promotion_cast<Ret>(*Out);
+      const word_t Out = Store >> (kBitsPerWord - Bits);
+      Store <<= Bits;
+      BitsInStore -= Bits;
+      return promotion_cast<Ret>(Out);
     }
 
     // Handle fallback case with a partial read.
@@ -370,38 +362,16 @@ private:
   // Dynamic Reads
 
   /// Do a read where the result CAN fit in the current space.
-  EXI_FLATTEN ExiResult<u64> readFullBits64(const unsigned Bits) {
+  ALWAYS_INLINE ExiResult<u64> readFullBits64(const unsigned Bits) {
     return this->readFullBits64V(Bits);
   }
 
   /// Do a read where the result CAN fit in the current space.
-  u64 readFullBits64V(const unsigned Bits) {
-#if 0
-    const word_t RevvMask = MakeReverseMask(Bits);
-    const word_t Curr = exi::byteswap(Store & RevvMask);
-
-    Store <<= Bits;
-    BitsInStore -= Bits;
-
-    const unsigned HiBits = (Bits & ~ByteAlignMask);
-    const unsigned HiShift = (Bits & ByteAlignMask);
-
-    const word_t HiMask = (MakeMask(HiShift) << HiBits);
-    const word_t LoMask = MakeMask(HiBits);
-
-    const word_t Hi = (Curr >> (8 - HiShift)) & HiMask;
-    const word_t Lo = (Curr & LoMask);
-
-    const word_t Out = Hi | Lo;
-    return static_cast<u64>(Out);
-#else
+  ALWAYS_INLINE u64 readFullBits64V(const unsigned Bits) {
     const word_t Out = Store >> (kBitsPerWord - Bits);
-
     Store <<= Bits;
     BitsInStore -= Bits;
-    
     return Out;
-#endif
   }
 
   /// Do a read where the result can't fit in the current space.
@@ -418,27 +388,6 @@ private:
     // Always starts off aligned.
     const u64 R = readFullBits64V(HeadBits);
     return ((Out << HeadBits) | R);
-  }
-
-  ////////////////////////////////////////////////////////////////////////
-  // Dynamic Read Sections
-
-  inline u64 readLowBits(unsigned Bits) {
-    u64 Out = 0;
-    for (unsigned I = 0, E = (Bits / 8); I < E; ++I) {
-      Out <<= 8;
-      Out |= (Store & 0xFF);
-      Store >>= 8;
-    }
-
-    if (const unsigned Lo = (Bits & ByteAlignMask)) {
-      Out <<= (Lo & 0b111);
-      const u64 Curr = (Store & 0xFF);
-      Out |= (Curr >> (8 - Lo));
-    }
-
-    BitsInStore -= Bits;
-    return Out;
   }
 
   ////////////////////////////////////////////////////////////////////////
