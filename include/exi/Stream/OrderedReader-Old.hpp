@@ -88,6 +88,10 @@ public:
   virtual proxy_t getProxy() const = 0;
   virtual void setProxy(proxy_t Proxy) = 0;
 
+  virtual size_type bitPos() const {
+    return ByteOffset * 8;
+  }
+
   /// Return size of the stream in bytes.
   usize sizeInBytes() const { return Stream.size(); }
 
@@ -272,6 +276,10 @@ public:
       return;
     Store >>= 8;
     BitsInStore -= Bits;
+  }
+
+  size_type bitPos() const override {
+    return (ByteOffset * 8) - BitsInStore;
   }
 
   StreamKind getStreamKind() const override {
