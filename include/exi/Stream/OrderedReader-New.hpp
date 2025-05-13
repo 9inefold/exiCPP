@@ -201,7 +201,7 @@ public:
     return this->readNBits<8, u8>();
   }
   
-  ExiResult<u64> readBits64(unsigned Bits) override {
+  EXI_FLATTEN ExiResult<u64> readBits64(unsigned Bits) override {
     exi_invariant(Bits <= kBitsPerWord,
       "Cannot return more than BitsPerWord bits!");
 
@@ -376,6 +376,7 @@ private:
 
   /// Do a read where the result CAN fit in the current space.
   u64 readFullBits64V(const unsigned Bits) {
+#if 0
     const word_t RevvMask = MakeReverseMask(Bits);
     const word_t Curr = exi::byteswap(Store & RevvMask);
 
@@ -383,21 +384,30 @@ private:
     BitsInStore -= Bits;
 
     const unsigned HiBits = (Bits & ~ByteAlignMask);
-    const unsigned HiShift = 8 - (Bits & ByteAlignMask);
+    const unsigned HiShift = (Bits & ByteAlignMask);
 
-    const word_t HiMask = (0xFFull << HiBits);
+    const word_t HiMask = (MakeMask(HiShift) << HiBits);
     const word_t LoMask = MakeMask(HiBits);
 
-    const word_t Hi = (Curr & HiMask) >> HiShift;
+    const word_t Hi = (Curr >> (8 - HiShift)) & HiMask;
     const word_t Lo = (Curr & LoMask);
 
-    return static_cast<u64>(Hi | Lo);
+    const word_t Out = Hi | Lo;
+    return static_cast<u64>(Out);
+#else
+    const word_t Out = Store >> (kBitsPerWord - Bits);
+
+    Store <<= Bits;
+    BitsInStore -= Bits;
+    
+    return Out;
+#endif
   }
 
   /// Do a read where the result can't fit in the current space.
   inline ExiResult<u64> readPartialBits64(unsigned Bits) {
     const unsigned HeadBits = (Bits - BitsInStore);
-    const u64 Out = BitsInStore ? readFullBits64V(BitsInStore) : 0;
+    const u64 Out = BitsInStore ? (Store >> (kBitsPerWord - BitsInStore)) : 0;
 
     // Refill the store and grab the next set of bits.
     exi_try_r(fillStore());
