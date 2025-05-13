@@ -54,7 +54,8 @@ protected:
 
   /// Creates a mask for the current word type.
   inline static constexpr word_t MakeNBitMask(unsigned Bits) EXI_READNONE {
-    return (~word_t(0) >> (kBitsPerWord - Bits));
+    constexpr_static word_t Mask = ~word_t(0);
+    return EXI_LIKELY(Bits != kBitsPerWord) ? ~(Mask << Bits) : Mask;
   }
 
   /// Get the number of bytes N bits can fit in.
@@ -87,6 +88,11 @@ public:
 
   virtual proxy_t getProxy() const = 0;
   virtual void setProxy(proxy_t Proxy) = 0;
+
+  /// The position in bits.
+  virtual size_type bitPos() const {
+    return ByteOffset * 8;
+  }
 
   /// Return size of the stream in bytes.
   usize sizeInBytes() const { return Stream.size(); }
@@ -155,7 +161,13 @@ class BitReader final : public OrderedReader {
   /// Creates a mask for the current word type.
   inline static constexpr word_t MakeMask(unsigned Bits) EXI_READNONE {
     // return (~word_t(0) >> Bits);
-    tail_return MakeNBitMask(Bits);
+    return MakeNBitMask(Bits);
+  }
+
+  /// Creates a reverse mask for the current word type.
+  inline static constexpr word_t MakeReverseMask(unsigned Bits) EXI_READNONE {
+    constexpr_static word_t Mask = ~word_t(0);
+    return EXI_LIKELY(Bits != kBitsPerWord) ? ~(Mask >> Bits) : Mask;
   }
 
 public:
@@ -175,7 +187,13 @@ public:
       exi_try_r(fillStore());
     }
 
-    return this->readNBits<1, bool>();
+    static constexpr word_t Mask = MakeReverseMask(1);
+    const bool Out = (Store & Mask) != 0;
+
+    Store <<= 1;
+    BitsInStore -= 1;
+
+    return Out;
   }
 
   ExiResult<u8> readByte() override {
@@ -234,11 +252,15 @@ public:
     return StrRef(Data.data(), Data.size());
   }
 
-  ExiError fillStore() {
+  EXI_FLATTEN ExiError fillStore() {
     const auto R = BaseT::fillStoreImpl();
     if EXI_UNLIKELY(R.is_err())
       return R.error();
     
+    // Switch to "big endian".
+    // TODO: Update this for big endian systems.
+    Store = exi::byteswap(Store);
+
     const unsigned BytesRead = *R;
     BitsInStore = (BytesRead * 8);
   
@@ -259,19 +281,20 @@ public:
       exi_unreachable("unable to load store");
     }
 
-    const auto Off = (Proxy.NBits % 64);
-    if (auto E = readBits64(Off).error_or(ExiError::OK)) {
-      dbgs() << E << '\n';
-      exi_unreachable("unable to get offset");
-    }
+    const auto Off = (Proxy.NBits % kBitsPerWord);
+    Store <<= Off;
+    BitsInStore -= Off;
   }
 
   void align() {
     const auto Bits = (BitsInStore & ByteAlignMask);
-    if (Bits == 0)
-      return;
-    Store >>= 8;
+    Store <<= Bits;
     BitsInStore -= Bits;
+  }
+
+  /// The position in bits.
+  size_type bitPos() const override {
+    return (ByteOffset * 8) - BitsInStore;
   }
 
   StreamKind getStreamKind() const override {
@@ -311,7 +334,7 @@ private:
 
   template <unsigned Bytes = 8>
   inline ExiResult<u64> readNByteUInt() {
-    static_assert(Bytes <= 8, "Read is too big!");
+    static_assert(Bytes <= sizeof(word_t), "Read is too large!");
 
     // While the codegen for this loop is identical for the multiplication/bitwise
     // variants on Clang, it makes a difference on GCC. Because of this, I've
@@ -339,48 +362,42 @@ private:
       return Ok(Value);
     }
 
-    LOG_WARN("uint exceeded {} octets.\n", Bytes);
-    return Err(ErrorCode::kInvalidEXIInput);
+    // Put this out of line to maybe prevent some spills?
+    tail_return this->failUInt<Bytes>();
   }
 
   ////////////////////////////////////////////////////////////////////////
   // Dynamic Reads
 
   /// Do a read where the result CAN fit in the current space.
-  inline ExiResult<u64> readFullBits64(unsigned Bits) {
-    // TODO: Fix reading strategy
-    // const word_t Out = Store & MakeMask(Bits);
-    // Store >>= (Bits & ShiftMask);
-    // BitsInStore -= Bits;
-    // return Out;
+  EXI_FLATTEN ExiResult<u64> readFullBits64(const unsigned Bits) {
+    return this->readFullBits64V(Bits);
+  }
 
-    u64 Out = 0;
-    const unsigned Hi = (BitsInStore & ByteAlignMask);
-    if (Bits <= Hi) {
-      Out = (Store >> (Hi - Bits)) & MakeMask(Bits);
-      BitsInStore -= Bits;
-      if (Bits == Hi)
-        Store >>= 8;
-      return Out;
-    }
+  /// Do a read where the result CAN fit in the current space.
+  u64 readFullBits64V(const unsigned Bits) {
+    const word_t RevvMask = MakeReverseMask(Bits);
+    const word_t Curr = exi::byteswap(Store & RevvMask);
 
-    if (Hi) {
-      Out = Store & MakeMask(Hi);
-      Store >>= 8;
-      BitsInStore -= Hi;
+    Store <<= Bits;
+    BitsInStore -= Bits;
 
-      Bits -= Hi;
-      Out <<= Bits;
-    }
+    const unsigned HiBits = (Bits & ~ByteAlignMask);
+    const unsigned HiShift = 8 - (Bits & ByteAlignMask);
 
-    Out |= readLowBits(Bits);
-    return Out;
+    const word_t HiMask = (0xFFull << HiBits);
+    const word_t LoMask = MakeMask(HiBits);
+
+    const word_t Hi = (Curr & HiMask) >> HiShift;
+    const word_t Lo = (Curr & LoMask);
+
+    return static_cast<u64>(Hi | Lo);
   }
 
   /// Do a read where the result can't fit in the current space.
   inline ExiResult<u64> readPartialBits64(unsigned Bits) {
     const unsigned HeadBits = (Bits - BitsInStore);
-    u64 Out = BitsInStore ? *readFullBits64(BitsInStore) : 0;
+    const u64 Out = BitsInStore ? readFullBits64V(BitsInStore) : 0;
 
     // Refill the store and grab the next set of bits.
     exi_try_r(fillStore());
@@ -389,12 +406,8 @@ private:
       return Err(ExiError::OOB);
     
     // Always starts off aligned.
-    const u64 R = readLowBits(HeadBits);
-    Out <<= HeadBits;
-    return (Out | R);
-
-    // Out |= R << (Bits - HeadBits);
-    // return Out;
+    const u64 R = readFullBits64V(HeadBits);
+    return ((Out << HeadBits) | R);
   }
 
   ////////////////////////////////////////////////////////////////////////
@@ -418,6 +431,15 @@ private:
     return Out;
   }
 
+  ////////////////////////////////////////////////////////////////////////
+  // Failure
+
+  template <unsigned Bytes = 8>
+  EXI_COLD ExiResult<u64> failUInt() {
+    // TODO: Add NO_INLINE?
+    LOG_WARN("uint exceeded {} octets.\n", Bytes);
+    return Err(ErrorCode::kInvalidEXIInput);
+  }
 
   void anchor() override;
 };
