@@ -13,6 +13,7 @@ include(SetFlags)
 include(SetOptions)
 include(SetVersion)
 
+cmake_policy(SET CMP0076 NEW)
 cmake_policy(SET CMP0077 NEW)
 cmake_policy(SET CMP0079 NEW)
 
