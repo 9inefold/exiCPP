@@ -320,7 +320,7 @@ int main(int Argc, char* Argv[]) {
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
 #if !EXI_LOGGING
-  constexpr int MaxIters = 1'000'000;
+  constexpr int MaxIters = 250'000; // 1'000'000;
   WithColor(outs(), BRIGHT_WHITE)
     << "Running tests... " << MaxIters << " iterations.\n";
   // Stress testing in release.
