@@ -38,6 +38,7 @@ option(EXI_ENABLE_DUMP  "If dump methods shouldn't be stripped." OFF)
 option(EXI_FAST_DEBUG   "If parts of debug builds should be optimized." OFF)
 option(EXI_ENABLE_EXPENSIVE_CHECKS "If additional expensive checks should be enabled." OFF)
 option(EXI_OPTIMIZE_UNREACHABLE "If exi_unreachable should be undefined behaviour in release builds." ON)
+option(EXI_NATIVE_CODEGEN  "If code should be optimized for the native architecture." OFF)
 
 option(EXI_ANSI         "If ANSI should be enabled." ON) # DEPRECATED
 
@@ -51,6 +52,10 @@ else()
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GCC")
     set(EXI_FLAGS "${EXI_FLAGS} -Wuninitialized=precise
       $<$<NOT:$<CONFIG:Debug>>:\"-ftrivial-auto-var-init=zero\">")
+  endif()
+  if(EXI_NATIVE_CODEGEN)
+    # TODO: Add a less narrowing version for production builds.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
   endif()
 endif()
 
@@ -116,6 +121,7 @@ endif()
 if(EXI_DEBUG_BUILD)
   message(STATUS "[exicpp] Fast debug: ${EXI_FAST_DEBUG}")
 endif()
+message(STATUS "[exicpp] Native codegen: ${EXI_NATIVE_CODEGEN}")
 
 set(EXI_BASE_FOLDER ${CMAKE_CURRENT_SOURCE_DIR} CACHE FILEPATH "The root exi directory.")
 set(EXI_VENDORED_FOLDER "${EXI_BASE_FOLDER}/vendored" CACHE FILEPATH "The vendored directory.")

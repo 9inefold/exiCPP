@@ -33,7 +33,7 @@
 
 #define DEBUG_TYPE "BodyDecoder"
 
-#if 0
+#if 1
 // FIXME: Update if needed...
 # define LOG_POSITION(...)                                                    \
   LOG_EXTRA("@[{}]:", ((__VA_ARGS__)->Reader->bitPos()))
@@ -151,6 +151,7 @@ ExiError ExiDecoder::decodeBody() {
   }
 
   while (Reader->hasData()) {
+    LOG_POSITION(this);
     ExiError E = this->decodeEvent();
     if (E == ExiError::OK)
       continue;
@@ -165,7 +166,6 @@ ExiError ExiDecoder::decodeBody() {
 }
 
 ExiError ExiDecoder::decodeEvent() {
-  LOG_POSITION(this);
   const EventUID Event = CurrentSchema->decode(this);
   
   switch (Event.getTerm()) {
