@@ -37,8 +37,8 @@
 
 #define CAT1(a) CAT1_(a)
 #define CAT2(a, b) CAT2_(a, b)
-#define CAT3(a, b, c) CAT2_(a, b, c)
-#define CAT4(a, b, c, d) CAT2_(a, b, c, d)
+#define CAT3(a, b, c) CAT3_(a, b, c)
+#define CAT4(a, b, c, d) CAT4_(a, b, c, d)
 
 #define XSTRINGIFY(...) #__VA_ARGS__
 #define STRINGIFY(...) XSTRINGIFY(__VA_ARGS__)
