@@ -185,9 +185,7 @@ private:
   }
 
   GNU_ATTR(hot) MatchT decodeTerm(StrmT* Strm, int Start, unsigned At = 0) {
-    const unsigned Offset = Info[Current].Offset;
-    const auto& Code = Info[Current].Code;
-
+    SEventCode Code = Info[Current].Code;
     if (Code.Length && Start == 0) {
       /// The only level allowed to have zero elements is the first.
       if (Code.Data[0] == 0)
