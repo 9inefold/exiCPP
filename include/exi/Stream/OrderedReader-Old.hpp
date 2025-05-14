@@ -17,7 +17,7 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines the in-order readers.
+/// This file defines the old in-order readers using a terrible read method.
 ///
 //===----------------------------------------------------------------===//
 
