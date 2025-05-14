@@ -149,4 +149,29 @@ struct ExiOptions {
   exi::Any UserData;
 };
 
+/// Create `ExiOptions.Preserve` from a `PreserveBuilder`.
+inline constexpr ExiOptions::PreserveOpts
+ make_preserve_opts(const PreserveBuilder Opts) {
+  return ExiOptions::PreserveOpts {
+    .Comments       = Opts.has(PreserveKind::Comments),
+    .DTDs           = Opts.has(PreserveKind::DTDs),
+    .LexicalValues  = Opts.has(PreserveKind::LexicalValues),
+    .PIs            = Opts.has(PreserveKind::PIs),
+    .Prefixes       = Opts.has(PreserveKind::Prefixes)
+  };
+}
+
+/// Identity function, returns `PreserveBuilder`.
+/// @overload
+inline constexpr ExiOptions::PreserveOpts
+ make_preserve_opts(ExiOptions::PreserveOpts Opts) {
+  return Opts;
+}
+
+/// Defaults, returns `PreserveBuilder` with nothing set.
+/// @overload
+inline constexpr ExiOptions::PreserveOpts make_preserve_opts() {
+  return ExiOptions::PreserveOpts {};
+}
+
 } // namespace exi

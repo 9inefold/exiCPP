@@ -174,126 +174,6 @@ static int Decode(XMLManager* Mgr, StrRef File, ExiOptions& Opts) {
   return Decode(Decoder, MB);
 }
 
-/// The example data provided by EXI.
-static int DecodeExample(XMLManagerRef Mgr) {
-  // SpecExample.xml with default settings and no options.
-  StrRef HiddenFile = "examples/SpecExample.exi"_str;
-  ExiOptions Opts {};
-  Opts.SchemaID.emplace(nullptr);
-  return Decode(Mgr.get(), HiddenFile, Opts);
-}
-
-static int DecodeBasic(XMLManagerRef Mgr) {
-  // Basic.xml with default settings and no options.
-  StrRef HiddenFile = "examples/BasicNoopt.exi"_str;
-  ExiOptions Opts {};
-  Opts.SchemaID.emplace(nullptr);
-  return Decode(Mgr.get(), HiddenFile, Opts);
-}
-
-/// Small namespace example.
-static int DecodeCustomers(XMLManagerRef Mgr) {
-  // Customers.xml with Preserve.prefixes and no options.
-  StrRef HiddenFile = "examples/BasicNoopt2.exi"_str;
-  ExiOptions Opts {.Preserve { .Prefixes = true }};
-  Opts.SchemaID.emplace(nullptr);
-  return Decode(Mgr.get(), HiddenFile, Opts);
-}
-
-/// Has a lot of data with minimal distinct keys.
-static int DecodeOrders(XMLManagerRef Mgr) {
-  // Orders.xml with Preserve.prefixes and no options.
-  StrRef HiddenFile = "examples/Orders.exi"_str;
-  ExiOptions Opts {.Preserve { .Prefixes = true }};
-  Opts.SchemaID.emplace(nullptr);
-  return Decode(Mgr.get(), HiddenFile, Opts);
-}
-
-/// Has a TON of data with minimal distinct keys.
-static int DecodeLineItem(XMLManagerRef Mgr) {
-  // LineItem.xml with Preserve.prefixes and no options.
-  StrRef HiddenFile = "examples/LineItem.exi"_str;
-  ExiOptions Opts {.Preserve { .Prefixes = true }};
-  Opts.SchemaID.emplace(nullptr);
-  return Decode(Mgr.get(), HiddenFile, Opts);
-}
-
-/// Has 100mb of data in XML form, quite a large test.
-static int DecodeTreebank(XMLManagerRef Mgr) {
-  // treebank_e.xml with Preserve.prefixes and no options.
-  StrRef HiddenFile = "examples/Treebank.exi"_str;
-  ExiOptions Opts {.Preserve { .Prefixes = true }};
-  Opts.SchemaID.emplace(nullptr);
-  return Decode(Mgr.get(), HiddenFile, Opts);
-}
-
-/// From https://www.w3.org/TR/exi-primer/#neitherDecoding
-static constexpr u8 Example[] {
-  0x42, 0x5B, 0x9B, 0xDD, 0x19, 0x58, 0x9B, 0xDB, 0xDA, 0xD4, 0x15, 0x91, 0x85,
-  0xD1, 0x94, 0x30, 0xC8, 0xC0, 0xC0, 0xDC, 0xB4, 0xC0, 0xE4, 0xB4, 0xC4, 0xCB,
-  0x20, 0xAD, 0xCD, 0xEE, 0x8C, 0xAA, 0x00, 0x86, 0x19, 0x18, 0x18, 0x1B, 0x96,
-  0x98, 0x1B, 0x96, 0x99, 0x19, 0xD4, 0x25, 0x8D, 0x85, 0xD1, 0x95, 0x9D, 0xBD,
-  0xC9, 0xE4, 0x15, 0x15, 0x61, 0x26, 0x90, 0x87, 0x37, 0x56, 0x26, 0xA6, 0x56,
-  0x37, 0x4C, 0x06, 0x48, 0x2B, 0x13, 0x7B, 0x23, 0xCE, 0x26, 0x88, 0xDE, 0x40,
-  0xDC, 0xDE, 0xE8, 0x40, 0xCC, 0xDE, 0xE4, 0xCE, 0xCA, 0xE8, 0x40, 0xD2, 0xE8,
-  0x42, 0x64, 0x01, 0x40, 0x00, 0x1E, 0xE6, 0xD0, 0xDE, 0xE0, 0xE0, 0xD2, 0xDC,
-  0xCE, 0x40, 0xD8, 0xD2, 0xE6, 0xE8, 0x01, 0xAD, 0xAD, 0x2D, 0x8D, 0x65, 0x84,
-  0x0D, 0x0D, 0xED, 0xCC, 0xAF, 0x25
-};
-
-static void PrintExample(raw_ostream& OS, int Skip = 0) {
-  WithColor C(OS, raw_ostream::BRIGHT_WHITE);
-  bool JustPrinted = true;
-  int Ix = 0;
-
-  while (Skip >= 64) {
-    Skip -= 64;
-    Ix += 8;
-  }
-
-  OS << format("{:03}: ", Ix);
-
-  const int SkipN = Skip / 8;
-  for (int Ix2 = 0; Ix2 < SkipN; ++Ix, ++Ix2) {
-    JustPrinted = false;
-    OS << "[      ] ";
-    if (((Ix + 1) & 0b111) == 0) {
-      JustPrinted = true;
-      OS << format("\n{:03}: ", (Ix + 1));
-    }
-    Skip -= 8;
-  }
-
-  if (Skip != 0) {
-    exi_invariant(Skip < 8);
-    JustPrinted = false;
-
-    auto Str = fmt::format("{:08b} ", Example[Ix]);
-    auto Slice = StrRef(Str.data(), 8).drop_front(Skip);
-    OS << format("{: >8} ", Slice);
-
-    if (((Ix + 1) & 0b111) == 0) {
-      JustPrinted = true;
-      OS << format("\n{:03}: ", (Ix + 1));
-    }
-
-    ++Ix;
-    Skip = 0;
-  }
-
-  for (; Ix < sizeof(Example); ++Ix) {
-    JustPrinted = false;
-    OS << format("{:08b} ", Example[Ix]);
-    if (((Ix + 1) & 0b111) == 0) {
-      JustPrinted = true;
-      OS << format("\n{:03}: ", (Ix + 1));
-    }
-  }
-
-  if (!JustPrinted)
-    OS << '\n';
-}
-
 template <int Total>
 EXI_NO_INLINE EXI_NODEBUG static void PrintIters(int NIters) {
   float Percent = (float(NIters) / float(Total)) * 100.f;
@@ -309,6 +189,8 @@ EXI_INLINE static constexpr bool CheckIters(int& NIters) {
   return Out;
 }
 
+static int TestSchemalessDecoding(XMLManagerRef SharedMgr);
+
 int main(int Argc, char* Argv[]) {
   using enum raw_ostream::Colors;
   exi::DebugFlag = LogLevel::VERBOSE;
@@ -319,6 +201,37 @@ int main(int Argc, char* Argv[]) {
   dbgs().enable_colors(true);
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
+
+  if (int Ret = TestSchemalessDecoding(Mgr)) {
+    WithColor OS(outs(), BRIGHT_RED);
+    OS << "Decoding failed.\n";
+    return Ret;
+  }
+  
+  WithColor OS(outs(), BRIGHT_GREEN);
+  OS << "Decoding successful!\n";
+}
+
+#define ENCODE_PRESERVE(FILE, ...) do {                                       \
+  using enum exi::PreserveKind;                                               \
+  const StrRef TheFile = CAT2("examples/" FILE, _str);                        \
+  const auto TheOpts = exi::make_preserve_opts(__VA_ARGS__);                  \
+  if (int Ret = DecodePreserve(TheFile, TheOpts))                             \
+    return Ret;                                                               \
+} while(0)
+
+static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
+  auto DecodeFile = [Mgr = SharedMgr.get()]
+   (StrRef HiddenFile, ExiOptions Opts) {
+    Opts.SchemaID.emplace(nullptr);
+    return Decode(Mgr, HiddenFile, Opts);
+  };
+
+  auto DecodePreserve = [&DecodeFile]
+   (StrRef HiddenFile, ExiOptions::PreserveOpts Preserve = {}) {
+    return DecodeFile(HiddenFile, {.Preserve = Preserve});
+  };
+
 #if !EXI_LOGGING
   constexpr int MaxIters = 250'000; // 1'000'000;
   WithColor(outs(), BRIGHT_WHITE)
@@ -328,14 +241,17 @@ int main(int Argc, char* Argv[]) {
 #endif
   {
     exi::DebugFlag = LogLevel::VERBOSE;
-    if (int Ret = DecodeExample(Mgr))
-      return Ret;
+    // SpecExample.xml with default settings and no options.
+    // The example data provided by EXI.
+    ENCODE_PRESERVE("SpecExample.exi");
     
     exi::DebugFlag = LogLevel::INFO;
-    if (int Ret = DecodeBasic(Mgr))
-      return Ret;
-    if (int Ret = DecodeCustomers(Mgr))
-      return Ret;
+    // Basic.xml with default settings and no options.
+    ENCODE_PRESERVE("BasicNoopt.exi");
+
+    // Customers.xml with Preserve.prefixes and no options.
+    // Small namespace example.
+    ENCODE_PRESERVE("CustomersNoopt.exi", Prefixes);
   }
 
   exi::DebugFlag = LogLevel::WARN;
@@ -347,14 +263,18 @@ int main(int Argc, char* Argv[]) {
   for (int NIters = 0; CheckIters<MaxLargeIters>(NIters);)
 #endif
   {
-    if (int Ret = DecodeOrders(Mgr))
-      return Ret;
-    if (int Ret = DecodeLineItem(Mgr))
-      return Ret;
-    if (int Ret = DecodeTreebank(Mgr))
-      return Ret;
+    // Orders.xml with Preserve.prefixes and no options.
+    // Has a lot of data with minimal distinct keys.
+    ENCODE_PRESERVE("Orders.exi", Prefixes);
+
+    // LineItem.xml with Preserve.prefixes and no options.
+    // Has a TON of data with minimal distinct keys.
+    ENCODE_PRESERVE("LineItem.exi", Prefixes);
+
+    // treebank_e.xml with Preserve.prefixes and no options.
+    // Has 100mb of data in XML form, quite a large test.
+    ENCODE_PRESERVE("Treebank.exi", Prefixes);
   }
-  
-  WithColor OS(outs(), BRIGHT_GREEN);
-  OS << "Decoding successful!\n";
+
+  return 0;
 }
