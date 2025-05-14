@@ -307,7 +307,7 @@ private:
       return static_cast<Ret>(0);
 
     if EXI_LIKELY(BitsInStore >= Bits) {
-      const word_t Out = Store >> (kBitsPerWord - Bits);
+      const word_t Out = readImpl(Bits);
       Store <<= Bits;
       BitsInStore -= Bits;
       return promotion_cast<Ret>(Out);
@@ -361,14 +361,19 @@ private:
   ////////////////////////////////////////////////////////////////////////
   // Dynamic Reads
 
+  ALWAYS_INLINE EXI_NODEBUG u64 readImpl(const unsigned Bits) {
+    return Store >> (kBitsPerWord - Bits);
+  }
+
   /// Do a read where the result CAN fit in the current space.
   ALWAYS_INLINE ExiResult<u64> readFullBits64(const unsigned Bits) {
     return this->readFullBits64V(Bits);
   }
 
   /// Do a read where the result CAN fit in the current space.
+  /// @invariant `Bits` cannot be 0.
   ALWAYS_INLINE u64 readFullBits64V(const unsigned Bits) {
-    const word_t Out = Store >> (kBitsPerWord - Bits);
+    const word_t Out = readImpl(Bits);
     Store <<= Bits;
     BitsInStore -= Bits;
     return Out;
@@ -376,8 +381,10 @@ private:
 
   /// Do a read where the result can't fit in the current space.
   inline ExiResult<u64> readPartialBits64(unsigned Bits) {
+    exi_invariant(BitsInStore < Bits,
+                  "Bits is zero, an invalid shift will occur.");
     const unsigned HeadBits = (Bits - BitsInStore);
-    const u64 Out = BitsInStore ? (Store >> (kBitsPerWord - BitsInStore)) : 0;
+    const u64 Out = BitsInStore ? readImpl(BitsInStore) : 0;
 
     // Refill the store and grab the next set of bits.
     exi_try_r(fillStore());

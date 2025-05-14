@@ -237,10 +237,12 @@
 #endif
 
 #if defined(__GNUC__)
+# define EXI_ARTIFICIAL __attribute__((artificial))
 # define EXI_FLATTEN __attribute__((flatten))
 # define EXI_HOT __attribute__((hot))
 # define EXI_COLD __attribute__((cold))
 #else
+# define EXI_ARTIFICIAL
 # define EXI_FLATTEN
 # define EXI_HOT
 # define EXI_COLD
