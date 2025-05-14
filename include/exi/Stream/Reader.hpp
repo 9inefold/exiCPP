@@ -53,7 +53,7 @@ public:
   virtual ExiResult<u8> readByte() = 0;
 
   /// Reads a variable number of bits (max of 64).
-  virtual ExiResult<u64> readBits64(unsigned Bits) = 0;
+  virtual ExiResult<u64> readBits64(size_type Bits) = 0;
 
   /// Reads an `Unsigned Integer` with a maximum of 8 octets.
   /// See https://www.w3.org/TR/exi/#encodingUnsignedInteger.

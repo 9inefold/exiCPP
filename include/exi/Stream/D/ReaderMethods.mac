@@ -27,7 +27,7 @@ private:
       Out = *R;
       return ExiError::OK;
     } else {
-      Out = T{};
+      Out = 0;
       return R.error();
     }
   }
@@ -46,7 +46,7 @@ public:
 
   /// Reads a variable number of bits (max of 64).
   /// This means data is peeked, then the position is advanced.
-  ExiError readBits64(u64& Out, unsigned Bits) {
+  ExiError readBits64(u64& Out, size_type Bits) {
     const auto R = this->readBits64(Bits);
     return CLASSNAME::SetData(Out, R);
   }

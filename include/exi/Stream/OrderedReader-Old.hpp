@@ -50,15 +50,15 @@ protected:
   /// Masks shifts to avoid UB (even larger sizes will use a max of 64 bits).
   static constexpr word_t ShiftMask = 0x3f;
   // This allows for `[0, 2,097,152)`, unicode only requiring `[0, 1,114,112)`.
-  static constexpr unsigned UnicodeReads = 3;
+  static constexpr size_type UnicodeReads = 3;
 
   /// Creates a mask for the current word type.
-  inline static constexpr word_t MakeNBitMask(unsigned Bits) EXI_READNONE {
+  inline static constexpr word_t MakeNBitMask(size_type Bits) EXI_READNONE {
     return (~word_t(0) >> (kBitsPerWord - Bits));
   }
 
   /// Get the number of bytes N bits can fit in.
-  inline static constexpr unsigned MakeByteCount(unsigned Bits) EXI_READNONE {
+  inline static constexpr size_type MakeByteCount(size_type Bits) EXI_READNONE {
     return ((Bits - 1) >> 3) + 1;
   }
 
@@ -99,14 +99,14 @@ public:
   bool hasData() const { return Stream.size() >= ByteOffset; }
 
 protected:
-  ExiResult<unsigned> fillStoreImpl() {
+  ExiResult<size_type> fillStoreImpl() {
     if EXI_UNLIKELY(ByteOffset >= Stream.size())
       // Read of an empty buffer.
       return Err(ExiError::OOB);
 
     // Read the next "word" from the stream.
     const u8* WordPtr = Stream.data() + ByteOffset;
-    unsigned BytesRead;
+    size_type BytesRead;
     if EXI_LIKELY(Stream.size() >= ByteOffset + sizeof(word_t)) {
       // Read full "word" of data.
       BytesRead = sizeof(word_t);
@@ -117,7 +117,7 @@ protected:
       // Partial read.
       BytesRead = Stream.size() - ByteOffset;
       ByteOffset = 0;
-      for (unsigned Ix = 0; Ix != BytesRead; ++Ix)
+      for (size_type Ix = 0; Ix != BytesRead; ++Ix)
         Store |= word_t(WordPtr[Ix]) << (Ix * 8);
     }
 
@@ -148,16 +148,16 @@ class BitReader final : public OrderedReader {
   using BaseT::Store;
   /// This is the number of bits in Store that are valid. This is always from
   /// `[0 ... bitsizeof(size_t) - 1]` inclusive.
-  unsigned BitsInStore = 0;
+  size_type BitsInStore = 0;
 
-  static constexpr unsigned ByteAlignMask = 0b111;
+  static constexpr size_type ByteAlignMask = 0b111;
 
   using BaseT::ShiftMask;
   using BaseT::UnicodeReads;
   using BaseT::MakeNBitMask;
 
   /// Creates a mask for the current word type.
-  inline static constexpr word_t MakeMask(unsigned Bits) EXI_READNONE {
+  inline static constexpr word_t MakeMask(size_type Bits) EXI_READNONE {
     // return (~word_t(0) >> Bits);
     tail_return MakeNBitMask(Bits);
   }
@@ -187,7 +187,7 @@ public:
     return this->readNBits<8, u8>();
   }
   
-  ExiResult<u64> readBits64(unsigned Bits) override {
+  ExiResult<u64> readBits64(size_type Bits) override {
     exi_invariant(Bits <= kBitsPerWord,
       "Cannot return more than BitsPerWord bits!");
 
@@ -243,7 +243,7 @@ public:
     if EXI_UNLIKELY(R.is_err())
       return R.error();
     
-    const unsigned BytesRead = *R;
+    const size_type BytesRead = *R;
     BitsInStore = (BytesRead * 8);
   
     return ExiError::OK;
@@ -287,7 +287,7 @@ public:
   }
 
 private:
-  template <unsigned Bits, std::integral Ret = u64>
+  template <size_type Bits, std::integral Ret = u64>
   inline ExiResult<Ret> readNBits() {
     static_assert(Bits <= 64, "Read is too big!");
 
@@ -317,7 +317,7 @@ private:
     }
   }
 
-  template <unsigned Bytes = 8>
+  template <size_type Bytes = 8>
   inline ExiResult<u64> readNByteUInt() {
     static_assert(Bytes <= 8, "Read is too big!");
 
@@ -355,7 +355,7 @@ private:
   // Dynamic Reads
 
   /// Do a read where the result CAN fit in the current space.
-  inline ExiResult<u64> readFullBits64(unsigned Bits) {
+  inline ExiResult<u64> readFullBits64(size_type Bits) {
     // TODO: Fix reading strategy
     // const word_t Out = Store & MakeMask(Bits);
     // Store >>= (Bits & ShiftMask);
@@ -363,7 +363,7 @@ private:
     // return Out;
 
     u64 Out = 0;
-    const unsigned Hi = (BitsInStore & ByteAlignMask);
+    const size_type Hi = (BitsInStore & ByteAlignMask);
     if (Bits <= Hi) {
       Out = (Store >> (Hi - Bits)) & MakeMask(Bits);
       BitsInStore -= Bits;
@@ -386,8 +386,8 @@ private:
   }
 
   /// Do a read where the result can't fit in the current space.
-  inline ExiResult<u64> readPartialBits64(unsigned Bits) {
-    const unsigned HeadBits = (Bits - BitsInStore);
+  inline ExiResult<u64> readPartialBits64(size_type Bits) {
+    const size_type HeadBits = (Bits - BitsInStore);
     u64 Out = BitsInStore ? *readFullBits64(BitsInStore) : 0;
 
     // Refill the store and grab the next set of bits.
@@ -408,15 +408,15 @@ private:
   ////////////////////////////////////////////////////////////////////////
   // Dynamic Read Sections
 
-  inline u64 readLowBits(unsigned Bits) {
+  inline u64 readLowBits(size_type Bits) {
     u64 Out = 0;
-    for (unsigned I = 0, E = (Bits / 8); I < E; ++I) {
+    for (size_type I = 0, E = (Bits / 8); I < E; ++I) {
       Out <<= 8;
       Out |= (Store & 0xFF);
       Store >>= 8;
     }
 
-    if (const unsigned Lo = (Bits & ByteAlignMask)) {
+    if (const size_type Lo = (Bits & ByteAlignMask)) {
       Out <<= (Lo & 0b111);
       const u64 Curr = (Store & 0xFF);
       Out |= (Curr >> (8 - Lo));
@@ -438,17 +438,17 @@ class ByteReader final : public OrderedReader {
   using BaseT::Store;
   /// This is the number of bytes in Store that are valid. This is always from
   /// `[0 ... sizeof(size_t) - 1]` inclusive.
-  unsigned BytesInStore = 0;
+  size_type BytesInStore = 0;
 
   using BaseT::ShiftMask;
   using BaseT::MakeNBitMask;
   using BaseT::MakeByteCount;
 
   /// Get the byte-aligned shift required for N bits.
-  inline static constexpr unsigned MakeBitShift(unsigned Bits) EXI_READONLY {
+  inline static constexpr size_type MakeBitShift(size_type Bits) EXI_READONLY {
     exi_invariant(Bits > 0);
     // Only use high bits.
-    constexpr_static unsigned Mask = ~unsigned(0b111) & ShiftMask;
+    constexpr_static size_type Mask = ~size_type(0b111) & ShiftMask;
     // Subtracts 1 so multiples of 8 aren't given an extra byte, masks off the
     // low bits to get the significant digits, then goes to the next byte.
     return ((Bits - 1) & Mask) + 8;
@@ -471,7 +471,7 @@ public:
     return this->readNBits<8, u8>();
   }
 
-  ExiResult<u64> readBits64(unsigned Bits) override {
+  ExiResult<u64> readBits64(size_type Bits) override {
     exi_invariant(Bits <= kBitsPerWord,
       "Cannot return more than BitsPerWord bits!");
 
@@ -479,7 +479,7 @@ public:
       // Do nothing...
       return 0;
 
-    const unsigned Bytes = MakeByteCount(Bits);
+    const size_type Bytes = MakeByteCount(Bits);
     if (Bytes <= BytesInStore) {
       const word_t Out = Store & MakeNBitMask(Bits);
       Store >>= MakeBitShift(Bits);
@@ -579,7 +579,7 @@ private:
   /// Specialized for cases where only one byte is read. Since there can't be
   /// tearing like with `BitStream`s, this is the smallest unit and needs no
   /// extra logic.
-  template <unsigned Bits, std::integral Ret = u64>
+  template <size_type Bits, std::integral Ret = u64>
   EXI_INLINE ExiResult<Ret> readNBits() requires(Bits <= 8) {
     if constexpr (Bits == 0)
       return static_cast<Ret>(0);
@@ -601,11 +601,11 @@ private:
     return promotion_cast<Ret>(Out);
   }
 
-  template <unsigned Bits, std::integral Ret = u64>
+  template <size_type Bits, std::integral Ret = u64>
   inline ExiResult<Ret> readNBits() requires(Bits > 8) {
     static_assert(Bits <= 64, "Read is too big!");
 
-    static constexpr unsigned Bytes = MakeByteCount(Bits);
+    static constexpr size_type Bytes = MakeByteCount(Bits);
     static constexpr word_t Mask = MakeNBitMask(Bits);
     
     if EXI_LIKELY(BytesInStore >= Bytes) {
@@ -626,9 +626,9 @@ private:
   }
 
   /// Do a read where the result can't fit in the current space.
-  ExiResult<u64> readPartialBytes64(unsigned Bytes) {
+  ExiResult<u64> readPartialBytes64(size_type Bytes) {
     word_t Out = BytesInStore ? Store : 0;
-    const unsigned HeadBytes = (Bytes - BytesInStore);
+    const size_type HeadBytes = (Bytes - BytesInStore);
 
     // Refill the store and grab the next set of bits.
     exi_try_r(fillStore());
@@ -646,8 +646,8 @@ private:
   }
 
   /// Do a read where the result can't fit in the current space.
-  EXI_INLINE ExiResult<u64> readPartialBits64(unsigned Bits) {
-    const unsigned Bytes = MakeByteCount(Bits);
+  EXI_INLINE ExiResult<u64> readPartialBits64(size_type Bits) {
+    const size_type Bytes = MakeByteCount(Bits);
     Result Out = this->readPartialBytes64(Bytes);
 
     if EXI_UNLIKELY(Out.is_err())
