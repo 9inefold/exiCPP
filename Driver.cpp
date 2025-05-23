@@ -212,13 +212,18 @@ int main(int Argc, char* Argv[]) {
   OS << "Decoding successful!\n";
 }
 
-#define ENCODE_PRESERVE(FILE, ...) do {                                       \
+#define DECODE_GENERIC(FUNCTION, FILE, ...) do {                              \
   using enum exi::PreserveKind;                                               \
   const StrRef TheFile = CAT2("examples/" FILE, _str);                        \
   const auto TheOpts = exi::make_preserve_opts(__VA_ARGS__);                  \
-  if (int Ret = DecodePreserve(TheFile, TheOpts))                             \
+  if (int Ret = FUNCTION(TheFile, TheOpts))                                   \
     return Ret;                                                               \
 } while(0)
+
+#define DECODE_ORD_BITS(FILE, ...)                                            \
+  DECODE_GENERIC(DecodePreserveBits, FILE, __VA_ARGS__)
+#define DECODE_ORD_BYTES(FILE, ...)                                           \
+  DECODE_GENERIC(DecodePreserveBytes, FILE, __VA_ARGS__)
 
 static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
   auto DecodeFile = [Mgr = SharedMgr.get()]
@@ -227,9 +232,20 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
     return Decode(Mgr, HiddenFile, Opts);
   };
 
-  auto DecodePreserve = [&DecodeFile]
+  auto DecodePreserveBits = [&DecodeFile]
    (StrRef HiddenFile, ExiOptions::PreserveOpts Preserve = {}) {
-    return DecodeFile(HiddenFile, {.Preserve = Preserve});
+    return DecodeFile(HiddenFile, {
+      .Alignment = AlignKind::BitPacked,
+      .Preserve = Preserve
+    });
+  };
+
+  auto DecodePreserveBytes = [&DecodeFile]
+   (StrRef HiddenFile, ExiOptions::PreserveOpts Preserve = {}) {
+    return DecodeFile(HiddenFile, {
+      .Alignment = AlignKind::BytePacked,
+      .Preserve = Preserve
+    });
   };
 
 #if !EXI_LOGGING
@@ -243,15 +259,20 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
     exi::DebugFlag = LogLevel::VERBOSE;
     // SpecExample.xml with default settings and no options.
     // The example data provided by EXI.
-    ENCODE_PRESERVE("SpecExample.exi");
-    
+    DECODE_ORD_BITS("SpecExample.exi");
+    DECODE_ORD_BYTES("SpecExampleB.exi");
+
     exi::DebugFlag = LogLevel::INFO;
+    
     // Basic.xml with default settings and no options.
-    ENCODE_PRESERVE("BasicNoopt.exi");
+    DECODE_ORD_BITS("BasicNoopt.exi");
+    DECODE_ORD_BYTES("BasicNooptB.exi");
 
     // Customers.xml with Preserve.prefixes and no options.
     // Small namespace example.
-    ENCODE_PRESERVE("CustomersNoopt.exi", Prefixes);
+    DECODE_ORD_BITS("CustomersNoopt.exi", Prefixes);
+    exi::DebugFlag = LogLevel::VERBOSE;
+    DECODE_ORD_BYTES("CustomersNooptB.exi", Prefixes);
   }
 
   exi::DebugFlag = LogLevel::WARN;
@@ -265,15 +286,15 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
   {
     // Orders.xml with Preserve.prefixes and no options.
     // Has a lot of data with minimal distinct keys.
-    ENCODE_PRESERVE("Orders.exi", Prefixes);
+    DECODE_ORD_BITS("Orders.exi", Prefixes);
 
     // LineItem.xml with Preserve.prefixes and no options.
     // Has a TON of data with minimal distinct keys.
-    ENCODE_PRESERVE("LineItem.exi", Prefixes);
+    DECODE_ORD_BITS("LineItem.exi", Prefixes);
 
     // treebank_e.xml with Preserve.prefixes and no options.
     // Has 100mb of data in XML form, quite a large test.
-    ENCODE_PRESERVE("Treebank.exi", Prefixes);
+    DECODE_ORD_BITS("Treebank.exi", Prefixes);
   }
 
   return 0;

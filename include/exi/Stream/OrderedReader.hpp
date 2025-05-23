@@ -31,9 +31,11 @@
 # include <fmt/ranges.h>
 #endif
 
+// TODO: Remove old masking functions.
+
 namespace exi {
 
-#define DEBUG_TYPE "ByteReader"
+#define DEBUG_TYPE "OrderedReader"
 
 /// The bases for BitReader/ByteReader, which consume data in the order it
 /// appears. This allows for a much simpler implementation.
@@ -47,6 +49,8 @@ protected:
   word_t Store = 0;
 
   static_assert(kBitsPerWord >= 64, "Work on this...");
+  /// Masks shifts to align to byte boundaries.
+  static constexpr size_type ByteAlignMask = 0b111;
   /// Masks shifts to avoid UB (even larger sizes will use a max of 64 bits).
   static constexpr word_t ShiftMask = 0x3f;
   // This allows for `[0, 2,097,152)`, unicode only requiring `[0, 1,114,112)`.
@@ -60,7 +64,8 @@ protected:
 
   /// Get the number of bytes N bits can fit in.
   inline static constexpr size_type MakeByteCount(size_type Bits) EXI_READNONE {
-    return ((Bits - 1) >> 3) + 1;
+    exi_invariant(Bits != 0);
+    return ((Bits - 1) >> 3) + 1zu;
   }
 
 public:
@@ -152,8 +157,7 @@ class BitReader final : public OrderedReader {
   /// `[0 ... bitsizeof(size_t) - 1]` inclusive.
   size_type BitsInStore = 0;
 
-  static constexpr size_type ByteAlignMask = 0b111;
-
+  using BaseT::ByteAlignMask;
   using BaseT::ShiftMask;
   using BaseT::UnicodeReads;
   using BaseT::MakeNBitMask;
@@ -413,6 +417,7 @@ private:
 #undef DEBUG_TYPE
 #define DEBUG_TYPE "ByteReader"
 
+// TODO: Change reading algorithm to direct array access.
 class ByteReader final : public OrderedReader {
   using BaseT = OrderedReader;
   using BaseT::Store;
@@ -420,7 +425,9 @@ class ByteReader final : public OrderedReader {
   /// `[0 ... sizeof(size_t) - 1]` inclusive.
   size_type BytesInStore = 0;
 
+  using BaseT::ByteAlignMask;
   using BaseT::ShiftMask;
+  using BaseT::UnicodeReads;
   using BaseT::MakeNBitMask;
   using BaseT::MakeByteCount;
 
@@ -444,7 +451,16 @@ public:
   }
 
   ExiResult<bool> readBit() override {
-    return this->readNBits<1, bool>();
+    if EXI_UNLIKELY(BytesInStore == 0) {
+      // Refill the store and grab the next set of bits.
+      // No need for other checks, as it will error when the stream is empty.
+      exi_try_r(fillStore());
+    }
+
+    const word_t Out = Store >> (kBitsPerWord - 8);
+    Store <<= 8;
+    BytesInStore -= 1;
+    return (Out != 0);
   }
 
   ExiResult<u8> readByte() override {
@@ -460,45 +476,16 @@ public:
       return 0;
 
     const size_type Bytes = MakeByteCount(Bits);
-    if (Bytes <= BytesInStore) {
-      const word_t Out = Store & MakeNBitMask(Bits);
-      Store >>= MakeBitShift(Bits);
-      BytesInStore -= Bytes;
-      return Out;
-    }
+    if (Bytes <= BytesInStore)
+      // Handle cases which don't need loading.
+      tail_return this->readFullBytes64(Bytes);
 
-    tail_return this->readPartialBits64(Bits);
+    // Handle cases which need loading.
+    tail_return this->readPartialBytes64(Bytes);
   }
 
   ExiResult<u64> readUInt() override {
-    u64 Multiplier = 0, Value = 0;
-
-    // While the codegen for this loop is identical for the multiplication/bitwise
-    // variants on Clang, it makes a difference on GCC. Because of this, I've
-    // updated it to use bitwise operations.
-
-    // TODO: Add some bit hacks to this? Should be even easier.
-    for (isize N = 0; N < 8; ++N) {
-      const Result R = this->readNBits<8>();
-      if EXI_UNLIKELY(R.is_err())
-        return R;
-      
-      const auto Octet = *R;
-      const u64 Lo = Octet & 0b0111'1111;
-
-      // Same as (Lo * 2^Multiplier)
-      Value += (Lo << Multiplier);
-      if (Octet & 0b1000'0000) {
-        // Same as (Multiplier *= 128).
-        Multiplier += 7;
-        continue;
-      }
-
-      return Ok(Value);
-    }
-
-    LOG_WARN("uint exceeded 8 octets.\n");
-    return Err(ErrorCode::kInvalidEXIInput);
+    tail_return this->readNByteUInt<8>();
   }
 
   ExiResult<StrRef> decodeString(SmallVecImpl<char>& Data) override {
@@ -516,8 +503,7 @@ public:
 
     Data.reserve(Size);
     for (u64 Ix = 0; Ix < Size; ++Ix) {
-      // TODO: Use UnicodeReads blocks. May be possible to accelerate further.
-      ExiResult<u64> Rune = this->readUInt();
+      ExiResult<u64> Rune = this->readNByteUInt<UnicodeReads>();
       if EXI_UNLIKELY(Rune.is_err()) {
         LOG_ERROR("Invalid Rune at [{}:{}].", Ix, Size);
         return Err(Rune.error());
@@ -538,6 +524,10 @@ public:
     if EXI_UNLIKELY(R.is_err())
       return R.error();
     
+    // Switch to "big endian".
+    // TODO: Update this for big endian systems.
+    Store = exi::byteswap(Store);
+
     BytesInStore = *R;
     return ExiError::OK;
   }
@@ -546,9 +536,23 @@ public:
     return {BaseT::Stream, (ByteOffset - BytesInStore) * 8};
   }
 
+  // TODO: Make this return an `Error`.
   void setProxy(proxy_t Proxy) override {
-    // TODO: setProxy
-    exi_unreachable("TODO");
+    // TODO: check if aligned
+    // exi_unreachable("TODO");
+
+    BaseT::setProxyBase(Proxy);
+    const size_type Off = BaseT::ByteOffset % sizeof(word_t);
+    // Align to the old offset.
+    BaseT::ByteOffset -= Off;
+    // Load data into store.
+    if (auto E = fillStore()) {
+      dbgs() << E << '\n';
+      exi_unreachable("unable to load store");
+    }
+
+    Store <<= (Off * 8);
+    BytesInStore -= Off;
   }
 
   StreamKind getStreamKind() const override {
@@ -556,6 +560,7 @@ public:
   }
 
 private:
+#if 0
   /// Specialized for cases where only one byte is read. Since there can't be
   /// tearing like with `BitStream`s, this is the smallest unit and needs no
   /// extra logic.
@@ -635,6 +640,117 @@ private:
     
     const word_t Mask = MakeNBitMask(Bits);
     return *Out & Mask;
+  }
+#endif
+
+  template <size_type Bits, std::integral Ret = u64>
+  EXI_FLATTEN inline ExiResult<Ret> readNBits() {
+    static_assert(Bits <= 64, "Read is too big!");
+    static constexpr size_type Bytes = MakeByteCount(Bits);
+
+    if constexpr (Bits == 0)
+      return static_cast<Ret>(0);
+
+    if EXI_LIKELY(BytesInStore >= Bytes) {
+      const word_t Out = readImpl(Bytes);
+      Store <<= (Bytes * 8);
+      BytesInStore -= Bytes;
+      return promotion_cast<Ret>(Out);
+    }
+
+    // Handle fallback case with a partial read.
+    Result Out = this->readPartialBytes64(Bytes);
+    if constexpr (std::same_as<u64, Ret>) {
+      return std::move(Out);
+    } else {
+      if EXI_UNLIKELY(Out.is_err())
+        return Err(Out.error());
+      return promotion_cast<Ret>(*Out);
+    }
+  }
+
+  template <size_type Bytes = 8>
+  inline ExiResult<u64> readNByteUInt() {
+    static_assert(Bytes <= sizeof(word_t), "Read is too large!");
+
+    // While the codegen for this loop is identical for the multiplication/bitwise
+    // variants on Clang, it makes a difference on GCC. Because of this, I've
+    // updated it to use bitwise operations.
+
+    u64 Multiplier = 0, Value = 0;
+
+    // TODO: Add some bit hacks to this?
+    for (isize N = 0; N < isize(Bytes); ++N) {
+      const Result R = this->readNBits<8>();
+      if EXI_UNLIKELY(R.is_err())
+        return R;
+      
+      const auto Octet = *R;
+      const u64 Lo = Octet & 0b0111'1111;
+
+      // Same as (Lo * 2^Multiplier)
+      Value += (Lo << Multiplier);
+      if (Octet & 0b1000'0000) {
+        // Same as (Multiplier *= 128).
+        Multiplier += 7;
+        continue;
+      }
+
+      return Ok(Value);
+    }
+
+    // Put this out of line to maybe prevent some spills?
+    tail_return this->failUInt<Bytes>();
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Dynamic Reads
+
+  ALWAYS_INLINE EXI_NODEBUG u64 readImpl(const size_type Bytes) {
+    const size_type Shift = sizeof(word_t) - Bytes;
+    return Store >> (Shift * 8);
+  }
+
+  /// Do a read where the result CAN fit in the current space.
+  ALWAYS_INLINE ExiResult<u64> readFullBytes64(const size_type Bytes) {
+    return this->readFullBytes64V(Bytes);
+  }
+
+  /// Do a read where the result CAN fit in the current space.
+  /// @invariant `Bits` cannot be 0.
+  ALWAYS_INLINE u64 readFullBytes64V(const size_type Bytes) {
+    const word_t Out = readImpl(Bytes);
+    Store <<= (Bytes * 8);
+    BytesInStore -= Bytes;
+    return Out;
+  }
+
+  /// Do a read where the result can't fit in the current space.
+  inline ExiResult<u64> readPartialBytes64(size_type Bytes) {
+    exi_invariant(BytesInStore < Bytes,
+                  "Bits is zero, an invalid shift will occur.");
+    const size_type HeadBytes = (Bytes - BytesInStore);
+    const u64 Out = BytesInStore ? readImpl(BytesInStore) : 0;
+
+    // Refill the store and grab the next set of bits.
+    exi_try_r(fillStore());
+    // Check for overlong reads of the buffer.
+    if EXI_UNLIKELY(HeadBytes > BytesInStore)
+      return Err(ExiError::OOB);
+    
+    // Always starts off aligned.
+    const u64 R = readFullBytes64V(HeadBytes);
+    return (Out << (HeadBytes * 8)) | R;
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Failure
+
+  template <size_type Bytes = 8>
+  EXI_COLD ExiResult<u64> failUInt() {
+    // TODO: Add NO_INLINE?
+    LOG_WARN("uint exceeded {} octets.\n", Bytes);
+    return Err(ErrorCode::kInvalidEXIInput);
   }
 
   void anchor() override;

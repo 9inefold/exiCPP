@@ -1,8 +1,11 @@
 /*.exi
 
 !/SpecExample.exi
+!/SpecExampleB.exi
 !/BasicNoopt.exi
+!/BasicNooptB.exi
 !/CustomersNoopt.exi
+!/CustomersNooptB.exi
 !/Orders.exi
 !/LineItem.exi
 !/Treebank.exi
