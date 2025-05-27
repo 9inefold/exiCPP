@@ -263,7 +263,6 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
     DECODE_ORD_BYTES("SpecExampleB.exi");
 
     exi::DebugFlag = LogLevel::INFO;
-    
     // Basic.xml with default settings and no options.
     DECODE_ORD_BITS("BasicNoopt.exi");
     DECODE_ORD_BYTES("BasicNooptB.exi");
@@ -271,7 +270,6 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
     // Customers.xml with Preserve.prefixes and no options.
     // Small namespace example.
     DECODE_ORD_BITS("CustomersNoopt.exi", Prefixes);
-    exi::DebugFlag = LogLevel::VERBOSE;
     DECODE_ORD_BYTES("CustomersNooptB.exi", Prefixes);
   }
 

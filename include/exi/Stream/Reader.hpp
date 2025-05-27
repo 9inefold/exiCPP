@@ -32,9 +32,7 @@
 
 namespace exi {
 
-/// The base for all reader types, allows for a single API.
-/// TODO: Investigate if this is actually the best option. It may be better to
-/// split up OrderedReader and ChannelReader, and the decoders as well.
+/// The base for all reader types, allows for a single base API.
 class EXI_EMPTY_BASES ReaderBase : public StreamBase {
 public:
   using buffer_t = ArrayRef<u8>;

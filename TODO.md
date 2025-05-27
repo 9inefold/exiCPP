@@ -12,14 +12,14 @@ This is a TODO list for the C++ version of exiCPP.
 - Skeleton for the EXI Header parser
 - Decode event codes
 - Refactor reader streams
+- Fully tested `ByteStream*` implementation
+- `DenseMap` and friends
 
 ## In Progress
 
-- Fully tested `ByteStream*` implementation
 - Produce event codes
 - Update rapidxml
 - `ErrorCode` customization
-- `DenseMap` and friends
 
 ## Unfinished
 
