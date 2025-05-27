@@ -25,14 +25,22 @@
 #include <exi/Stream/OrderedReader.hpp>
 #include <exi/Stream/ChannelReader.hpp>
 
+#include <exi/Stream/Writer.hpp>
+#include <exi/Stream/OrderedWriter.hpp>
+// #include <exi/Stream/ChannelWriter.hpp>
+
 namespace exi {
 
 void ReaderBase::anchor() {}
-// void WriterBase::anchor() {}
+void WriterBase::anchor() {}
 
 void OrderedReader::anchor() {}
 void BitReader::anchor() {}
 void ByteReader::anchor() {}
+
+void OrderedWriter::anchor() {}
+void BitWriter::anchor() {}
+void ByteWriter::anchor() {}
 
 #if EXI_HAS_CHANNEL_READER
 void ChannelReader::anchor() {}
