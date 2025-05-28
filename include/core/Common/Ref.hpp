@@ -18,12 +18,25 @@
 
 #pragma once
 
-#include <functional>
+#include <Common/Features.hpp>
 
 namespace exi {
 
-/// Alias for `std::reference_wrapper`.
+/// Similar to `std::reference_wrapper`, but allows access through ->.
 template <typename T>
-using Ref = std::reference_wrapper<T>;
+class Ref {
+  T* Data = nullptr;
+public:
+  constexpr Ref(T& Val EXI_LIFETIMEBOUND) : Data(&Val) {}
+  constexpr Ref(const Ref&) = default;
+  constexpr Ref& operator=(const Ref&) = default;
+
+  constexpr T* data() const { return Data; }
+  constexpr T& get() const { return *Data; }
+
+  constexpr operator T&() const { return *Data; }
+  constexpr T& operator*() const { return *Data; }
+  constexpr T* operator->() const { return Data; }
+};
 
 } // namespace exi
