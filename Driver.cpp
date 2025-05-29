@@ -273,7 +273,11 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
     DECODE_ORD_BYTES("CustomersNooptB.exi", Prefixes);
   }
 
-  exi::DebugFlag = LogLevel::WARN;
+  // Thai.xml with default settings and no options.
+  // The example data provided by EXI.
+  DECODE_ORD_BITS("ThaiNoopt.exi");
+  DECODE_ORD_BYTES("ThaiNooptB.exi");
+
 #if !EXI_LOGGING
   constexpr int MaxLargeIters = 100;
   WithColor(outs(), BRIGHT_WHITE)
@@ -282,6 +286,7 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
   for (int NIters = 0; CheckIters<MaxLargeIters>(NIters);)
 #endif
   {
+    exi::DebugFlag = LogLevel::WARN;
     // Orders.xml with Preserve.prefixes and no options.
     // Has a lot of data with minimal distinct keys.
     DECODE_ORD_BITS("Orders.exi", Prefixes);
