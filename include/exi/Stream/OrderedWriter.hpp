@@ -102,7 +102,7 @@ protected:
   /// If the related file stream is a `raw_fd_stream`, flush the buffer if its
   /// size is above a threshold. If \p OnClosing is true, flushing happens
   /// regardless of thresholds.
-  void FlushToFile(bool OnClosing = false) {
+  void flushToFile(bool OnClosing = false) {
     if (!FS || Buffer->empty())
       return;
     if (OnClosing)
@@ -111,13 +111,13 @@ protected:
       flushAndClear();
   }
 
-  void WriteWord(word_t Val) {
+  void writeWord(word_t Val) {
     Val = support::endian::byte_swap<word_t, endianness::little>(Val);
     Buffer->append(reinterpret_cast<const char*>(&Val),
                    reinterpret_cast<const char*>(&Val + 1));
   }
 
-  void WriteBytes(ArrayRef<char> Bytes) {
+  void writeBytes(ArrayRef<char> Bytes) {
     Buffer->append(Bytes.begin(), Bytes.end());
   }
 
@@ -151,15 +151,15 @@ public:
    Buffer(Buf), FS(nullptr), FlushThreshold(0) {}
 
   ~OrderedWriter() {
-    this->FlushToWord();
-    this->FlushToFile(/*OnClosing=*/true);
+    this->flushToWord();
+    this->flushToFile(/*OnClosing=*/true);
   }
 
-  void FlushToWord() {
+  void flushToWord() {
     if (BitsInStore) {
       // Switch to "big endian".
       // TODO: Update this for big endian systems.
-      WriteWord(exi::byteswap(Store));
+      writeWord(exi::byteswap(Store));
       BitsInStore = 0;
       Store = 0;
     }
