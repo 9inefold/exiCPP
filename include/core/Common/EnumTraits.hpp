@@ -109,10 +109,10 @@ template <typename E>
 
 /// Creates `enum_first` for your type.
 #define EXI_MARK_ENUM_FIRST(TYPE, FIRST)                                      \
-  inline constexpr TYPE enum_first(TYPE) noexcept { return TYPE::FIRST; }
+  inline constexpr TYPE enum_first(TYPE) { return TYPE::FIRST; }
 /// Creates `enum_last` for your type.
 #define EXI_MARK_ENUM_LAST(TYPE, LAST)                                        \
-  inline constexpr TYPE enum_last(TYPE) noexcept { return TYPE::LAST; }
+  inline constexpr TYPE enum_last(TYPE) { return TYPE::LAST; }
 
 /// Creates `enum_first` and `enum_last` for your type.
 #define EXI_MARK_ENUM_BOUNDS(TYPE, FIRST, LAST)                               \
@@ -132,7 +132,7 @@ concept has_enum_Last = exi::is_enum<E> && requires { E::Last; };
 /// If `EnumT()` is the first element, it is defaulted. Otherwise, the ADL
 /// function `enum_first` should be provided.
 template <exi::is_enum E>
-consteval E get_enum_first() noexcept {
+consteval E get_enum_first() {
   if constexpr (!H::has_enum_first<E>)
     return E();
   else
@@ -143,7 +143,7 @@ consteval E get_enum_first() noexcept {
 /// If `EnumT::Last` exists, that will be used. Otherwise, the ADL function
 /// `enum_last` must be provided.
 template <exi::is_enum E>
-consteval E get_enum_last() noexcept {
+consteval E get_enum_last() {
   if constexpr (H::has_enum_Last<E>)
     return E::Last;
   else

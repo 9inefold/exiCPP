@@ -124,7 +124,7 @@ template <typename T>
 MMatch(T&&) -> MMatch<T>;
 
 template <typename Conv = dummy_t>
-EXI_INLINE constexpr auto mmatch(auto&& ToMatch) noexcept {
+EXI_INLINE constexpr auto mmatch(auto&& ToMatch) {
   using MatchT = MMatch<decltype(ToMatch), Conv>;
   return MatchT(EXI_FWD(ToMatch));
 }

@@ -127,7 +127,7 @@ struct Dummy_ {
     explicit constexpr _secret_tag() = default;
   };
   EXI_ALWAYS_INLINE EXI_NODEBUG constexpr explicit
-   Dummy_(_secret_tag, _secret_tag) noexcept {}
+   Dummy_(_secret_tag, _secret_tag) {}
 };
 
 /// The default placeholder type.

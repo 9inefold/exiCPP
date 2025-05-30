@@ -54,14 +54,14 @@ template <typename T> struct ResultType {
   using storage_type = T;
 public:
   ALWAYS_INLINE static constexpr
-   T& Get(T& Val) noexcept { return Val; }
+   T& Get(T& Val) { return Val; }
   ALWAYS_INLINE static constexpr
-   const T& Get(const T& Val) noexcept { return Val; }
+   const T& Get(const T& Val) { return Val; }
   ALWAYS_INLINE static constexpr
-   T&& Get(T&& Val) noexcept { return std::move(Val); }
+   T&& Get(T&& Val) { return std::move(Val); }
 
   ALWAYS_INLINE static constexpr
-   decltype(auto) Set(auto&& Val) noexcept { return EXI_FWD(Val); }
+   decltype(auto) Set(auto&& Val) { return EXI_FWD(Val); }
 };
 
 template <typename T> struct ResultType<T&> {
@@ -70,9 +70,9 @@ template <typename T> struct ResultType<T&> {
   using storage_type = T*;
 public:
   ALWAYS_INLINE static constexpr
-   T& Get(T* Val) noexcept { return *Val; }
+   T& Get(T* Val) { return *Val; }
   ALWAYS_INLINE static constexpr
-   auto* Set(auto& Val) noexcept { return std::addressof(Val); }
+   auto* Set(auto& Val) { return std::addressof(Val); }
 };
 
 template <typename T>
@@ -173,8 +173,8 @@ protected:
   inline constexpr StorageBase(ImplInvokeTag, bool IsActive, auto&& O) :
    X(StorageBase::MakeUnion(IsActive, EXI_FWD(O))), Active(IsActive) {}
 
-  EXI_INLINE constexpr Impl& get_union() noexcept { return X; }
-  EXI_INLINE constexpr const Impl& get_union() const noexcept { return X; }
+  EXI_INLINE constexpr Impl& get_union() { return X; }
+  EXI_INLINE constexpr const Impl& get_union() const { return X; }
 
   EXI_INLINE constexpr void construct(std::in_place_t, auto&&...Args) {
     std::construct_at(std::addressof(X.Data), EXI_FWD(Args)...);
@@ -186,10 +186,10 @@ protected:
     this->Active = false;
   }
 
-  EXI_INLINE constexpr void reset() noexcept
+  EXI_INLINE constexpr void reset() 
    requires(trivial_dtor<T> && trivial_dtor<E>) {}
   
-  constexpr void reset() noexcept
+  constexpr void reset() 
    requires(!trivial_dtor<T> || !trivial_dtor<E>) {
     if (Active) {
       if constexpr (!trivial_dtor<T>)
@@ -200,12 +200,12 @@ protected:
     }
   }
 
-  constexpr void reset_union() noexcept
+  constexpr void reset_union() 
    requires(trivial_dtor<T> && trivial_dtor<E>) {
     std::destroy_at(&X);
   }
 
-  constexpr void reset_union() noexcept
+  constexpr void reset_union() 
    requires(!trivial_dtor<T> || !trivial_dtor<E>) {
     this->reset();
     std::destroy_at(&X);
@@ -226,15 +226,15 @@ template <typename T, typename E>
 class EXI_EMPTY_BASES StorageUnex : public StorageBase<T, E> {
   using BaseT = StorageBase<T, E>;
 
-  ALWAYS_INLINE constexpr E& reference() noexcept {
+  ALWAYS_INLINE constexpr E& reference() {
     return BaseT::X.Unex;
   }
 
-  ALWAYS_INLINE constexpr const E& reference() const noexcept {
+  ALWAYS_INLINE constexpr const E& reference() const {
     return BaseT::X.Unex;
   }
 
-  ALWAYS_INLINE constexpr E* address() noexcept {
+  ALWAYS_INLINE constexpr E* address() {
     return std::addressof(BaseT::X.Unex);
   }
 
@@ -247,13 +247,13 @@ protected:
   static constexpr bool can_move_error
     = std::is_convertible_v<G, E>;
 
-  ALWAYS_INLINE constexpr E& get_unex() & noexcept {
+  ALWAYS_INLINE constexpr E& get_unex() & {
     return BaseT::X.Unex;
   }
-  ALWAYS_INLINE constexpr const E& get_unex() const& noexcept {
+  ALWAYS_INLINE constexpr const E& get_unex() const& {
     return BaseT::X.Unex;
   }
-  ALWAYS_INLINE constexpr E&& get_unex() && noexcept {
+  ALWAYS_INLINE constexpr E&& get_unex() && {
     return std::move(BaseT::X.Unex);
   }
 
@@ -280,7 +280,7 @@ public:
   }
 
   /// Constructs an error `E` in place, then returns a reference.
-  constexpr E& emplace_error(auto&&...Args) noexcept EXI_LIFETIMEBOUND {
+  constexpr E& emplace_error(auto&&...Args) EXI_LIFETIMEBOUND {
     BaseT::reset();
     BaseT::construct(unexpect, EXI_FWD(Args)...);
     return reference();
@@ -308,7 +308,7 @@ public:
     return std::move(BaseT::X.Unex);
   }
 
-  constexpr bool has_error() const noexcept { return !BaseT::Active; }
+  constexpr bool has_error() const { return !BaseT::Active; }
 
   template <typename G> constexpr E error_or(G&& Alt) const& {
     return has_error() ? reference() : EXI_FWD(Alt);
@@ -323,11 +323,11 @@ template <typename T, typename E>
 class EXI_EMPTY_BASES StorageUnex<T, E&> : public StorageBase<T, E&> {
   using BaseT = StorageBase<T, E&>;
 
-  ALWAYS_INLINE constexpr E& reference() const noexcept {
+  ALWAYS_INLINE constexpr E& reference() const {
     return *BaseT::X.Unex;
   }
 
-  ALWAYS_INLINE constexpr E* address() noexcept {
+  ALWAYS_INLINE constexpr E* address() {
     return BaseT::X.Unex;
   }
 
@@ -342,10 +342,10 @@ protected:
     =  std::is_lvalue_reference_v<G>
     && std::is_convertible_v<std::remove_reference_t<G>*, E*>;
   
-  ALWAYS_INLINE constexpr E*& get_unex() noexcept {
+  ALWAYS_INLINE constexpr E*& get_unex() {
     return BaseT::X.Unex;
   }
-  ALWAYS_INLINE constexpr E* const& get_unex() const noexcept {
+  ALWAYS_INLINE constexpr E* const& get_unex() const {
     return BaseT::X.Unex;
   }
 
@@ -361,7 +361,7 @@ public:
   }
 
   /// Creates an error `E&` in place, then returns a reference.
-  constexpr E& emplace_error(E& In EXI_LIFETIMEBOUND) noexcept {
+  constexpr E& emplace_error(E& In EXI_LIFETIMEBOUND) {
     BaseT::reset();
     BaseT::construct(unexpect, std::addressof(In));
     return In;
@@ -376,7 +376,7 @@ public:
     return reference();
   }
 
-  constexpr bool has_error() const noexcept { return !BaseT::Active; }
+  constexpr bool has_error() const { return !BaseT::Active; }
 
   template <typename G> constexpr E& error_or(G&& Alt EXI_LIFETIMEBOUND) const {
     if (has_error())
@@ -392,15 +392,15 @@ class EXI_EMPTY_BASES Storage : public StorageUnex<T, E> {
   using BaseT = StorageUnex<T, E>;
   using error_type = std::remove_reference_t<E>;
 
-  ALWAYS_INLINE constexpr T& reference() noexcept {
+  ALWAYS_INLINE constexpr T& reference() {
     return BaseT::X.Data;
   }
 
-  ALWAYS_INLINE constexpr const T& reference() const noexcept {
+  ALWAYS_INLINE constexpr const T& reference() const {
     return BaseT::X.Data;
   }
 
-  ALWAYS_INLINE constexpr T* address() noexcept {
+  ALWAYS_INLINE constexpr T* address() {
     return std::addressof(BaseT::X.Data);
   }
 
@@ -413,13 +413,13 @@ protected:
   static constexpr bool can_move_value
     = std::is_convertible_v<U, T>;
 
-  ALWAYS_INLINE constexpr T& get_data() & noexcept {
+  ALWAYS_INLINE constexpr T& get_data() & {
     return BaseT::X.Data;
   }
-  ALWAYS_INLINE constexpr const T& get_data() const& noexcept {
+  ALWAYS_INLINE constexpr const T& get_data() const& {
     return BaseT::X.Data;
   }
-  ALWAYS_INLINE constexpr T&& get_data() && noexcept {
+  ALWAYS_INLINE constexpr T&& get_data() && {
     return std::move(BaseT::X.Data);
   }
 
@@ -451,7 +451,7 @@ public:
   }
 
   /// Constructs a value `T` in place, then returns a reference.
-  constexpr T& emplace(auto&&...Args) noexcept EXI_LIFETIMEBOUND {
+  constexpr T& emplace(auto&&...Args) EXI_LIFETIMEBOUND {
     BaseT::reset();
     BaseT::construct(std::in_place, EXI_FWD(Args)...);
     return reference();
@@ -496,21 +496,21 @@ public:
   constexpr T& operator*() & { return value(); }
   constexpr T&& operator*() && { return std::move(value()); }
 
-  constexpr Result<T&, error_type&> ref()& noexcept {
+  constexpr Result<T&, error_type&> ref()& {
     if (has_value())
       return Ok(reference());
     else
       return Err(BaseT::X.Unex);
   }
   // TODO: Fix this, error_type should be smarter.
-  constexpr Result<const T&, const error_type&> ref() const& noexcept {
+  constexpr Result<const T&, const error_type&> ref() const& {
     if (has_value())
       return Ok(reference());
     else
       return Err(BaseT::X.Unex);
   }
 
-  constexpr bool has_value() const noexcept { return BaseT::Active; }
+  constexpr bool has_value() const { return BaseT::Active; }
 
   template <typename U> constexpr T value_or(U&& Alt) const& {
     return has_value() ? reference() : EXI_FWD(Alt);
@@ -526,11 +526,11 @@ class EXI_EMPTY_BASES Storage<T&, E> : public StorageUnex<T&, E> {
   using BaseT = StorageUnex<T&, E>;
   using error_type = std::remove_reference_t<E>;
 
-  ALWAYS_INLINE constexpr T& reference() const noexcept {
+  ALWAYS_INLINE constexpr T& reference() const {
     return *BaseT::X.Data;
   }
 
-  ALWAYS_INLINE constexpr T* address() const noexcept {
+  ALWAYS_INLINE constexpr T* address() const {
     return BaseT::X.Data;
   }
 
@@ -545,10 +545,10 @@ protected:
     =  std::is_lvalue_reference_v<U>
     && std::is_convertible_v<std::remove_reference_t<U>*, T*>;
 
-  ALWAYS_INLINE constexpr T*& get_data() noexcept {
+  ALWAYS_INLINE constexpr T*& get_data() {
     return BaseT::X.Data;
   }
-  ALWAYS_INLINE constexpr T* const& get_data() const noexcept {
+  ALWAYS_INLINE constexpr T* const& get_data() const {
     return BaseT::X.Data;
   }
 
@@ -569,7 +569,7 @@ public:
   }
 
   /// Creates a value `T&` in place, then returns a reference.
-  constexpr T& emplace(T& In EXI_LIFETIMEBOUND) noexcept {
+  constexpr T& emplace(T& In EXI_LIFETIMEBOUND) {
     BaseT::reset();
     BaseT::construct(std::in_place, std::addressof(In));
     return In;
@@ -593,20 +593,20 @@ public:
     return reference();
   }
 
-  constexpr Result<T&, error_type&> ref()& noexcept {
+  constexpr Result<T&, error_type&> ref()& {
     if (has_value())
       return Ok(reference());
     else
       return Err(BaseT::X.Unex);
   }
   // TODO: Fix this, error_type should be smarter.
-  constexpr Result<const T&, const error_type&> ref() const& noexcept {
+  constexpr Result<const T&, const error_type&> ref() const& {
     if (has_value())
       return Ok(reference());
     else
       return Err(BaseT::X.Unex);
   }
-  constexpr Result<T&, error_type&> ref() && noexcept
+  constexpr Result<T&, error_type&> ref() && 
    requires(std::is_reference_v<E>) {
     if (has_value())
       return Ok(reference());
@@ -614,7 +614,7 @@ public:
       return Err(BaseT::X.Unex);
   }
 
-  EXI_INLINE constexpr bool has_value() const noexcept {
+  EXI_INLINE constexpr bool has_value() const {
     return BaseT::Active;
   }
 
@@ -707,14 +707,14 @@ public:
   constexpr ~Result() = default;
 
 private:
-  EXI_INLINE void assignSame(auto&& O) noexcept {
+  EXI_INLINE void assignSame(auto&& O) {
     if (this->is_ok())
       this->get_data() = EXI_FWD(O).get_data();
     else
       this->get_unex() = EXI_FWD(O).get_unex();
   }
 
-  EXI_INLINE void constructDifferent(auto&& O) noexcept {
+  EXI_INLINE void constructDifferent(auto&& O) {
     this->reset();
     if (O.is_ok())
       this->construct(std::in_place, EXI_FWD(O).get_data());
@@ -818,11 +818,11 @@ public:
   }
 
   /// Returns `true` if value is active.
-  constexpr bool is_ok() const noexcept { return BaseT::has_value(); }
+  constexpr bool is_ok() const { return BaseT::has_value(); }
   /// Returns `true` if error is active.
-  constexpr bool is_err() const noexcept { return BaseT::has_error(); }
+  constexpr bool is_err() const { return BaseT::has_error(); }
   /// Returns `true` if value is active.
-  constexpr explicit operator bool() const noexcept { return is_ok(); }
+  constexpr explicit operator bool() const { return is_ok(); }
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -830,43 +830,43 @@ public:
 
 template <typename T, typename E>
 ALWAYS_INLINE constexpr bool
- exi_unwrap_chk(const Result<T, E>& Val) noexcept {
+ exi_unwrap_chk(const Result<T, E>& Val) {
   return Val.is_ok();
 }
 
 template <typename T, typename E>
 ALWAYS_INLINE constexpr auto
- exi_unwrap_fail(Result<T, E>& Val) noexcept {
+ exi_unwrap_fail(Result<T, E>& Val) {
   return Err(Val.error());
 }
 
 template <typename T, typename E>
 ALWAYS_INLINE constexpr auto
- exi_unwrap_fail(const Result<T, E>& Val) noexcept {
+ exi_unwrap_fail(const Result<T, E>& Val) {
   return Err(Val.error());
 }
 
 template <typename T, typename E>
 ALWAYS_INLINE constexpr auto
- exi_unwrap_fail(Result<T, E>&& Val) noexcept {
+ exi_unwrap_fail(Result<T, E>&& Val) {
   return Err(std::move(Val).error());
 }
 
 template <typename T, typename E>
 ALWAYS_INLINE constexpr auto
- exi_unwrap_fail(const Result<T, E&>& Val) noexcept {
+ exi_unwrap_fail(const Result<T, E&>& Val) {
   return Err(Val.error());
 }
 
 template <typename T, typename E>
 ALWAYS_INLINE constexpr auto
- exi_unwrap_fail(Result<T, E&>&& Val) noexcept {
+ exi_unwrap_fail(Result<T, E&>&& Val) {
   return Err(Val.error());
 }
 
 template <typename T, typename E>
 ALWAYS_INLINE constexpr auto
- exi_unwrap_fail(Result<T&, E&> Val) noexcept {
+ exi_unwrap_fail(Result<T&, E&> Val) {
   return Err(Val.error());
 }
 

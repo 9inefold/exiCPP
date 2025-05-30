@@ -99,7 +99,7 @@ using visit_ret = typename VisitReturn<Ret, Obj, TT...>::type;
 
 /// Casts and launders a pointer to the requested type.
 template <typename Out, typename In>
-[[nodiscard]] constexpr Out* launder_cast(In* Ptr) noexcept {
+[[nodiscard]] constexpr Out* launder_cast(In* Ptr) {
   return std::launder(reinterpret_cast<Out*>(Ptr));
 }
 
@@ -143,25 +143,25 @@ public:
   }
 
   static constexpr decltype(auto)
-   From(Poly<Base, Derived...>& Child) noexcept {
+   From(Poly<Base, Derived...>& Child) {
     return static_cast<Storage&>(Child);
   }
 
   static constexpr decltype(auto)
-   From(const Poly<Base, Derived...>& Child) noexcept {
+   From(const Poly<Base, Derived...>& Child) {
     return static_cast<const Storage&>(Child);
   }
 
   template <typename U>
   requires is_one_of<U, Base, Derived...>
-  static constexpr int tagof(type_c<U>) noexcept {
+  static constexpr int tagof(type_c<U>) {
     return at(type_c<U>{}) + 1;
   }
 
   /// Checks if the object holds the requested type.
   template <typename U>
   requires is_one_of<U, Base, Derived...>
-  ALWAYS_INLINE constexpr bool is() const noexcept {
+  ALWAYS_INLINE constexpr bool is() const {
     constexpr_static int UTag = tagof(type_c<U>{});
     if constexpr (!abstract<U>)
       return this->Tag == UTag;
@@ -170,24 +170,24 @@ public:
       return false;
   }
 
-  constexpr bool empty() const noexcept {
+  constexpr bool empty() const {
     return this->Tag == 0;
   }
 
   /// Gets a pointer to the base object.
-  Base* base() noexcept {
+  Base* base() {
     return launder_cast<Base>(Data.buffer);
   }
 
   /// Gets a const pointer to the base object.
-  const Base* base() const noexcept {
+  const Base* base() const {
     return launder_cast<const Base>(Data.buffer);
   }
 
   /// Gets a pointer to the object of type `U`.
   template <typename U>
   requires is_one_of<U, Base, Derived...>
-  U& as() noexcept {
+  U& as() {
     exi_invariant(is<U>());
     return *launder_cast<U>(Data.buffer);
   }
@@ -195,7 +195,7 @@ public:
   /// Gets a const pointer to the object of type `U`.
   template <typename U>
   requires is_one_of<U, Base, Derived...>
-  const U& as() const noexcept {
+  const U& as() const {
     exi_invariant(is<U>());
     return *launder_cast<const U>(Data.buffer);
   }
@@ -217,9 +217,7 @@ public:
 
 struct Dtor {
   template <typename T>
-  constexpr void operator()(T& Val) const noexcept {
-    Val.~T();
-  }
+  constexpr void operator()(T& Val) const { Val.~T(); }
 };
 
 } // namespace poly_detail
@@ -281,7 +279,7 @@ public:
     return *this;
   }
 
-  Poly& operator=(Poly&& O) noexcept
+  Poly& operator=(Poly&& O) 
    requires poly_detail::all_movable<Base, Derived...> {
     this->reset();
     if EXI_LIKELY(!O.empty()) {
@@ -310,7 +308,7 @@ public:
   ~Poly() { this->destroy(); }
 
   using Super::empty;
-  constexpr bool has_value() const noexcept { return empty(); }
+  constexpr bool has_value() const { return empty(); }
 
   /// Visits the active type with `Func`.
   template <typename R = dummy_t, class F>
@@ -341,18 +339,18 @@ public:
     Super::Tag = 0;
   }
 
-  Base* operator->() & noexcept
+  Base* operator->() & 
    requires poly_detail::polymorphic<Base> {
     return Super::base();
   }
 
-  const Base* operator->() const& noexcept
+  const Base* operator->() const& 
    requires poly_detail::polymorphic<Base> {
     return Super::base();
   }
 
 private:
-  void destroy() noexcept {
+  void destroy() {
     if (!empty())
       visitSelf<void>(poly_detail::Dtor{});
   }

@@ -57,7 +57,7 @@ using idx_c = std::integral_constant<usize, I>;
 template <usize...II> struct idxseq {
   using value_type = usize;
   static constexpr usize kSize = sizeof...(II);
-  static constexpr usize size() noexcept { return kSize; }
+  static constexpr usize size() { return kSize; }
 };
 
 #if EXI_HAS_BUILTIN(__make_integer_seq)
@@ -98,7 +98,7 @@ struct type_c {
 
 template <typename...TT> struct typeseq {
   static constexpr usize kSize = sizeof...(TT);
-  static constexpr usize size() noexcept { return kSize; }
+  static constexpr usize size() { return kSize; }
 
   template <usize I>
   using At = TypePackElement<I, TT...>;

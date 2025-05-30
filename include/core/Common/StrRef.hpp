@@ -984,13 +984,13 @@ inline String &operator+=(String &buffer, StrRef string) {
 inline namespace ops {
 
 inline consteval StrRef
- operator""_str(const char* Str, usize Size) noexcept {
+ operator""_str(const char* Str, usize Size) {
   return StrRef(Str, Size);
 }
 
 #if defined(__cpp_char8_t)
 inline illegal_consteval StrRef
- operator""_str(const char8_t* Str, usize Size) noexcept {
+ operator""_str(const char8_t* Str, usize Size) {
   return StrRef(FOLD_CXPR(reinterpret_cast<const char*>(Str)), Size);
 }
 #endif

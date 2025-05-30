@@ -96,7 +96,7 @@ public:
     std::in_place_t, auto&&...Args) :
    Data(EXI_FWD(Args)...), Active(true) {}
   
-  EXI_INLINE constexpr void reset() noexcept {}
+  EXI_INLINE constexpr void reset() {}
 };
 
 /// Default storage for `Option`, this is NOT trivially destructible.
@@ -114,7 +114,7 @@ public:
    Data(EXI_FWD(Args)...), Active(true) {}
   
   inline constexpr ~Storage() { reset(); }
-  constexpr void reset() noexcept {
+  constexpr void reset() {
     if (Active)
       Data.~T();
     Active = false;
@@ -156,17 +156,17 @@ public:
   constexpr OptionStorage(const OptionStorage& Other) {
     this->construct(Other);
   }
-  constexpr OptionStorage(OptionStorage&& Other) noexcept {
+  constexpr OptionStorage(OptionStorage&& Other) {
     this->construct(std::move(Other));
   }
 
-  constexpr OptionStorage& operator=(const T& V) noexcept {
+  constexpr OptionStorage& operator=(const T& V) {
     BaseT::Data = V;
     BaseT::Active = true;
     return *this;
   }
 
-  constexpr OptionStorage& operator=(T&& V) noexcept {
+  constexpr OptionStorage& operator=(T&& V) {
     BaseT::Data = std::move(V);
     BaseT::Active = true;
     return *this;
@@ -216,7 +216,7 @@ template <typename T> class Option {
   EXI_NO_UNIQUE_ADDRESS OptionStorage<T> Storage;
 
   EXI_INLINE static constexpr void DoPartialSwap(
-   Option& Active, Option& Inactive) noexcept {
+   Option& Active, Option& Inactive) {
     exi_invariant(Active.is_some() && Inactive.is_none());
     // Move value to Inactive.
     Inactive.emplace(std::move(Active.value()));
@@ -264,7 +264,7 @@ public:
     return Storage.emplace(EXI_FWD(Args)...);
   }
 
-  constexpr void swap(Option& O) noexcept {
+  constexpr void swap(Option& O) {
     if (this->has_value()) {
       if (O.has_value()) {
         using std::swap;
@@ -309,19 +309,19 @@ public:
 
   /// Reserved for `Option<T>`. Converts the contained value to an `Option<T&>`,
   /// if it exists.
-  constexpr Option<T&> ref()& noexcept {
+  constexpr Option<T&> ref()& {
     return has_value() ? std::addressof(value()) : nullptr;
   }
   /// Reserved for `Option<T>`. Converts the contained value to
   /// an `Option<const T&>`, if it exists.
-  constexpr Option<const T&> ref() const& noexcept {
+  constexpr Option<const T&> ref() const& {
     return has_value() ? std::addressof(value()) : nullptr;
   }
 
-  constexpr T& ref_or(T& Alt)& noexcept {
+  constexpr T& ref_or(T& Alt)& {
     return ref().value_or(Alt);
   }
-  constexpr const T& ref_or(const T& Alt EXI_LIFETIMEBOUND) const& noexcept {
+  constexpr const T& ref_or(const T& Alt EXI_LIFETIMEBOUND) const& {
     return ref().value_or(Alt);
   }
 
@@ -384,10 +384,8 @@ public:
   constexpr RefStorage() = default;
   constexpr RefStorage(std::nullopt_t) {}
 
-  constexpr RefStorage(T& In EXI_LIFETIMEBOUND) noexcept
-      : Storage(std::addressof(In)) {}
-  constexpr RefStorage(T* In) noexcept
-      : Storage(In) {}
+  constexpr RefStorage(T& In EXI_LIFETIMEBOUND) : Storage(std::addressof(In)) {}
+  constexpr RefStorage(T* In) : Storage(In) {}
   RefStorage(T&&) = delete;
 
   template <option_detail::explicitly_derived_ex<type> U>
@@ -438,9 +436,9 @@ public:
   constexpr RefStorage() = default;
   constexpr RefStorage(std::nullopt_t) {}
 
-  constexpr RefStorage(T& In EXI_LIFETIMEBOUND) noexcept
+  constexpr RefStorage(T& In EXI_LIFETIMEBOUND) 
       : Storage(std::addressof(In)) {}
-  constexpr RefStorage(T* In) noexcept
+  constexpr RefStorage(T* In) 
       : Storage(In) {}
   RefStorage(T&&) = delete;
 
@@ -466,8 +464,8 @@ public:
   using value_type = BaseT::value_type;
 
   using BaseT::BaseT;
-  constexpr Option(const Option/*T&*/& O) noexcept : BaseT(O.Storage) {}
-  constexpr Option(Option&& O) noexcept : BaseT(O.Storage) {}
+  constexpr Option(const Option/*T&*/& O) : BaseT(O.Storage) {}
+  constexpr Option(Option&& O) : BaseT(O.Storage) {}
 
   /// Create a new object by constructing it in place with the given arguments.
   constexpr T& emplace(T& In EXI_LIFETIMEBOUND) {
@@ -476,7 +474,7 @@ public:
   }
   constexpr T& emplace(T&&) = delete;
 
-  constexpr void swap(Option& O) noexcept {
+  constexpr void swap(Option& O) {
     using std::swap;
     swap(BaseT::Storage, O.Storage);
   }
@@ -535,25 +533,25 @@ public:
 
 template <typename T>
 ALWAYS_INLINE constexpr bool
- exi_unwrap_chk(const Option<T>& O) noexcept {
+ exi_unwrap_chk(const Option<T>& O) {
   return O.has_value();
 }
 
 template <typename T>
 ALWAYS_INLINE constexpr auto
- exi_unwrap_fail(const Option<T>&) noexcept {
+ exi_unwrap_fail(const Option<T>&) {
   return Err();
 }
 
 template <typename T>
 ALWAYS_INLINE constexpr auto
- exi_unwrap_fail(Option<T>&&) noexcept {
+ exi_unwrap_fail(Option<T>&&) {
   return Err();
 }
 
 template <typename T>
 ALWAYS_INLINE constexpr auto
- exi_unwrap_fail(Option<T&>) noexcept {
+ exi_unwrap_fail(Option<T&>) {
   return Err();
 }
 
@@ -564,7 +562,7 @@ using std::nullopt_t;
 using std::nullopt;
 
 template <typename T>
-constexpr void swap(Option<T>& LHS, Option<T>& RHS) noexcept {
+constexpr void swap(Option<T>& LHS, Option<T>& RHS) {
   LHS.swap(RHS);
 }
 

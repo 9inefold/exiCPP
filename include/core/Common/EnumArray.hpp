@@ -59,7 +59,7 @@ public:
   using pointer = ValueT*;
   using const_pointer = const ValueT*;
 
-  static ALWAYS_INLINE constexpr IdxT ToIndex(Enum Index) noexcept {
+  static ALWAYS_INLINE constexpr IdxT ToIndex(Enum Index) {
     return static_cast<IdxT>(Index)
          - static_cast<IdxT>(First);
   }
