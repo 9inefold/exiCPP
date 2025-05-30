@@ -1,4 +1,4 @@
-//===- exi/Basic/UnifyBuffer.cpp ------------------------------------===//
+//===- exi/Decode/UnifyBuffer.cpp -----------------------------------===//
 //
 // Copyright (C) 2025 Eightfold
 //

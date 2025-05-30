@@ -1,4 +1,4 @@
-//===- exi/Basic/HeaderDecoder.cpp ----------------------------------===//
+//===- exi/Decode/HeaderDecoder.cpp ---------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -22,7 +22,6 @@
 //===----------------------------------------------------------------===//
 
 #include <exi/Decode/HeaderDecoder.hpp>
-#include <exi/Decode/BodyDecoder.hpp>
 #include <core/Support/Casting.hpp>
 #include <core/Support/ErrorHandle.hpp>
 #include <core/Support/Logging.hpp>

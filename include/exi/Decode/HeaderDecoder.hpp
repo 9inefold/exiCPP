@@ -1,4 +1,4 @@
-//===- exi/Basic/HeaderDecoder.hpp ----------------------------------===//
+//===- exi/Decode/HeaderDecoder.hpp ----------------------------------===//
 //
 // Copyright (C) 2025 Eightfold
 //

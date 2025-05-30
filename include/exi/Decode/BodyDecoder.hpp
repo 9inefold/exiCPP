@@ -1,4 +1,4 @@
-//===- exi/Basic/BodyDecoder.hpp ------------------------------------===//
+//===- exi/Decode/BodyDecoder.hpp ------------------------------------===//
 //
 // Copyright (C) 2025 Eightfold
 //
