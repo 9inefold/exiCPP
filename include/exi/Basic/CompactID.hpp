@@ -34,7 +34,7 @@ using CompactID = u64;
 
 /// Calculates `⌈ log2(ID) ⌉`.
 template <bool NeverZero = false>
-EXI_INLINE constexpr u32 CompactIDLog2(CompactID ID) noexcept {
+EXI_INLINE constexpr u32 CompactIDLog2(CompactID ID) {
   if constexpr (NeverZero)
     exi_invariant(ID > 0);
   else {
@@ -73,7 +73,7 @@ class CompactIDCounter {
   CompactID Value = 0;
   u32 LogValue = 0;
 
-  ALWAYS_INLINE constexpr u32 Log2(CompactID ID) noexcept {
+  ALWAYS_INLINE constexpr u32 Log2(CompactID ID) {
     return CompactIDLog2<Offset != 0>(ID);
   }
 

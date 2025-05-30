@@ -83,7 +83,7 @@ concept has__exi_unwrap_fail = requires(T Data, Args...Extra) {
 
 template <typename T>
 EXI_REQUIRES_IF(has__exi_unwrap_chk<T>, "Missing exi_unwrap_chk!")
-ALWAYS_INLINE constexpr bool unwrap_chk(const T& Data) noexcept {
+ALWAYS_INLINE constexpr bool unwrap_chk(const T& Data) {
   using namespace ::exi;
   return exi_unwrap_chk(Data);
 }
@@ -91,7 +91,7 @@ ALWAYS_INLINE constexpr bool unwrap_chk(const T& Data) noexcept {
 template <typename T, typename...Args>
 EXI_REQUIRES_IF((has__exi_unwrap_fail<T, Args...>), "Missing exi_unwrap_fail!")
 ALWAYS_INLINE constexpr decltype(auto)
- unwrap_fail(T&& Data, Args&&...Extra) noexcept {
+ unwrap_fail(T&& Data, Args&&...Extra) {
   using namespace ::exi;
   return exi_unwrap_fail(EXI_FWD(Data), EXI_FWD(Extra)...);
 }

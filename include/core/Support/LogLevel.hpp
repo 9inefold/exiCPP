@@ -48,7 +48,7 @@ struct LogLevel {
 
 template <LogLevelType Level>
 ALWAYS_INLINE EXI_NODEBUG static constexpr
- bool hasLogLevel(LogLevelType Val) noexcept {
+ bool hasLogLevel(LogLevelType Val) {
   if constexpr (EXI_LOG_LEVEL >= Level)
     return (Level <= Val);
   return false;

@@ -795,7 +795,7 @@ std::enable_if_t<std::is_signed_v<T>, T> MulOverflow(T X, T Y, T &Result) {
 
 /// Shifts left if `Shift >= 0`, otherwise shifts right by `ABS(Shift)`.
 template <typename IntT>
-constexpr IntT SignAwareSHL(IntT I, i64 Shift) noexcept {
+constexpr IntT SignAwareSHL(IntT I, i64 Shift) {
   if (Shift >= 0)
     return (I << Shift);
   else
@@ -804,7 +804,7 @@ constexpr IntT SignAwareSHL(IntT I, i64 Shift) noexcept {
 
 /// Shifts right if `Shift >= 0`, otherwise shifts left by `ABS(Shift)`.
 template <typename IntT>
-constexpr IntT SignAwareSHR(IntT I, i64 Shift) noexcept {
+constexpr IntT SignAwareSHR(IntT I, i64 Shift) {
   if (Shift >= 0)
     return (I >> Shift);
   else

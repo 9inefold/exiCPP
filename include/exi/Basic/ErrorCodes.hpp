@@ -115,8 +115,8 @@ enum class InvalidHeaderCode : u8 {
   Last = kOutOfBandOpts
 };
 
-StrRef get_error_name(ErrorCode E) noexcept EXI_READNONE;
-StrRef get_error_message(ErrorCode E) noexcept EXI_READNONE;
+StrRef get_error_name(ErrorCode E) EXI_READNONE;
+StrRef get_error_message(ErrorCode E) EXI_READNONE;
 
 /// Works like `Error`, returns `true` when a non-ok state is held.
 class EXI_NODISCARD alignas(8) ExiError {
@@ -148,7 +148,7 @@ public:
   /// Construct an error from a code.
   constexpr ExiError(ErrorCode E) : EC(E) {}
   /// Construct an error from a code.
-  static ExiError New(ErrorCode E) noexcept EXI_READONLY;
+  static ExiError New(ErrorCode E) EXI_READONLY;
 
   // template <typename T>
   // constexpr ExiError(Unexpect<T> Val) : ExiError(Val.error()) {}
@@ -159,42 +159,42 @@ public:
     return ExiError(kBufferEndReached, Unset);
   }
   /// Create a full error code with the amount of bits read.
-  static ExiError Full(i64 Bits) noexcept EXI_READONLY;
+  static ExiError Full(i64 Bits) EXI_READONLY;
 
   /// Default invalid header error code.
-  constexpr static ExiError Header() noexcept {
+  constexpr static ExiError Header() {
     return ExiError(kInvalidEXIHeader);
   }
   /// Default mismatch header error code.
-  constexpr static ExiError Mismatch() noexcept {
+  constexpr static ExiError Mismatch() {
     return ExiError(kHeaderOptionsMismatch);
   }
 
   /// Invalid character in EXI signature.
-  static ExiError HeaderSig(char C) noexcept EXI_READONLY;
+  static ExiError HeaderSig(char C) EXI_READONLY;
   /// Invalid distinguishing bits sequence.
-  static ExiError HeaderBits(u64 Bits) noexcept EXI_READONLY;
+  static ExiError HeaderBits(u64 Bits) EXI_READONLY;
   /// Invalid EXI Version - Preview.
-  static ExiError HeaderVer() noexcept EXI_READONLY;
+  static ExiError HeaderVer() EXI_READONLY;
   /// Invalid EXI Version - Final.
-  static ExiError HeaderVer(u64 Version) noexcept EXI_READONLY;
+  static ExiError HeaderVer(u64 Version) EXI_READONLY;
   /// Mismatched alignment settings.
   static ExiError HeaderAlign(
-   AlignKind A, bool Compress = false) noexcept EXI_READONLY;
+   AlignKind A, bool Compress = false) EXI_READONLY;
   /// Mismatched Preserve settings.
-  static ExiError HeaderStrict(PreserveBuilder Opt) noexcept EXI_READONLY;
+  static ExiError HeaderStrict(PreserveBuilder Opt) EXI_READONLY;
   /// Mismatched Preserve settings.
   static ExiError HeaderSelfContained(
-   AlignKind A, bool Strict = false) noexcept EXI_READONLY;
+   AlignKind A, bool Strict = false) EXI_READONLY;
   /// Out of band without provided options.
-  static ExiError HeaderOutOfBand() noexcept EXI_READONLY;
+  static ExiError HeaderOutOfBand() EXI_READONLY;
 
   ////////////////////////////////////////////////////////////////////////
   // Observers
 
   ErrorCode ec() const { return EC; }
-  const char* what() const noexcept EXI_READONLY;
-  StrRef msg() const noexcept EXI_READONLY;
+  const char* what() const EXI_READONLY;
+  StrRef msg() const EXI_READONLY;
   /// Gets message with any custom information.
   StrRef msg(SmallVecImpl<char>& Vec) const;
 

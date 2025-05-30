@@ -333,7 +333,7 @@ class RuneEncoder {
 public:
   template <bool ReturnCode = false>
   EXI_INLINE static RetType<ReturnCode>
-   Encode(const Rune C, RuneBuf& Out) noexcept {
+   Encode(const Rune C, RuneBuf& Out) {
     if (C <= kASCII) {
       Out.reset()
         .putUnchecked(C);
@@ -360,7 +360,7 @@ public:
     return RetType<ReturnCode>(true);
   }
 
-  static RuneBuf Encode(const Rune C) noexcept {
+  static RuneBuf Encode(const Rune C) {
     RuneBuf Out;
     RuneEncoder::Encode<false>(C, Out);
     return Out;

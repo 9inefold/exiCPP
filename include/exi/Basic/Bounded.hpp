@@ -36,7 +36,7 @@ namespace exi {
 struct unbounded_t {
   using _secret_tag = exi::Dummy_::_secret_tag;
   EXI_ALWAYS_INLINE EXI_NODEBUG constexpr explicit
-   unbounded_t(_secret_tag, _secret_tag) noexcept {}
+   unbounded_t(_secret_tag, _secret_tag) {}
 };
 
 /// A tag marking a `Bounded<...>` as unbounded.
@@ -47,7 +47,7 @@ inline constexpr unbounded_t unbounded {
 template <std::integral T> struct unbounded_of_t {
   EXI_ALWAYS_INLINE EXI_NODEBUG constexpr explicit
    unbounded_of_t(unbounded_t::_secret_tag,
-                   unbounded_t::_secret_tag) noexcept {}
+                   unbounded_t::_secret_tag) {}
 };
 
 /// A typed tag marking a `Bounded<T>` as unbounded.
@@ -93,26 +93,26 @@ template <std::integral T> class Bounded {
   T Data = kUnbounded;
 
   template <typename Int>
-  static constexpr T FromOther(Int X) noexcept {
+  static constexpr T FromOther(Int X) {
     return exi::IntCastOr<T>(X, kUnbounded);
   }
 
   template <typename Int>
-  static constexpr T FromOther(Bounded<Int> Other) noexcept {
+  static constexpr T FromOther(Bounded<Int> Other) {
     if (Other.unbounded())
       return kUnbounded;
     return exi::IntCastOr<T>(Other.Data, kUnbounded);
   }
 
 public:
-  static constexpr unbounded_tag Unbounded() noexcept {
+  static constexpr unbounded_tag Unbounded() {
     return unbounded_of<T>;
   }
 
   ////////////////////////////////////////////////////////////////////////
   // Constructors
 
-  constexpr Bounded() noexcept = default;
+  constexpr Bounded() = default;
   constexpr Bounded(unbounded_t) : Data(kUnbounded) {}
   constexpr Bounded(unbounded_tag) : Data(kUnbounded) {}
 
@@ -129,16 +129,16 @@ public:
   explicit constexpr Bounded(Bounded<Int> Other)
       : Data(FromOther(Other)) {}
   constexpr Bounded(const Bounded&) = default;
-  constexpr Bounded(Bounded&&) noexcept = default;
+  constexpr Bounded(Bounded&&) = default;
 
   ////////////////////////////////////////////////////////////////////////
   // Assignment
 
-  constexpr Bounded& operator=(unbounded_t) noexcept {
+  constexpr Bounded& operator=(unbounded_t) {
     this->Data = kUnbounded;
     return *this;
   }
-  constexpr Bounded& operator=(unbounded_tag) noexcept {
+  constexpr Bounded& operator=(unbounded_tag) {
     this->Data = kUnbounded;
     return *this;
   }
@@ -150,7 +150,7 @@ public:
     return *this;
   }
 
-  constexpr Bounded& operator=(T Data) noexcept {
+  constexpr Bounded& operator=(T Data) {
     exi_invariant(Data != kUnbounded);
     this->Data = Data;
     return *this;
@@ -164,7 +164,7 @@ public:
   }
   
   constexpr Bounded& operator=(const Bounded&) = default;
-  constexpr Bounded& operator=(Bounded&&) noexcept = default;
+  constexpr Bounded& operator=(Bounded&&) = default;
 
   ////////////////////////////////////////////////////////////////////////
   // Observers

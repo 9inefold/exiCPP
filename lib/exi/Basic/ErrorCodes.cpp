@@ -78,13 +78,13 @@ static constexpr StringLiteral ErrorCodeMessages[kErrorCodeCount] {
   "Mismatched Header Options"
 };
 
-StrRef exi::get_error_name(ErrorCode E) noexcept {
+StrRef exi::get_error_name(ErrorCode E) {
   const i32 Ix = static_cast<i32>(E);
   if EXI_LIKELY(Ix < kErrorCodeCount)
     return ErrorCodeNames[Ix].data();
   return "UNKNOWN_ERROR"_str;
 }
-StrRef exi::get_error_message(ErrorCode E) noexcept {
+StrRef exi::get_error_message(ErrorCode E) {
   const i32 Ix = static_cast<i32>(E);
   if EXI_LIKELY(Ix < kErrorCodeCount)
     return ErrorCodeMessages[Ix].data();
@@ -92,12 +92,12 @@ StrRef exi::get_error_message(ErrorCode E) noexcept {
 }
 
 EXI_READNONE inline static const char*
- get_error_name_what(ErrorCode E) noexcept {
+ get_error_name_what(ErrorCode E) {
   return exi::get_error_name(E).data();
 }
 
 EXI_READNONE inline static const char*
- get_error_message_what(ErrorCode E) noexcept {
+ get_error_message_what(ErrorCode E) {
   return exi::get_error_message(E).data();
 }
 
@@ -108,15 +108,15 @@ raw_ostream& exi::operator<<(raw_ostream& OS, ErrorCode Err) {
 //////////////////////////////////////////////////////////////////////////
 // Error
 
-ExiError ExiError::New(ErrorCode E) noexcept {
+ExiError ExiError::New(ErrorCode E) {
   return ExiError(E);
 }
 
-const char* ExiError::what() const noexcept {
+const char* ExiError::what() const {
   return get_error_message_what(this->EC);
 }
 
-StrRef ExiError::msg() const noexcept {
+StrRef ExiError::msg() const {
   return exi::get_error_message(this->EC);
 }
 
@@ -180,14 +180,14 @@ static HeaderExtra ToHeader(u32 Ex) {
 
 #define FROM_HEADER(EC, ...) ExiError(EC, FromHeader(HeaderExtra{__VA_ARGS__}))
 
-ExiError ExiError::HeaderSig(char C) noexcept {
+ExiError ExiError::HeaderSig(char C) {
   return FROM_HEADER(kInvalidEXIHeader,
     .IHC = IHCType::kCookie,
     .Cookie = (exi::isPrint(C) ? C : '\0')
   );
 }
 
-ExiError ExiError::HeaderBits(u64 Bits) noexcept {
+ExiError ExiError::HeaderBits(u64 Bits) {
   const u16 DBits = (Bits <= 0b11)
     ? u16(Bits) : exi::max_v<u16>;
   return FROM_HEADER(kInvalidEXIHeader,
@@ -196,14 +196,14 @@ ExiError ExiError::HeaderBits(u64 Bits) noexcept {
   );
 }
 
-ExiError ExiError::HeaderVer() noexcept {
+ExiError ExiError::HeaderVer() {
   return FROM_HEADER(kInvalidEXIHeader,
     .IHC = IHCType::kInvalidVersion,
     .Version = 0
   );
 }
 
-ExiError ExiError::HeaderVer(u64 Version) noexcept {
+ExiError ExiError::HeaderVer(u64 Version) {
   if (Version == 0) {
     // Preview version.
     return ExiError::HeaderVer();
@@ -217,21 +217,21 @@ ExiError ExiError::HeaderVer(u64 Version) noexcept {
   );
 }
 
-ExiError ExiError::HeaderAlign(AlignKind A, bool Compress) noexcept {
+ExiError ExiError::HeaderAlign(AlignKind A, bool Compress) {
   return FROM_HEADER(kHeaderOptionsMismatch,
     .IHC = IHCType::kMixedAlignment,
     .Align = PackAlign(A, Compress)
   );
 }
 
-ExiError ExiError::HeaderStrict(PreserveBuilder Opt) noexcept {
+ExiError ExiError::HeaderStrict(PreserveBuilder Opt) {
   return FROM_HEADER(kHeaderOptionsMismatch,
     .IHC = IHCType::kStrictPreserved,
     .StrictOpts = Opt.get()
   );
 }
 
-ExiError ExiError::HeaderSelfContained(AlignKind A, bool Strict) noexcept {
+ExiError ExiError::HeaderSelfContained(AlignKind A, bool Strict) {
   const bool Compress = (A == AlignKind::None); 
   return FROM_HEADER(kHeaderOptionsMismatch,
     .IHC = IHCType::kSelfContained,
@@ -239,7 +239,7 @@ ExiError ExiError::HeaderSelfContained(AlignKind A, bool Strict) noexcept {
   );
 }
 
-ExiError ExiError::HeaderOutOfBand() noexcept {
+ExiError ExiError::HeaderOutOfBand() {
   return FROM_HEADER(kHeaderOptionsMismatch,
     .IHC = IHCType::kOutOfBandOpts,
     .Default = 0
@@ -353,7 +353,7 @@ static void FormatMismatch(raw_ostream& OS, u32 Raw) {
 //////////////////////////////////////////////////////////////////////////
 // BufferEndReached
 
-ExiError ExiError::Full(i64 Bits) noexcept {
+ExiError ExiError::Full(i64 Bits) {
   if EXI_UNLIKELY(!CheckIntCast<u32>(Bits))
     return ExiError::Full();
   return ExiError(kBufferEndReached, static_cast<u32>(Bits));

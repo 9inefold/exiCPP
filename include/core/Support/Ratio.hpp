@@ -28,7 +28,7 @@ using DynRatio = std::pair<std::intmax_t, std::intmax_t>;
 
 template <std::intmax_t Num, std::intmax_t Denom>
 EXI_INLINE constexpr DynRatio
- toDynRatio(std::ratio<Num, Denom>) noexcept {
+ toDynRatio(std::ratio<Num, Denom>) {
   return DynRatio{Num, Denom};
 } 
 

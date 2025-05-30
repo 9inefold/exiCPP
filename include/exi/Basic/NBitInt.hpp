@@ -83,7 +83,7 @@ protected:
 #if !EXI_INVARIANTS
   ALWAYS_INLINE
 #endif
-  static void AssertNBitInt(InpT I, unsigned Bits) noexcept {
+  static void AssertNBitInt(InpT I, unsigned Bits) {
 #if EXI_INVARIANTS
     constexpr bool kSigned = std::is_signed_v<InpT>;
     if (Signed != kSigned) {
@@ -100,14 +100,14 @@ protected:
   /// Casts to a type directly. Avoid calling this.
   template <typename OutT, bool Sign, unsigned Bits>
   inline static OutT CastDirectly(
-   NBitIntCommon<Sign, Bits> I) noexcept {
+   NBitIntCommon<Sign, Bits> I) {
     return static_cast<OutT>(I.Data);
   }
 
   /// Returns `AllData`.
   template <bool Sign, unsigned Bits>
   inline static UInt GetAllDataDirectly(
-   NBitIntCommon<Sign, Bits> I) noexcept {
+   NBitIntCommon<Sign, Bits> I) {
     return I.AllData;
   }
 };
@@ -151,7 +151,7 @@ protected:
 
   /// Invoke `BaseType::AssertNBitInt` with the current values.
   template <typename InpT>
-  EXI_INLINE static void AssertNBitInt(InpT I) noexcept {
+  EXI_INLINE static void AssertNBitInt(InpT I) {
 #if EXI_INVARIANTS
     BaseType::AssertNBitInt<IsSigned>(I, Bits);
 #endif // EXI_INVARIANTS
@@ -159,10 +159,10 @@ protected:
 
 public:
   constexpr NBitIntCommon() : NBitIntCommon(0) {}
-  constexpr NBitIntCommon(const SelfType&) noexcept = default;
-  constexpr NBitIntCommon(SelfType&&) noexcept = default;
-  constexpr NBitIntCommon& operator=(const SelfType&) noexcept = default;
-  constexpr NBitIntCommon& operator=(SelfType&&) noexcept = default;
+  constexpr NBitIntCommon(const SelfType&) = default;
+  constexpr NBitIntCommon(SelfType&&) = default;
+  constexpr NBitIntCommon& operator=(const SelfType&) = default;
+  constexpr NBitIntCommon& operator=(SelfType&&) = default;
 
   /// We have to initialize `AllData` first,
   /// as otherwise it won't fill in the padding bits. Agh!
@@ -194,16 +194,16 @@ public:
   constexpr bool operator<=>(
     const NBitIntCommon&) const = default;
   
-  friend bool operator==(const NBitIntCommon& LHS, NBitIntCommon RHS) noexcept {
+  friend bool operator==(const NBitIntCommon& LHS, NBitIntCommon RHS) {
     return LHS.Data == RHS.Data;
   }
   template <std::integral InpT>
-  friend bool operator==(const NBitIntCommon& LHS, InpT RHS) noexcept {
+  friend bool operator==(const NBitIntCommon& LHS, InpT RHS) {
     SelfType::AssertNBitInt(RHS);
     return LHS.Data == RHS;
   }
   template <std::integral InpT>
-  friend bool operator==(InpT LHS, const NBitIntCommon& RHS) noexcept {
+  friend bool operator==(InpT LHS, const NBitIntCommon& RHS) {
     SelfType::AssertNBitInt(LHS);
     return LHS == RHS.Data;
   }
@@ -241,14 +241,14 @@ public:
   using SelfType = NBitSInt<Bits>;
   using BaseType::BaseType;
 
-  static constexpr NBitSInt FromBits(u64 Val) noexcept {
+  static constexpr NBitSInt FromBits(u64 Val) {
     exi_assert(NBitIntBase::IsNBit(Val, Bits));
     return NBitSInt(Val, false, dummy_v);
   }
 
   template <bool Sign, unsigned InBits>
   static constexpr NBitSInt FromBits(
-   NBitIntCommon<Sign, InBits> Val) noexcept {
+   NBitIntCommon<Sign, InBits> Val) {
     const auto All = NBitIntBase::GetAllDataDirectly(Val);
     exi_assert(NBitIntBase::IsNBit(All, Bits));
     return NBitSInt(All, true, dummy_v);
@@ -276,14 +276,14 @@ public:
   using SelfType = NBitUInt<Bits>;
   using BaseType::BaseType;
 
-  static constexpr NBitUInt FromBits(u64 Val) noexcept {
+  static constexpr NBitUInt FromBits(u64 Val) {
     exi_assert(NBitIntBase::IsNBit(Val, Bits));
     return NBitUInt(Val, false, dummy_v);
   }
 
   template <bool Sign, unsigned InBits>
   static constexpr NBitUInt FromBits(
-   NBitIntCommon<Sign, InBits> Val) noexcept {
+   NBitIntCommon<Sign, InBits> Val) {
     const auto All = NBitIntBase::GetAllDataDirectly(Val);
     exi_assert(NBitIntBase::IsNBit(All, Bits));
     return NBitUInt(All, true, dummy_v);
@@ -319,25 +319,25 @@ using safe_bool = ubit<1>;
 
 template <unsigned Bits>
 inline raw_ostream& operator<<(
- raw_ostream& OS, ibit<Bits> I) noexcept {
+ raw_ostream& OS, ibit<Bits> I) {
   return OS << I.data();
 }
 
 template <unsigned Bits>
 inline raw_ostream& operator<<(
- raw_ostream& OS, ubit<Bits> I) noexcept {
+ raw_ostream& OS, ubit<Bits> I) {
   return OS << I.data();
 }
 
 template <unsigned Bits>
 inline H::NBitIntValueType<true>
- format_as(ibit<Bits> I) noexcept {
+ format_as(ibit<Bits> I) {
   return I.data();
 }
 
 template <unsigned Bits>
 inline H::NBitIntValueType<false>
- format_as(ubit<Bits> I) noexcept {
+ format_as(ubit<Bits> I) {
   return I.data();
 }
 
@@ -360,7 +360,7 @@ struct IntCastIsPossible<To, From> {
   using FromT = IntCastFrom<From>;
   using IntT = typename From::value_type;
   // For `NBitIntCommon<Signed, Bits>` -> `Int`.
-  static constexpr bool isPossible(FromT X) noexcept {
+  static constexpr bool isPossible(FromT X) {
     return CheckIntCast<To, IntT>(X.data());
   }
 };
@@ -372,7 +372,7 @@ struct IntCastIsPossible<To, From> {
   using IntT = typename To::value_type;
 public:
   /// @returns `Value.Data` if `NBitInt`, otherwise identity.
-  EXI_INLINE static constexpr IntT GetValue(FromT X) noexcept {
+  EXI_INLINE static constexpr IntT GetValue(FromT X) {
     if constexpr (H::is_bitint<From>)
       return static_cast<IntT>(X.data());
     else
@@ -380,7 +380,7 @@ public:
   }
 
   /// For `AnyInt` -> `NBitIntCommon<Sign, Bits>`
-  static constexpr bool isPossible(FromT X) noexcept {
+  static constexpr bool isPossible(FromT X) {
     // Implemented above.
     if (!CheckIntCast<IntT>(X))
       return false;

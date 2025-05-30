@@ -601,12 +601,12 @@ inline raw_ostream &operator<<(raw_ostream &OS, const Twine &RHS) {
 
 inline namespace ops {
 
-ALWAYS_INLINE Twine operator""_twine(const char* Str, usize Size) noexcept {
+ALWAYS_INLINE Twine operator""_twine(const char* Str, usize Size) {
   return Twine(StrRef(Str, Size));
 }
 
 #if defined(__cpp_char8_t)
-ALWAYS_INLINE Twine operator""_twine(const char8_t* Str, usize Size) noexcept {
+ALWAYS_INLINE Twine operator""_twine(const char8_t* Str, usize Size) {
   return Twine(StrRef(Str, Size));
 }
 #endif

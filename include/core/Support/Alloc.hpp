@@ -59,7 +59,7 @@ using Allocator = std::allocator<T>;
 /// If exceptions are enabled, throws `std::bad_alloc`, otherwise aborts.
 [[noreturn]] void fatal_alloc_error(const char* Msg) EXI_NOEXCEPT;
 
-EXI_INLINE bool exi_check_alloc(const void* ptr) noexcept {
+EXI_INLINE bool exi_check_alloc(const void* ptr) {
 #if EXI_USE_MIMALLOC
   return ::mi_is_in_heap_region(ptr);
 #else
@@ -68,7 +68,7 @@ EXI_INLINE bool exi_check_alloc(const void* ptr) noexcept {
 }
 
 EXI_RETURNS_NOALIAS EXI_INLINE
- void* exi_malloc(usize size) noexcept {
+ void* exi_malloc(usize size) {
 #if EXI_USE_MIMALLOC
   return ::mi_malloc(size);
 #else
@@ -77,7 +77,7 @@ EXI_RETURNS_NOALIAS EXI_INLINE
 }
 
 EXI_RETURNS_NOALIAS EXI_INLINE
- void* exi_zalloc(usize size) noexcept {
+ void* exi_zalloc(usize size) {
 #if EXI_USE_MIMALLOC
   return ::mi_zalloc(size);
 #else
@@ -87,7 +87,7 @@ EXI_RETURNS_NOALIAS EXI_INLINE
 }
 
 EXI_RETURNS_NOALIAS EXI_INLINE
- void* exi_calloc(usize num, usize size) noexcept {
+ void* exi_calloc(usize num, usize size) {
 #if EXI_USE_MIMALLOC
   return ::mi_calloc(num, size);
 #else
@@ -96,7 +96,7 @@ EXI_RETURNS_NOALIAS EXI_INLINE
 }
 
 EXI_RETURNS_NOALIAS EXI_INLINE
- void* exi_realloc(void* ptr, usize newSize) noexcept {
+ void* exi_realloc(void* ptr, usize newSize) {
   EXI_CHECK_ALLOC_PTR(ptr, "Invalid pointer in exi_realloc");
 #if EXI_USE_MIMALLOC
   return ::mi_realloc(ptr, newSize);
@@ -105,7 +105,7 @@ EXI_RETURNS_NOALIAS EXI_INLINE
 #endif
 }
 
-EXI_INLINE void exi_free(void* ptr) noexcept {
+EXI_INLINE void exi_free(void* ptr) {
   EXI_CHECK_ALLOC_PTR(ptr, "Invalid pointer in exi_realloc");
 #if EXI_USE_MIMALLOC
   ::mi_free(ptr);

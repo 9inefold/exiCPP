@@ -112,7 +112,7 @@ inline TimePoint<> toTimePoint(std::time_t T, uint32_t nsec) {
 }
 
 /// Get the current time as a `TimePoint<>`.
-inline TimePoint<> now() noexcept {
+inline TimePoint<> now() {
   return SystemClock::now();
 }
 
