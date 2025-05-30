@@ -95,6 +95,39 @@ struct StreamBase {
 
   static constexpr size_type kMaxCapacityBytes = max_v<size_type> / kCHAR_BIT;
   static constexpr size_type kMask = (kCHAR_BIT - 1ull);
+
+  ////////////////////////////////////////////////////////////////////////
+  // Bit Utilities
+
+  static_assert(kBitsPerWord >= 64, "Work on this...");
+  /// Masks shifts to align to byte boundaries.
+  static constexpr size_type ByteAlignMask = 0b111;
+  /// Masks shifts to avoid UB (even larger sizes will use a max of 64 bits).
+  static constexpr word_t ShiftMask = 0x3f;
+  // This allows for `[0, 2,097,152)`, unicode only requiring `[0, 1,114,112)`.
+  static constexpr size_type UnicodeReads = 3;
+
+  /// Creates a mask for the current word type.
+  inline static constexpr word_t MakeNBitMask(size_type Bits) EXI_READNONE {
+    constexpr_static word_t Mask = ~word_t(0);
+    return EXI_LIKELY(Bits != kBitsPerWord) ? ~(Mask << Bits) : Mask;
+  }
+
+  /// Get the number of bytes N bits can fit in.
+  inline static constexpr size_type MakeByteCount(size_type Bits) EXI_READNONE {
+    exi_invariant(Bits != 0);
+    return ((Bits - 1) >> 3) + 1zu;
+  }
+
+  /// Get the byte-aligned shift required for N bits.
+  inline static constexpr size_type MakeBitShift(size_type Bits) EXI_READONLY {
+    exi_invariant(Bits > 0);
+    // Only use high bits.
+    constexpr_static size_type Mask = ~size_type(0b111) & ShiftMask;
+    // Subtracts 1 so multiples of 8 aren't given an extra byte, masks off the
+    // low bits to get the significant digits, then goes to the next byte.
+    return ((Bits - 1) & Mask) + 8;
+  }
 };
 
 /// A proxy type for passing around consumed bits. Useful when swapping

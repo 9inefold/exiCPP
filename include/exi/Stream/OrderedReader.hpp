@@ -157,22 +157,10 @@ class BitReader final : public OrderedReader {
   /// `[0 ... bitsizeof(size_t) - 1]` inclusive.
   size_type BitsInStore = 0;
 
-  using BaseT::ByteAlignMask;
-  using BaseT::ShiftMask;
-  using BaseT::UnicodeReads;
-  using BaseT::MakeNBitMask;
-
-  /// Creates a mask for the current word type.
-  inline static constexpr word_t MakeMask(size_type Bits) EXI_READNONE {
-    // return (~word_t(0) >> Bits);
-    return MakeNBitMask(Bits);
-  }
-
-  /// Creates a reverse mask for the current word type.
-  inline static constexpr word_t MakeReverseMask(size_type Bits) EXI_READNONE {
-    constexpr_static word_t Mask = ~word_t(0);
-    return EXI_LIKELY(Bits != kBitsPerWord) ? ~(Mask >> Bits) : Mask;
-  }
+  using StreamBase::ByteAlignMask;
+  using StreamBase::ShiftMask;
+  using StreamBase::UnicodeReads;
+  using StreamBase::MakeNBitMask;
 
 public:
   using BaseT::BaseT;
@@ -425,21 +413,11 @@ class ByteReader final : public OrderedReader {
   /// `[0 ... sizeof(size_t) - 1]` inclusive.
   size_type BytesInStore = 0;
 
-  using BaseT::ByteAlignMask;
-  using BaseT::ShiftMask;
-  using BaseT::UnicodeReads;
-  using BaseT::MakeNBitMask;
-  using BaseT::MakeByteCount;
-
-  /// Get the byte-aligned shift required for N bits.
-  inline static constexpr size_type MakeBitShift(size_type Bits) EXI_READONLY {
-    exi_invariant(Bits > 0);
-    // Only use high bits.
-    constexpr_static size_type Mask = ~size_type(0b111) & ShiftMask;
-    // Subtracts 1 so multiples of 8 aren't given an extra byte, masks off the
-    // low bits to get the significant digits, then goes to the next byte.
-    return ((Bits - 1) & Mask) + 8;
-  }
+  using StreamBase::ByteAlignMask;
+  using StreamBase::ShiftMask;
+  using StreamBase::UnicodeReads;
+  using StreamBase::MakeNBitMask;
+  using StreamBase::MakeByteCount;
 
 public:
   using BaseT::BaseT;

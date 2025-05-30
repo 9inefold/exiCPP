@@ -70,18 +70,6 @@ class OrderedWriter : public WriterBase {
   /// The current value. Only bits < BitsInStore are valid.
   word_t Store = 0;
 
-  /// Creates a mask for the current word type.
-  inline static constexpr word_t MakeNBitMask(size_type Bits) EXI_READNONE {
-    constexpr_static word_t Mask = ~word_t(0);
-    return EXI_LIKELY(Bits != kBitsPerWord) ? ~(Mask << Bits) : Mask;
-  }
-
-  /// Get the number of bytes N bits can fit in.
-  inline static constexpr size_type MakeByteCount(size_type Bits) EXI_READNONE {
-    exi_invariant(Bits != 0);
-    return ((Bits - 1) >> 3) + 1zu;
-  }
-
   ////////////////////////////////////////////////////////////////////////
   // Stream Utilities
 
