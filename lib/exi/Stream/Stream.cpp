@@ -38,7 +38,7 @@ void OrderedReader::anchor() {}
 void BitReader::anchor() {}
 void ByteReader::anchor() {}
 
-void OrderedWriter::anchor() {}
+void OrderedWriter::anchorX() {}
 void BitWriter::anchor() {}
 void ByteWriter::anchor() {}
 
