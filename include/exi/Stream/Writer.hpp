@@ -54,7 +54,7 @@ public:
 
   /// Writes an `Unsigned Integer` with a maximum of 8 octets.
   /// See https://www.w3.org/TR/exi/#encodingUnsignedInteger.
-  virtual ExiResult<u64> writeUInt() = 0;
+  virtual void writeUInt(u64 Val) = 0;
 
   /// Returns the type of the current stream.
   virtual StreamKind getStreamKind() const = 0;
