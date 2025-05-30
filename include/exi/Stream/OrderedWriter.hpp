@@ -49,6 +49,7 @@ namespace exi {
 /// The bases for BitWriter/ByteWriter, which consume data in the order it
 /// appears. This allows for a much simpler implementation.
 class OrderedWriter : public WriterBase {
+protected:
   /// Owned buffer, used as the buffer if the input stream is not
   /// a `raw_svector_ostream`.
   SmallVec<char, 0> OwnBuffer;
@@ -73,6 +74,7 @@ class OrderedWriter : public WriterBase {
   ////////////////////////////////////////////////////////////////////////
   // Stream Utilities
 
+private:
   void flushAndClear() {
     exi_assert(FS);
     exi_assert(!Buffer->empty());
@@ -144,17 +146,79 @@ public:
   }
 
   void flushToWord() {
-    if (BitsInStore) {
-      // Switch to "big endian".
-      // TODO: Update this for big endian systems.
-      writeWord(exi::byteswap(Store));
-      BitsInStore = 0;
-      Store = 0;
+    if EXI_UNLIKELY(!BitsInStore)
+      return;
+    
+    // Switch to "big endian".
+    // TODO: Update this for big endian systems.
+    writeWord(exi::byteswap(Store));
+    BitsInStore = 0;
+    Store = 0;
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Implementation
+
+  /// Writes a single byte. Same in both versions.
+  void writeByte(u8 Val) override final {
+    this->writeNBits(Val, 8);
+  }
+
+  /// Writes an `Unsigned Integer` with a maximum of 8 octets.
+  /// See https://www.w3.org/TR/exi/#encodingUnsignedInteger.
+  void writeUInt(u64 Val) override final {
+    this->writeNByteUInt<8>(Val);
+  }
+
+protected:
+  /// Writes a variable number of bits (max of 64).
+  template <typename IntT = u64>
+  ALWAYS_INLINE void writeNBits(IntT Val, size_type Bits) {
+    Store |= Val << BitsInStore;
+    if (Bits + BitsInStore < kBitsPerWord) {
+      BitsInStore += Bits;
+      return;
     }
+
+    this->writeWord(Store);
+
+    if (BitsInStore)
+      Store = Val >> (kBitsPerWord - BitsInStore);
+    else
+      Store = 0;
+    BitsInStore = (BitsInStore + Bits) & ShiftMask;
+  }
+
+  template <size_type Bytes = 8>
+  inline void writeNByteUInt(word_t Val) {
+    static_assert(Bytes <= sizeof(word_t), "Read is too large!");
+
+    for (isize N = 0; N < isize(Bytes); ++N) {
+      if (Val < (1 << 7)) {
+        this->writeByte(Val);
+        return;
+      }
+      
+      const u64 Data = Val & 0b0111'1111;
+      this->writeByte(Data | 0b1000'0000);
+
+      Val >>= 7;
+    }
+
+    // Put this out of line to maybe prevent some spills?
+    this->failUInt<Bytes>();
   }
 
 private:
-  virtual void anchor();
+  template <size_type Bytes = 8>
+  EXI_COLD void failUInt() {
+    // TODO: Add NO_INLINE?
+    LOG_WARN("uint exceeded {} octets.\n", Bytes);
+    //return Err(ErrorCode::kInvalidEXIInput);
+  }
+
+  // Only one that warns about inconsistent override?
+  virtual void anchorX();
 };
 
 #undef DEBUG_TYPE
@@ -162,6 +226,31 @@ private:
 
 class BitWriter final : public OrderedWriter {
   using BaseT = OrderedWriter;
+  using BaseT::BitsInStore;
+  using BaseT::Store;
+public:
+  using OrderedWriter::OrderedWriter;
+
+  /// Writes a single bit.
+  void writeBit(bool Val) override {
+    BaseT::writeNBits(Val, 1);
+  }
+
+  /// Writes a variable number of bits (max of 64).
+  void writeBits64(u64 Val, size_type Bits) override {
+    exi_invariant(Bits <= kBitsPerWord,
+      "Cannot write more than BitsPerWord bits!");
+    
+    if (Bits == 0)
+      // Do nothing...
+      return;
+    
+    BaseT::writeNBits(Val, Bits);
+  }
+
+  StreamKind getStreamKind() const override {
+    return SK_Bit;
+  }
 
 private:
   void anchor() override;
@@ -172,6 +261,33 @@ private:
 
 class ByteWriter final : public OrderedWriter {
   using BaseT = OrderedWriter;
+  using BaseT::BitsInStore;
+  using BaseT::Store;
+  using StreamBase::MakeByteCount;
+public:
+  using OrderedWriter::OrderedWriter;
+
+  /// Writes a single bit.
+  void writeBit(bool Val) override {
+    BaseT::writeByte(Val);
+  }
+
+  /// Writes a variable number of bits (max of 64).
+  void writeBits64(u64 Val, size_type Bits) override {
+    exi_invariant(Bits <= kBitsPerWord,
+      "Cannot write more than BitsPerWord bits!");
+    
+    if (Bits == 0)
+      // Do nothing...
+      return;
+    
+    const size_type Off = MakeByteCount(Bits);
+    BaseT::writeNBits(Val, Off);
+  }
+
+  StreamKind getStreamKind() const override {
+    return SK_Byte;
+  }
 
 private:
   void anchor() override;
@@ -180,7 +296,7 @@ private:
 #undef DEBUG_TYPE
 
 /// @brief Inline virtual for ordered writers.
-// using OrdWriter = Poly<OrderedWriter, BitWriter, ByteWriter>;
+using OrdWriter = Poly<OrderedWriter, BitWriter, ByteWriter>;
 
 } // namespace exi
 
