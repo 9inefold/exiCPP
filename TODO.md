@@ -24,6 +24,7 @@ This is a TODO list for the C++ version of exiCPP.
 ## Unfinished
 
 - `sys::` implementation on linux
+- Add permissive mode for things like relaxed versioning and validation order?
 - `Option<Unchecked<T>>` + `UncheckedOption`
 - `CrashRecoveryContext` and `cpptrace`
 - Schema parser
