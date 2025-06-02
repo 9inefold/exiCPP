@@ -68,7 +68,8 @@ enum class ErrorCode : u32 {
   kInconsistentProcState,
   kInvalidEXIInput,
 
-  /// The information passed to the EXIP API is invalid.
+  /// The information passed to the EXI API is invalid.
+  // TODO: Find uses of this in EXIP?
   kInvalidConfig,
 
   /// When encoding XML Schema in EXI the prefixes must be preserved:
@@ -166,6 +167,7 @@ public:
     return ExiError(kInvalidEXIHeader);
   }
   /// Default mismatch header error code.
+  // FIXME: Add specific error messages.
   constexpr static ExiError Mismatch() {
     return ExiError(kHeaderOptionsMismatch);
   }
