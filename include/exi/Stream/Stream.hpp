@@ -105,7 +105,7 @@ struct StreamBase {
   /// Masks shifts to avoid UB (even larger sizes will use a max of 64 bits).
   static constexpr word_t ShiftMask = 0x3f;
   // This allows for `[0, 2,097,152)`, unicode only requiring `[0, 1,114,112)`.
-  static constexpr size_type UnicodeReads = 3;
+  static constexpr size_type UnicodeReads = 3; // FIXME: Use agnostic name
 
   /// Creates a mask for the current word type.
   inline static constexpr word_t MakeNBitMask(size_type Bits) EXI_READNONE {
