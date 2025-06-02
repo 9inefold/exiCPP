@@ -170,6 +170,31 @@ public:
     this->writeNByteUInt<8>(Val);
   }
 
+  /// Decodes a UInt size, then writes a unicode string to the buffer.
+  /// Should only be used for URIs and Prefixes.
+  void encodeString(StrRef Str) {
+    this->writeUInt(Str.size());
+    tail_return this->writeString(Str);
+  }
+
+  /// Writes a unicode string to the buffer.
+  void writeString(StrRef Str) {
+    if (Str.empty())
+      return;
+    
+    RuneDecoder Decoder(Str);
+    for (Rune Val : Decoder) {
+      this->writeNByteUInt<UnicodeReads>(Val);
+      // TODO: Log!!
+    }
+  }
+
+  /// Writes a static number of bits (max of 64).
+  template <unsigned Bits>
+  void writeBits(ubit<Bits> Val) {
+    this->writeNBits<u64>(Val, Bits);
+  }
+
 protected:
   /// Writes a variable number of bits (max of 64).
   template <typename IntT = u64>
@@ -206,7 +231,7 @@ protected:
     }
 
     // Put this out of line to maybe prevent some spills?
-    this->failUInt<Bytes>();
+    return this->failUInt<Bytes>();
   }
 
 private:
@@ -246,6 +271,11 @@ public:
       return;
     
     BaseT::writeNBits(Val, Bits);
+  }
+
+  void align() {
+    const auto Bits = (BitsInStore & ByteAlignMask);
+    this->writeBits64(0, Bits);
   }
 
   StreamKind getStreamKind() const override {
