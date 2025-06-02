@@ -38,9 +38,7 @@ namespace exi {
 class EXI_EMPTY_BASES WriterBase : public StreamBase {
 public:
   using buffer_t = SmallVecImpl<char>;
-  using proxy_t  = StreamProxy<buffer_t&>;
   using BufferT  = buffer_t;
-  using ProxyT   = proxy_t;
 
 public:
   /// Writes a single bit.

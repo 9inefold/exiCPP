@@ -49,18 +49,29 @@ namespace exi {
 /// The bases for BitWriter/ByteWriter, which consume data in the order it
 /// appears. This allows for a much simpler implementation.
 class OrderedWriter : public WriterBase {
+public:
+  struct BufferWrapper {
+    buffer_t& Buffer;
+    raw_ostream* const FS = nullptr;
+    word_t Store = 0;
+    bool ExternBuffer = false;
+  };
+
+  using proxy_t = StreamProxy<BufferWrapper>;
+  using ProxyT  = proxy_t;
+
 protected:
   /// Owned buffer, used as the buffer if the input stream is not
   /// a `raw_svector_ostream`.
   SmallVec<char, 0> OwnBuffer;
   /// Internal buffer for unflushed bytes (unless there is no stream to flush
   /// to, case in which these are "the bytes").
-  Ref<SmallVecImpl<char>> Buffer;
+  Ref<buffer_t> Buffer;
 
   /// The file stream that Buffer flushes to. If FS is a `raw_fd_stream`, the
   /// writer will incrementally flush. Otherwise flushing will happen at the end
   /// of the object's lifetime.
-  raw_ostream* const FS = nullptr;
+  raw_ostream* FS = nullptr;
 
   /// The threshold (unit B) to flush to FS, if FS is a `raw_fd_stream`.
   const u64 FlushThreshold = 0;
@@ -86,6 +97,11 @@ private:
     if (auto* SV = dyn_cast<raw_svector_ostream>(&Strm))
       return SV->buffer();
     return OwnBuffer;
+  }
+
+  bool isOwnBuffer() const {
+    auto* SelfBuf = static_cast<const buffer_t*>(&OwnBuffer);
+    return Buffer.data() == SelfBuf;
   }
 
 protected:
@@ -140,9 +156,39 @@ public:
   OrderedWriter(SmallVecImpl<char>& Buf) : 
    Buffer(Buf), FS(nullptr), FlushThreshold(0) {}
 
+protected:
+  OrderedWriter(proxy_t Proxy) : Buffer(Proxy.Bytes.Buffer) {
+    this->setProxy(Proxy);
+  }
+
+public:
   ~OrderedWriter() {
     this->flushToWord();
     this->flushToFile(/*OnClosing=*/true);
+  }
+
+  proxy_t getProxy() const {
+    return {
+      {*Buffer, FS, Store, !isOwnBuffer()},
+      BitsInStore
+    };
+  }
+
+  // TODO: Add different modes? eg. emplace, append, etc.
+  void setProxy(proxy_t Proxy) {
+    auto& Data = Proxy.Bytes;
+
+    // TODO: Improve this logic more later. For now, just overwrite fancily.
+    this->Buffer = Data.Buffer;
+    if (Data.ExternBuffer)
+      this->FS = Data.FS;
+    else if (!this->isOwnBuffer())
+      this->FS = nullptr;
+    
+    this->BitsInStore = Proxy.NBits;
+    this->Store = Data.Store;
+
+    this->flushToFile();
   }
 
   void flushToWord() {
@@ -234,6 +280,11 @@ protected:
     return this->failUInt<Bytes>();
   }
 
+  void align() {
+    const auto Bits = (BitsInStore & ByteAlignMask);
+    this->writeBits64(0, Bits);
+  }
+
 private:
   template <size_type Bytes = 8>
   EXI_COLD void failUInt() {
@@ -255,6 +306,7 @@ class BitWriter final : public OrderedWriter {
   using BaseT::Store;
 public:
   using OrderedWriter::OrderedWriter;
+  BitWriter(proxy_t Proxy) : OrderedWriter(Proxy) {}
 
   /// Writes a single bit.
   void writeBit(bool Val) override {
@@ -273,10 +325,8 @@ public:
     BaseT::writeNBits(Val, Bits);
   }
 
-  void align() {
-    const auto Bits = (BitsInStore & ByteAlignMask);
-    this->writeBits64(0, Bits);
-  }
+  // Expose alignment for bit packing.
+  using BaseT::align;
 
   StreamKind getStreamKind() const override {
     return SK_Bit;
