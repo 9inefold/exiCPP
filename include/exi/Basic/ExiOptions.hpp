@@ -174,4 +174,18 @@ inline constexpr ExiOptions::PreserveOpts make_preserve_opts() {
   return ExiOptions::PreserveOpts {};
 }
 
+/// Create a `PreserveBuilder` from `ExiOptions.Preserve`.
+EXI_READNONE inline constexpr PreserveBuilder
+ make_preserve_builder(const ExiOptions::PreserveOpts Preserve) {
+  PreserveBuilder Opts;
+#define MARK_PRESERVED(ITEM) if (Preserve.ITEM) Opts.set(PreserveKind::ITEM);
+  MARK_PRESERVED(Comments)
+  MARK_PRESERVED(DTDs)
+  MARK_PRESERVED(LexicalValues)
+  MARK_PRESERVED(PIs)
+  MARK_PRESERVED(Prefixes)
+#undef MARK_PRESERVED
+  return Opts;
+}
+
 } // namespace exi
