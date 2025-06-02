@@ -34,4 +34,6 @@ struct ExiHeader;
 /// Decodes an EXI header given an arbitrary stream.
 ExiError encodeHeader(const ExiHeader& Header, OrdWriter& Strm);
 
+// TODO: Add encode that pulls options from XML.
+
 } // namespace exi
