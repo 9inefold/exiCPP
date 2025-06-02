@@ -449,10 +449,15 @@
 
 #if EXI_HAS_BUILTIN(__builtin_assume)
 # define EXI_ASSUME(...) __builtin_assume(static_cast<bool>(__VA_ARGS__))
-#elif defined(_MSC_VER)
-# define EXI_ASSUME(...) __assume(static_cast<bool>(__VA_ARGS__))
 #elif EXI_HAS_CPPATTR(assume)
 # define EXI_ASSUME(...) [[assume(__VA_ARGS__)]]
+#elif defined(_MSC_VER)
+# define EXI_ASSUME(...) __assume(static_cast<bool>(__VA_ARGS__))
+#elif defined(__GNUC__) && defined(EXI_UNREACHABLE)
+# define EXI_ASSUME(...) do {                                                 \
+  if (static_cast<bool>(__VA_ARGS__))                                         \
+    EXI_UNREACHABLE;                                                          \
+} while(false)
 #endif
 
 #if EXI_HAS_BUILTIN(__builtin_constant_p)
