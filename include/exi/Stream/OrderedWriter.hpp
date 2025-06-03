@@ -32,6 +32,7 @@
 
 #pragma once
 
+#include <core/Common/ManualRebind.hpp>
 #include <core/Common/Poly.hpp>
 #include <core/Common/Ref.hpp>
 #include <core/Support/Casting.hpp>
@@ -50,12 +51,6 @@ namespace exi {
 /// appears. This allows for a much simpler implementation.
 class OrderedWriter : public WriterBase {
 public:
-  struct BufferRef {
-    buffer_t& Buffer;
-    word_t Store = 0;
-    static constexpr bool ExternBuffer = true;
-  };
-
   struct BufferClone {
     buffer_t& Buffer;
     raw_ostream* const FS = nullptr;
@@ -64,8 +59,21 @@ public:
     bool ExternBuffer = false;
   };
 
+  // TODO: Rethink implementation
+  struct BufferRef {
+    buffer_t& Buffer;
+    word_t Store = 0;
+    static constexpr bool ExternBuffer = true;
+  };
+
   using proxy_t = StreamProxy<BufferClone>;
   using ProxyT  = proxy_t;
+
+  using refproxy_t = StreamProxy<BufferRef>;
+  using RefProxyT  = refproxy_t;
+
+  /// @brief Currently uses MB.
+  static constexpr size_type kFlushUnits = 20;
 
 protected:
   /// Owned buffer, used as the buffer if the input stream is not
@@ -78,11 +86,10 @@ protected:
   /// The file stream that Buffer flushes to. If FS is a `raw_fd_stream`, the
   /// writer will incrementally flush. Otherwise flushing will happen at the end
   /// of the object's lifetime.
-  /// TODO: Make `MoveOnlyRaw<raw_ostream>` to allow emplaces.
-  raw_ostream* FS = nullptr;
+  ManualRebindPtr<raw_ostream> FS = nullptr;
 
   /// The threshold (unit B) to flush to FS, if FS is a `raw_fd_stream`.
-  const u64 FlushThreshold = 0;
+  ManualRebind<u64> FlushThreshold = 0;
 
   /// A value in the range [0, 64), specifies the next bit to use.
   size_type BitsInStore = 0;
@@ -136,11 +143,11 @@ protected:
   }
 
   raw_fd_stream* fdStream() {
-    return dyn_cast_or_null<raw_fd_stream>(FS);
+    return dyn_cast_or_null<raw_fd_stream>(&*FS);
   }
 
   const raw_fd_stream* fdStream() const {
-    return dyn_cast_or_null<raw_fd_stream>(FS);
+    return dyn_cast_or_null<raw_fd_stream>(&*FS);
   }
 
 public:
@@ -157,7 +164,7 @@ public:
   OrderedWriter(raw_ostream& Strm, u32 FlushThreshold = 512)
       : Buffer(getInternalBufferFromStream(Strm)),
         FS(!isa<raw_svector_ostream>(Strm) ? &Strm : nullptr),
-        FlushThreshold(u64(FlushThreshold) << 20) {}
+        FlushThreshold(u64(FlushThreshold) << kFlushUnits) {}
 
   /// Convenience constructor for users that start with a vector - avoids
   /// needing to wrap it in a raw_svector_ostream.
@@ -177,7 +184,18 @@ public:
 
   proxy_t getProxy() const {
     return {
-      {*Buffer, FS, Store, !isOwnBuffer()},
+      {
+        *Buffer, FS,
+        FlushThreshold, Store,
+        !isOwnBuffer()
+      },
+      BitsInStore
+    };
+  }
+
+  refproxy_t getRefProxy() const {
+    return {
+      { *Buffer, Store },
       BitsInStore
     };
   }
@@ -187,14 +205,25 @@ public:
     // TODO: Improve this logic more later. For now, just overwrite fancily.
     this->Buffer = Proxy->Buffer;
     if (Proxy->ExternBuffer)
-      this->FS = Proxy->FS;
+      FS.assign(Proxy->FS);
     else if (!this->isOwnBuffer())
-      this->FS = nullptr;
+      FS.assign(nullptr);
+    FlushThreshold.assign(Proxy->FlushThreshold);
     
     this->BitsInStore = Proxy.NBits;
     this->Store = Proxy->Store;
 
     this->flushToFile();
+  }
+
+  // TODO: Rethink implementation
+  void setProxy(refproxy_t Proxy) {
+    this->flushToFile(/*OnClosing=*/true);
+    this->Buffer = Proxy->Buffer;
+    FS.assign(nullptr);
+    
+    this->BitsInStore = Proxy.NBits;
+    this->Store = Proxy->Store;
   }
 
   void flushToWord() {
