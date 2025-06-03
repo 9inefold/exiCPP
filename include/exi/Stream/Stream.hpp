@@ -133,6 +133,7 @@ struct StreamBase {
 /// A proxy type for passing around consumed bits. Useful when swapping
 /// between stream types (generally between the header and body).
 template <class BufferT> class StreamProxy {
+  using base_t = std::remove_cvref_t<BufferT>;
 public:
   BufferT Bytes;
   StreamBase::word_t NBits;
@@ -140,6 +141,9 @@ public:
   StreamProxy(BufferT Bytes, u64 Bits) :
    Bytes(Bytes), NBits(Bits) {
   }
+
+  base_t* operator->() { return &Bytes; }
+  const base_t* operator->() const { return &Bytes; }
 };
 
 } // namespace exi
