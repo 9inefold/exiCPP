@@ -152,6 +152,7 @@ struct ExiOptions {
 
 /// Will verify option validity without modification.
 ExiError ValidateOptions(const ExiOptions& Opts);
+
 /// Will verify option validity, modifying the object with simple errors.
 ExiError FixupAndValidateOptions(ExiOptions& Opts);
 

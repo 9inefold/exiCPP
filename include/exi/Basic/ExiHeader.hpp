@@ -56,6 +56,7 @@ ExiError ValidateHeaderOnly(const ExiHeader& Header);
 
 /// Will verify header validity without modification.
 ExiError ValidateHeader(const ExiHeader& Header);
+
 /// Will verify header validity, passing `Opts` to be fixed up.
 ExiError FixupAndValidateHeader(const ExiHeader& Header);
 
