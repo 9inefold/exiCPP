@@ -76,6 +76,8 @@ endif()
 include_items(EXICPP_SRC "lib/exi"
   Basic/ErrorCodes.cpp
   Basic/EventCodes.cpp
+  Basic/ExiHeader.cpp
+  Basic/ExiOptions.cpp
   #Basic/FileEntry.cpp
   #Basic/FileManager.cpp
   Basic/FilesystemStatCache.cpp

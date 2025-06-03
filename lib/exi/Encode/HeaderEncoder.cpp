@@ -33,6 +33,7 @@
 
 using namespace exi;
 
+#if 0
 static bool HasValidSchemaID(const ExiOptions& Opts) {
   auto& Schema = Opts.SchemaID;
   if (!Schema.has_value())
@@ -155,6 +156,7 @@ static ExiError DoPreliminaryOptionsCheck(const ExiHeader& Header) {
 
   return ValidateOptions(Opts);
 }
+#endif
 
 static ExiError EncodeVersion(const ExiHeader& Header, BitWriter* Strm) {
   // Should always be false.
@@ -177,7 +179,7 @@ static ExiError EncodeVersion(const ExiHeader& Header, BitWriter* Strm) {
 }
 
 static ExiError encodeHeaderImpl(const ExiHeader& Header, BitWriter& Strm) {
-  if (ExiError E = DoPreliminaryOptionsCheck(Header)) {
+  if (ExiError E = exi::FixupAndValidateHeader(Header)) {
     // There was some error with encoding settings.
     LOG_ERROR("error with header settings");
     return E;

@@ -1,4 +1,4 @@
-//===- exi/Basic/ExiOptions.hpp -------------------------------------===//
+//===- exi/Basic/ExiHeader.hpp --------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -17,7 +17,7 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines the options in the EXI header.
+/// This file defines the EXI header.
 ///
 //===----------------------------------------------------------------===//
 
@@ -50,5 +50,13 @@ struct ExiHeader {
   /// Options used by the EXI processor.
   MaybeBox<ExiOptions> Opts;
 };
+
+/// Will verify header validity without checking options.
+ExiError ValidateHeaderOnly(const ExiHeader& Header);
+
+/// Will verify header validity without modification.
+ExiError ValidateHeader(const ExiHeader& Header);
+/// Will verify header validity, passing `Opts` to be fixed up.
+ExiError FixupAndValidateHeader(const ExiHeader& Header);
 
 } // namespace exi

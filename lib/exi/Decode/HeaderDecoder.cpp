@@ -134,10 +134,12 @@ static ExiError DecodeVersion(ExiHeader& Header, BitReader* Strm) {
   return ExiError::OK;
 }
 
+#if 0
 static ExiError ValidateOptions(ExiOptions& Opts) {
   // FIXME: Do validation
   return ExiError::OK;
 }
+#endif
 
 static ExiError decodeHeaderImpl(ExiHeader& Header, BitReader& Strm) {
   safe_bool PresenceBit;
@@ -170,13 +172,14 @@ static ExiError decodeHeaderImpl(ExiHeader& Header, BitReader& Strm) {
   }
 
   exi_invariant(Header.Opts, "EXI Options must be initialized!");
-  exi_try(ValidateOptions(*Header.Opts));
-
   auto& Opts = *Header.Opts;
+  
   if (Opts.Compression)
     // Data is packed the same with precompression as with compression.
     // We set the alignment to this so the processor acts as such.
     Opts.Alignment = AlignKind::PreCompression;
+
+  exi_try(exi::FixupAndValidateOptions(Opts));
 
   if (Opts.Alignment != AlignKind::BitPacked)
     // Skip [Padding Bits].

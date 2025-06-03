@@ -34,6 +34,7 @@
 #include <exi/Basic/Bounded.hpp>
 
 namespace exi {
+class ExiError;
 
 /// An enum containing all the terminal symbols used for productions.
 enum class AlignKind : u8 {
@@ -148,6 +149,14 @@ struct ExiOptions {
   /// Default: none
   exi::Any UserData;
 };
+
+/// Will verify option validity without modification.
+ExiError ValidateOptions(const ExiOptions& Opts);
+/// Will verify option validity, modifying the object with simple errors.
+ExiError FixupAndValidateOptions(ExiOptions& Opts);
+
+//////////////////////////////////////////////////////////////////////////
+// Preserve
 
 /// Create `ExiOptions.Preserve` from a `PreserveBuilder`.
 inline constexpr ExiOptions::PreserveOpts
