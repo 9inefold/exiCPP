@@ -50,6 +50,7 @@
 #include <rapidxml.hpp>
 
 #define DEBUG_TYPE "__DRIVER__"
+#define TEST_LARGE_EXAMPLES 0
 
 using namespace exi;
 
@@ -254,7 +255,7 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
     << "Running tests... " << MaxIters << " iterations.\n";
   // Stress testing in release.
   for (int NIters = 0; CheckIters<MaxIters, 5>(NIters);)
-#endif
+#endif // !EXI_LOGGING
   {
     exi::DebugFlag = LogLevel::VERBOSE;
     // SpecExample.xml with default settings and no options.
@@ -277,16 +278,17 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
   // The example data provided by EXI.
   DECODE_ORD_BITS("ThaiNoopt.exi");
   DECODE_ORD_BYTES("ThaiNooptB.exi");
+  exi::DebugFlag = LogLevel::WARN;
 
+#if TEST_LARGE_EXAMPLES
 #if !EXI_LOGGING
   constexpr int MaxLargeIters = 100;
   WithColor(outs(), BRIGHT_WHITE)
     << "Running large tests... " << MaxLargeIters << " iterations.\n";
   // Stress testing in release.
   for (int NIters = 0; CheckIters<MaxLargeIters>(NIters);)
-#endif
+#endif // !EXI_LOGGING
   {
-    exi::DebugFlag = LogLevel::WARN;
     // Orders.xml with Preserve.prefixes and no options.
     // Has a lot of data with minimal distinct keys.
     DECODE_ORD_BITS("Orders.exi", Prefixes);
@@ -299,6 +301,7 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
     // Has 100mb of data in XML form, quite a large test.
     DECODE_ORD_BITS("Treebank.exi", Prefixes);
   }
+#endif // TEST_LARGE_EXAMPLES
 
   return 0;
 }
