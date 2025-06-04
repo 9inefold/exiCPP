@@ -1,4 +1,4 @@
-//===- exi/Grammar/SchemaGet.cpp ------------------------------------===//
+//===- exi/Grammar/Decode/SchemaGet.cpp -----------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -23,5 +23,26 @@
 
 #pragma once
 
-#include "Decode/SchemaGet.hpp"
-//  #include "Encode/SchemaGet.hpp"
+#include <core/Support/Casting.hpp>
+#include <exi/Grammar/Schema.hpp>
+#include <exi/Decode/BodyDecoder.hpp>
+
+namespace exi::decode {
+
+class Schema::Get {
+public:
+  static BumpPtrAllocator& BP(ExiDecoder* D) { return D->BP; }
+  static decode::StringTable& Idents(ExiDecoder* D) { return D->Idents; }
+
+  template <class StrmT>
+  static StrmT* Reader(ExiDecoder* D) { return &cast<StrmT>(D->Reader); }
+  static OrdReader& Reader(ExiDecoder* D) { return D->Reader; }
+
+  static auto DecodeQName(ExiDecoder* D) { return D->decodeQName(); }
+  static auto DecodeNS(ExiDecoder* D) { return D->decodeNS(); }
+  static auto DecodeValue(ExiDecoder* D, SmallQName Name) {
+    return D->decodeValue(Name);
+  }
+};
+
+} // namespace exi::decode

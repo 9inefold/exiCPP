@@ -94,7 +94,8 @@ include_items(EXICPP_SRC "lib/exi"
   Encode/HeaderEncoder.cpp
 
   Grammar/Grammar.cpp
-  Grammar/Schema.cpp
+  #Grammar/Schema.cpp
+  Grammar/Decode/BuiltinSchema.cpp
 
   Stream/Stream.cpp
 )

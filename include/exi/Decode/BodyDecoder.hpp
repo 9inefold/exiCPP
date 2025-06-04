@@ -34,7 +34,7 @@
 #include <exi/Basic/StringTables.hpp>
 #include <exi/Decode/HeaderDecoder.hpp>
 #include <exi/Decode/UnifyBuffer.hpp>
-#include <exi/Grammar/Schema.hpp>
+#include <exi/Grammar/DecoderSchema.hpp>
 #include <exi/Stream/OrderedReader.hpp>
 
 namespace exi {
@@ -51,7 +51,7 @@ struct DecoderFlags {
 /// The EXI decoding processor.
 /// FIXME: Split this up into more implementations.
 class ExiDecoder {
-  friend class Schema::Get;
+  friend class decode::Schema::Get;
 
   /// The provided Header.
   ExiHeader Header;
@@ -63,7 +63,7 @@ class ExiDecoder {
   decode::StringTable Idents;
   /// The schema for the current document.
   /// TODO: Add SchemaResolver...
-  Box<Schema> CurrentSchema;
+  Box<decode::Schema> CurrentSchema;
   /// The stack of current grammars.
   SmallVec<const InlineStr*> GrammarStack;
 

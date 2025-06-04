@@ -118,7 +118,7 @@ static void RunDumps(XMLManager& Mgr) {
 static void TestSchema(StrRef Name, ExiOptions::PreserveOpts Preserve) {
   ExiOptions Opts { .Preserve = Preserve };
   Opts.SchemaID.emplace(nullptr);
-  auto S = BuiltinSchema::New(Opts);
+  auto S = decode::BuiltinSchema::New(Opts);
   exi_assert(S, "Invalid BuiltinSchema");
 
   WithColor(outs(), raw_ostream::BRIGHT_BLUE) << Name << ":\n";
@@ -145,6 +145,9 @@ static void TestSchemas() {
     .Prefixes = true,
   });
 }
+
+//////////////////////////////////////////////////////////////////////////
+// Decoding
 
 static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
   LOG_INFO("Decoding header...");
@@ -174,6 +177,24 @@ static int Decode(XMLManager* Mgr, StrRef File, ExiOptions& Opts) {
   ExiDecoder Decoder(Opts, errs());
   return Decode(Decoder, MB);
 }
+
+//////////////////////////////////////////////////////////////////////////
+// Encoding
+
+static int Encode(XMLManager* Mgr, StrRef File, ExiHeader& Opts) {
+  XMLDocument& Xml
+    = Mgr->getOptXMLDocument(File, errs())
+      .expect("could not locate file!");
+  
+
+  LOG_INFO("Encoding: \"{}\"", File);
+  // ExiDecoder Decoder(Opts, errs());
+  // return Decode(Decoder, MB);
+  return 0;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Implementation
 
 template <int Total>
 EXI_NO_INLINE EXI_NODEBUG static void PrintIters(int NIters) {

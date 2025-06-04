@@ -24,7 +24,7 @@
 #include <exi/Grammar/Grammar.hpp>
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/CompactID.hpp>
-#include "SchemaGet.hpp"
+#include "Decode/SchemaGet.hpp"
 
 #define DEBUG_TYPE "Grammar"
 

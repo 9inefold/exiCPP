@@ -44,6 +44,7 @@
 #endif
 
 using namespace exi;
+using namespace exi::decode;
 
 ExiDecoder::ExiDecoder(MaybeBox<ExiOptions> Opts,
                        Option<raw_ostream&> OS) : ExiDecoder(OS) {
