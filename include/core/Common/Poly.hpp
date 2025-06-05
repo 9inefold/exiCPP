@@ -349,6 +349,16 @@ public:
     return Super::base();
   }
 
+  Base& operator*() & 
+   requires poly_detail::polymorphic<Base> {
+    return *Super::base();
+  }
+
+  const Base& operator*() const& 
+   requires poly_detail::polymorphic<Base> {
+    return *Super::base();
+  }
+
 private:
   void destroy() {
     if (!empty())
