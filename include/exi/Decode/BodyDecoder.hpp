@@ -135,6 +135,7 @@ protected:
   ExiError handleNS(Serializer* S, EventUID Event);
   ExiError handleCH(Serializer* S, EventUID Event);
 
+  // TODO: Intern the data for these so I can skip it
   ExiError handleCM(Serializer* S);
   ExiError handlePI(Serializer* S);
   ExiError handleDT(Serializer* S);

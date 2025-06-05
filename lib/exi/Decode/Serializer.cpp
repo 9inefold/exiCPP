@@ -22,6 +22,7 @@
 //===----------------------------------------------------------------===//
 
 #include <exi/Decode/Serializer.hpp>
+#include <exi/Decode/XMLSerializer.hpp>
 
 using namespace exi;
 

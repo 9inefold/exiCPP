@@ -597,6 +597,28 @@ static void HandleErr(XMLManager& Mgr, StrRef Name, raw_ostream& OS) {
   }
 }
 
+void root::FullXMLDump(exi::XMLDocument& Doc,
+                       exi::Option<raw_ostream&> InOS,
+                       bool DbgPrintTypes) {
+  raw_ostream& OutS = InOS.value_or(outs());
+  const bool OSProvided = InOS.has_value();
+
+  if (!OSProvided)
+    OutS.flush();
+
+  SmallStr<512> PrintBuf;
+  raw_svector_ostream OS(PrintBuf);
+  OS.enable_colors(outs().has_colors());
+
+  XMLDumper Dumper(Doc, 2, OS);
+  Dumper.DebugPrint = DbgPrintTypes;
+  Dumper.dump(/*InitialIndent=*/ OSProvided ? 0 : 1);
+
+  OutS << PrintBuf.str() << '\n';
+  OutS.changeColor(raw_ostream::RESET).flush();
+}
+
+
 void root::FullXMLDump(exi::XMLManager& Mgr,
                        const exi::Twine& Filepath,
                        exi::Option<raw_ostream&> InOS,

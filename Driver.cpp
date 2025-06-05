@@ -44,6 +44,7 @@
 #include <exi/Basic/XMLManager.hpp>
 #include <exi/Basic/XMLContainer.hpp>
 #include <exi/Decode/BodyDecoder.hpp>
+#include <exi/Decode/XMLSerializer.hpp>
 #include <exi/Stream/OrderedReader.hpp>
 
 #include <algorithm>
@@ -167,6 +168,24 @@ static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
   return 0;
 }
 
+static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB, Serializer* S) {
+  LOG_INFO("Decoding header...");
+  if (auto E = Decoder.decodeHeader(MB)) {
+    Decoder.diagnose(E);
+    return 1;
+  }
+
+  LOG_INFO("Decoding body...");
+  if (auto E = Decoder.decodeBody(S)) {
+    Decoder.diagnose(E);
+    return 1;
+  }
+
+  if (hasDbgLogLevel(INFO))
+    dbgs() << '\n';
+  return 0;
+}
+
 static int Decode(XMLManager* Mgr, StrRef File, ExiOptions& Opts) {
   XMLContainerRef Exi
     = Mgr->getOptXMLRef(File, errs())
@@ -215,7 +234,7 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr);
 
 int main(int Argc, char* Argv[]) {
   using enum raw_ostream::Colors;
-  exi::DebugFlag = LogLevel::VERBOSE;
+  exi::DebugFlag = LogLevel::WARN;
   HandleEscapeCodeSetup();
 
   outs().enable_colors(true);
@@ -224,10 +243,42 @@ int main(int Argc, char* Argv[]) {
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
 
+#if 0
   if (int Ret = TestSchemalessDecoding(Mgr)) {
     WithColor OS(outs(), BRIGHT_RED);
     OS << "Decoding failed.\n";
     return Ret;
+  }
+#endif
+
+  root::FullXMLDump(*Mgr, "examples/Namespace.xml");
+  {
+    using enum exi::PreserveKind;
+    const StrRef File = "examples/NamespaceNooptB.exi";
+
+    XMLContainerRef Exi
+      = Mgr->getOptXMLRef(File, errs())
+        .expect("could not locate file!");
+    auto MB = Exi.getBufferRef();
+
+    const auto Preserve = exi::make_preserve_opts(All & ~LexicalValues);
+    ExiOptions Opts {
+      .Alignment = AlignKind::BytePacked,
+      .Preserve = Preserve
+    };
+    Opts.SchemaID.emplace(nullptr);
+
+    LOG_INFO("Decoding: \"{}\"", File);
+    ExiDecoder Decoder(Opts, errs());
+    XMLSerializer S;
+
+    if (int Ret = Decode(Decoder, MB, &S)) {
+      WithColor OS(outs(), BRIGHT_RED);
+      OS << "Decoding failed.\n";
+      return Ret;
+    }
+
+    root::FullXMLDump(S.document());
   }
   
   WithColor OS(outs(), BRIGHT_GREEN);

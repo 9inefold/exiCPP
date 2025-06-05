@@ -36,9 +36,14 @@ namespace exi {
 class QName {
 public:
   // FIXME: Use more compact representation.
-  StrRef URI;
-  StrRef Name;
-  StrRef Prefix = "?";
+  StrRef URI = "";
+  StrRef Name = "";
+  StrRef Prefix = "";
+public:
+  StrRef getURI() const { return URI; }
+  StrRef getName() const { return Name; }
+  StrRef getPrefix() const { return Prefix; }
+  bool hasPrefix() const { return !Prefix.empty(); }
 };
 
 class Serializer {
@@ -79,6 +84,7 @@ public:
   // TODO: Make typed AT variants that forward to normal AT by default.
 
   /// Namespace Declaration
+  // TODO: Fix signature, non-local NS will refer back to another prefix.
   virtual ExiError NS(StrRef URI, StrRef Prefix, bool LocalElementNS) {
     return ExiError::OK;
   }
@@ -95,7 +101,7 @@ public:
   }
 
   /// Processing Instruction
-  virtual ExiError PI(StrRef Name, StrRef Text) {
+  virtual ExiError PI(StrRef Target, StrRef Text) {
     LOG_EXTRA("Decoded PI");
     return ExiError::OK;
   }

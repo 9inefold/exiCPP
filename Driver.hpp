@@ -61,4 +61,8 @@ void FullXMLDump(exi::XMLManager& Mgr,
                  exi::Option<exi::raw_ostream&> InOS = std::nullopt,
                  bool DbgPrintTypes = false);
 
+void FullXMLDump(exi::XMLDocument& Doc,
+                 exi::Option<exi::raw_ostream&> InOS = std::nullopt,
+                 bool DbgPrintTypes = false);
+
 } // namespace root

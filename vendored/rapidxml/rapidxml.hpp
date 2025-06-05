@@ -442,8 +442,8 @@ public:
 
   EXI_RETURNS_NONNULL ALWAYS_INLINE NodeType*
       allocate_node(NodeKind Kind, StrRefT Name, StrRefT Value) {
-    return allocate_attribute(Kind, Name.data(), Value.data(),
-                                    Name.size(), Value.size());
+    return allocate_node(Kind, Name.data(), Value.data(),
+                               Name.size(), Value.size());
   }
 
   //! Allocates a new attribute from the pool, and optionally assigns name and

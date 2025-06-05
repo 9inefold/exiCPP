@@ -378,7 +378,7 @@ ExiError ExiDecoder::handleER(Serializer* S) {
 }
 
 //////////////////////////////////////////////////////////////////////////
-// Values
+// Util
 
 QName ExiDecoder::getQName(EventUID Event) {
   exi_invariant(Event.hasQName());
@@ -462,6 +462,10 @@ ExiResult<EventUID> ExiDecoder::decodeNS() {
 
   bool IsLocal = false;
   exi_try_r(Reader->readBit(IsLocal));
+  if (!IsLocal) {
+    LOG_INFO(">> NONLOCAL");
+    return Err(ErrorCode::kUnimplemented);
+  }
 
   auto QName = SmallQName::NewURI(URI);
   return Ok(EventUID::NewNS(QName, PfxID, IsLocal));

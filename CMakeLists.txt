@@ -3,7 +3,7 @@ include_guard(DIRECTORY)
 
 project(
   exi-cpp
-  VERSION 0.7.8
+  VERSION 0.7.9
   LANGUAGES CXX C
 )
 
@@ -19,6 +19,8 @@ cmake_policy(SET CMP0079 NEW)
 
 set_version(EXI PROJECT)
 set(EFL_NAMESPACE exi) # Unused... for now
+
+# list(APPEND CMAKE_CXX_FLAGS "-fsanitize=address")
 
 option(EXI_USE_EXIP     "Enables the old version of exicpp." OFF)
 option(EXI_DRIVER       "If the driver should be built (always ON at top level)." OFF)
