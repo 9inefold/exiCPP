@@ -43,7 +43,7 @@ struct EncoderFlags {
   
 };
 
-/// The EXI decoding processor.
+/// The EXI encoding processor.
 /// FIXME: Split this up into more implementations.
 class ExiEncoder {
 

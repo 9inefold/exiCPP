@@ -347,33 +347,41 @@ ExiError ExiDecoder::handleCH(Serializer* S, EventUID Event) {
   SmallStr<RESERVE> NAME##_Data;                                              \
   Result NAME = (READER)->decodeString(NAME##_Data);                          \
   if EXI_UNLIKELY(NAME.is_err())                                              \
-    return NAME.error();                                                      \
+    return NAME.error();
 
 ExiError ExiDecoder::handleCM(Serializer* S) {
   READ_STRING(Comment, 80, Reader)
+  if (S->needsPersistence())
+    this->internStrings(*Comment);
   return S->CM(*Comment);
 }
 
 ExiError ExiDecoder::handlePI(Serializer* S) {
-  return Reader.visit([S] (auto& Strm) -> ExiError {
+  return Reader.visit([this, S] (auto& Strm) -> ExiError {
     READ_STRING(Target, 16, &Strm)
     READ_STRING(Text,   48, &Strm)
+    if (S->needsPersistence())
+      this->internStrings(*Target, *Text);
     return S->PI(*Target, *Text);
   });
 }
 
 ExiError ExiDecoder::handleDT(Serializer* S) {
-  return Reader.visit([S] (auto& Strm) -> ExiError {
+  return Reader.visit([this, S] (auto& Strm) -> ExiError {
     READ_STRING(Name,  16, &Strm)
     READ_STRING(PubID, 16, &Strm)
     READ_STRING(SysID, 16, &Strm)
     READ_STRING(Text,  32, &Strm)
+    if (S->needsPersistence())
+      this->internStrings(*Name, *PubID, *SysID, *Text);
     return S->DT(*Name, *PubID, *SysID, *Text);
   });
 }
 
 ExiError ExiDecoder::handleER(Serializer* S) {
   READ_STRING(Entity, 16, Reader)
+  if (S->needsPersistence())
+    this->internStrings(*Entity);
   return S->CM(*Entity);
 }
 

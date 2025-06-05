@@ -97,6 +97,28 @@ public:
     return E;
   }
 
+private:
+  /// Interns a single string with the given allocator.
+  // TODO: Make this global? Or maybe integrate into `BumpPtrAllocator`...
+  static void InternString(BumpPtrAllocator& BP, StrRef& Str) {
+    if (Str.empty()) {
+      Str = ""_str;
+      return;
+    }
+
+    const usize Size = Str.size();
+    char* Raw = BP.Allocate<char>(Size + 1);
+    std::memcpy(Raw, Str.data(), Size);
+    Raw[Size] = 0;
+    Str = {Raw, Size};
+  }
+
+  /// Interns a collection of strings with `BP`.
+  EXI_FLATTEN void internStrings(auto&...Strs) {
+    (InternString(this->BP, Strs), ...);
+  }
+
+public:
   ////////////////////////////////////////////////////////////////////////
   // Initialization
 
@@ -135,7 +157,6 @@ protected:
   ExiError handleNS(Serializer* S, EventUID Event);
   ExiError handleCH(Serializer* S, EventUID Event);
 
-  // TODO: Intern the data for these so I can skip it
   ExiError handleCM(Serializer* S);
   ExiError handlePI(Serializer* S);
   ExiError handleDT(Serializer* S);

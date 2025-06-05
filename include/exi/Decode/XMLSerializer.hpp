@@ -32,13 +32,13 @@ namespace exi {
 
 // TODO: Definitely wanna do some caching here...
 class XMLSerializer : public Serializer {
+  using enum xml::NodeKind;
+
   mutable XMLDocument Doc;
   XMLNode* Curr = nullptr;
   XMLAttribute* Attr = nullptr;
 
 public:
-  using enum xml::NodeKind;
-
   XMLSerializer() : Doc() {}
 
   /// Start Document
@@ -97,15 +97,14 @@ public:
 
   /// Comment
   ExiError CM(StrRef Comment) override {
-    XMLNode* Node = allocValue(node_comment, intern(Comment));
+    XMLNode* Node = allocValue(node_comment, Comment);
     Curr->append_node(Node);
     return ExiError::OK;
   }
 
   /// Processing Instruction
   ExiError PI(StrRef Target, StrRef Text) override {
-    XMLNode* Node = allocNode(node_pi,
-      intern(Target), intern(Text));
+    XMLNode* Node = allocNode(node_pi, Target, Text);
     Curr->append_node(Node);
     return ExiError::OK;
   }
@@ -114,7 +113,7 @@ public:
   ExiError DT(StrRef Name, StrRef PublicID,
               StrRef SystemID, StrRef Text) override {
     // TODO: Use other params
-    XMLNode* Node = allocValue(node_doctype, intern(Text));
+    XMLNode* Node = allocValue(node_doctype, Text);
     Curr->append_node(Node);
     return ExiError::OK;
   }
@@ -126,6 +125,7 @@ public:
   }
 
   XMLDocument& document() { return Doc; }
+  bool needsPersistence() const override { return true; }
 
 private:
   XMLNode* allocNode(NodeKind Kind, QName Name) {
@@ -184,5 +184,7 @@ private:
     return {Out, Size};
   }
 };
+
+// TODO: Add InFlightXMLSerializer
 
 } // namespace exi
