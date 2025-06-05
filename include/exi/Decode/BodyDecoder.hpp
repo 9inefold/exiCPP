@@ -135,6 +135,11 @@ protected:
   ExiError handleNS(Serializer* S, EventUID Event);
   ExiError handleCH(Serializer* S, EventUID Event);
 
+  ExiError handleCM(Serializer* S);
+  ExiError handlePI(Serializer* S);
+  ExiError handleDT(Serializer* S);
+  ExiError handleER(Serializer* S);
+
   QName getQName(EventUID Event);
   StrRef getPfxOrURI(EventUID Event);
   Option<StrRef> tryGetPfx(CompactID URI, CompactID PfxID);

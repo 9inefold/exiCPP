@@ -219,10 +219,14 @@ EXI_COLD ExiError ExiDecoder::dispatchUncommonEvent(Serializer* S,
     if (ExiError E = S->ED())
       return E;
     return ExiError::DONE;
-  case EventTerm::CM:       // Comment text (text)  
+  case EventTerm::CM:       // Comment text (text)
+    return this->handleCM(S);
   case EventTerm::PI:       // Processing Instruction (name, text)
+    return this->handlePI(S);
   case EventTerm::DT:       // DOCTYPE (name, public, system, text)
+    return this->handleDT(S);
   case EventTerm::ER:       // Entity Reference (name)
+    return this->handleER(S);
   case EventTerm::SC:       // Self Contained
     return ErrorCode::kUnimplemented;
   default:
@@ -338,6 +342,43 @@ ExiError ExiDecoder::handleCH(Serializer* S, EventUID Event) {
   LOG_EXTRA("Decoded CH");
   return S->CH(Value);
 }
+
+#define READ_STRING(NAME, RESERVE, READER)                                    \
+  SmallStr<RESERVE> NAME##_Data;                                              \
+  Result NAME = (READER)->decodeString(NAME##_Data);                          \
+  if EXI_UNLIKELY(NAME.is_err())                                              \
+    return NAME.error();                                                      \
+
+ExiError ExiDecoder::handleCM(Serializer* S) {
+  READ_STRING(Comment, 80, Reader)
+  return S->CM(*Comment);
+}
+
+ExiError ExiDecoder::handlePI(Serializer* S) {
+  return Reader.visit([S] (auto& Strm) -> ExiError {
+    READ_STRING(Target, 16, &Strm)
+    READ_STRING(Text,   48, &Strm)
+    return S->PI(*Target, *Text);
+  });
+}
+
+ExiError ExiDecoder::handleDT(Serializer* S) {
+  return Reader.visit([S] (auto& Strm) -> ExiError {
+    READ_STRING(Name,  16, &Strm)
+    READ_STRING(PubID, 16, &Strm)
+    READ_STRING(SysID, 16, &Strm)
+    READ_STRING(Text,  32, &Strm)
+    return S->DT(*Name, *PubID, *SysID, *Text);
+  });
+}
+
+ExiError ExiDecoder::handleER(Serializer* S) {
+  READ_STRING(Entity, 16, Reader)
+  return S->CM(*Entity);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Values
 
 QName ExiDecoder::getQName(EventUID Event) {
   exi_invariant(Event.hasQName());

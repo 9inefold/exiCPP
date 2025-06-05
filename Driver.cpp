@@ -248,6 +248,8 @@ int main(int Argc, char* Argv[]) {
   DECODE_GENERIC(DecodePreserveBytes, FILE, __VA_ARGS__)
 
 static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
+  ScopedSave FlagSave(exi::DebugFlag);
+
   auto DecodeFile = [Mgr = SharedMgr.get()]
    (StrRef HiddenFile, ExiOptions Opts) {
     Opts.SchemaID.emplace(nullptr);
@@ -291,17 +293,23 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
 
     // Customers.xml with Preserve.prefixes and no options.
     // Small namespace example.
-    DECODE_ORD_BITS("CustomersNoopt.exi", Prefixes);
+    DECODE_ORD_BITS("CustomersNoopt.exi",   Prefixes);
     DECODE_ORD_BYTES("CustomersNooptB.exi", Prefixes);
   }
 
+  exi::DebugFlag = LogLevel::INFO;
   // Thai.xml with default settings and no options.
-  // The example data provided by EXI.
+  // Unicode string example.
   DECODE_ORD_BITS("ThaiNoopt.exi");
   DECODE_ORD_BYTES("ThaiNooptB.exi");
-  exi::DebugFlag = LogLevel::WARN;
+
+  // Namespace.xml with all content and no options.
+  // All features (minus lexical values) tested.
+  DECODE_ORD_BITS("NamespaceNoopt.exi",   All & ~LexicalValues);
+  DECODE_ORD_BYTES("NamespaceNooptB.exi", All & ~LexicalValues);
 
 #if TEST_LARGE_EXAMPLES
+  exi::DebugFlag = LogLevel::WARN;
 #if !EXI_LOGGING
   constexpr int MaxLargeIters = 100;
   WithColor(outs(), BRIGHT_WHITE)
