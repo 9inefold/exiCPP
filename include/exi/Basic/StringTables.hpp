@@ -236,7 +236,7 @@ public:
     return URIMap[URI].Name;
   }
 
-  /// Gets a URI from an ID.
+  /// Gets a Prefix from a URI.
   StrRef getPrefix(CompactID URI, CompactID PfxID) const {
     exi_assert(this->hasPrefix(URI));
     auto& Pfx = PrefixMap[URI];
