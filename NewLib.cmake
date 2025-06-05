@@ -90,6 +90,7 @@ include_items(EXICPP_SRC "lib/exi"
 
   Decode/BodyDecoder.cpp
   Decode/HeaderDecoder.cpp
+  Decode/Serializer.cpp
 
   Encode/HeaderEncoder.cpp
 

@@ -33,11 +33,14 @@
 #include <exi/Basic/ExiHeader.hpp>
 #include <exi/Basic/StringTables.hpp>
 #include <exi/Decode/HeaderDecoder.hpp>
+// #include <exi/Decode/Serializer.hpp>
 #include <exi/Decode/UnifyBuffer.hpp>
 #include <exi/Grammar/DecoderSchema.hpp>
 #include <exi/Stream/OrderedReader.hpp>
 
 namespace exi {
+class Serializer;
+class QName;
 
 struct DecoderFlags {
   /// If the stream was set externally.
@@ -109,21 +112,30 @@ public:
   ExiError decodeHeader(UnifiedBuffer Buffer);
   /// Decodes the body from the current stream.
   ExiError decodeBody();
+  /// Decodes the body from the current stream with the provided serializer.
+  ExiError decodeBody(Serializer* S);
 
 protected:
   /// Initializes StringTable and Schema.
   ExiError init();
-  ExiError decodeEvent();
+  /// Verifies initialization has been completed.
+  ExiError prepareForDecoding();
+
+  /// Decodes events and then dispatches.
+  EXI_HOT ExiError decodeEvent(Serializer* S);
+  /// Dispatches less common events.
+  EXI_COLD ExiError dispatchUncommonEvent(Serializer* S, EventUID Event);
 
   ////////////////////////////////////////////////////////////////////////
   // Terms
 
-  ExiError handleSE(EventUID Event);
-  ExiError handleEE(EventUID Event);
-  ExiError handleAT(EventUID Event);
-  ExiError handleNS(EventUID Event);
-  ExiError handleCH(EventUID Event);
+  ExiError handleSE(Serializer* S, EventUID Event);
+  ExiError handleEE(Serializer* S, EventUID Event);
+  ExiError handleAT(Serializer* S, EventUID Event);
+  ExiError handleNS(Serializer* S, EventUID Event);
+  ExiError handleCH(Serializer* S, EventUID Event);
 
+  QName getQName(EventUID Event);
   StrRef getPfxOrURI(EventUID Event);
   Option<StrRef> tryGetPfx(CompactID URI, CompactID PfxID);
 

@@ -29,6 +29,7 @@
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/Runes.hpp>
+#include <exi/Decode/Serializer.hpp>
 #include <fmt/ranges.h>
 
 #define DEBUG_TYPE "BodyDecoder"
@@ -128,7 +129,7 @@ ExiError ExiDecoder::init() {
   return ExiError::OK;
 }
 
-ExiError ExiDecoder::decodeBody() {
+ExiError ExiDecoder::prepareForDecoding() {
   if (!Flags.DidInit && !Flags.SetReader) {
     // No init because required options were not provided.
     if (!Flags.DidHeader)
@@ -143,18 +144,35 @@ ExiError ExiDecoder::decodeBody() {
   }
 
   exi_invariant(Header.Opts && CurrentSchema);
-  LOG_EXTRA("Beginning decoding...");
-
   auto* SchemaPtr = CurrentSchema.get();
+
   if (!isa<BuiltinSchema>(*SchemaPtr)) {
     // TODO: Schemas!!!
     exi_unreachable("dynamic and compiled schemas currently unsupported.");
   }
 
+  return ExiError::OK;
+}
+
+ExiError ExiDecoder::decodeBody() {
+  Serializer S{};
+  return this->decodeBody(&S);
+}
+
+ExiError ExiDecoder::decodeBody(Serializer* S) {
+  if (S == nullptr) {
+    // TODO: Allow defaulting in permissive mode?
+    LOG_ERROR("Serializer cannot be null!");
+    return ErrorCode::kInvalidEXIInput;
+  }
+
+  if (ExiError E = prepareForDecoding())
+    return E;
+
+  //LOG_EXTRA("Beginning decoding...");
   while (Reader->hasData()) {
-    LOG_POSITION(this);
-    ExiError E = this->decodeEvent();
-    if (E == ExiError::OK)
+    ExiError E = this->decodeEvent(S);
+    if EXI_LIKELY(E == ExiError::OK)
       continue;
     else if (E == ExiError::DONE)
       break;
@@ -162,33 +180,45 @@ ExiError ExiDecoder::decodeBody() {
     return E;
   }
 
-  LOG_EXTRA("Completed decoding!");
+  //LOG_EXTRA("Completed decoding!");
   return ExiError::OK;
 }
 
-ExiError ExiDecoder::decodeEvent() {
+EXI_HOT ExiError ExiDecoder::decodeEvent(Serializer* S) {
+  LOG_POSITION(this);
   const EventUID Event = CurrentSchema->decode(this);
   
   switch (Event.getTerm()) {
-  case EventTerm::SD:       // Start Document
-    return ExiError::OK;
-  case EventTerm::ED:       // End Document
-    return ErrorCode::kParsingComplete;
   case EventTerm::SE:       // Start Element (*)
   case EventTerm::SEUri:    // Start Element (uri:*)
   case EventTerm::SEQName:  // Start Element (qname)
-    return this->handleSE(Event);
+    return this->handleSE(S, Event);
   case EventTerm::EE:       // End Element
-    return this->handleEE(Event);
+    return this->handleEE(S, Event);
   case EventTerm::AT:       // Attribute (*, value)
   case EventTerm::ATUri:    // Attribute (uri:*, value)
   case EventTerm::ATQName:  // Attribute (qname, value)
-    return this->handleAT(Event);
+    return this->handleAT(S, Event);
   case EventTerm::NS:       // Namespace Declaration (uri, prefix, local-element-ns)
-    return this->handleNS(Event);
+    return this->handleNS(S, Event);
   case EventTerm::CH:       // Characters (value)
   case EventTerm::CHExtern: // Characters (external-value)
-    return this->handleCH(Event);
+    return this->handleCH(S, Event);
+  default:
+    return this->dispatchUncommonEvent(S, Event);
+  }
+}
+
+EXI_COLD ExiError ExiDecoder::dispatchUncommonEvent(Serializer* S,
+                                                    const EventUID Event) {
+  // ...
+  switch (Event.getTerm()) {
+  case EventTerm::SD:       // Start Document
+    return S->SD();
+  case EventTerm::ED:       // End Document
+    if (ExiError E = S->ED())
+      return E;
+    return ExiError::DONE;
   case EventTerm::CM:       // Comment text (text)  
   case EventTerm::PI:       // Processing Instruction (name, text)
   case EventTerm::DT:       // DOCTYPE (name, public, system, text)
@@ -204,6 +234,7 @@ ExiError ExiDecoder::decodeEvent() {
 //////////////////////////////////////////////////////////////////////////
 // Terms
 
+#if 0
 // Start Element (*)
 // Start Element (uri:*)
 // Start Element (qname)
@@ -249,6 +280,83 @@ ExiError ExiDecoder::handleNS(EventUID) {
 ExiError ExiDecoder::handleCH(EventUID Event) {
   LOG_EXTRA("Decoded CH");
   return ExiError::OK;
+}
+#endif
+
+// Start Element (*)
+// Start Element (uri:*)
+// Start Element (qname)
+ExiError ExiDecoder::handleSE(Serializer* S, EventUID Event) {
+  const QName Name = this->getQName(Event);
+  LOG_EXTRA("Decoded SE");
+  return S->SE(Name);
+}
+
+ExiError ExiDecoder::handleEE(Serializer* S, EventUID Event) {
+  if (!Event.hasQName()) {
+    LOG_EXTRA("Decoded EE");
+    if (hasDbgLogLevel(INFO))
+      dbgs() << '\n';
+    return ExiError::OK;
+  }
+
+  const QName Name = this->getQName(Event);
+  LOG_INFO(">> EE[{}:{}]\n", Name.Prefix, Name.Name);
+  return S->EE(Name);
+}
+
+// Attribute (*, value)
+// Attribute (uri:*, value)
+// Attribute (qname, value)
+ExiError ExiDecoder::handleAT(Serializer* S, EventUID Event) {
+  exi_invariant(Event.hasQName());
+  Result R = decodeValue(Event.Name);
+  const auto ValueID = $unwrap(std::move(R));
+
+  const QName Name = this->getQName(Event);
+  StrRef Value = Idents.getValue(ValueID);
+
+  LOG_EXTRA("Decoded AT");
+  return S->AT(Name, Value);
+}
+
+// Namespace Declaration (uri, prefix, local-element-ns)
+ExiError ExiDecoder::handleNS(Serializer* S, EventUID) {
+  const auto Event = $unwrap(decodeNS());
+  const auto Name = Event.Name;
+  
+  StrRef URI = Idents.getURI(Name.URI);
+  StrRef Pfx = Idents.getPrefix(Name.URI, Event.Prefix);
+
+  LOG_EXTRA("Decoded NS");
+  return S->NS(URI, Pfx, Event.isLocal());
+}
+
+// Characters (value)
+ExiError ExiDecoder::handleCH(Serializer* S, EventUID Event) {
+  StrRef Value = Idents.getValue(Event);
+  LOG_EXTRA("Decoded CH");
+  return S->CH(Value);
+}
+
+QName ExiDecoder::getQName(EventUID Event) {
+  exi_invariant(Event.hasQName());
+  auto [URI, LocalName] = Idents.getQName(Event.Name);
+  if (!Event.hasPrefix()) {
+    return QName {
+      .URI = URI,
+      .Name = LocalName
+    };
+  }
+
+  StrRef Pfx = Idents.getPrefix(
+    Event.getURI(), Event.getPrefix()
+  );
+  return QName {
+    .URI = URI,
+    .Name = LocalName,
+    .Prefix = Pfx
+  };
 }
 
 StrRef ExiDecoder::getPfxOrURI(EventUID Event) {
