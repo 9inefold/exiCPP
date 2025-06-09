@@ -83,7 +83,6 @@ include_items(EXICPP_SRC "lib/exi"
   Basic/FilesystemStatCache.cpp
   Basic/NBitInt.cpp
   Basic/Runes.cpp
-  Basic/StringTables.cpp
   Basic/XML.cpp
   Basic/XMLContainer.cpp
   Basic/XMLManager.cpp
@@ -91,8 +90,10 @@ include_items(EXICPP_SRC "lib/exi"
   Decode/BodyDecoder.cpp
   Decode/HeaderDecoder.cpp
   Decode/Serializer.cpp
+  Decode/StringTables.cpp
 
   Encode/HeaderEncoder.cpp
+  Encode/StringTables.cpp
 
   Grammar/Grammar.cpp
   #Grammar/Schema.cpp

@@ -1,4 +1,4 @@
-//===- exi/Basic/StringTables.hpp -----------------------------------===//
+//===- exi/Decode/StringTables.hpp ----------------------------------===//
 //
 // Copyright (C) 2025 Eightfold
 //
@@ -194,13 +194,3 @@ void StringTable::appendLocalNames(CompactID ID, ArrayRef<StrRef> LocalNames) {
 }
 
 } // namespace exi::decode
-
-//===----------------------------------------------------------------===//
-// Encoding
-//===----------------------------------------------------------------===//
-
-namespace exi::encode {
-
-class StringTable;
-
-} // namespace exi::encode
