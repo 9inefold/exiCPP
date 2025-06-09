@@ -484,7 +484,7 @@ private:
     exi_invariant(Event.hasQName());
     if constexpr (!Cached)
       this->addTerm<ATQName>(Event);
-
+    // TODO: xsi:type
     Event.setTerm(Cached ? ATQName : AT);
     return Event;
   }
