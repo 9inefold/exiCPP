@@ -251,6 +251,8 @@ int main(int Argc, char* Argv[]) {
   }
 #endif
 
+  // Add https://www.w3.org/TR/xmlschema-0/#ipo.xsd
+
   root::FullXMLDump(*Mgr, "examples/Namespace.xml");
   {
     using enum exi::PreserveKind;
