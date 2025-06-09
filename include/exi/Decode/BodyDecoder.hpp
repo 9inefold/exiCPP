@@ -114,7 +114,7 @@ private:
   }
 
   /// Interns a collection of strings with `BP`.
-  EXI_FLATTEN void internStrings(auto&...Strs) {
+  EXI_INLINE void internStrings(auto&...Strs) {
     (InternString(this->BP, Strs), ...);
   }
 
