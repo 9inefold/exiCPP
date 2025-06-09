@@ -134,13 +134,6 @@ static ExiError DecodeVersion(ExiHeader& Header, BitReader* Strm) {
   return ExiError::OK;
 }
 
-#if 0
-static ExiError ValidateOptions(ExiOptions& Opts) {
-  // FIXME: Do validation
-  return ExiError::OK;
-}
-#endif
-
 static ExiError decodeHeaderImpl(ExiHeader& Header, BitReader& Strm) {
   safe_bool PresenceBit;
   exi_try(DecodeCookieAndBits(Header, &Strm));
