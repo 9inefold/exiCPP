@@ -31,7 +31,12 @@ This is a TODO list for the C++ version of exiCPP.
 - Better `Chrono` and add `Duration`??
 - Real tests for `core`
 - `exi` example test suite
+
+## Considerations
   
+- Unnamed namespace nesting
+- Namespace overwriting/nesting
+
 ## Stretch Goals
 
 - Fuzzing
