@@ -33,13 +33,22 @@
 
 using namespace exi;
 
-static constexpr usize kAddNullTerm
-  = kHasFlexibleArrayMembers ? 1 : 0;
+namespace {
+enum : usize {
+  kAddNullTerm = kHasFlexibleArrayMembers ? 1 : 0,
+  kSubNullTerm = kHasFlexibleArrayMembers ? 0 : 1,
+};
+} // namespace `anonymous`
+
+static constexpr usize kPaddingExtra
+  = sizeof(InlineStr) + kAddNullTerm;
+
+static constexpr usize kReverseOffset
+  = sizeof(InlineStr) - kSubNullTerm;
 
 ALWAYS_INLINE static InlineStr*
  CreateInlineStr(BumpPtrAllocator& Alloc, const usize Size) {
-  static constexpr usize kExtra = sizeof(InlineStr) + kAddNullTerm;
-  return (InlineStr*) Alloc.Allocate(Size + kExtra, alignof(InlineStr));
+  return (InlineStr*) Alloc.Allocate(Size + kPaddingExtra, alignof(InlineStr));
 }
 
 ALWAYS_INLINE static InlineStr*
@@ -111,4 +120,21 @@ StrRef UniqueStringSaver::save(StrRef S) {
 StrRef UniqueStringSaver::save(const Twine &S) {
   SmallStr<128> Storage;
   return save(S.toStrRef(Storage));
+}
+
+const InlineStr* UniqueStringSaver::saveRaw(StrRef S) {
+  auto [It, CacheMiss] = Unique.insert(S);
+  if (CacheMiss) {
+    InlineStr* Raw = Strings.saveRaw(S);
+    *It = Raw->str(); // safe replacement with equal value
+    return Raw;
+  }
+
+  auto* const Off = It->data() - kReverseOffset; 
+  return reinterpret_cast<const InlineStr*>(Off);
+}
+
+const InlineStr* UniqueStringSaver::saveRaw(const Twine &S) {
+  SmallStr<128> Storage;
+  return saveRaw(S.toStrRef(Storage));
 }

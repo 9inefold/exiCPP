@@ -36,6 +36,8 @@
 #include <Common/Twine.hpp>
 #include <Support/Allocator.hpp>
 
+// TODO: Make InlineStr returns const...
+
 namespace exi {
 
 #ifdef _MSC_VER
@@ -123,6 +125,11 @@ public:
   StrRef save(StrRef S);
   StrRef save(const Twine &S);
   StrRef save(const std::string &S) { return save(StrRef(S)); }
+
+  const InlineStr* saveRaw(const char *S) { return saveRaw(StrRef(S)); }
+  const InlineStr* saveRaw(const char *S, usize N) { return saveRaw(StrRef(S, N)); }
+  const InlineStr* saveRaw(StrRef S);
+  const InlineStr* saveRaw(const Twine &S);
 };
 
 } // namespace exi
