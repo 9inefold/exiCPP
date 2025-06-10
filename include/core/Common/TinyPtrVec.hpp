@@ -43,8 +43,7 @@ namespace exi {
 ///
 /// NOTE: This container doesn't allow you to store a null pointer into it.
 ///
-template <typename T>
-class TinyPtrVec {
+template <typename T> class TinyPtrVec {
 public:
   using VecT = SmallVec<T, 4>;
   using value_type = typename VecT::value_type;
