@@ -130,7 +130,7 @@ class StringTable {
   using LNCacheType = SmallLRUCache<SmallQName, LNPartition*, 4>;
   /// Used to cache recently used values. Since you generally have repetitive
   /// lookups, this may slightly increase performance, as it saves lookups.
-  /// TODO: Profile!!
+  /// TODO: Profile!! Four is good for now, but check various values.
   mutable LNCacheType LNCache;
 
   /// Used to map LocalName IDs to GlobalValues.
@@ -425,12 +425,79 @@ namespace encode {
 
 class StringTable;
 
+template <typename Value, bool IsOwned = false>
+using BumpStringMap = StringMap<Value,
+  std::conditional_t<IsOwned, BumpPtrAllocator, BumpPtrAllocator&>>;
+
 /// TODO: The string table used for encoding.
 class StringTable {
   /// The allocator shared internally.
-  exi::BumpPtrAllocator Alloc;
+  mutable exi::BumpPtrAllocator Alloc;
   /// Used to unique strings for lookup.
+  // TODO: Figure out if necessary?
   exi::UniqueStringSaver NameCache;
+
+  /// Maps a URI to its associated ID.
+  using URIMapType = BumpStringMap<CompactID>;
+  /// Stores the mapping between a URI and its associated ID.
+  using URIEntry = URIMapType::value_type;
+
+public:
+  struct PrefixInfo {
+    const URIEntry* URI = nullptr;
+    /// The ID of the prefix.
+    CompactID Pfx = 0;
+  };
+
+  /// Maps a Prefix to its corresponding URI(s).
+  using PrefixMapType = BumpStringMap<PrefixInfo>;
+  /// Stores the mapping between a Prefix and its corresponding URI(s).
+  using PrefixEntry = PrefixMapType::value_type;
+
+private:
+  /// Used to map URIs to IDs.
+  URIMapType URIMap;
+  /// Used to map Prefixes to URIs (and their IDs).
+  PrefixMapType PrefixMap;
+  
+  /// Represents nested namespace contexts.
+  using URIStack = SmallVec<PrefixInfo, 1>;
+  /// Maps a PrefixEntry to a stack of URI values.
+  using URIStackMapType = SmallDenseMap<const PrefixEntry*, URIStack, 8>;
+  /// Maps a PrefixEntry to a stack of URIs representing nested namespace contexts.
+  /// This is managed externally, as the string table has no knowledge of the format.
+  URIStackMapType URIStackMap;
+
+  // TODO: Add reverse lookup for previous Pfx -> URI associations (optional).
+
+  /// Represents a QName with `[URI, Cached-LocalName]`.
+  using QualifiedName = std::pair<URIEntry*, const InlineStr*>;
+
+public:
+  /// The value stored for each entry in the Value map.
+  struct ValueInfo {
+    /// The value's GlobalID.
+    CompactID GID = 0;
+    /// The latest LocalName using this Value.
+    QualifiedName Name {};
+  };
+
+private:
+  /// Maps a Value to its corresponding data.
+  using ValueMapType = BumpStringMap<ValueInfo, /*IsOwned=*/true>;
+  /// Stores the mapping between a Value and its corresponding data.
+  using ValueEntry = ValueMapType::value_type;
+
+  /// Represents LocalValues.
+  using LocalValuesType = SmallDenseMap<ValueEntry*, CompactID, 8>;
+  /// Maps a QName to LocalName data.
+  DenseMap<QualifiedName, LocalValuesType> LVMap;
+  
+  /// Handles the mapping from the string representation of a value to the
+  /// value's data. Lookups aren't done through NameCache to reduce the number
+  /// of searches required for that.
+  ValueMapType GValueMap;
+  CompactIDCounter<> GValueCount;
 
   // TODO: Finish design...
 };
