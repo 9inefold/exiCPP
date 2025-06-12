@@ -38,7 +38,7 @@
 namespace exi {
 
 template <class T = void *>
-bool shouldReverseIterate() {
+ALWAYS_INLINE constexpr bool shouldReverseIterate() {
 #if EXI_ENABLE_REVERSE_ITERATION
   return H::IsPointerLike<T>::value;
 #else
