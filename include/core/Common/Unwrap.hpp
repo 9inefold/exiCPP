@@ -1,6 +1,6 @@
 //===- Common/Unwrap.hpp --------------------------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2024-2025 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,7 +29,12 @@
 #include <Common/D/Expect.hpp>
 #include <concepts>
 
-#if defined(_MSC_VER) && !defined(__GNUC__)
+#if EXI_IS_LANG_SERVER
+/// Uses GNU Statement Exprs to unwrap values.
+# define EXI_UNWRAP(VAL, ...) (::exi::Expect{*VAL}).value()
+/// Uses GNU Statement Exprs to unwrap values. Gets raw value on success.
+# define EXI_UNWRAP_RAW(VAL, ...) VAL
+#elif defined(_MSC_VER) && !defined(__GNUC__)
 /// Unwrapping not possible on MSVC.
 # define EXI_UNWRAP(VAL, ...) [&]() {                                         \
   static_assert("$unwrap not available on MSVC!");                            \
@@ -42,11 +47,6 @@
   auto&& _u_Obj = VAL;                                                        \
   return EXI_FWD(_u_Obj);                                                     \
 }()
-#elif EXI_IS_LANG_SERVER && 0
-/// Uses GNU Statement Exprs to unwrap values.
-# define EXI_UNWRAP(VAL, ...) (::exi::Expect{*VAL}).value()
-/// Uses GNU Statement Exprs to unwrap values. Gets raw value on success.
-# define EXI_UNWRAP_RAW(VAL, ...) VAL
 #else
 /// Uses GNU Statement Exprs to unwrap values.
 # define EXI_UNWRAP(VAL, ...) ({                                              \

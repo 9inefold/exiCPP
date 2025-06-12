@@ -52,6 +52,7 @@
 #ifndef EXI_IS_LANG_SERVER
 # if defined(__INTELLISENSE__) || defined(__CLION_IDE__)
 /// This macro is defined for language servers, speeding up suggestions.
+// TODO: Add config for wider disabling of macro features.
 #  define EXI_IS_LANG_SERVER 1
 # endif
 #endif
@@ -299,13 +300,13 @@
 # define EXI_GSL_POINTER
 #endif
 
-#if EXI_HAS_ATTR(preferred_name)
+#if !EXI_IS_LANG_SERVER && EXI_HAS_ATTR(preferred_name)
 # define EXI_PREFER_NAME(alias) __attribute__((__preferred_name__(alias)))
 #else
 # define EXI_PREFER_NAME(alias)
 #endif
 
-#if defined(__clang_major__) && (__clang_major__ >= 18)
+#if !EXI_IS_LANG_SERVER && defined(__clang_major__) && (__clang_major__ >= 18)
 #define EXI_PREFER_TYPE(...) [[clang::preferred_type(__VA_ARGS__)]]
 #else
 #define EXI_PREFER_TYPE(...)
