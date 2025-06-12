@@ -23,6 +23,7 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## Unfinished
 
+- `source_location` with Clang support
 - `sys::` implementation on linux
 - Add permissive mode for things like relaxed versioning and validation order?
 - `Option<Unchecked<T>>` + `UncheckedOption`
