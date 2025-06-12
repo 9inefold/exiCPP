@@ -63,7 +63,7 @@ private:
   friend constexpr bool operator>=(Align Lhs, Align Rhs);
   friend constexpr bool operator<(Align Lhs, Align Rhs);
   friend constexpr bool operator>(Align Lhs, Align Rhs);
-  friend unsigned encode(struct MaybeAlign A);
+  friend unsigned encodeAlign(struct MaybeAlign A);
   friend struct MaybeAlign decodeMaybeAlign(unsigned Value);
 
   struct LogValue { u8 ShiftValue; };
@@ -220,7 +220,7 @@ inline Align commonAlignment(Align A, u64 Offset) {
 }
 
 /// Returns a representation of the alignment that encodes undefined as 0.
-inline unsigned encode(MaybeAlign A) { return A ? A->ShiftValue + 1 : 0; }
+inline unsigned encodeAlign(MaybeAlign A) { return A ? A->ShiftValue + 1 : 0; }
 
 /// Dual operation of the encode function above.
 inline MaybeAlign decodeMaybeAlign(unsigned Value) {
@@ -233,7 +233,7 @@ inline MaybeAlign decodeMaybeAlign(unsigned Value) {
 
 /// Returns a representation of the alignment, the encoded value is positive by
 /// definition.
-inline unsigned encode(Align A) { return encode(MaybeAlign(A)); }
+inline unsigned encodeAlign(Align A) { return encodeAlign(MaybeAlign(A)); }
 
 /// Comparisons between Align and scalars. Rhs must be positive.
 inline constexpr bool operator==(Align Lhs, u64 Rhs) {
