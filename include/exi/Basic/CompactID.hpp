@@ -45,6 +45,19 @@ EXI_INLINE constexpr u32 CompactIDLog2(CompactID ID) {
   return Log2_64(ID - 1) + 1;
 }
 
+/// Calculates `⌈ log2(ID) ⌉`.
+template <bool NeverZero = false>
+EXI_INLINE constexpr u32 CompactIDLog2(u32 ID) {
+  if constexpr (NeverZero)
+    exi_invariant(ID > 0);
+  else {
+    if EXI_UNLIKELY(ID == 0)
+      return 0;
+  }
+  // Faster algorithm.
+  return Log2_32(ID - 1) + 1;
+}
+
 namespace H {
 
 // TODO: Add embedded counters?
