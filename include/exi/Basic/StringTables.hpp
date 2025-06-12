@@ -39,6 +39,12 @@
 #include <exi/Basic/CompactID.hpp>
 #include <exi/Basic/EventCodes.hpp>
 
+#include <core/Common/CachedHashString.hpp>
+#include <core/Common/DenseMap.hpp>
+#include <type_traits>
+
+// TODO: Refactor to use embedded counters with RTTI handles
+
 namespace exi {
 
 struct ExiOptions;
@@ -429,6 +435,13 @@ template <typename Value, bool IsOwned = false>
 using BumpStringMap = StringMap<Value,
   std::conditional_t<IsOwned, BumpPtrAllocator, BumpPtrAllocator&>>;
 
+/// Typed handle for `StringTable::URIEntry`.
+struct TURIEntry;
+/// Typed handle for `StringTable::ValueEntry`.
+struct TValueEntry;
+/// Handle for an `InlineString` representing a QName's data as `"URI$pfx:ln"`.
+struct TQName;
+
 /// TODO: The string table used for encoding.
 class StringTable {
   /// The allocator shared internally.
@@ -437,16 +450,33 @@ class StringTable {
   // TODO: Figure out if necessary?
   exi::UniqueStringSaver NameCache;
 
+public:
+  // TODO: Add reverse lookup for previous Pfx -> URI associations (optional).
+  struct PrefixInfo;
+
+private:
+  /// Contains URI's ID and reverse mappings for prefixes.
+  struct URIInfo {
+    u32 URI = 0;
+    /// Iterate while recording the index to find the PfxID.
+    SmallVec<PrefixInfo*, 2> PfxMap;
+  };
+
   /// Maps a URI to its associated ID.
-  using URIMapType = BumpStringMap<CompactID>;
+  using URIMapType = BumpStringMap<URIInfo>;
   /// Stores the mapping between a URI and its associated ID.
   using URIEntry = URIMapType::value_type;
 
 public:
+  /// Using `u32`, because if you have 4 billion uris... wtf.
   struct PrefixInfo {
-    const URIEntry* URI = nullptr;
+    TURIEntry* Link = nullptr;
     /// The ID of the prefix.
-    CompactID Pfx = 0;
+    u32 Pfx = 0;
+    /// The cached prefix log.
+    u32 PfxLog = 0;
+    /// The ID of the URI.
+    u32 URI = 0;
   };
 
   /// Maps a Prefix to its corresponding URI(s).
@@ -463,41 +493,44 @@ private:
   /// Represents nested namespace contexts.
   using URIStack = SmallVec<PrefixInfo, 1>;
   /// Maps a PrefixEntry to a stack of URI values.
-  using URIStackMapType = SmallDenseMap<const PrefixEntry*, URIStack, 8>;
+  using URIStackMapType = SmallDenseMap<const PrefixEntry*, URIStack, 4>;
   /// Maps a PrefixEntry to a stack of URIs representing nested namespace contexts.
   /// This is managed externally, as the string table has no knowledge of the format.
   URIStackMapType URIStackMap;
 
-  // TODO: Add reverse lookup for previous Pfx -> URI associations (optional).
-
-  /// Represents a QName with `[URI, Cached-LocalName]`.
-  using QualifiedName = std::pair<URIEntry*, const InlineStr*>;
-
-public:
+  /// Represents LocalValues.
+  using LocalValuesType = SmallDenseMap<TValueEntry*, CompactID, 4>;
+  /// Maps a QName to LocalName data.
+  // TODO: Switch to Mapping `"URI$pfx:ln" -> [LNID, [LV...]]`?
+  DenseMap<const TQName*, LocalValuesType> LVMap;
+  
   /// The value stored for each entry in the Value map.
   struct ValueInfo {
     /// The value's GlobalID.
     CompactID GID = 0;
     /// The latest LocalName using this Value.
-    QualifiedName Name {};
+    const TQName* Name = nullptr;
   };
 
-private:
   /// Maps a Value to its corresponding data.
   using ValueMapType = BumpStringMap<ValueInfo, /*IsOwned=*/true>;
   /// Stores the mapping between a Value and its corresponding data.
   using ValueEntry = ValueMapType::value_type;
-
-  /// Represents LocalValues.
-  using LocalValuesType = SmallDenseMap<ValueEntry*, CompactID, 8>;
-  /// Maps a QName to LocalName data.
-  DenseMap<QualifiedName, LocalValuesType> LVMap;
-  
   /// Handles the mapping from the string representation of a value to the
   /// value's data. Lookups aren't done through NameCache to reduce the number
   /// of searches required for that.
   ValueMapType GValueMap;
   CompactIDCounter<> GValueCount;
+
+public:
+  StringTable();
+  StringTable(const ExiOptions& Opts) : StringTable() {
+    this->setup(Opts);
+  }
+
+  /// Sets up the initial encoder state.
+  /// The signature will have to change when schemas are introduced.
+  void setup(const ExiOptions& Opts);
 
   // TODO: Finish design...
 };

@@ -67,5 +67,14 @@ static const Option<String&> PullSchemaID(const Option<MaybeBox<String>>& ID) {
 
 namespace exi::encode {
 
+StringTable::StringTable()
+    : NameCache(Alloc), URIMap(4, Alloc), PrefixMap(4, Alloc) {
+  //GValueMap.reserve(kDefaultReserveSize);
+}
+
+void StringTable::setup(const ExiOptions& Opts) {
+  // TODO: Implement encoder setup...
+  exi_unreachable("implement setup");
+}
 
 } // namespace exi::encode
