@@ -1,6 +1,6 @@
 //===- Common/Features.hpp ------------------------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2024-2025 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,8 @@
 #ifdef _MSC_VER
 # include <sal.h>
 #endif
+
+// TODO: Document macros...
 
 #define CAT1_(a) a
 #define CAT2_(a, b) a ## b
@@ -383,6 +385,19 @@
 #else
 /// Generic requires, used on non-clang and language servers.
 # define EXI_REQUIRES_IF(EXPR, MSG) requires(EXPR)
+#endif
+
+#if EXI_USE_THREADS
+# if EXI_HAS_FEATURE(cxx_thread_local) || defined(_MSC_VER)
+#  define EXI_THREAD_LOCAL thread_local
+# else
+// Clang, GCC, and other compatible compilers used __thread prior to C++11 and
+// we only need the restricted functionality that provides.
+#  define EXI_THREAD_LOCAL __thread
+# endif
+#else // !EXI_USE_THREADS
+// If threading is disabled, use normal global variables.
+# define EXI_THREAD_LOCAL
 #endif
 
 #if EXI_HAS_CPPATTR(clang::musttail)
