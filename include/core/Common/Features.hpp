@@ -136,6 +136,9 @@
 # define EXI_STATIC_ASSERT_FALSE 0
 #endif
 
+// TODO: Move into config, add to schema handler for next release
+#define EXI_ENABLE_UNSTABLE_FEATURES 1
+
 //======================================================================//
 // Compiler Type
 //======================================================================//
@@ -388,13 +391,13 @@
 # define EXI_REQUIRES_IF(EXPR, MSG) requires(EXPR)
 #endif
 
-#if EXI_HAS_ATTR(preserve_most)
+#if EXI_HAS_ATTR(preserve_most) && EXI_ENABLE_UNSTABLE_FEATURES
 # define EXI_PRESERVE_MOST __attribute__((preserve_most))
 #else
 # define EXI_PRESERVE_MOST
 #endif
 
-#if EXI_HAS_ATTR(preserve_all)
+#if EXI_HAS_ATTR(preserve_all) && EXI_ENABLE_UNSTABLE_FEATURES
 # define EXI_PRESERVE_ALL __attribute__((preserve_all))
 #else
 # define EXI_PRESERVE_ALL
