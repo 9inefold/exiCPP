@@ -440,9 +440,34 @@ struct TURIEntry;
 /// Typed handle for `StringTable::ValueEntry`.
 struct TValueEntry;
 /// Handle for an `InlineString` representing a QName's data as `"URI$pfx:ln"`.
-struct TQName;
+struct QualName;
+
+/// Using `u32`, because if you have 4 billion uris... wtf.
+struct PrefixInfo {
+  TURIEntry* Link = nullptr;
+  /// The ID of the URI.
+  u32 URI = 0;
+  /// The ID of the prefix.
+  u16 Pfx = 0;
+  /// The cached prefix log.
+  u16 PfxLog = 0;
+  /// The cached Prefix.
+  //char URITag[6] {};
+};
+
+#define DECL_MAPPING_I(TO, FROM)                                              \
+  ALWAYS_INLINE static TO* X(FROM* Ptr) {                                     \
+    return reinterpret_cast<TO*>(Ptr);                                        \
+  }                                                                           \
+  ALWAYS_INLINE static TO& X(FROM& Ref) {                                     \
+    return *reinterpret_cast<TO*>(&Ref);                                      \
+  }
+#define DECL_MAPPING(TO, FROM)                                                \
+  DECL_MAPPING_I(TO, FROM)                                                    \
+  DECL_MAPPING_I(const TO, const FROM)
 
 /// TODO: The string table used for encoding.
+/// Assumes all inputs it recieves are valid.
 class StringTable {
   /// The allocator shared internally.
   mutable exi::BumpPtrAllocator Alloc;
@@ -450,11 +475,8 @@ class StringTable {
   // TODO: Figure out if necessary?
   exi::UniqueStringSaver NameCache;
 
-public:
-  // TODO: Add reverse lookup for previous Pfx -> URI associations (optional).
-  struct PrefixInfo;
-
-private:
+  /// Used to cache!!
+  static constexpr usize kURIMax = 0xFFFFFF;
   /// Contains URI's ID and reverse mappings for prefixes.
   struct URIInfo {
     u32 URI = 0;
@@ -468,21 +490,19 @@ private:
   using URIEntry = URIMapType::value_type;
 
 public:
-  /// Using `u32`, because if you have 4 billion uris... wtf.
-  struct PrefixInfo {
-    TURIEntry* Link = nullptr;
-    /// The ID of the prefix.
-    u32 Pfx = 0;
-    /// The cached prefix log.
-    u32 PfxLog = 0;
-    /// The ID of the URI.
-    u32 URI = 0;
-  };
-
   /// Maps a Prefix to its corresponding URI(s).
   using PrefixMapType = BumpStringMap<PrefixInfo>;
   /// Stores the mapping between a Prefix and its corresponding URI(s).
   using PrefixEntry = PrefixMapType::value_type;
+
+  EXI_INLINE static StrRef GetURI(const TURIEntry* Entry) {
+    exi_invariant(Entry != nullptr);
+    return X(Entry)->first();
+  }
+  EXI_INLINE static u32 GetID(const TURIEntry* Entry) {
+    exi_invariant(Entry != nullptr);
+    return X(Entry)->second.URI;
+  }
 
 private:
   /// Used to map URIs to IDs.
@@ -502,14 +522,14 @@ private:
   using LocalValuesType = SmallDenseMap<TValueEntry*, CompactID, 4>;
   /// Maps a QName to LocalName data.
   // TODO: Switch to Mapping `"URI$pfx:ln" -> [LNID, [LV...]]`?
-  DenseMap<const TQName*, LocalValuesType> LVMap;
+  DenseMap<const QualName*, LocalValuesType> LVMap;
   
   /// The value stored for each entry in the Value map.
   struct ValueInfo {
     /// The value's GlobalID.
     CompactID GID = 0;
     /// The latest LocalName using this Value.
-    const TQName* Name = nullptr;
+    const QualName* Name = nullptr;
   };
 
   /// Maps a Value to its corresponding data.
@@ -522,6 +542,17 @@ private:
   ValueMapType GValueMap;
   CompactIDCounter<> GValueCount;
 
+  bool DidSetup : 1 = false;
+  /// If the tables should wrap once reaching their capacity.
+  bool WrappingValues : 1 = false;
+
+  ////////////////////////////////////////////////////////////////////////
+  // Handle Mapping
+
+  DECL_MAPPING(URIEntry, TURIEntry)
+  DECL_MAPPING(ValueEntry, TValueEntry)
+  DECL_MAPPING(InlineStr, QualName)
+
 public:
   StringTable();
   StringTable(const ExiOptions& Opts) : StringTable() {
@@ -533,7 +564,12 @@ public:
   void setup(const ExiOptions& Opts);
 
   // TODO: Finish design...
+private:
+
 };
+
+#undef DECL_MAPPING_I
+#undef DECL_MAPPING
 
 } // namespace encode
 

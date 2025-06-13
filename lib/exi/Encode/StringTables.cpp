@@ -73,6 +73,10 @@ StringTable::StringTable()
 }
 
 void StringTable::setup(const ExiOptions& Opts) {
+  if (DidSetup)
+    return;
+  DidSetup = true;
+
   // TODO: Implement encoder setup...
   exi_unreachable("implement setup");
 }
