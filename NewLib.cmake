@@ -25,6 +25,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/ExtensibleRTTI.cpp
   Support/FmtBuffer.cpp
   Support/Format.cpp
+  Support/IntCast.cpp
   Support/ManagedStatic.cpp
   Support/MD5.cpp
   Support/MemoryBuffer.cpp
