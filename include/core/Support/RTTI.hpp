@@ -29,8 +29,11 @@
 #include <string>
 #include <typeinfo>
 
+// TODO: Add method to redirect one typename to another.
+
 namespace exi {
 
+class raw_ostream;
 template <typename> class SmallVecImpl;
 
 namespace rtti {
@@ -77,6 +80,13 @@ RttiResult<StrRef> demangle(StrRef Symbol, SmallVecImpl<char>& Buf);
 /// @note `Buf` will be cleared on success.
 RttiResult<StrRef> demangle(const std::type_info& Info, SmallVecImpl<char>& Buf);
 
+/// Takes the mangled `Symbol` and writes it to the stream.
+RttiError demangle(const char* Symbol, raw_ostream& OS);
+/// Takes the mangled `Symbol` and writes it to the stream.
+RttiError demangle(StrRef Symbol, raw_ostream& OS);
+/// Takes the mangled `.name()` and writes it to the stream.
+RttiError demangle(const std::type_info& Info, raw_ostream& OS);
+
 /// Gets the `typeid` of `Val` and returns its name as a `String`.
 template <typename T>
 EXI_INLINE RttiResult<String> name(const T& Val) {
@@ -89,6 +99,12 @@ EXI_INLINE RttiResult<StrRef> name(const T& Val, SmallVecImpl<char>& Buf) {
   return demangle(typeid(Val), Buf);
 }
 
+/// Gets the `typeid` of `Val` and writes its name to the stream.
+template <typename T>
+EXI_INLINE RttiError name(const T& Val, raw_ostream& OS) {
+  return demangle(typeid(Val), OS);
+}
+
 /// Gets the `typeid` of `T` and returns its name as a `String`.
 template <typename T>
 EXI_INLINE RttiResult<String> name() {
@@ -99,6 +115,12 @@ EXI_INLINE RttiResult<String> name() {
 template <typename T>
 EXI_INLINE RttiResult<StrRef> name(SmallVecImpl<char>& Buf) {
   return demangle(typeid(T), Buf);
+}
+
+/// Gets the `typeid` of `T` and writes its name to the stream.
+template <typename T>
+EXI_INLINE RttiError name(raw_ostream& OS) {
+  return demangle(typeid(T), OS);
 }
 
 } // namespace rtti

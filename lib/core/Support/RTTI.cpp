@@ -28,11 +28,20 @@
 #include <Common/SmallVec.hpp>
 #include <Config/Config.inc>
 #include <Support/Allocator.hpp>
+#include <Support/IntCast.hpp>
 #include <Support/ManagedStatic.hpp>
 #include <Support/raw_ostream.hpp>
 #include <cstring>
 #include <mutex>
 #include <new>
+
+// TODO: Make EXI_MULTIBUFFER_DEMANGLING a flag
+#define EXI_MULTIBUFFER_DEMANGLING 1
+
+#if EXI_USE_THREADS && !EXI_MULTIBUFFER_DEMANGLING
+/// Locks on every call to a demangling function instead of once per thread.
+# define USE_NAIVE_LOCKING 1
+#endif
 
 #ifndef EXI_MSVC_ENABLE_DEMANGLING
 # define EXI_MSVC_ENABLE_DEMANGLING 0
@@ -44,6 +53,12 @@
 # define EXI_REQUIRES_DEMANGLING 1
 # define CXXABI_DEMANGLE 1
 #elif EXI_MSVC_ENABLE_DEMANGLING
+# pragma comment(lib, "dbghelp.lib")
+# define WIN32_LEAN_AND_MEAN
+# define NOMINMAX
+# include <Windows.h>
+# include <DbgHelp.h>
+# include "UndName.hpp"
 # define EXI_REQUIRES_DEMANGLING 1
 # define UNDNAME_DEMANGLE 1
 #endif
@@ -67,6 +82,11 @@ static StrRef AppendToBuffer(StrRef S, SmallVecImpl<char>& Buf) {
   return StrRef(Buf.begin(), S.size());
 }
 
+static std::recursive_mutex& GetBufferPoolMtx() {
+  static std::recursive_mutex BufferPoolMtx;
+  return BufferPoolMtx;
+}
+
 //===----------------------------------------------------------------===//
 // Interface
 //===----------------------------------------------------------------===//
@@ -74,29 +94,43 @@ static StrRef AppendToBuffer(StrRef S, SmallVecImpl<char>& Buf) {
 #if EXI_REQUIRES_DEMANGLING
 
 /// Calls the implementation-specific demangling API.
-static RttiResult<StrRef> DemangleSymbol(const char* Symbol);
+static RttiResult<StrRef> DemangleSymbol(StrRef Symbol);
 
-static RttiResult<String> RttiDemangleImpl(StrRef Symbol) {
+template <typename CB>
+ALWAYS_INLINE static auto RttiDemangleCommon(StrRef Symbol, CB&& Callable)
+ -> RttiResult<std::invoke_result_t<CB, StrRef>> {
   try {
-    auto Out = DemangleSymbol(Symbol.data());
+#if USE_NAIVE_LOCKING
+    std::scoped_lock Lock(GetBufferPoolMtx());
+#endif
+    auto Out = DemangleSymbol(Symbol);
     if (Out.is_err())
       return Err(Out.error());
-    return Out->str();
+    return EXI_FWD(Callable)(*Out);
   } catch (const std::bad_alloc&) {
     return Err(RttiError::InvalidMemoryAlloc);
   }
 }
 
+static RttiResult<String> RttiDemangleImpl(StrRef Symbol) {
+  return RttiDemangleCommon(Symbol, [] (StrRef S) {
+    return S.str();
+  });
+}
+
 static RttiResult<StrRef> RttiDemangleImpl(
  StrRef Symbol, SmallVecImpl<char>& Buf) {
-  try {
-    auto Out = DemangleSymbol(Symbol.data());
-    if (Out.is_err())
-      return Err(Out.error());
-    return AppendToBuffer(*Out, Buf);
-  } catch (const std::bad_alloc&) {
-    return Err(RttiError::InvalidMemoryAlloc);
-  }
+  return RttiDemangleCommon(Symbol, [&Buf] (StrRef S) {
+    return AppendToBuffer(S, Buf);
+  });
+}
+
+static RttiError RttiDemangleImpl(
+ StrRef Symbol, raw_ostream& OS) {
+  return RttiDemangleCommon(Symbol, [&OS] (StrRef S) {
+    OS.write(S.data(), S.size());
+    return 0;
+  }).error_or(RttiError::Success);
 }
 
 #else
@@ -114,18 +148,35 @@ static ALWAYS_INLINE RttiResult<StrRef> RttiDemangleImpl(
 // Exposed API
 //===----------------------------------------------------------------===//
 
-RttiResult<String> exi::rtti::demangle(const char* Symbol) {
+static Option<RttiError> DemangleChk(const char* Symbol) {
   if EXI_UNLIKELY(!Symbol)
-    return Err(RttiError::InvalidArgument);
+    return RttiError::InvalidArgument;
   else if EXI_UNLIKELY(Symbol[0] == '\0')
-    return Err(RttiError::InvalidName);
+    return RttiError::InvalidName;
+  else
+    return std::nullopt;
+}
+
+static Option<RttiError> DemangleChk(StrRef Symbol) {
+  if EXI_UNLIKELY(Symbol.empty())
+    return RttiError::InvalidName;
+  else
+    return std::nullopt;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Empty
+
+RttiResult<String> exi::rtti::demangle(const char* Symbol) {
+  if (auto OptErr = DemangleChk(Symbol))
+    return Err(*OptErr);
   else
     return RttiDemangleImpl(StrRef(Symbol));
 }
 
 RttiResult<String> exi::rtti::demangle(StrRef Symbol) {
-  if EXI_UNLIKELY(Symbol.empty())
-    return Err(RttiError::InvalidName);
+  if (auto OptErr = DemangleChk(Symbol))
+    return Err(*OptErr);
   return RttiDemangleImpl(Symbol);
 }
 
@@ -140,24 +191,43 @@ RttiResult<String> exi::rtti::demangle(const std::type_info& Info) {
 
 RttiResult<StrRef> exi::rtti::demangle(
  const char* Symbol, SmallVecImpl<char>& Buf) {
-  if EXI_UNLIKELY(!Symbol)
-    return Err(RttiError::InvalidArgument);
-  else if EXI_UNLIKELY(Symbol[0] == '\0')
-    return Err(RttiError::InvalidName);
+  if (auto OptErr = DemangleChk(Symbol))
+    return Err(*OptErr);
   else
     return RttiDemangleImpl(StrRef(Symbol), Buf);
 }
 
 RttiResult<StrRef> exi::rtti::demangle(
  StrRef Symbol, SmallVecImpl<char>& Buf) {
-  if EXI_UNLIKELY(Symbol.empty())
-    return Err(RttiError::InvalidName);
+  if (auto OptErr = DemangleChk(Symbol))
+    return Err(*OptErr);
   tail_return RttiDemangleImpl(Symbol, Buf);
 }
 
 RttiResult<StrRef> exi::rtti::demangle(
  const std::type_info& Info, SmallVecImpl<char>& Buf) {
   return RttiDemangleImpl(StrRef(Info.name()), Buf);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// raw_ostream
+
+RttiError exi::rtti::demangle(const char* Symbol, raw_ostream& OS) {
+  if (auto OptErr = DemangleChk(Symbol))
+    return *OptErr;
+  else
+    return RttiDemangleImpl(StrRef(Symbol), OS);
+}
+
+RttiError exi::rtti::demangle(StrRef Symbol, raw_ostream& OS) {
+  if (auto OptErr = DemangleChk(Symbol))
+    return *OptErr;
+  tail_return RttiDemangleImpl(Symbol, OS);
+}
+
+RttiError exi::rtti::demangle(
+ const std::type_info& Info, raw_ostream& OS) {
+  return RttiDemangleImpl(StrRef(Info.name()), OS);
 }
 
 //===----------------------------------------------------------------===//
@@ -238,6 +308,7 @@ public:
 };
 
 char* DemanglerBuffer::AllocateBuffer(usize Size) {
+  // FIXME: This can actually be done with mimalloc on MSVC.
   void* Ptr = std::malloc(Size);
   if EXI_UNLIKELY(!Ptr) {
     if (Size == 0)
@@ -279,7 +350,7 @@ void DemanglerBuffer::maybeReplace(char* NewPtr, usize NewSize) {
 
 class DemanglerBufferPool;
 
-#if !EXI_USE_THREADS
+#if !EXI_USE_THREADS || !EXI_MULTIBUFFER_DEMANGLING
 
 /// Simple single threaded "pool".
 class DemanglerBufferPool {
@@ -321,11 +392,6 @@ public:
   DemanglerBuffer* claimBuffer();
   void freeBuffer(DemanglerBufferHandle* Hold);
 };
-
-static std::recursive_mutex& GetBufferPoolMtx() {
-  static std::recursive_mutex BufferPoolMtx;
-  return BufferPoolMtx;
-}
 
 std::pair<DemanglerBuffer*, bool> DemanglerBufferPool::claimBufferLocked() {
   std::scoped_lock Lock(GetBufferPoolMtx());
@@ -407,21 +473,36 @@ static RttiError MapDemangleStatus(int Status) {
   return RttiError::Other;
 }
 
-static RttiResult<StrRef> DemangleSymbol(const char* Symbol) {
-  Result Out = Invoke__cxa_demangle(Symbol);
+static RttiResult<StrRef> DemangleSymbol(StrRef Symbol) {
+  Result Out = Invoke__cxa_demangle(Symbol.data());
   if (Out.is_err()) {
     const int Status = Out.error();
     return Err(MapDemangleStatus(Status));
   }
-
   return Ok(*Out);
 }
 
 # elif UNDNAME_DEMANGLE
 
-// TODO: Implement undname demangling
+ALWAYS_INLINE static char* Bridge__unDName(
+ const char* Symbol, char* Buffer, usize Size, UndStrategy::Type Flags) {
+  const int ChkSize = exi::IntCastOrZero<int>(Size);
+  return __unDName(Buffer, Symbol, ChkSize, &std::malloc, &std::free, Flags);
+}
 
-static RttiResult<StrRef> DemangleSymbol(const char* Symbol) {
+// TODO: Make this better? Might need a method of reloading symbols
+[[nodiscard]] EXI_NO_INLINE static int DemangleSymInit() {
+  SymSetOptions(SYMOPT_ALLOW_ABSOLUTE_SYMBOLS | SYMOPT_DEFERRED_LOADS);
+  bool DidInit = !!SymInitialize(GetCurrentProcess(), nullptr, TRUE);
+  assert(did_initialize && "Failed to initialize the symbol handler!");
+  return true;
+}
+
+// TODO: Implement undname demangling, adapt LLVM impl
+
+static RttiResult<StrRef> DemangleSymbol(StrRef Symbol) {
+  { [[maybe_unused]] static volatile int LazyLoad = DemangleSymInit(); }
+  bool IsInternal = Symbol.consume_front('.');
   exi_unreachable("implement undname DemangleSymbol");
 }
 
