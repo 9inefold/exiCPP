@@ -163,6 +163,7 @@ protected:
   ExiError handleER(Serializer* S);
 
   QName getQName(EventUID Event);
+  // TODO: Add optional `UserPrefixLookup*` type.
   StrRef getPfxOrURI(EventUID Event);
   Option<StrRef> tryGetPfx(CompactID URI, CompactID PfxID);
 
