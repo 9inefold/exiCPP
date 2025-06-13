@@ -388,6 +388,18 @@
 # define EXI_REQUIRES_IF(EXPR, MSG) requires(EXPR)
 #endif
 
+#if EXI_HAS_ATTR(preserve_most)
+# define EXI_PRESERVE_MOST __attribute__((preserve_most))
+#else
+# define EXI_PRESERVE_MOST
+#endif
+
+#if EXI_HAS_ATTR(preserve_all)
+# define EXI_PRESERVE_ALL __attribute__((preserve_all))
+#else
+# define EXI_PRESERVE_ALL
+#endif
+
 #if EXI_USE_THREADS
 # if EXI_HAS_FEATURE(cxx_thread_local) || defined(_MSC_VER)
 #  define EXI_THREAD_LOCAL thread_local
