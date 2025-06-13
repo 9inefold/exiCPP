@@ -193,7 +193,7 @@ public:
     return AllocateSlow(Size, SizeToAllocate, Alignment);
   }
 
-  EXI_RETURNS_NONNULL EXI_NO_INLINE void *
+  EXI_RETURNS_NONNULL EXI_NO_INLINE EXI_PRESERVE_MOST void *
   AllocateSlow(usize Size, usize SizeToAllocate, Align Alignment) {
     // If Size is really big, allocate a separate slab for it.
     usize PaddedSize = SizeToAllocate + Alignment.value() - 1;

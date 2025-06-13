@@ -139,6 +139,15 @@
 // TODO: Move into config, add to schema handler for next release
 #define EXI_ENABLE_UNSTABLE_FEATURES 1
 
+// Checks adapted from v8config.h
+#if (defined(_M_X64) || defined(__x86_64__)                                   \
+     || ((defined(__AARCH64EL__) || defined(_M_ARM64))                        \
+         && !defined(_WIN32)))                                                \
+     && EXI_ENABLE_UNSTABLE_FEATURES                                          \
+     && (!defined(__clang_major__) || __clang_major__ >= 17)
+# define EXI_SUPPORTS_PRESERVE_CC 1
+#endif
+
 //======================================================================//
 // Compiler Type
 //======================================================================//
@@ -392,13 +401,13 @@
 #endif
 
 // FIXME: Only enable for supported platforms. Does not work on x32 & arm win
-#if EXI_HAS_ATTR(preserve_most) && EXI_ENABLE_UNSTABLE_FEATURES
+#if EXI_HAS_ATTR(preserve_most) && EXI_SUPPORTS_PRESERVE_CC
 # define EXI_PRESERVE_MOST __attribute__((preserve_most))
 #else
 # define EXI_PRESERVE_MOST
 #endif
 
-#if EXI_HAS_ATTR(preserve_all) && EXI_ENABLE_UNSTABLE_FEATURES
+#if EXI_HAS_ATTR(preserve_all) && EXI_SUPPORTS_PRESERVE_CC
 # define EXI_PRESERVE_ALL __attribute__((preserve_all))
 #else
 # define EXI_PRESERVE_ALL
