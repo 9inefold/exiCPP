@@ -106,6 +106,7 @@ public:
   bool hasData() const { return Stream.size() >= ByteOffset; }
 
 protected:
+  // TODO: EXI_PRESERVE_MOST?
   ExiResult<size_type> fillStoreImpl() {
     if EXI_UNLIKELY(ByteOffset >= Stream.size())
       // Read of an empty buffer.
@@ -393,7 +394,7 @@ private:
   // Failure
 
   template <size_type Bytes = 8>
-  EXI_COLD ExiResult<u64> failUInt() {
+  EXI_SLOW_PATH ExiResult<u64> failUInt() {
     // TODO: Add NO_INLINE?
     LOG_WARN("uint exceeded {} octets.\n", Bytes);
     return Err(ErrorCode::kInvalidEXIInput);

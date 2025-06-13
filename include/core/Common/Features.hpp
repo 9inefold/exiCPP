@@ -391,6 +391,7 @@
 # define EXI_REQUIRES_IF(EXPR, MSG) requires(EXPR)
 #endif
 
+// FIXME: Only enable for supported platforms. Does not work on x32 & arm win
 #if EXI_HAS_ATTR(preserve_most) && EXI_ENABLE_UNSTABLE_FEATURES
 # define EXI_PRESERVE_MOST __attribute__((preserve_most))
 #else
@@ -402,6 +403,8 @@
 #else
 # define EXI_PRESERVE_ALL
 #endif
+
+#define EXI_SLOW_PATH EXI_COLD EXI_PRESERVE_MOST
 
 #if EXI_USE_THREADS
 # if EXI_HAS_FEATURE(cxx_thread_local) || defined(_MSC_VER)
