@@ -348,7 +348,8 @@ private:
     }
 
     // Put this out of line to maybe prevent some spills?
-    tail_return this->failUInt<Bytes>();
+    // TODO: Check codegen for spills!!
+    return this->failUInt<Bytes>();
   }
 
   ////////////////////////////////////////////////////////////////////////

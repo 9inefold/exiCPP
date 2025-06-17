@@ -312,6 +312,12 @@
 # define EXI_GSL_POINTER
 #endif
 
+#if defined(__clang__) && EXI_HAS_ATTR(trivial_abi)
+# define EXI_TRIVIAL_ABI [[clang::trivial_abi]]
+#else
+# define EXI_TRIVIAL_ABI
+#endif
+
 #if !EXI_IS_LANG_SERVER && EXI_HAS_ATTR(preferred_name)
 # define EXI_PREFER_NAME(alias) __attribute__((__preferred_name__(alias)))
 #else

@@ -126,13 +126,13 @@ static constexpr StringLiteral BIGrammarNames[] {
 };
 
 /// Small EventCode for use in `BIInfo`.
-struct SEventCode {
+struct EXI_TRIVIAL_ABI SEventCode {
   Array<u8, 3> Data = {};  // [x.y.z]
   Array<u8, 3> Bits = {};  // [[x].[y].[z]]
   i8 Length = 0;           // Number of pieces.
 };
 
-struct BIInfo {
+struct EXI_TRIVIAL_ABI BIInfo {
   u8 Offset = 0;
   SEventCode Code = {};
 };

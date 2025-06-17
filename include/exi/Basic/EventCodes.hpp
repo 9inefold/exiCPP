@@ -61,7 +61,7 @@ StrRef get_event_signature(EventTerm E) noexcept EXI_READNONE;
 
 /// All the data required to output an event code.
 /// The data is stored in three u32's.
-struct alignas(8) EventCode {
+struct alignas(8) EXI_TRIVIAL_ABI EventCode {
   Array<u32, 3> Data = {}; // [x.y.z]
   Array<u8, 3> Bits = {};  // [[x].[y].[z]]
   i8 Length = 0;           // Number of pieces.
@@ -88,7 +88,7 @@ enum : u64 {
 };
 
 /// A compressed version of a QName, only represents IDs.
-struct SmallQName {
+struct EXI_TRIVIAL_ABI SmallQName {
   /// The LocalName for the current QName.
   u64 LocalID : 48 = kInvalidLNI;
   /// The URI for the current QName.
@@ -169,7 +169,7 @@ private:
 //===----------------------------------------------------------------===//
 
 /// A compressed Unique IDentifier for event codes. Allows for simpler lookup.
-struct EventUID {
+struct EXI_TRIVIAL_ABI EventUID {
   /// The Prefix for the current QName (if applicable).
   u64 ValueID : 48 = kInvalidVID;
 
