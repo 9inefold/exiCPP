@@ -520,8 +520,7 @@ private:
 
   /// Represents LocalValues.
   using LocalValuesType = SmallDenseMap<TValueEntry*, CompactID, 4>;
-  /// Maps a QName to LocalName data.
-  // TODO: Switch to Mapping `"URI$pfx:ln" -> [LNID, [LV...]]`?
+  /// Maps a QName to LocalName data: `"URI$pfx:ln" -> [LNID, [LV...]]`.
   DenseMap<const QualName*, LocalValuesType> LVMap;
   
   /// The value stored for each entry in the Value map.
@@ -545,6 +544,8 @@ private:
   bool DidSetup : 1 = false;
   /// If the tables should wrap once reaching their capacity.
   bool WrappingValues : 1 = false;
+  /// If URIs should be normalized.
+  bool NormalizeURIs : 1 = false;
 
   ////////////////////////////////////////////////////////////////////////
   // Handle Mapping
@@ -563,9 +564,15 @@ public:
   /// The signature will have to change when schemas are introduced.
   void setup(const ExiOptions& Opts);
 
-  // TODO: Finish design...
 private:
+  // TODO: Finish design...
 
+  /// Creates the initial entries for the string table. The values inserted
+  /// depend on the schema.
+  void createInitialEntries(bool UsesSchema);
+
+  /// Appends LocalNames to the provided URI.
+  void appendLocalNames(CompactID ID, ArrayRef<StrRef> LocalNames);
 };
 
 #undef DECL_MAPPING_I
