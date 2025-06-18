@@ -1,4 +1,4 @@
-//===- exi/Decode/StringTables.hpp ----------------------------------===//
+//===- exi/Decode/StringTables.cpp ----------------------------------===//
 //
 // Copyright (C) 2025 Eightfold
 //
@@ -140,7 +140,7 @@ void StringTable::createInitialEntries(bool UsesSchema) {
   // D.1 & D.2 - Initial Entries in Uri & Prefix Partition
   // Saving these is ok since we know there are at least 4 inline slots in
   // the partition.
-  auto Empty = createURI(""_str, ""_str).second;
+  auto Nil = createURI(""_str,  ""_str).second;
   auto Xml = createURI(XML_URI, "xml"_str).second;
   auto Xsi = createURI(XSI_URI, "xsi"_str).second;
 
