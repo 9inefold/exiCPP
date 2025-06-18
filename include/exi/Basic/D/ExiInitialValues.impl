@@ -1,0 +1,87 @@
+//===- exi/Basic/ExiInitialValues.impl ------------------------------===//
+//
+// Copyright (C) 2025 Eightfold
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+//     limitations under the License.
+//
+//===----------------------------------------------------------------===//
+///
+/// \file
+/// This file defines the initial values used by the EXI processor.
+///
+//===----------------------------------------------------------------===//
+
+#undef EXI_XMLIV
+#undef EXI_XSIIV
+#undef EXI_XSDIV
+
+/// Input `X(URI, PFX, LN)`.
+#define EXI_XML_IV(X, SEP)                                                    \
+  X(1, xml, base)                   SEP                                       \
+  X(1, xml, id)                     SEP                                       \
+  X(1, xml, lang)                   SEP                                       \
+  X(1, xml, space)
+
+/// Input `X(URI, PFX, LN)`.
+#define EXI_XSI_IV(X, SEP)                                                    \
+  X(2, xsi, nil)                    SEP                                       \
+  X(2, xsi, type)
+
+/// Input `X(URI, PFX, LN)`.
+#define EXI_XSD_IV(X, SEP)                                                    \
+  X(3, xsd, ENTITIES)               SEP                                       \
+  X(3, xsd, ENTITY)                 SEP                                       \
+  X(3, xsd, ID)                     SEP                                       \
+  X(3, xsd, IDREF)                  SEP                                       \
+  X(3, xsd, IDREFS)                 SEP                                       \
+  X(3, xsd, NCName)                 SEP                                       \
+  X(3, xsd, NMTOKEN)                SEP                                       \
+  X(3, xsd, NMTOKENS)               SEP                                       \
+  X(3, xsd, NOTATION)               SEP                                       \
+  X(3, xsd, Name)                   SEP                                       \
+  X(3, xsd, QName)                  SEP                                       \
+  X(3, xsd, anySimpleType)          SEP                                       \
+  X(3, xsd, anyType)                SEP                                       \
+  X(3, xsd, anyURI)                 SEP                                       \
+  X(3, xsd, base64Binary)           SEP                                       \
+  X(3, xsd, boolean)                SEP                                       \
+  X(3, xsd, byte)                   SEP                                       \
+  X(3, xsd, date)                   SEP                                       \
+  X(3, xsd, dateTime)               SEP                                       \
+  X(3, xsd, decimal)                SEP                                       \
+  X(3, xsd, double)                 SEP                                       \
+  X(3, xsd, duration)               SEP                                       \
+  X(3, xsd, float)                  SEP                                       \
+  X(3, xsd, gDay)                   SEP                                       \
+  X(3, xsd, gMonth)                 SEP                                       \
+  X(3, xsd, gMonthDay)              SEP                                       \
+  X(3, xsd, gYear)                  SEP                                       \
+  X(3, xsd, gYearMonth)             SEP                                       \
+  X(3, xsd, hexBinary)              SEP                                       \
+  X(3, xsd, int)                    SEP                                       \
+  X(3, xsd, integer)                SEP                                       \
+  X(3, xsd, language)               SEP                                       \
+  X(3, xsd, long)                   SEP                                       \
+  X(3, xsd, negativeInteger)        SEP                                       \
+  X(3, xsd, nonNegativeInteger)     SEP                                       \
+  X(3, xsd, nonPositiveInteger)     SEP                                       \
+  X(3, xsd, normalizedString)       SEP                                       \
+  X(3, xsd, positiveInteger)        SEP                                       \
+  X(3, xsd, short)                  SEP                                       \
+  X(3, xsd, string)                 SEP                                       \
+  X(3, xsd, time)                   SEP                                       \
+  X(3, xsd, token)                  SEP                                       \
+  X(3, xsd, unsignedByte)           SEP                                       \
+  X(3, xsd, unsignedInt)            SEP                                       \
+  X(3, xsd, unsignedLong)           SEP                                       \
+  X(3, xsd, unsignedShort)

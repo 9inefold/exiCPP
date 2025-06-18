@@ -26,9 +26,12 @@
 #include <core/Support/ErrorHandle.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/ExiOptions.hpp>
+#include <exi/Basic/D/ExiInitialValues.impl>
 #include <algorithm>
 
 #define DEBUG_TYPE "StringTables"
+#define GEN_IV(URI, PFX, LV) #LV
+#define SEP ,
 
 using namespace exi;
 
@@ -36,24 +39,13 @@ namespace {
 enum : u64 { kDefaultReserveSize = 64 };
 
 constexpr StrRef XML_URI("http://www.w3.org/XML/1998/namespace");
-constexpr StrRef XML_InitialValues[] { "base", "id", "lang", "space" };
+constexpr StrRef XML_InitialValues[] { EXI_XML_IV(GEN_IV, SEP) };
 
 constexpr StrRef XSI_URI("http://www.w3.org/2001/XMLSchema-instance");
-constexpr StrRef XSI_InitialValues[] { "nil", "type" };
+constexpr StrRef XSI_InitialValues[] { EXI_XSI_IV(GEN_IV, SEP) };
 
 constexpr StrRef XSD_URI("http://www.w3.org/2001/XMLSchema");
-constexpr StrRef XSD_InitialValues[] {
-  "ENTITIES", "ENTITY", "ID", "IDREF", "IDREFS",
-  "NCName", "NMTOKEN", "NMTOKENS", "NOTATION", "Name", "QName",
-  "anySimpleType", "anyType", "anyURI",
-  "base64Binary", "boolean", "byte",
-  "date", "dateTime", "decimal", "double", "duration", "float",
-  "gDay", "gMonth", "gMonthDay", "gYear", "gYearMonth",
-  "hexBinary", "int", "integer", "language", "long",
-  "negativeInteger", "nonNegativeInteger", "nonPositiveInteger",
-  "normalizedString", "positiveInteger", "short", "string", "time", "token",
-  "unsignedByte", "unsignedInt", "unsignedLong", "unsignedShort"
-};
+constexpr StrRef XSD_InitialValues[] { EXI_XSD_IV(GEN_IV, SEP) };
 
 } // namespace `anonymous`
 

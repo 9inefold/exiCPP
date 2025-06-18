@@ -1,4 +1,4 @@
-//===- exi/Encode/StringTables.hpp ----------------------------------===//
+//===- exi/Encode/StringTables.cpp ----------------------------------===//
 //
 // Copyright (C) 2025 Eightfold
 //
@@ -26,9 +26,14 @@
 #include <core/Support/ErrorHandle.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/ExiOptions.hpp>
+#include <exi/Basic/D/ExiInitialValues.impl>
 #include <algorithm>
 
 #define DEBUG_TYPE "StringTables"
+#define GEN_IV(URI, PFX, LV) #URI "$" #PFX ":" #LV
+#define SEP ,
+
+// TODO: Merge common info...
 
 using namespace exi;
 
@@ -36,24 +41,13 @@ namespace {
 enum : u64 { kDefaultReserveSize = 64 };
 
 constexpr StrRef XML_URI("http://www.w3.org/XML/1998/namespace");
-constexpr StrRef XML_InitialValues[] { "base", "id", "lang", "space" };
+constexpr StrRef XML_InitialValues[] { EXI_XML_IV(GEN_IV, SEP) };
 
 constexpr StrRef XSI_URI("http://www.w3.org/2001/XMLSchema-instance");
-constexpr StrRef XSI_InitialValues[] { "nil", "type" };
+constexpr StrRef XSI_InitialValues[] { EXI_XSI_IV(GEN_IV, SEP) };
 
 constexpr StrRef XSD_URI("http://www.w3.org/2001/XMLSchema");
-constexpr StrRef XSD_InitialValues[] {
-  "ENTITIES", "ENTITY", "ID", "IDREF", "IDREFS",
-  "NCName", "NMTOKEN", "NMTOKENS", "NOTATION", "Name", "QName",
-  "anySimpleType", "anyType", "anyURI",
-  "base64Binary", "boolean", "byte",
-  "date", "dateTime", "decimal", "double", "duration", "float",
-  "gDay", "gMonth", "gMonthDay", "gYear", "gYearMonth",
-  "hexBinary", "int", "integer", "language", "long",
-  "negativeInteger", "nonNegativeInteger", "nonPositiveInteger",
-  "normalizedString", "positiveInteger", "short", "string", "time", "token",
-  "unsignedByte", "unsignedInt", "unsignedLong", "unsignedShort"
-};
+constexpr StrRef XSD_InitialValues[] { EXI_XSD_IV(GEN_IV, SEP) };
 
 } // namespace `anonymous`
 
@@ -79,6 +73,30 @@ void StringTable::setup(const ExiOptions& Opts) {
 
   // TODO: Implement encoder setup...
   exi_unreachable("implement setup");
+}
+
+void StringTable::createInitialEntries(bool UsesSchema) {
+  // D.1 & D.2 - Initial Entries in Uri & Prefix Partition
+  // Saving these is ok since we know there are at least 4 inline slots in
+  // the partition.
+  auto Nil = createURI(""_str,  ""_str).second;
+  auto Xml = createURI(XML_URI, "xml"_str).second;
+  auto Xsi = createURI(XSI_URI, "xsi"_str).second;
+
+  // D.3 - Initial Entries in LocalName Partitions
+  appendLocalNames(Xml, XML_InitialValues);
+  appendLocalNames(Xsi, XSI_InitialValues);
+
+  if (UsesSchema) {
+    // TODO: When a schema is provided, prepopulate with the LocalName of each
+    // attribute, element and type explicitly declared in the schema.
+    auto Xsd = createURI(XSD_URI).second;
+    appendLocalNames(Xsd, XSD_InitialValues);
+  }
+}
+
+void StringTable::appendLocalNames(CompactID ID, ArrayRef<StrRef> LocalNames) {
+  exi_unreachable("implement appendLocalNames");
 }
 
 } // namespace exi::encode
