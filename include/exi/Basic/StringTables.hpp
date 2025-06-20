@@ -591,7 +591,7 @@ public:
 
 private:
   /// Maps a QName to LocalName data: `"URI$ln" -> [LNID, [LV...]]`.
-  DenseMap<const QualName*, LocalValuesType> LVMap;
+  DenseMap<const QualName*, LocalNameInfo> LVMap;
   
   /// The value stored for each entry in the Value map.
   struct ValueInfo {
@@ -745,7 +745,7 @@ private:
   [[deprecated("Use the ID bound variant")]]
   void appendLocalNames(ArrayRef<NameMapping> LNMappings);
   /// Initializes a unique LocalName entry.
-  void initLocalName(const QualName* ID);
+  void initLocalName(URIEntry* URI, const QualName* ID);
 };
 
 #undef DECL_MAPPING_I

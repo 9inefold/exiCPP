@@ -147,26 +147,23 @@ void StringTable::createInitialEntries(bool UsesSchema) {
 void StringTable::appendLocalNames(
  URIEntry* ID, ArrayRef<NameMapping> LNMappings) {
   exi_relassert(ID != nullptr);
-  
-  u32 CurrID = VOf(ID)->LocalNames;
-  VOf(ID)->LocalNames += LNMappings.size();
-
   for (auto [Local, Qualified] : LNMappings) {
     const auto* LN = internQualName(Qualified);
-    this->initLocalName(LN);
+    this->initLocalName(ID, LN);
   }
 }
 
 void StringTable::appendLocalNames(ArrayRef<NameMapping> LNMappings) {
   for (auto [Local, Qualified] : LNMappings) {
     const auto* LN = internQualName(Qualified);
-    this->initLocalName(LN);
+    this->initLocalName(nullptr, LN);
   }
 }
 
-void StringTable::initLocalName(const QualName* ID) {
+void StringTable::initLocalName(URIEntry* URI, const QualName* ID) {
   exi_relassert(ID != nullptr);
-  auto [It, DidEmplace] = LVMap.try_emplace(ID);
+  // Initializing LocalNameInfo.
+  auto [It, DidEmplace] = LVMap.try_emplace(ID, URI);
   if EXI_UNLIKELY(!DidEmplace)
     LOG_WARN("\"{}\" already exists.", X(ID)->str());
 }
