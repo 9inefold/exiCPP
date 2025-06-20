@@ -79,14 +79,25 @@ void StringTable::setup(const ExiOptions& Opts) {
 
   /// Populates the URI, Prefix, and LocalName partitions.
   createInitialEntries(UsesSchema);
+  if (UsesSchema) {
+    // TODO: Reserve for schema.
+    // SchemaResolver[*ID]->getExtraEntryCount();
+  }
 
-  // TODO: Implement encoder setup...
-  exi_unreachable("implement setup");
+  if (Bounded I = Opts.ValuePartitionCapacity; I.bounded()) {
+    WrappingValues = true;
+    LOG_WARN("Bounded tables are not supported.");
+  }
+
+  if (Opts.DatatypeRepresentationMap) {
+    // TODO: DatatypeRepresentationMap?
+    exi_unreachable("datatype mapping is unsupported.");
+  }
 }
 
 const QualName* StringTable::internQualName(u32 URI, StrRef LocalName) {
   SmallStr<80> Storage;
-  WriteURITag(URI, Storage);
+  this->writeURITagChecked(URI, Storage);
   Storage.push_back('$');
   Storage.append(LocalName.begin(), LocalName.end());
   return X(NameCache.saveRaw(Storage.str()));
@@ -94,24 +105,22 @@ const QualName* StringTable::internQualName(u32 URI, StrRef LocalName) {
 
 std::pair<StringTable::URIEntry*, StringTable::PrefixEntry*>
  StringTable::createURI(StrRef URI, Option<StrRef> Pfx) {
-  URIEntry* PURI = createURIOnly(URI).first;
+  URIEntry* URIP = createURIOnly(URI).first;
   if (!Pfx)
-    return {PURI, nullptr};
+    return {URIP, nullptr};
 
   auto [It, DidInsert] = PrefixMap.try_emplace(*Pfx);
-  PrefixEntry* PPfx = &*It;
-
   if (DidInsert) {
-    auto& PI = PPfx->second;
-    auto& PfxMap = PURI->second.PfxMap;
+    auto& PI = VOf(*It);
+    auto& PfxMap = VOf(URIP)->PfxMap;
 
-    PI.Link = X(PURI);
+    PI.Link = X(URIP);
     PI.Pfx = PfxMap.size();
-    /*TODO: PfxV.PfxLog */
-    PI.URI = PURI->second.URI;
+    /*TODO: PI.PfxLog */
+    PI.URI = URIP->second.URI;
 
-    PfxMap.push_back(&PPfx->second);
-    return {PURI, PPfx};
+    PfxMap.push_back(&PI);
+    return {URIP, &*It};
   }
 
   exi_unreachable("nested pfx contexts unimplemented.");
@@ -135,8 +144,24 @@ void StringTable::createInitialEntries(bool UsesSchema) {
   }
 }
 
+void StringTable::appendLocalNames(
+ URIEntry* ID, ArrayRef<NameMapping> LNMappings) {
+  exi_relassert(ID != nullptr);
+  
+  u32 CurrID = VOf(ID)->LocalNames;
+  VOf(ID)->LocalNames += LNMappings.size();
+
+  for (auto [Local, Qualified] : LNMappings) {
+    const auto* LN = internQualName(Qualified);
+    this->initLocalName(LN);
+  }
+}
+
 void StringTable::appendLocalNames(ArrayRef<NameMapping> LNMappings) {
-  exi_unreachable("implement appendLocalNames");
+  for (auto [Local, Qualified] : LNMappings) {
+    const auto* LN = internQualName(Qualified);
+    this->initLocalName(LN);
+  }
 }
 
 void StringTable::initLocalName(const QualName* ID) {

@@ -488,6 +488,8 @@ class StringTable {
   /// Contains URI's ID and reverse mappings for prefixes.
   struct URIInfo {
     u32 URI = 0;
+    /// The number of associated LocalNames.
+    u32 LocalNames = 0;
     /// Iterate while recording the index to find the PfxID.
     SmallVec<PrefixInfo*, 2> PfxMap;
   };
@@ -690,13 +692,19 @@ private:
       if EXI_LIKELY(ID == 0)
         return;
     }
-  } 
+  }
+
+  EXI_INLINE void writeURITagChecked(u32 ID, SmallVecImpl<char>& Buf) const {
+    exi_invariant(ID < URIMap.size());
+    return WriteURITag(ID, Buf);
+  }
 
   ////////////////////////////////////////////////////////////////////////
   // Uniquing
 
+  template <bool CheckID = true>
   EXI_INLINE const QualName* internQualName(StrRef Raw) {
-    exi_invariant(isValidQualifiedName<true>(Raw));
+    exi_invariant(isValidQualifiedName<CheckID>(Raw));
     return X(NameCache.saveRaw(Raw));
   }
 
@@ -732,11 +740,9 @@ public:
 
 private:
   /// Appends LocalNames to the provided URI.
-  ALWAYS_INLINE void appendLocalNames(
-   URIEntry* ID, ArrayRef<NameMapping> LNMappings) {
-    this->appendLocalNames(LNMappings);
-  }
+  void appendLocalNames(URIEntry* ID, ArrayRef<NameMapping> LNMappings);
   /// Appends LocalNames to the provided URI.
+  [[deprecated("Use the ID bound variant")]]
   void appendLocalNames(ArrayRef<NameMapping> LNMappings);
   /// Initializes a unique LocalName entry.
   void initLocalName(const QualName* ID);
