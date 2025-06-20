@@ -74,6 +74,12 @@ void StringTable::setup(const ExiOptions& Opts) {
     return;
   DidSetup = true;
 
+  Option<const String&> ID = PullSchemaID(Opts.SchemaID);
+  const bool UsesSchema = ID.has_value();
+
+  /// Populates the URI, Prefix, and LocalName partitions.
+  createInitialEntries(UsesSchema);
+
   // TODO: Implement encoder setup...
   exi_unreachable("implement setup");
 }
@@ -85,13 +91,37 @@ const QualName* StringTable::internQualName(u32 URI, StrRef LocalName) {
   Storage.append(LocalName.begin(), LocalName.end());
   return X(NameCache.saveRaw(Storage.str()));
 }
+
+std::pair<StringTable::URIEntry*, StringTable::PrefixEntry*>
+ StringTable::createURI(StrRef URI, Option<StrRef> Pfx) {
+  URIEntry* PURI = createURIOnly(URI).first;
+  if (!Pfx)
+    return {PURI, nullptr};
+
+  auto [It, DidInsert] = PrefixMap.try_emplace(*Pfx);
+  PrefixEntry* PPfx = &*It;
+
+  if (DidInsert) {
+    auto& PI = PPfx->second;
+    auto& PfxMap = PURI->second.PfxMap;
+
+    PI.Link = X(PURI);
+    PI.Pfx = PfxMap.size();
+    /*TODO: PfxV.PfxLog */
+    PI.URI = PURI->second.URI;
+
+    PfxMap.push_back(&PPfx->second);
+    return {PURI, PPfx};
+  }
+
+  exi_unreachable("nested pfx contexts unimplemented.");
+}
+
 void StringTable::createInitialEntries(bool UsesSchema) {
   // D.1 & D.2 - Initial Entries in Uri & Prefix Partition
-  // Saving these is ok since we know there are at least 4 inline slots in
-  // the partition.
-  auto Nil = createURI(""_str,  ""_str).second;
-  auto Xml = createURI(XML_URI, "xml"_str).second;
-  auto Xsi = createURI(XSI_URI, "xsi"_str).second;
+  auto* Nil = createURI(""_str,  ""_str).first;
+  auto* Xml = createURI(XML_URI, "xml"_str).first;
+  auto* Xsi = createURI(XSI_URI, "xsi"_str).first;
 
   // D.3 - Initial Entries in LocalName Partitions
   appendLocalNames(Xml, XML_InitialValues);
@@ -100,13 +130,20 @@ void StringTable::createInitialEntries(bool UsesSchema) {
   if (UsesSchema) {
     // TODO: When a schema is provided, prepopulate with the LocalName of each
     // attribute, element and type explicitly declared in the schema.
-    auto Xsd = createURI(XSD_URI).second;
+    auto* Xsd = createURI(XSD_URI).first;
     appendLocalNames(Xsd, XSD_InitialValues);
   }
 }
 
-void StringTable::appendLocalNames(CompactID ID, ArrayRef<StrRef> LocalNames) {
+void StringTable::appendLocalNames(ArrayRef<NameMapping> LNMappings) {
   exi_unreachable("implement appendLocalNames");
+}
+
+void StringTable::initLocalName(const QualName* ID) {
+  exi_relassert(ID != nullptr);
+  auto [It, DidEmplace] = LVMap.try_emplace(ID);
+  if EXI_UNLIKELY(!DidEmplace)
+    LOG_WARN("\"{}\" already exists.", X(ID)->str());
 }
 
 } // namespace exi::encode

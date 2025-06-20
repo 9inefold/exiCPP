@@ -634,6 +634,20 @@ private:
 
   const QualName* internQualName(u32 URI, StrRef LocalName);
 
+  /// Gets a new (URI*, DidInsert) pair from a URI.
+  std::pair<URIEntry*, bool> createURIOnly(StrRef URI) {
+    auto [It, DidInsert] = URIMap.try_emplace(URI);
+    if (DidInsert) {
+      // Since the item was already inserted, decrement.
+      It->second.URI = URIMap.size() - 1;
+      // FIXME: Update log size?
+    }
+    return {&*It, DidInsert};
+  }
+
+  /// Gets a new (URI*, Pfx*?) pair from a URI and Prefix.
+  std::pair<URIEntry*, PrefixEntry*>
+    createURI(StrRef URI, Option<StrRef> Pfx = std::nullopt);
 
   // Add other stuff...
 
