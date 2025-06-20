@@ -75,6 +75,13 @@ void StringTable::setup(const ExiOptions& Opts) {
   exi_unreachable("implement setup");
 }
 
+const QualName* StringTable::internQualName(u32 URI, StrRef LocalName) {
+  SmallStr<80> Storage;
+  WriteURITag(URI, Storage);
+  Storage.push_back('$');
+  Storage.append(LocalName.begin(), LocalName.end());
+  return X(NameCache.saveRaw(Storage.str()));
+}
 void StringTable::createInitialEntries(bool UsesSchema) {
   // D.1 & D.2 - Initial Entries in Uri & Prefix Partition
   // Saving these is ok since we know there are at least 4 inline slots in

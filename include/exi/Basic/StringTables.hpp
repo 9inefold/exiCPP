@@ -41,6 +41,7 @@
 
 #include <core/Common/CachedHashString.hpp>
 #include <core/Common/DenseMap.hpp>
+#include <core/Support/MathExtras.hpp>
 #include <type_traits>
 
 // TODO: Refactor to use embedded counters with RTTI handles
@@ -439,7 +440,7 @@ using BumpStringMap = StringMap<Value,
 struct TURIEntry;
 /// Typed handle for `StringTable::ValueEntry`.
 struct TValueEntry;
-/// Handle for an `InlineString` representing a QName's data as `"URI$pfx:ln"`.
+/// Handle for an `InlineString` representing a QName's data as `"URI$ln"`.
 struct QualName;
 
 /// Using `u32`, because if you have 4 billion uris... wtf.
@@ -464,7 +465,9 @@ struct PrefixInfo {
   }
 #define DECL_MAPPING(TO, FROM)                                                \
   DECL_MAPPING_I(TO, FROM)                                                    \
-  DECL_MAPPING_I(const TO, const FROM)
+  DECL_MAPPING_I(FROM, TO)                                                    \
+  DECL_MAPPING_I(const TO, const FROM)                                        \
+  DECL_MAPPING_I(const FROM, const TO)
 
 /// TODO: The string table used for encoding.
 /// Assumes all inputs it recieves are valid.
@@ -509,6 +512,8 @@ private:
   URIMapType URIMap;
   /// Used to map Prefixes to URIs (and their IDs).
   PrefixMapType PrefixMap;
+
+  // TODO: Add Deque<BumpStringMap<QualName*>>?
   
   /// Represents nested namespace contexts.
   using URIStack = SmallVec<PrefixInfo, 1>;
@@ -520,7 +525,7 @@ private:
 
   /// Represents LocalValues.
   using LocalValuesType = SmallDenseMap<TValueEntry*, CompactID, 4>;
-  /// Maps a QName to LocalName data: `"URI$pfx:ln" -> [LNID, [LV...]]`.
+  /// Maps a QName to LocalName data: `"URI$ln" -> [LNID, [LV...]]`.
   DenseMap<const QualName*, LocalValuesType> LVMap;
   
   /// The value stored for each entry in the Value map.
@@ -566,6 +571,71 @@ public:
 
 private:
   // TODO: Finish design...
+
+  ////////////////////////////////////////////////////////////////////////
+  // Qualified Names
+
+  enum URITagInfo : usize {
+    kUTagBase = 32,
+    kUTagBits = Log2_64(kUTagBase),
+    kUTagMask = kUTagBase - 1,
+    kUTagIters = (kUTagBase / kUTagBits) + 1,
+  };
+
+  /// Checks if `C` is in the range of our base-32 character mappings.
+  ALWAYS_INLINE static bool IsURITagChar(char C) {
+    return (C >= '0') && (C <= 'O');
+  }
+
+  template <bool CheckID = true>
+  bool isValidQualifiedName(StrRef S) const {
+    if EXI_UNLIKELY(S.size() < 3)
+      return false;
+    
+    const char* I = S.begin();
+    auto* const E = S.end();
+
+    [[maybe_unused]] u32 ID {};
+    while (IsURITagChar(*I)) {
+      if constexpr (CheckID)
+        ID = (ID << kUTagBits) | u32(*I - '0');
+      if EXI_UNLIKELY(++I == E - 1)
+        return false;
+    }
+
+    if constexpr (CheckID) {
+      if EXI_UNLIKELY(ID >= URIMap.size())
+        return false;
+    }
+    return (*I == '$') && (I + 1 != E);
+  }
+
+  static void WriteURITag(u32 ID, SmallVecImpl<char>& Buf) {
+    if EXI_LIKELY(ID < 32) {
+      Buf.push_back('0' + ID);
+      return;
+    }
+
+    for (int Ix = 0; Ix < int(kUTagIters); ++Ix) {
+      Buf.push_back('0' + (ID & kUTagMask));
+      ID >>= kUTagBits;
+      if EXI_LIKELY(ID == 0)
+        return;
+    }
+  } 
+
+  ////////////////////////////////////////////////////////////////////////
+  // Uniquing
+
+  EXI_INLINE const QualName* internQualName(StrRef Raw) {
+    exi_invariant(isValidQualifiedName<true>(Raw));
+    return X(NameCache.saveRaw(Raw));
+  }
+
+  const QualName* internQualName(u32 URI, StrRef LocalName);
+
+
+  // Add other stuff...
 
   /// Creates the initial entries for the string table. The values inserted
   /// depend on the schema.
