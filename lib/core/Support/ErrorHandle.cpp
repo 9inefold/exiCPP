@@ -66,15 +66,7 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
   return Out;
 }
 
-[[noreturn]] void exi::report_fatal_error(const char* Msg, bool GenCrashDiag) {
-  exi::report_fatal_error(Twine(Msg), GenCrashDiag);
-}
-
-[[noreturn]] void exi::report_fatal_error(StrRef Msg, bool GenCrashDiag) {
-  exi::report_fatal_error(Twine(Msg), GenCrashDiag);
-}
-
-[[noreturn]] void exi::report_fatal_error(const Twine& Msg, bool GenCrashDiag) {
+[[noreturn]] static void reportFatalError(const Twine& Msg, bool GenCrashDiag) {
   StaticFmtBuffer<512> FullMsg;
   if (Msg.isSingleStrRef()) {
     // Trivial path, just grab the StrRef.
@@ -97,7 +89,22 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
     std::exit(1);
 }
 
-[[noreturn]] void exi::fatal_alloc_error(
+[[noreturn]] EXI_PRESERVE_MOST EXI_COLD void
+ exi::report_fatal_error(const char* Msg, bool GenCrashDiag) {
+  reportFatalError(Twine(Msg), GenCrashDiag);
+}
+
+[[noreturn]] EXI_PRESERVE_MOST EXI_COLD void
+ exi::report_fatal_error(StrRef Msg, bool GenCrashDiag) {
+  reportFatalError(Twine(Msg), GenCrashDiag);
+}
+
+[[noreturn]] EXI_PRESERVE_MOST EXI_COLD void
+ exi::report_fatal_error(const Twine& Msg, bool GenCrashDiag) {
+  reportFatalError(Msg, GenCrashDiag);
+}
+
+[[noreturn]] EXI_COLD void exi::fatal_alloc_error(
  [[maybe_unused]] const char* Msg) EXI_NOEXCEPT {
 #if EXI_EXCEPTIONS
   throw std::bad_alloc();
@@ -114,7 +121,7 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
 #endif
 }
 
-[[noreturn]] void exi::exi_assert_impl(
+[[noreturn]] EXI_PRESERVE_MOST EXI_COLD void exi::exi_assert_impl(
  H::AssertionKind Kind, const char* Msg,
  const char* File, unsigned Line
 ) {
