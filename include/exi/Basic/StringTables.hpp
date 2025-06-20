@@ -469,8 +469,13 @@ struct PrefixInfo {
   DECL_MAPPING_I(const TO, const FROM)                                        \
   DECL_MAPPING_I(const FROM, const TO)
 
-/// TODO: The string table used for encoding.
-/// Assumes all inputs it recieves are valid.
+/// Get a reference/pointer to the "Value Of" a map entry.
+#define DECL_VOF(CV, QUAL, ...)                                               \
+  template <typename T> ALWAYS_INLINE static                                  \
+  CV T QUAL VOf(CV StringMapEntry<T> QUAL Entry) { return __VA_ARGS__; }
+
+/// The string table used for encoding. Assumes all inputs it recieves are valid.
+/// TODO: Check if we can get a more optimal memory layout.
 class StringTable {
   /// The allocator shared internally.
   mutable exi::BumpPtrAllocator Alloc;
@@ -558,6 +563,11 @@ private:
   DECL_MAPPING(URIEntry, TURIEntry)
   DECL_MAPPING(ValueEntry, TValueEntry)
   DECL_MAPPING(InlineStr, QualName)
+
+  DECL_VOF(, &, Entry.second)
+  DECL_VOF(, *, &Entry->second)
+  DECL_VOF(const, &, Entry.second)
+  DECL_VOF(const, *, &Entry->second)
 
 public:
   StringTable();
@@ -676,6 +686,7 @@ private:
 
 #undef DECL_MAPPING_I
 #undef DECL_MAPPING
+#undef DECL_VOF
 
 } // namespace encode
 
