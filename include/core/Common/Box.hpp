@@ -31,4 +31,14 @@ namespace exi {
 template <typename T, typename D = std::default_delete<T>>
 using Box = std::unique_ptr<T, D>;
 
+template <typename T>
+struct DtorOnlyDeleter {
+  inline void operator()(T* Ptr) const {
+    std::destroy_at(Ptr);
+  }
+};
+
+template <typename T>
+using DtorOnlyBox = Box<T, DtorOnlyDeleter<T>>;
+
 } // namespace exi
