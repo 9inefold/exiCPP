@@ -641,8 +641,23 @@ private:
   /// depend on the schema.
   void createInitialEntries(bool UsesSchema);
 
+public:
+  /// Only really used for initialization. Maps `"pfx:[ln]" -> "URI$pfx:ln"`.
+  struct NameMapping {
+    StrRef LocalName;
+    StrRef QualifiedName;
+  };
+
+private:
   /// Appends LocalNames to the provided URI.
-  void appendLocalNames(CompactID ID, ArrayRef<StrRef> LocalNames);
+  ALWAYS_INLINE void appendLocalNames(
+   URIEntry* ID, ArrayRef<NameMapping> LNMappings) {
+    this->appendLocalNames(LNMappings);
+  }
+  /// Appends LocalNames to the provided URI.
+  void appendLocalNames(ArrayRef<NameMapping> LNMappings);
+  /// Initializes a unique LocalName entry.
+  void initLocalName(const QualName* ID);
 };
 
 #undef DECL_MAPPING_I

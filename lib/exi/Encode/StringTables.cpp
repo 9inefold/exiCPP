@@ -30,24 +30,28 @@
 #include <algorithm>
 
 #define DEBUG_TYPE "StringTables"
-#define GEN_IV(URI, PFX, LV) #URI "$" #PFX ":" #LV
+#define GEN_IV(URI, PFX, LV) {                                                \
+  .LocalName = #LV, .QualifiedName = #URI "$" #LV                             \
+}
 #define SEP ,
 
 // TODO: Merge common info...
 
 using namespace exi;
 
+using NameMapping = encode::StringTable::NameMapping;
+
 namespace {
 enum : u64 { kDefaultReserveSize = 64 };
 
 constexpr StrRef XML_URI("http://www.w3.org/XML/1998/namespace");
-constexpr StrRef XML_InitialValues[] { EXI_XML_IV(GEN_IV, SEP) };
+constexpr NameMapping XML_InitialValues[] { EXI_XML_IV(GEN_IV, SEP) };
 
 constexpr StrRef XSI_URI("http://www.w3.org/2001/XMLSchema-instance");
-constexpr StrRef XSI_InitialValues[] { EXI_XSI_IV(GEN_IV, SEP) };
+constexpr NameMapping XSI_InitialValues[] { EXI_XSI_IV(GEN_IV, SEP) };
 
 constexpr StrRef XSD_URI("http://www.w3.org/2001/XMLSchema");
-constexpr StrRef XSD_InitialValues[] { EXI_XSD_IV(GEN_IV, SEP) };
+constexpr NameMapping XSD_InitialValues[] { EXI_XSD_IV(GEN_IV, SEP) };
 
 } // namespace `anonymous`
 
