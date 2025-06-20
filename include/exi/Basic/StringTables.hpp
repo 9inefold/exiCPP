@@ -542,10 +542,9 @@ private:
     this->URIStackMap = std::make_unique<URIStackMapType>(1);
   }
 
-public:
   /// Represents LocalValues.
   using LocalValuesType = SmallDenseMap<TValueEntry*, CompactID, 8>;
-
+  
   /// Represents the `[LNID, [LV...]]` tuple. LocalValues are lazily initialized
   /// unless told otherwise.
   struct LocalNameInfo {
@@ -589,7 +588,6 @@ public:
     }
   };
 
-private:
   /// Maps a QName to LocalName data: `"URI$ln" -> [LNID, [LV...]]`.
   DenseMap<const QualName*, LocalNameInfo> LVMap;
   
