@@ -23,6 +23,7 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## Unfinished
 
+- Add some in-source TODOs here...
 - `source_location` with Clang support
 - `sys::` implementation on linux
 - Add permissive mode for things like relaxed versioning and validation order?
@@ -43,4 +44,5 @@ This is a TODO list for the C++ version of exiCPP.
 - Fuzzing
 - VFS
 - Schema to C++ transpiler
-- Custom XML parser (I hate the stupid trees)
+- Custom XML parser (I hate the stupid trees) for in-flight parsing
+- JIT handlers?
