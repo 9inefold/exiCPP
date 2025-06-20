@@ -529,7 +529,52 @@ private:
   URIStackMapType URIStackMap;
 
   /// Represents LocalValues.
-  using LocalValuesType = SmallDenseMap<TValueEntry*, CompactID, 4>;
+  using LocalValuesType = SmallDenseMap<TValueEntry*, CompactID, 8>;
+
+  /// Represents the `[LNID, [LV...]]` tuple. LocalValues are lazily initialized
+  /// unless told otherwise.
+  struct LocalNameInfo {
+    u32 LNID = 0;
+    DtorOnlyBox<LocalValuesType> LVs;
+
+    static LocalValuesType* GetLVsOrNull(StringTable* Tbl) {
+      if (!Tbl)
+        return nullptr;
+      return new (Tbl->Alloc) LocalValuesType;
+    }
+
+    EXI_COLD void init(BumpPtrAllocator& BP) {
+      exi_invariant(LVs == nullptr);
+      LocalValuesType* Ptr = new (BP) LocalValuesType;
+      LVs.reset(Ptr);
+    }
+
+  public:
+    LocalNameInfo() = default;
+    LocalNameInfo(URIEntry* ID, StringTable* Tbl = nullptr) :
+     LNID(ID ? VOf(ID)->LocalNames++ : 0), LVs(GetLVsOrNull(Tbl)) {
+    }
+
+    u32 id() const { return LNID; }
+
+    LocalValuesType& get(const StringTable& Tbl) {
+      return get(Tbl.Alloc);
+    }
+
+    LocalValuesType& get(BumpPtrAllocator& BP) {
+      if EXI_UNLIKELY(!LVs)
+        this->init(BP);
+      return *LVs;
+    }
+
+    Option<LocalValuesType&> get() const {
+      if EXI_UNLIKELY(!LVs)
+        return std::nullopt;
+      return *LVs;
+    }
+  };
+
+private:
   /// Maps a QName to LocalName data: `"URI$ln" -> [LNID, [LV...]]`.
   DenseMap<const QualName*, LocalValuesType> LVMap;
   
