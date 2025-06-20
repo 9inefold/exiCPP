@@ -27,6 +27,7 @@
 
 #include <Common/Features.hpp>
 #include <Common/Fundamental.hpp>
+#include <Common/StrRef.hpp>
 #include <Common/D/Expect.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <new>
@@ -325,6 +326,32 @@ public:
     return ref().value_or(Alt);
   }
 
+  const T& expect(const char* Msg) const& {
+    this->assert_expect(Msg);
+    return Storage.value();
+  }
+  T& expect(const char* Msg) & {
+    this->assert_expect(Msg);
+    return Storage.value();
+  }
+  T&& expect(const char* Msg) && {
+    this->assert_expect(Msg);
+    return std::move(Storage.value());
+  }
+
+  const T& expect(StrRef Msg) const& {
+    this->assert_expect(Msg);
+    return Storage.value();
+  }
+  T& expect(StrRef Msg) & {
+    this->assert_expect(Msg);
+    return Storage.value();
+  }
+  T&& expect(StrRef Msg) && {
+    this->assert_expect(Msg);
+    return std::move(Storage.value());
+  }
+
   const T& expect(const Twine& Msg) const& {
     this->assert_expect(Msg);
     return Storage.value();
@@ -360,6 +387,16 @@ public:
   }
 
 private:
+  EXI_INLINE EXI_NODEBUG void
+   assert_expect(const char* Msg) const {
+    if EXI_UNLIKELY(!has_value())
+      exi::report_fatal_error(Msg);
+  }
+  EXI_INLINE EXI_NODEBUG void
+   assert_expect(StrRef Msg) const {
+    if EXI_UNLIKELY(!has_value())
+      exi::report_fatal_error(Msg);
+  }
   EXI_INLINE EXI_NODEBUG void
    assert_expect(const Twine& Msg) const {
     if EXI_UNLIKELY(!has_value())
@@ -509,6 +546,16 @@ public:
     return *Storage;
   }
 
+  T& expect(const char* Msg) const {
+    if EXI_UNLIKELY(!has_value())
+      exi::report_fatal_error(Msg);
+    return *Storage;
+  }
+  T& expect(StrRef Msg) const {
+    if EXI_UNLIKELY(!has_value())
+      exi::report_fatal_error(Msg);
+    return *Storage;
+  }
   T& expect(const Twine& Msg) const {
     if EXI_UNLIKELY(!has_value())
       exi::report_fatal_error(Msg);
