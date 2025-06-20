@@ -523,11 +523,24 @@ private:
   /// Represents nested namespace contexts.
   using URIStack = SmallVec<PrefixInfo, 1>;
   /// Maps a PrefixEntry to a stack of URI values.
-  using URIStackMapType = SmallDenseMap<const PrefixEntry*, URIStack, 4>;
+  using URIStackMapType = SmallDenseMap<const PrefixEntry*, URIStack, 8>;
   /// Maps a PrefixEntry to a stack of URIs representing nested namespace contexts.
   /// This is managed externally, as the string table has no knowledge of the format.
-  URIStackMapType URIStackMap;
+  /// Lazily initialized as many files will not require it.
+  Box<URIStackMapType> URIStackMap = nullptr;
 
+  URIStackMapType* getURIStack() {
+    if EXI_UNLIKELY(URIStackMap)
+      this->initURIStackMap();
+    return &*URIStackMap;
+  }
+
+  EXI_COLD EXI_PRESERVE_MOST void initURIStackMap() {
+    exi_relassert(URIStackMap == nullptr);
+    this->URIStackMap = std::make_unique<URIStackMapType>(1);
+  }
+
+public:
   /// Represents LocalValues.
   using LocalValuesType = SmallDenseMap<TValueEntry*, CompactID, 8>;
 
