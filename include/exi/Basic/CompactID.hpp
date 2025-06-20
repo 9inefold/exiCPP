@@ -32,78 +32,60 @@ namespace exi {
 /// The Compact ID type.
 using CompactID = u64;
 
-/// Calculates `⌈ log2(ID) ⌉`.
-template <bool NeverZero = false>
-EXI_INLINE constexpr u32 CompactIDLog2(CompactID ID) {
-  if constexpr (NeverZero)
-    exi_invariant(ID > 0);
-  else {
-    if EXI_UNLIKELY(ID == 0)
-      return 0;
-  }
-  // Faster algorithm.
+namespace H {
+
+ALWAYS_INLINE constexpr u32 CmLog2Dispatch(u64 ID) {
   return Log2_64(ID - 1) + 1;
 }
 
-/// Calculates `⌈ log2(ID) ⌉`.
-template <bool NeverZero = false>
-EXI_INLINE constexpr u32 CompactIDLog2(u32 ID) {
-  if constexpr (NeverZero)
-    exi_invariant(ID > 0);
-  else {
-    if EXI_UNLIKELY(ID == 0)
-      return 0;
-  }
-  // Faster algorithm.
+ALWAYS_INLINE constexpr u32 CmLog2Dispatch(u32 ID) {
   return Log2_32(ID - 1) + 1;
 }
 
-namespace H {
-
-// TODO: Add embedded counters?
-
-template <typename T>
-struct CompactIDBaseHolder {
-  static_assert(!std::is_abstract_v<T>);
-  using type = T;
-};
-
-template <typename T>
-requires (!std::is_class_v<T> || std::is_final_v<T>)
-struct CompactIDBaseHolder<T> {
-  static_assert(!std::is_abstract_v<T>);
-public:
-  /// Use self as the type.
-  using type = CompactIDBaseHolder<T>;
-private:
-  T Data;
-};
-
 } // namespace H
 
-template <u64 Offset = 0>
-class CompactIDCounter {
-  CompactID Value = 0;
+/// Calculates `⌈ log2(ID) ⌉`.
+template <bool NeverZero = false, std::integral Int>
+EXI_INLINE constexpr u32 CompactIDLog2(Int ID) {
+  // Faster algorithm.
+  if constexpr (NeverZero) {
+    exi_invariant(ID > 0);
+    return H::CmLog2Dispatch(ID);
+  } else {
+    if EXI_LIKELY(ID != 0)
+      return H::CmLog2Dispatch(ID);
+    return 0;
+  }
+}
+
+template <class> class LogCounterHandle;
+
+/// A counter with the LogValue embedded.
+/// TODO: Check if a countdown would make this more efficient...
+template <std::integral T, u64 Offset = 0>
+class EmbeddedLogCounter {
+  template <class> friend class LogCounterHandle;
+  T Value = 0;
   u32 LogValue = 0;
 
-  ALWAYS_INLINE constexpr u32 Log2(CompactID ID) {
+  ALWAYS_INLINE constexpr u32 Log2(T ID) {
     return CompactIDLog2<Offset != 0>(ID);
   }
 
   /// Runs the compact log2 calculation on the current value. 
   EXI_INLINE constexpr void recalculateLog() {
-    LogValue = Log2(this->Value + Offset);
+    LogValue = Log2(this->Value + T(Offset));
   }
 
 public:
   /// Starts counter from 0.
-  EXI_INLINE constexpr CompactIDCounter() = default;
+  EXI_INLINE constexpr EmbeddedLogCounter() = default;
   /// Starts counter from `StartingID`.
-  constexpr CompactIDCounter(CompactID StartingID) :
+  constexpr EmbeddedLogCounter(T StartingID) :
    Value(StartingID), LogValue(Log2(StartingID)) {}
   
   /// Returns the current value of the counter.
-  EXI_INLINE constexpr CompactID value() const { return Value; }
+  EXI_INLINE constexpr T value() const { return Value; }
   /// Returns the minimum bits required for current value of the counter.
   EXI_INLINE constexpr u32 bits() const { return LogValue; }
   /// Returns the minimum bytes required for current value of the counter.
@@ -114,7 +96,7 @@ public:
   }
 
   /// Returns the current value of the counter.
-  EXI_INLINE constexpr CompactID operator*() const { return Value; }
+  EXI_INLINE constexpr T operator*() const { return Value; }
 
   /// Increments the counter by 1.
   constexpr void inc() {
@@ -122,26 +104,79 @@ public:
     recalculateLog();
   }
   /// Increments the counter by `I`.
-  constexpr void add(CompactID I) {
+  constexpr void add(T I) {
     Value += I;
     recalculateLog();
   }
 
-  EXI_INLINE constexpr CompactIDCounter& operator++() {
+  EXI_INLINE constexpr EmbeddedLogCounter& operator++() {
     this->inc();
     return *this;
   }
-  EXI_INLINE constexpr CompactIDCounter operator++(int) {
-    CompactIDCounter Out = *this;
+  EXI_INLINE constexpr EmbeddedLogCounter operator++(int) {
+    EmbeddedLogCounter Out = *this;
     this->inc();
     return Out;
   }
 
   /// Directly the value of the counter, avoid use if possible.
-  constexpr void set(CompactID ID) {
+  constexpr void set(T ID) {
     Value = ID;
     recalculateLog();
   }
+};
+
+// An EmbeddedLogCounter for `CompactID`s.
+template <u64 Offset = 0>
+using CompactIDCounter = EmbeddedLogCounter<CompactID, Offset>;
+
+/// A container wrapper which embeds a log counter based on `.size()`.
+template <class T, u64 Offset = 0> class LogCounter {
+  template <class> friend class LogCounterHandle;
+  T Data;
+  u32 LogValue = 0;
+
+  ALWAYS_INLINE constexpr u32 Log2(auto ID) {
+    return CompactIDLog2<Offset != 0>(ID);
+  }
+
+  /// Runs the compact log2 calculation on the current value. 
+  EXI_INLINE constexpr void recalculateLog() {
+    using IDType = decltype(Data.size());
+    LogValue = Log2(Data.size() + IDType(Offset));
+  }
+
+public:
+  constexpr LogCounter(auto&&...Args) :
+   Data(EXI_FWD(Args)...), LogValue(Log2(Data.size())) {}
+  
+  /// Returns the minimum bits required for current value of the counter.
+  EXI_INLINE constexpr u32 bits() const { return LogValue; }
+  /// Returns the minimum bytes required for current value of the counter.
+  EXI_INLINE constexpr u32 bytes() const {
+    if EXI_UNLIKELY(Data.size() == 0)
+      return 0;
+    return (LogValue / 8) + 1u;
+  }
+
+  constexpr T& value() { return Data; }
+  constexpr const T& value() const { return Data; }
+  
+  constexpr T& operator*() { return Data; }
+  constexpr const T& operator*() const { return Data; }
+
+  constexpr T* operator->() { return &Data; }
+  constexpr const T* operator->() const { return &Data; }
+};
+
+/// An RTTI handle that updates the log at the end of the scope.
+template <class Counter> class LogCounterHandle {
+  static_assert(!std::is_const_v<Counter>);
+  Counter& Data;
+public:
+  ALWAYS_INLINE LogCounterHandle(Counter& Data) : Data(Data) {}
+  ALWAYS_INLINE ~LogCounterHandle() { Data.recalculateLog(); }
+  ALWAYS_INLINE Counter* operator->() { return &Data; }
 };
 
 } // namespace exi
