@@ -135,7 +135,6 @@ public:
 
 template <typename Alloc> class AllocatorHolder<Alloc &> {
   Alloc &A;
-
 public:
   AllocatorHolder(Alloc &A) : A(A) {}
   Alloc &getAllocator() { return A; }
