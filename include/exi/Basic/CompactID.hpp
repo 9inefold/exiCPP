@@ -131,7 +131,8 @@ template <u64 Offset = 0>
 using CompactIDCounter = EmbeddedLogCounter<CompactID, Offset>;
 
 /// A container wrapper which embeds a log counter based on `.size()`.
-template <class T, u64 Offset = 0> class LogCounter {
+template <class T, u64 Offset = 0>
+class EmbeddedClassCounter {
   template <class> friend class LogCounterHandle;
   T Data;
   u32 LogValue = 0;
@@ -161,7 +162,7 @@ public:
 
   constexpr T& value() { return Data; }
   constexpr const T& value() const { return Data; }
-  
+
   constexpr T& operator*() { return Data; }
   constexpr const T& operator*() const { return Data; }
 

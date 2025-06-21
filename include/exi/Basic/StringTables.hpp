@@ -544,7 +544,7 @@ private:
 
   /// Represents LocalValues.
   using LocalValuesType = SmallDenseMap<TValueEntry*, CompactID, 8>;
-  
+
   /// Represents the `[LNID, [LV...]]` tuple. LocalValues are lazily initialized
   /// unless told otherwise.
   struct LocalNameInfo {
@@ -606,8 +606,7 @@ private:
   /// Handles the mapping from the string representation of a value to the
   /// value's data. Lookups aren't done through NameCache to reduce the number
   /// of searches required for that.
-  ValueMapType GValueMap;
-  CompactIDCounter<> GValueCount;
+  EmbeddedClassCounter<ValueMapType> GValueMap;
 
   bool DidSetup : 1 = false;
   /// If the tables should wrap once reaching their capacity.
