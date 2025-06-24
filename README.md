@@ -1,6 +1,7 @@
 # exiCPP
 
-C++ wrapper for the Efficient XML Interchange Processor (EXIP).
+A C++ implementation of for the Efficient XML Interchange (EXI) format.
+Originally a wrapper for the EXIP library.
 
 ## Background
 
@@ -24,21 +25,11 @@ I wanted to write a safer and more efficient version from the start.
 
 You can find the new TODO list [here](TODO.md).
 
-## Improvements
+## Improvements (Old)
 
 With some changes to exip's lookup and allocation methods, as well as the new HashTable,
 large files can be encoded up to ***14400 times faster*** than the standalone library.
-You can read about my changes [here](old/doc/Changes.md#performance).
+[You can read about my changes here](old/doc/Changes.md#performance).
 
-## Todo (Old)
-
-In order:
-
-- Exificent compatible compression
-- Schema support
-- Finish wrapping the serializer
-- Add full options support in driver
-- DTD/PI support
-- Improve error generality
-- Generic character encoding?
-- JSON support?
+This will be removed in a future version, but can be found in the
+[exip-wrapper branch](https://github.com/9inefold/exiCPP/tree/exip-wrapper).
