@@ -437,15 +437,15 @@ using BumpStringMap = StringMap<Value,
   std::conditional_t<IsOwned, BumpPtrAllocator, BumpPtrAllocator&>>;
 
 /// Typed handle for `StringTable::URIEntry`.
-struct TURIEntry;
+struct STURIEntry;
 /// Typed handle for `StringTable::ValueEntry`.
-struct TValueEntry;
+struct STValueEntry;
 /// Handle for an `InlineString` representing a QName's data as `"URI$ln"`.
 struct QualName;
 
 /// Using `u32`, because if you have 4 billion uris... wtf.
 struct PrefixInfo {
-  TURIEntry* Link = nullptr;
+  STURIEntry* Link = nullptr;
   /// The ID of the URI.
   u32 URI = 0;
   /// The ID of the prefix.
@@ -505,11 +505,11 @@ public:
   /// Stores the mapping between a Prefix and its corresponding URI(s).
   using PrefixEntry = PrefixMapType::value_type;
 
-  EXI_INLINE static StrRef GetURI(const TURIEntry* Entry) {
+  EXI_INLINE static StrRef GetURI(const STURIEntry* Entry) {
     exi_invariant(Entry != nullptr);
     return X(Entry)->first();
   }
-  EXI_INLINE static u32 GetID(const TURIEntry* Entry) {
+  EXI_INLINE static u32 GetID(const STURIEntry* Entry) {
     exi_invariant(Entry != nullptr);
     return X(Entry)->second.URI;
   }
@@ -530,14 +530,14 @@ private:
   struct URIStackMapHandler {
     Box<URIStackMapType> TheStack = nullptr;
   private:
-    EXI_COLD EXI_PRESERVE_MOST void init() {
+    EXI_COLD EXI_PRESERVE_MOST void initStackMap() {
       exi_relassert(TheStack == nullptr);
       this->TheStack = std::make_unique<URIStackMapType>(1);
     }
   public:
     EXI_INLINE URIStackMapType* get() {
       if EXI_UNLIKELY(!TheStack)
-        this->initURIStackMap();
+        this->initStackMap();
       return &*TheStack;
     }
   };
@@ -547,7 +547,7 @@ private:
   URIStackMapHandler URIStackMap = {};
 
   /// Represents LocalValues.
-  using LocalValuesType = SmallDenseMap<TValueEntry*, CompactID, 8>;
+  using LocalValuesType = SmallDenseMap<STValueEntry*, CompactID, 8>;
   /// Represents the `[LNID, [LV...]]` tuple. LocalValues are lazily initialized
   /// unless told otherwise.
   struct LocalNameInfo {
@@ -619,8 +619,8 @@ private:
   ////////////////////////////////////////////////////////////////////////
   // Handle Mapping
 
-  DECL_MAPPING(URIEntry, TURIEntry)
-  DECL_MAPPING(ValueEntry, TValueEntry)
+  DECL_MAPPING(URIEntry, STURIEntry)
+  DECL_MAPPING(ValueEntry, STValueEntry)
   DECL_MAPPING(InlineStr, QualName)
 
   DECL_VOF(, &, Entry.second)
