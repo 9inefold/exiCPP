@@ -447,7 +447,7 @@ struct QualName;
 struct PrefixInfo {
   STURIEntry* Link = nullptr;
   /// The ID of the URI.
-  u32 URI = 0;
+  u32 WithURI = 0;
   /// The ID of the prefix.
   u16 Pfx = 0;
   /// The cached prefix log.
@@ -504,15 +504,6 @@ public:
   using PrefixMapType = BumpStringMap<PrefixInfo>;
   /// Stores the mapping between a Prefix and its corresponding URI(s).
   using PrefixEntry = PrefixMapType::value_type;
-
-  EXI_INLINE static StrRef GetURI(const STURIEntry* Entry) {
-    exi_invariant(Entry != nullptr);
-    return X(Entry)->first();
-  }
-  EXI_INLINE static u32 GetID(const STURIEntry* Entry) {
-    exi_invariant(Entry != nullptr);
-    return X(Entry)->second.URI;
-  }
 
 private:
   /// Used to map URIs to IDs.
@@ -638,6 +629,20 @@ public:
   /// The signature will have to change when schemas are introduced.
   void setup(const ExiOptions& Opts);
 
+  static CachedHashStrRef prehash(StrRef S) {
+    const u32 Hash = StringMapImpl::hash(S);
+    return CachedHashStrRef(S, Hash);
+  }
+
+  EXI_INLINE static StrRef GetURI(const STURIEntry* Entry) {
+    exi_invariant(Entry != nullptr);
+    return X(Entry)->first();
+  }
+  EXI_INLINE static u32 GetID(const STURIEntry* Entry) {
+    exi_invariant(Entry != nullptr);
+    return X(Entry)->second.URI;
+  }
+
 private:
   // TODO: Finish design...
 
@@ -652,7 +657,7 @@ private:
   };
 
   /// Checks if `C` is in the range of our base-32 character mappings.
-  ALWAYS_INLINE static bool IsURITagChar(char C) {
+  ALWAYS_INLINE static constexpr bool IsURITagChar(char C) {
     return (C >= '0') && (C <= 'O');
   }
 
@@ -710,7 +715,7 @@ private:
   const QualName* internQualName(u32 URI, StrRef LocalName);
 
   /// Gets a new (URI*, DidInsert) pair from a URI.
-  std::pair<URIEntry*, bool> createURIOnly(StrRef URI) {
+  std::pair<URIEntry*, bool> createURIOnly(CachedHashString URI) {
     auto [It, DidInsert] = URIMap.try_emplace(URI);
     if (DidInsert) {
       // Since the item was already inserted, decrement.
@@ -718,6 +723,12 @@ private:
       // FIXME: Update log size?
     }
     return {&*It, DidInsert};
+  }
+
+  /// Gets a new (URI*, DidInsert) pair from a URI.
+  std::pair<URIEntry*, bool> createURIOnly(StrRef URI) {
+    /// Hash needs to be computed anyways, skip a step...
+    return createURIOnly(prehash(URI));
   }
 
   /// Gets a new (URI*, Pfx*?) pair from a URI and Prefix.
