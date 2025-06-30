@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <Common/CachedHashString.hpp>
 #include <Common/StringMapEntry.hpp>
 #include <Common/iterator.hpp>
 #include <Support/AllocatorBase.hpp>
@@ -249,6 +250,10 @@ public:
 
   iterator find(StrRef Key) { return find(Key, hash(Key)); }
 
+  iterator find(CachedHashStrRef CachedKey) {
+    return find(CachedKey.val(), CachedKey.hash());
+  }
+
   iterator find(StrRef Key, u32 FullHashValue) {
     int Bucket = FindKey(Key, FullHashValue);
     if (Bucket == -1)
@@ -257,6 +262,10 @@ public:
   }
 
   const_iterator find(StrRef Key) const { return find(Key, hash(Key)); }
+
+  const_iterator find(CachedHashStrRef CachedKey) const {
+    return find(CachedKey.val(), CachedKey.hash());
+  }
 
   const_iterator find(StrRef Key, u32 FullHashValue) const {
     int Bucket = FindKey(Key, FullHashValue);
@@ -288,9 +297,13 @@ public:
 
   /// contains - Return true if the element is in the map, false otherwise.
   bool contains(StrRef Key) const { return find(Key) != end(); }
+  /// contains - Return true if the element is in the map, false otherwise.
+  bool contains(CachedHashStrRef Key) const { return find(Key) != end(); }
 
   /// count - Return 1 if the element is in the map, 0 otherwise.
   size_type count(StrRef Key) const { return contains(Key) ? 1 : 0; }
+  /// count - Return 1 if the element is in the map, 0 otherwise.
+  size_type count(CachedHashStrRef Key) const { return contains(Key) ? 1 : 0; }
 
   template <typename InputTy>
   size_type count(const StringMapEntry<InputTy> &MapEntry) const {
@@ -384,6 +397,15 @@ public:
   template <typename... ArgsTy>
   std::pair<iterator, bool> try_emplace(StrRef Key, ArgsTy &&...Args) {
     return try_emplace_with_hash(Key, hash(Key), std::forward<ArgsTy>(Args)...);
+  }
+
+  /// Same as normal `try_emplace`, but hash is precalculated.
+  template <typename... ArgsTy>
+  std::pair<iterator, bool> try_emplace(CachedHashStrRef CachedKey,
+                                        ArgsTy &&...Args) {
+    return try_emplace_with_hash(
+      CachedKey.val(), CachedKey.hash(),
+      std::forward<ArgsTy>(Args)...);
   }
 
   template <typename... ArgsTy>
