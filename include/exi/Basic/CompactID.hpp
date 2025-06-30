@@ -175,9 +175,28 @@ template <class Counter> class LogCounterHandle {
   static_assert(!std::is_const_v<Counter>);
   Counter& Data;
 public:
-  ALWAYS_INLINE LogCounterHandle(Counter& Data) : Data(Data) {}
+  ALWAYS_INLINE LogCounterHandle(Counter& Data EXI_LIFETIMEBOUND) : Data(Data) {}
   ALWAYS_INLINE ~LogCounterHandle() { Data.recalculateLog(); }
   ALWAYS_INLINE Counter* operator->() { return &Data; }
 };
+
+/// An RTTI handle that updates the log at the end of the scope.
+/// Assumes the counter starts at 0.
+template <typename T, typename LogT> class LogProxyHandle {
+  static_assert(!std::is_const_v<LogT>);
+  const T& Data;
+  LogT& Log;
+public:
+  LogProxyHandle(const T& Data EXI_LIFETIMEBOUND,
+                 LogT& Log EXI_LIFETIMEBOUND) : Data(Data), Log(Log) {}
+  LogProxyHandle(T&&, LogT& Log) = delete;
+  ~LogProxyHandle() { Log = CompactIDLog2</*NeverZero=*/false>(Data); }
+};
+
+template <class Counter>
+LogCounterHandle(Counter&) -> LogCounterHandle<Counter>;
+
+template <typename T, typename LogT>
+LogProxyHandle(T&, LogT&) -> LogProxyHandle<std::remove_const_t<T>, LogT>;
 
 } // namespace exi
