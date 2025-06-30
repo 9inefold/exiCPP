@@ -570,6 +570,7 @@ private:
     }
 
     u32 id() const { return LNID; }
+    bool didInit() const { return LVs.get(); }
 
     LocalValuesType& get(const StringTable& Tbl) {
       return get(Tbl.Alloc);
