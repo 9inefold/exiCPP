@@ -477,14 +477,45 @@
 #endif
 
 #if EXI_HAS_BUILTIN(__builtin_expect)
-# define EXI_EXPECT(v, expr) \
- (__builtin_expect(static_cast<bool>(expr), v))
+# define HAS__builtin_expect 1
+# define EXI_EXPECT(EXPECTED, EXPR)                                           \
+  (static_cast<decltype(EXPR)>(__builtin_expect((EXPR), EXPECTED)))
 #else
-# define EXI_EXPECT(v, expr) (static_cast<bool>(expr))
+# define HAS__builtin_expect 0
+# define EXI_EXPECT(EXPECTED, EXPR) (EXPR)
 #endif
 
-#define EXI_LIKELY(...)  EXI_EXPECT(1, (__VA_ARGS__))
-#define EXI_UNLIKELY(...) EXI_EXPECT(0, (__VA_ARGS__))
+#if EXI_HAS_BUILTIN(__builtin_expect_with_probability)
+# define HAS__builtin_expect_with_probability 1
+# define EXI_EXPECT_WITH(EXPECTED, EXPR, PROB)                                \
+  (static_cast<decltype(EXPR)>(                                               \
+    __builtin_expect_with_probability((EXPR), EXPECTED, PROB)))
+#else
+# define HAS__builtin_expect_with_probability 0
+# define EXI_EXPECT_WITH(EXPECTED, EXPR, PROB) (EXPR)
+#endif
+
+#if EXI_HAS_BUILTIN(__builtin_unpredictable)
+# define HAS__builtin_unpredictable 1
+# define EXI_EXPECT_UNPREDICTABLE(EXPR)                                       \
+  (static_cast<decltype(EXPR)>(__builtin_unpredictable((EXPR))))
+#else
+# define HAS__builtin_unpredictable 0
+# define EXI_EXPECT_UNPREDICTABLE(EXPR) (EXPR)
+#endif
+
+/// Tells the compiler a branch is likely.
+#define EXI_LIKELY(...)   EXI_EXPECT(1, static_cast<bool>(__VA_ARGS__))
+/// Tells the compiler a branch is unlikely.
+#define EXI_UNLIKELY(...) EXI_EXPECT(0, static_cast<bool>(__VA_ARGS__))
+
+/// Tells the compiler a branch should "always" be taken.
+#define EXI_ALWAYS(...) EXI_EXPECT_WITH(1, static_cast<bool>(__VA_ARGS__), 1.0)
+/// Tells the compiler a branch should "never" be taken.
+#define EXI_NEVER(...)  EXI_EXPECT_WITH(0, static_cast<bool>(__VA_ARGS__), 1.0)
+
+/// Tells the compiler a branch will not be predictable.
+#define EXI_UNPREDICT(...) EXI_EXPECT_UNPREDICTABLE(static_cast<bool>(__VA_ARGS__))
 
 #if defined(EXI_UNREACHABLE)
 // Use the provided definition.
