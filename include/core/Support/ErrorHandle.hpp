@@ -108,7 +108,7 @@ class Twine;
 
 #if EXI_ASSERTS
 # define exi_assume(...) do {                                                 \
-    if EXI_UNLIKELY(!static_cast<bool>(__VA_ARGS__))                          \
+    if EXI_NEVER(!static_cast<bool>(__VA_ARGS__))                             \
       exi_fail_stringify(ASK_Assume, __VA_ARGS__);                            \
   } while(0)
 #elif defined(EXI_ASSUME)
@@ -118,7 +118,7 @@ class Twine;
 #endif
 
 /// Provides runtime assertion checking for a generic kind.
-#define exi_assertRT_(KIND, EXPR, ...) void(EXI_LIKELY((EXPR))                \
+#define exi_assertRT_(KIND, EXPR, ...) void(EXI_ALWAYS((EXPR))                \
   ? (void(0))                                                                 \
   : (exi_fail(KIND, ("`" #EXPR "`" __VA_OPT__(". Reason: ") #__VA_ARGS__))))
 
