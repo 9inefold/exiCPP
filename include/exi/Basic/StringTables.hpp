@@ -484,6 +484,7 @@ class StringTable {
   exi::UniqueStringSaver NameCache;
 
   /// Used to cache!!
+  /// TODO: Use to pack memory (and profile...)
   static constexpr usize kURIMax = 0xFFFFFF;
   /// Contains URI's ID and reverse mappings for prefixes.
   struct URIInfo {
@@ -493,7 +494,6 @@ class StringTable {
     /// Iterate while recording the index to find the PfxID.
     SmallVec<PrefixInfo*, 2> PfxMap;
   };
-
   /// Maps a URI to its associated ID.
   using URIMapType = BumpStringMap<URIInfo>;
   /// Stores the mapping between a URI and its associated ID.
@@ -526,7 +526,6 @@ private:
   using URIStack = SmallVec<PrefixInfo, 1>;
   /// Maps a PrefixEntry to a stack of URI values.
   using URIStackMapType = SmallDenseMap<const PrefixEntry*, URIStack, 8>;
-
   /// Wraps the `URIStackMapType`.
   struct URIStackMapHandler {
     Box<URIStackMapType> TheStack = nullptr;
@@ -549,7 +548,6 @@ private:
 
   /// Represents LocalValues.
   using LocalValuesType = SmallDenseMap<TValueEntry*, CompactID, 8>;
-
   /// Represents the `[LNID, [LV...]]` tuple. LocalValues are lazily initialized
   /// unless told otherwise.
   struct LocalNameInfo {
@@ -593,7 +591,6 @@ private:
       return *LVs;
     }
   };
-
   /// Maps a QName to LocalName data: `"URI$ln" -> [LNID, [LV...]]`.
   DenseMap<const QualName*, LocalNameInfo> LVMap;
   
@@ -604,7 +601,6 @@ private:
     /// The latest LocalName using this Value.
     const QualName* Name = nullptr;
   };
-
   /// Maps a Value to its corresponding data.
   using ValueMapType = BumpStringMap<ValueInfo, /*IsOwned=*/true>;
   /// Stores the mapping between a Value and its corresponding data.
