@@ -22,6 +22,7 @@ set(EFL_NAMESPACE exi) # Unused... for now
 
 # list(APPEND CMAKE_CXX_FLAGS "-fsanitize=address")
 
+# TODO: Remove when complete?
 option(EXI_USE_EXIP     "Enables the old version of exicpp." OFF)
 option(EXI_DRIVER       "If the driver should be built (always ON at top level)." OFF)
 option(EXI_TESTS        "If tests should be run." OFF)
@@ -91,25 +92,10 @@ if(EXI_FAST_DEBUG)
   set(MI_DEBUG_FAST ON)
 endif()
 
+# TODO: Remove when complete?
 if(EXI_USE_EXIP)
-  option(EXIP_FORCE_SCOPE  "If the exip namespace should be forced." ON)
-
-  set_if_unset(EXICPP_WARNING_FLAGS ${EXI_WARNING_FLAGS})
-  set_if_unset(EXICPP_INVARIANTS    ${EXI_INVARIANTS})
-  set_if_unset(EXICPP_EXCEPTIONS    ${EXI_EXCEPTIONS})
-  set_if_unset(EXICPP_TESTS         ${EXI_TESTS})
-  set_if_unset(EXICPP_DEBUG         ${EXI_DEBUG})
-  set_if_unset(EXICPP_ANSI          ${EXI_ANSI})
-  set_if_unset(EXICPP_USE_MIMALLOC  ${EXI_USE_MIMALLOC})
-
-  set(EXICPP_DEBUG_BUILD            ${EXI_DEBUG_BUILD})
-  set(EXICPP_FAST_DEBUG             ${EXI_FAST_DEBUG})
-
-  set(EXIP_USE_MIMALLOC             ${EXI_USE_MIMALLOC})
-  set(EXIP_DEBUG                    ${EXI_DEBUG})
-  if(EXI_ANSI)
-    set(EXIP_ANSI ON CACHE BOOL "")
-  endif()
+  # Sets the variables required for exip to function
+  include(old/SetupExip.cmake)
 endif()
 
 message(STATUS "[exicpp] Tests: ${EXI_TESTS}")
