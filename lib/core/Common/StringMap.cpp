@@ -104,9 +104,7 @@ void StringMapImpl::init(unsigned InitSize) {
 /// of the string.
 unsigned StringMapImpl::LookupBucketFor(StrRef Name,
                                         u32 FullHashValue) {
-#ifdef EXPENSIVE_CHECKS
-  assert(FullHashValue == hash(Name));
-#endif
+  exi_expensive_invariant(FullHashValue == hash(Name));
   // Hash table unallocated so far?
   if (NumBuckets == 0)
     init(16);
@@ -166,9 +164,7 @@ unsigned StringMapImpl::LookupBucketFor(StrRef Name,
 int StringMapImpl::FindKey(StrRef Key, u32 FullHashValue) const {
   if (NumBuckets == 0)
     return -1; // Really empty table?
-#ifdef EXPENSIVE_CHECKS
-  assert(FullHashValue == hash(Key));
-#endif
+  exi_expensive_invariant(FullHashValue == hash(Key));
   if (shouldReverseIterate())
     FullHashValue = ~FullHashValue;
   unsigned BucketNo = FullHashValue & (NumBuckets - 1);
