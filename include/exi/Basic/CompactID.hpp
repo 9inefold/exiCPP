@@ -148,7 +148,7 @@ class EmbeddedClassCounter {
   }
 
 public:
-  constexpr LogCounter(auto&&...Args) :
+  constexpr EmbeddedClassCounter(auto&&...Args) :
    Data(EXI_FWD(Args)...), LogValue(Log2(Data.size())) {}
   
   /// Returns the minimum bits required for current value of the counter.
