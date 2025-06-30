@@ -35,26 +35,33 @@ using CompactID = u64;
 namespace H {
 
 ALWAYS_INLINE constexpr u32 CmLog2Dispatch(u64 ID) {
-  return Log2_64(ID - 1) + 1;
+  return Log2_64(ID - 1ul) + 1u;
 }
 
 ALWAYS_INLINE constexpr u32 CmLog2Dispatch(u32 ID) {
-  return Log2_32(ID - 1) + 1;
+  return Log2_32(ID - 1u) + 1u;
+}
+
+ALWAYS_INLINE constexpr u16 CmLog2Dispatch(u16 ID) {
+  return std::countl_zero(u16(ID - 1u)) + 1u;
+}
+
+ALWAYS_INLINE constexpr u8 CmLog2Dispatch(u8 ID) {
+  return std::countl_zero(u8(ID - 1u)) + 1u;
 }
 
 } // namespace H
 
 /// Calculates `⌈ log2(ID) ⌉`.
 template <bool NeverZero = false, std::integral Int>
-EXI_INLINE constexpr u32 CompactIDLog2(Int ID) {
+EXI_INLINE constexpr auto CompactIDLog2(Int ID) {
   // Faster algorithm.
   if constexpr (NeverZero) {
     exi_invariant(ID > 0);
     return H::CmLog2Dispatch(ID);
   } else {
-    if EXI_LIKELY(ID != 0)
-      return H::CmLog2Dispatch(ID);
-    return 0;
+    return EXI_LIKELY(ID != 0)
+      ? H::CmLog2Dispatch(ID) : 0u;
   }
 }
 
