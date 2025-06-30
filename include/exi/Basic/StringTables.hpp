@@ -526,21 +526,26 @@ private:
   using URIStack = SmallVec<PrefixInfo, 1>;
   /// Maps a PrefixEntry to a stack of URI values.
   using URIStackMapType = SmallDenseMap<const PrefixEntry*, URIStack, 8>;
+
+  /// Wraps the `URIStackMapType`.
+  struct URIStackMapHandler {
+    Box<URIStackMapType> TheStack = nullptr;
+  private:
+    EXI_COLD EXI_PRESERVE_MOST void init() {
+      exi_relassert(TheStack == nullptr);
+      this->TheStack = std::make_unique<URIStackMapType>(1);
+    }
+  public:
+    EXI_INLINE URIStackMapType* get() {
+      if EXI_UNLIKELY(!TheStack)
+        this->initURIStackMap();
+      return &*TheStack;
+    }
+  };
   /// Maps a PrefixEntry to a stack of URIs representing nested namespace contexts.
   /// This is managed externally, as the string table has no knowledge of the format.
   /// Lazily initialized as many files will not require it.
-  Box<URIStackMapType> URIStackMap = nullptr;
-
-  URIStackMapType* getURIStack() {
-    if EXI_UNLIKELY(URIStackMap)
-      this->initURIStackMap();
-    return &*URIStackMap;
-  }
-
-  EXI_COLD EXI_PRESERVE_MOST void initURIStackMap() {
-    exi_relassert(URIStackMap == nullptr);
-    this->URIStackMap = std::make_unique<URIStackMapType>(1);
-  }
+  URIStackMapHandler URIStackMap = {};
 
   /// Represents LocalValues.
   using LocalValuesType = SmallDenseMap<TValueEntry*, CompactID, 8>;
