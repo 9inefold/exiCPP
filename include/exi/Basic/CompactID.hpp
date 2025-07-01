@@ -42,12 +42,23 @@ ALWAYS_INLINE constexpr u32 CmLog2Dispatch(u32 ID) {
   return Log2_32(ID - 1u) + 1u;
 }
 
-ALWAYS_INLINE constexpr u16 CmLog2Dispatch(u16 ID) {
+inline constexpr u16 CmLog2Dispatch(u16 ID) {
   return std::countl_zero(u16(ID - 1u)) + 1u;
 }
 
-ALWAYS_INLINE constexpr u8 CmLog2Dispatch(u8 ID) {
+inline constexpr u8 CmLog2Dispatch(u8 ID) {
   return std::countl_zero(u8(ID - 1u)) + 1u;
+}
+
+template <std::signed_integral Int>
+[[deprecated("likely an accidental signed input, "
+  "ensure small types are handled correctly!")]]
+EXI_INLINE constexpr auto CmLog2Dispatch(Int ID) {
+  // TODO: Fix in permissive mode
+  COMPILE_FAILURE(Int);
+  using UInt = std::make_unsigned_t<Int>;
+  exi_assume(ID >= 0);
+  return CmLog2Dispatch(static_cast<UInt>(ID));
 }
 
 } // namespace H
