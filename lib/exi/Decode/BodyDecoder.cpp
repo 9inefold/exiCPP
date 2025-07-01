@@ -109,7 +109,7 @@ ExiError ExiDecoder::init() {
   if (!Opts.SchemaID.expect("schema is required"))
     CurrentSchema = BuiltinSchema::New(Opts);
   else
-    exi_unreachable("schemas are currently unsupported");
+    exi_todo("schemas are currently unsupported");
   
   if (!CurrentSchema) {
     LOG_ERROR("Schema could not be allocated.");
@@ -148,7 +148,7 @@ ExiError ExiDecoder::prepareForDecoding() {
 
   if (!isa<BuiltinSchema>(*SchemaPtr)) {
     // TODO: Schemas!!!
-    exi_unreachable("dynamic and compiled schemas currently unsupported.");
+    exi_unimplemented("dynamic and compiled schemas currently unsupported.");
   }
 
   return ExiError::OK;

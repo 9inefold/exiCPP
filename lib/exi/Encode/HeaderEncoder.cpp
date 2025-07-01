@@ -200,7 +200,7 @@ static ExiError encodeHeaderImpl(const ExiHeader& Header, BitWriter& Strm) {
     LOG_EXTRA("options are out-of-band");
   else {
     // TODO: Encode options to file.
-    exi_unreachable("options encode unimplemented");
+    exi_todo("options encode unimplemented");
     return ExiError::TODO;
   }
 

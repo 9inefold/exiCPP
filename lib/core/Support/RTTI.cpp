@@ -503,7 +503,7 @@ ALWAYS_INLINE static char* Bridge__unDName(
 static RttiResult<StrRef> DemangleSymbol(StrRef Symbol) {
   { [[maybe_unused]] static volatile int LazyLoad = DemangleSymInit(); }
   bool IsInternal = Symbol.consume_front('.');
-  exi_unreachable("implement undname DemangleSymbol");
+  exi_unimplemented("implement undname DemangleSymbol");
 }
 
 # else

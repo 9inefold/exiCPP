@@ -37,6 +37,8 @@ enum AssertionKind : int {
   ASK_Assume,
   ASK_Invariant,
   ASK_Unreachable,
+  ASK_Unimplemented,
+  ASK_Todo,
 };
 
 } // namespace H
@@ -93,18 +95,33 @@ class Twine;
 /// Simplified assertion handler, provides required arguments for you.
 #define exi_fail_stringify(KIND, ...) exi_fail(KIND, "`" #__VA_ARGS__ "`")
 
-#ifndef NDEBUG
-# define exi_unreachable(MSG) exi_fail(ASK_Unreachable, MSG)
-#elif !defined(EXI_UNREACHABLE)
-# define exi_unreachable(MSG) ::exi::exi_unreachable_impl()
+#if !defined(EXI_UNREACHABLE)
+# define EXI_REAL_UNREACHABLE ::exi::exi_unreachable_impl()
 #elif EXI_OPTIMIZE_UNREACHABLE && !EXI_DEBUG
-# define exi_unreachable(MSG) EXI_UNREACHABLE
+# define EXI_REAL_UNREACHABLE EXI_UNREACHABLE
 #else
-# define exi_unreachable(MSG) do {                                            \
+# define EXI_REAL_UNREACHABLE do {                                            \
     EXI_TRAP;                                                                 \
     EXI_UNREACHABLE;                                                          \
   } while(0)
 #endif
+
+#ifndef NDEBUG
+# define exi_unreachable(MSG) exi_fail(ASK_Unreachable, MSG)
+#else
+# define exi_unreachable(MSG) EXI_REAL_UNREACHABLE
+#endif
+
+/// Marks a section as unimplemented, with no claims of completion.
+#define exi_unimplemented(MSG) do {                                           \
+  exi_fail(ASK_Unimplemented, MSG);                                           \
+  EXI_REAL_UNREACHABLE;                                                       \
+} while(0)
+/// Marks a section as TODO, with the claim of completion at a further date.
+#define exi_todo(MSG) do {                                                    \
+  exi_fail(ASK_Todo, MSG);                                                    \
+  EXI_REAL_UNREACHABLE;                                                       \
+} while(0)
 
 #if EXI_ASSERTS
 # define exi_assume(...) do {                                                 \

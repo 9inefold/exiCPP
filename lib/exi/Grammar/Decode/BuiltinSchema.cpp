@@ -260,7 +260,7 @@ private:
     case ElementContent:
       tail_return this->handleElement(D);
     case Fragment:
-      exi_unreachable("SC elements are currently unsupported");
+      exi_unimplemented("SC elements are currently unsupported");
     default:
       tail_return this->getDocTerm(D);
     }
@@ -904,7 +904,7 @@ Box<BuiltinSchema> BuiltinSchema::New(const ExiOptions& Opts) {
     return DynBuiltinSchema<BitReader>::New(Opts);
   else if (A == AlignKind::BytePacked)
     return DynBuiltinSchema<ByteReader>::New(Opts);
-  exi_unreachable("Channel readers are currently unsupported!");
+  exi_todo("channel readers are currently unsupported!");
 }
 
 //===----------------------------------------------------------------===//

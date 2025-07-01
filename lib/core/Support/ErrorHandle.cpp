@@ -55,6 +55,10 @@ static const char* getAssertionMessage(H::AssertionKind Kind) {
     return "Invariant broken";
    case ASK_Unreachable:
     return "Unreachable reached";
+   case ASK_Unimplemented:
+    return "Not implemented";
+   case ASK_Todo:
+    return "Not yet implemented";
   }
   return "??? failed";
 }
