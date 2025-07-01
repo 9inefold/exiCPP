@@ -41,7 +41,13 @@
 
 #include <core/Common/CachedHashString.hpp>
 #include <core/Common/DenseMap.hpp>
+#include <core/Common/Naked.hpp>
+#include <core/Support/Allocator.hpp>
+#include <core/Support/ErrorHandle.hpp>
 #include <core/Support/MathExtras.hpp>
+#include <core/Support/StringSaver.hpp>
+#include <exi/Basic/CompactID.hpp>
+#include <exi/Basic/EventCodes.hpp>
 #include <type_traits>
 
 // TODO: Refactor to use embedded counters with RTTI handles
