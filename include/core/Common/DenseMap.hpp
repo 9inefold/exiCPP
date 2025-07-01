@@ -111,6 +111,8 @@ public:
   inline const_iterator end() const {
     return makeConstIterator(getBucketsEnd(), getBucketsEnd(), *this, true);
   }
+  inline const_iterator cbegin() const { tail_return this->begin(); }
+  inline const_iterator cend() const { tail_return this->end(); }
 
   [[nodiscard]] bool empty() const { return getNumEntries() == 0; }
   unsigned size() const { return getNumEntries(); }
@@ -1264,22 +1266,23 @@ public:
   // Converting ctor from non-const iterators to const iterators. SFINAE'd out
   // for const iterator destinations so it doesn't end up as a user defined copy
   // constructor.
-  template <bool IsConstSrc,
-            typename = std::enable_if_t<!IsConstSrc && IsConst>>
+  template <bool IsConstSrc>
+  // typename = std::enable_if_t<!IsConstSrc && IsConst>>
+  requires (!IsConstSrc && IsConst)
   DenseMapIterator(
       const DenseMapIterator<KeyT, ValueT, KeyInfoT, Bucket, IsConstSrc> &I)
       : DebugEpochBase::HandleBase(I), Ptr(I.Ptr), End(I.End) {}
 
   reference operator*() const {
     exi_invariant(isHandleInSync(), "invalid iterator access!");
-    exi_invariant(Ptr != End, "dereferencing end() iterator");
+    exi_assert(Ptr != End, "dereferencing end() iterator");
     if (shouldReverseIterate<KeyT>())
       return Ptr[-1];
     return *Ptr;
   }
   pointer operator->() const {
     exi_invariant(isHandleInSync(), "invalid iterator access!");
-    exi_invariant(Ptr != End, "dereferencing end() iterator");
+    exi_assert(Ptr != End, "dereferencing end() iterator");
     if (shouldReverseIterate<KeyT>())
       return &(Ptr[-1]);
     return Ptr;
@@ -1292,6 +1295,18 @@ public:
     exi_invariant(LHS.getEpochAddress() == RHS.getEpochAddress(),
                  "comparing incomparable iterators!");
     return LHS.Ptr == RHS.Ptr;
+  }
+
+  /// Comparisons between const and non-const iterators without conversions.
+  /// Only enabled for const iterators.
+  template <bool IsConstIt>
+  requires (!IsConstIt && IsConst) bool operator==(
+   const DenseMapIterator<KeyT, ValueT, KeyInfoT, Bucket, IsConstIt>& I) const {
+    exi_invariant((!this->Ptr || this->isHandleInSync()), "handle not in sync!");
+    exi_invariant((!I.Ptr || I.isHandleInSync()), "handle not in sync!");
+    exi_invariant(this->getEpochAddress() == I.getEpochAddress(),
+                 "comparing incomparable iterators!");
+    return this->Ptr == I.Ptr;
   }
 
   friend bool operator!=(const DenseMapIterator &LHS,
