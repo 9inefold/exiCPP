@@ -104,7 +104,7 @@ const QualName* StringTable::internQualName(u32 URI, StrRef LocalName) {
 }
 
 std::pair<StringTable::URIEntry*, StringTable::PrefixEntry*>
- StringTable::createURI(StrRef URI, Option<StrRef> Pfx) {
+ StringTable::createURI(CachedHashStrRef URI, Option<StrRef> Pfx) {
   URIEntry* URIP = createURIOnly(URI).first;
   if (!Pfx)
     return {URIP, nullptr};
@@ -116,8 +116,8 @@ std::pair<StringTable::URIEntry*, StringTable::PrefixEntry*>
 
     PI.Link = X(URIP);
     PI.Pfx = PfxMap.size();
-    PI.PfxLog = CompactIDLog2<true>(PI.Pfx + 1);
-    PI.URI = URIP->second.URI;
+    PI.PfxLog = CompactIDLog2<true>(u16(PI.Pfx + 1u));
+    PI.WithURI = URIP->second.URI;
 
     PfxMap.push_back(&PI);
     return {URIP, &*It};

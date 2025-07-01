@@ -511,7 +511,7 @@ private:
   /// Used to map Prefixes to URIs (and their IDs).
   PrefixMapType PrefixMap;
 
-  // TODO: Add Deque<BumpStringMap<QualName*>>?
+  // TODO: Add Deque<ExAllocBumpStringMap<QualName*>>?
   
   /// Represents nested namespace contexts.
   using URIStack = SmallVec<PrefixInfo, 1>;
@@ -715,7 +715,7 @@ private:
   const QualName* internQualName(u32 URI, StrRef LocalName);
 
   /// Gets a new (URI*, DidInsert) pair from a URI.
-  std::pair<URIEntry*, bool> createURIOnly(CachedHashString URI) {
+  std::pair<URIEntry*, bool> createURIOnly(CachedHashStrRef URI) {
     auto [It, DidInsert] = URIMap.try_emplace(URI);
     if (DidInsert) {
       // Since the item was already inserted, decrement.
@@ -724,7 +724,6 @@ private:
     }
     return {&*It, DidInsert};
   }
-
   /// Gets a new (URI*, DidInsert) pair from a URI.
   std::pair<URIEntry*, bool> createURIOnly(StrRef URI) {
     /// Hash needs to be computed anyways, skip a step...
@@ -733,8 +732,13 @@ private:
 
   /// Gets a new (URI*, Pfx*?) pair from a URI and Prefix.
   std::pair<URIEntry*, PrefixEntry*>
-    createURI(StrRef URI, Option<StrRef> Pfx = std::nullopt);
-
+   createURI(CachedHashStrRef URI, Option<StrRef> Pfx = std::nullopt);
+  /// Gets a new (URI*, Pfx*?) pair from a URI and Prefix.
+  std::pair<URIEntry*, PrefixEntry*>
+   createURI(StrRef URI, Option<StrRef> Pfx = std::nullopt) {
+    return createURI(prehash(URI), Pfx);
+  }
+  
   // Add other stuff...
 
   /// Creates the initial entries for the string table. The values inserted
