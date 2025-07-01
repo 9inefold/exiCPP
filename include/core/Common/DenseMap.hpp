@@ -340,6 +340,7 @@ public:
     if (!TheBucket)
       return false; // not in map.
 
+    // Known valid bucket, no checks required.
     TheBucket->getSecond().~ValueT();
     TheBucket->getFirst() = getTombstoneKey();
     decrementNumEntries();
@@ -348,6 +349,7 @@ public:
   }
   void erase(iterator I) {
     BucketT *TheBucket = &*I;
+    AssertErasableBucket(TheBucket);
     TheBucket->getSecond().~ValueT();
     TheBucket->getFirst() = getTombstoneKey();
     decrementNumEntries();
@@ -488,7 +490,17 @@ protected:
     return KeyInfoT::getEmptyKey();
   }
 
-  static const KeyT getTombstoneKey() { return KeyInfoT::getTombstoneKey(); }
+  static const KeyT getTombstoneKey() {
+    return KeyInfoT::getTombstoneKey();
+  }
+
+  /// Check that the given bucket hasn't already been erased.
+  inline static void AssertErasableBucket(BucketT *TheBucket) {
+    exi_invariant(TheBucket != nullptr);
+    [[maybe_unused]] const KeyT &First = TheBucket->getFirst();
+    exi_invariant(!KeyInfoT::isEqual(First, getEmptyKey()));
+    exi_assert(!KeyInfoT::isEqual(First, getTombstoneKey()));
+  }
 
 private:
   iterator makeIterator(BucketT *P, BucketT *E, DebugEpochBase &Epoch,
@@ -553,6 +565,19 @@ private:
   void grow(unsigned AtLeast) { static_cast<DerivedT *>(this)->grow(AtLeast); }
 
   void shrink_and_clear() { static_cast<DerivedT *>(this)->shrink_and_clear(); }
+
+  template <bool DoChecks = true>
+  EXI_INLINE void eraseFromBucket(BucketT *TheBucket) {
+    if constexpr (DoChecks) {
+      auto& First = TheBucket->getFirst();
+      exi_invariant(!KeyInfoT::isEqual(First, getEmptyKey()));
+      exi_assert(!KeyInfoT::isEqual(First, getTombstoneKey()));
+    }
+    TheBucket->getSecond().~ValueT();
+    TheBucket->getFirst() = getTombstoneKey();
+    decrementNumEntries();
+    incrementNumTombstones();
+  }
 
   template <typename KeyArg, typename... ValueArgs>
   BucketT *InsertIntoBucket(BucketT *TheBucket, KeyArg &&Key,
