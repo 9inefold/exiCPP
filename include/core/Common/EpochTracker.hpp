@@ -104,14 +104,14 @@ public:
 
 class DebugEpochBase {
 public:
-  void incrementEpoch() {}
+  ALWAYS_INLINE void incrementEpoch() {}
 
   class HandleBase {
   public:
     HandleBase() = default;
-    explicit HandleBase(const DebugEpochBase *) {}
-    bool isHandleInSync() const { return true; }
-    const void *getEpochAddress() const { return nullptr; }
+    ALWAYS_INLINE explicit HandleBase(const DebugEpochBase *) {}
+    ALWAYS_INLINE bool isHandleInSync() const { return true; }
+    ALWAYS_INLINE const void *getEpochAddress() const { return nullptr; }
   };
 };
 
