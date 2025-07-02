@@ -386,6 +386,13 @@ public:
   /// determine whether an insertion caused the DenseMap to reallocate.
   const void *getPointerIntoBucketsArray() const { return getBuckets(); }
 
+  EXI_INLINE static void AssertValidKey(const KeyT &Key) {
+#ifndef NDEBUG
+    exi_assert(!KeyInfoT::isEqual(Key, getEmptyKey()));
+    exi_assert(!KeyInfoT::isEqual(Key, getTombstoneKey()));
+#endif
+  }
+
 protected:
   DenseMapBase() = default;
 
@@ -499,9 +506,7 @@ protected:
   /// Check that the given bucket hasn't already been erased.
   inline static void AssertErasableBucket(BucketT *TheBucket) {
     exi_invariant(TheBucket != nullptr);
-    [[maybe_unused]] const KeyT &First = TheBucket->getFirst();
-    exi_invariant(!KeyInfoT::isEqual(First, getEmptyKey()));
-    exi_assert(!KeyInfoT::isEqual(First, getTombstoneKey()));
+    AssertValidKey(TheBucket->getFirst());
   }
 
 private:
