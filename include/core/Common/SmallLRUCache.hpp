@@ -25,6 +25,7 @@
 
 #include <Common/Array.hpp>
 #include <Common/CompressedPair.hpp>
+#include <Common/FunctionRef.hpp>
 // #include <Common/ManualDrop.hpp>
 #include <Common/Option.hpp>
 
@@ -68,7 +69,7 @@ class SmallLRUCache {
 
 public:
   Option<V&> get(const K& Key) {
-    if (InfoT::isKeyNull(Key))
+    if EXI_NEVER(InfoT::isKeyNull(Key))
       return std::nullopt;
 
     for (usize Ix = Size; Ix-- > 0;) {
@@ -94,6 +95,38 @@ public:
     Elts[Size - 1] = GetNewElt(Key);
     return Elts[Size - 1].Value;
   }
+
+  inline bool set(const K& Key, auto&& Val) {
+    Option<V&> Out = get(Key);
+    if EXI_NEVER(Out.is_none())
+      return false;
+    *Out = EXI_FWD(Val);
+    return true;
+  }
+
+  inline bool remove(const K& Key) {
+    if EXI_NEVER(InfoT::isKeyNull(Key))
+      return false;
+    for (usize Ix = Size; Ix-- > 0;) {
+      if (Elts[Ix].Key == Key) {
+        const usize MRU = Size - 1;
+        if (Ix < MRU)
+          this->shiftFrom(Ix);
+        --Size;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Runs an update function on all active values.
+  void update(function_ref<void(const K, V&)> Fn) {
+    for (usize Ix = 0; Ix < Size; ++Ix)
+      Fn(Elts[Ix].Key, Elts[Ix].Value);
+  }
+
+  ALWAYS_INLINE usize size() const { return Size; }
+  ALWAYS_INLINE bool empty() const { return Size == 0; }
 };
 
 } // namespace exi
