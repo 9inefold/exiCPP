@@ -1,6 +1,6 @@
 //===- Common/ConstexprLists.hpp ------------------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2024-2025 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,28 +24,12 @@
 #pragma once
 
 #include <Common/Fundamental.hpp>
+#include <Common/D/TypePackElement.hpp>
+#include <Common/D/Unfold.hpp>
 #include <type_traits>
 #include <utility>
 
 namespace exi {
-
-/// Used when expanding packs to get a sequence of type T.
-/// Eg.
-///    void Foo(Unfold<T, II>... Args);
-template <typename T, usize>
-using Unfold = T;
-
-//======================================================================//
-// TypePackElement
-//======================================================================//
-
-#if EXI_HAS_BUILTIN(__type_pack_element)
-template <usize I, typename...TT>
-using TypePackElement = __type_pack_element<I, TT...>;
-#else
-template <usize I, typename...TT>
-using TypePackElement = std::tuple_element_t<I, std::tuple<TT...>>;
-#endif
 
 //======================================================================//
 // idxseq
