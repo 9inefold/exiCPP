@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2024-2025 Eightfold
 //
 // Relicensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@
 #pragma once
 
 #include <Common/Option.hpp>
+#include <Common/QualTraits.hpp>
 #include <Common/StrRef.hpp>
 #include <utility>
 
@@ -163,6 +164,39 @@ public:
                          alignof(StringMapEntry));
   }
 };
+
+namespace stringmap_detail {
+
+template <typename T> struct StringMapEntryAlignAndSize {
+  alignas(StringMapEntryBase) char Base[sizeof(StringMapEntryBase)];
+  alignas(T) char SecondEl[sizeof(T)];
+};
+
+/// Maps `[Quals] T` -> `[Quals] StringMapEntry<T>`
+template <typename T>
+using SME_qual_t = exi::copy_cv_t<
+  StringMapEntry<std::remove_cvref_t<T>>, T>;
+
+/// Checks that our proxy type has the same size and alignment.
+template <typename T> concept is_SME_proxy_equal
+   =  sizeof(StringMapEntryAlignAndSize<T>) ==  sizeof(StringMapEntry<T>)
+  && alignof(StringMapEntryAlignAndSize<T>) == alignof(StringMapEntry<T>);
+
+/// UNSAFE - Do not use unless you know EXACTLY what you're doing. This function
+/// maps `[Quals] T*` -> `[Quals] StringMapEntry<T>*`, allowing you to convert
+/// pointers to entry values back into values.
+/// TODO: Add some checks to this so nothing gets messed up...
+template <typename T>
+EXI_READNONE inline SME_qual_t<T>* mapValueToEntry(T* Second) {
+  using BaseT = std::remove_cvref_t<T>;
+  static_assert(is_SME_proxy_equal<BaseT>,
+               "This comparison should always be true, please report this.");
+  return reinterpret_cast<SME_qual_t<T>*>(
+    reinterpret_cast<exi::copy_cv_t<char, T>*>(Second)
+      - offsetof(StringMapEntryAlignAndSize<BaseT>, SecondEl));
+}
+
+} // namespace stringmap_detail
 
 // Allow structured bindings on StringMapEntry.
 
