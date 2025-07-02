@@ -190,9 +190,9 @@ struct EXI_FEATURES_DECL(NAME) {                                              \
 
 /// Defines a grouped handle type.
 #define EXI_OPAQUE_HANDLE(NAME, ...)                                          \
-  using NAME = EXI_OPAQUE_HANDLE_T(NAME, __VA_ARGS__);
+  using NAME = EXI_OPAQUE_HANDLE_T(NAME, __VA_ARGS__)
 /// Defines a groupless handle type.
 #define EXI_GROUPLESS_HANDLE(NAME, ...)                                       \
-  using NAME = EXI_GROUPLESS_HANDLE_T(NAME, __VA_ARGS__);
+  using NAME = EXI_GROUPLESS_HANDLE_T(NAME, __VA_ARGS__)
 
 } // namespace exi
