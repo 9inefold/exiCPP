@@ -71,8 +71,9 @@ EXI_INLINE constexpr auto CompactIDLog2(Int ID) {
     exi_invariant(ID > 0);
     return H::CmLog2Dispatch(ID);
   } else {
-    return EXI_LIKELY(ID != 0)
-      ? H::CmLog2Dispatch(ID) : 0u;
+    return EXI_LIKELY(ID != 0u)
+      ? H::CmLog2Dispatch(ID)
+      : Int(0u);
   }
 }
 
