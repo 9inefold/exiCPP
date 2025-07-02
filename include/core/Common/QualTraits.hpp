@@ -53,6 +53,7 @@ struct CopyCV<To, const volatile From> {
 };
 } // namespace H
 
+/// Copies the cv qualifiers `To <- From`.
 template <class To, class From = void>
 using copy_cv_t = typename H::CopyCV<To, From>::type;
 
@@ -76,6 +77,7 @@ struct CopyRef<To, From&&> {
 };
 } // namespace H
 
+/// Copies the reference qualifiers `To <- From`.
 template <class To, class From = void>
 using copy_ref_t = typename H::CopyRef<To, From>::type;
 
@@ -91,9 +93,11 @@ struct CopyQuals {
 };
 } // namespace H
 
+/// Copies the cv and reference qualifiers `To <- From`.
 template <class To, class From = void>
 using copy_quals_t = typename H::CopyQuals<To, From>::type;
 
+/// Copies the cv and reference qualifiers `To <- From`.
 template <class To, class From = void>
 using copy_cvref_t = copy_quals_t<To, From>;
 
@@ -119,6 +123,7 @@ struct SwapSign<T> {
 };
 } // namespace H
 
+/// Swaps the sign of integral types, otherwise does nothing.
 template <typename T>
 using swap_sign_t = typename H::SwapSign<T>::type;
 
