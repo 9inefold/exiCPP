@@ -35,6 +35,7 @@
 #include <Common/StrRef.hpp>
 #include <Common/Option.hpp>
 #include <Common/SmallStr.hpp>
+#include <Support/ErrorHandle.hpp>
 #include <fmt/base.h>
 
 namespace exi {
@@ -93,6 +94,14 @@ EXI_INLINE auto format(
   const Args&...args EXI_LIFETIMEBOUND)
  -> FormatObject<Args...> {
   return FormatObject<Args...>(Fmt, args...);
+}
+
+template <typename...Args>
+[[noreturn]] EXI_PRESERVE_MOST EXI_COLD
+void format_fatal_error(
+ fmt::format_string<const Args&...> Fmt,
+ const Args&...args) {
+  exi::report_fatal_error(FormatObject<Args...>(Fmt, args...));
 }
 
 //////////////////////////////////////////////////////////////////////////
