@@ -42,6 +42,7 @@
 #include <core/Common/CachedHashString.hpp>
 #include <core/Common/DenseMap.hpp>
 #include <core/Common/Naked.hpp>
+#include <core/Common/OpaqueHandle.hpp>
 #include <core/Support/Allocator.hpp>
 #include <core/Support/ErrorHandle.hpp>
 #include <core/Support/MathExtras.hpp>
@@ -442,14 +443,22 @@ template <typename Value, bool IsOwned = false>
 using BumpStringMap = StringMap<Value,
   std::conditional_t<IsOwned, BumpPtrAllocator, BumpPtrAllocator&>>;
 
+// TODO: Enable macro expansion for EXI_OPAQUE_HANDLE
+// See https://stackoverflow.com/questions/42300539/documenting-macros-using-doxygen
+
+/// @typedef STPrefixEntry
 /// Typed handle for `StringTable::PrefixEntry`.
-struct STPrefixEntry;
+EXI_OPAQUE_HANDLE(STPrefixEntry, StringTable);
+/// @typedef STURIEntry
 /// Typed handle for `StringTable::URIEntry`.
-struct STURIEntry;
+EXI_OPAQUE_HANDLE(STURIEntry, StringTable);
+//struct STURIEntry;
+/// @typedef STValueEntry
 /// Typed handle for `StringTable::ValueEntry`.
-struct STValueEntry;
+EXI_OPAQUE_HANDLE(STValueEntry, StringTable);
+/// @typedef QualName
 /// Handle for an `InlineString` representing a QName's data as `"URI$ln"`.
-struct QualName;
+EXI_OPAQUE_HANDLE(QualName, StringTable);
 
 /// Using `u32`, because if you have 4 billion uris... wtf.
 struct PrefixInfo {
@@ -464,18 +473,29 @@ struct PrefixInfo {
   //char URITag[6] {};
 };
 
-#define DECL_MAPPING_I(TO, FROM)                                              \
+#define DECL_MAPPING_X(TO, FROM)                                              \
   ALWAYS_INLINE static TO* X(FROM* Ptr) {                                     \
     return reinterpret_cast<TO*>(Ptr);                                        \
   }                                                                           \
   ALWAYS_INLINE static TO& X(FROM& Ref) {                                     \
     return *reinterpret_cast<TO*>(&Ref);                                      \
   }
-#define DECL_MAPPING(TO, FROM)                                                \
-  DECL_MAPPING_I(TO, FROM)                                                    \
-  DECL_MAPPING_I(FROM, TO)                                                    \
-  DECL_MAPPING_I(const TO, const FROM)                                        \
-  DECL_MAPPING_I(const FROM, const TO)
+#define DECL_UNMAPPING(TYPE)                                                  \
+  ALWAYS_INLINE static TYPE* Unmap(TYPE::ValueType* Ptr) {                    \
+    return stringmap_detail::mapValueToEntry(Ptr);                            \
+  }                                                                           \
+  ALWAYS_INLINE static const TYPE* Unmap(const TYPE::ValueType* Ptr) {        \
+    return stringmap_detail::mapValueToEntry(Ptr);                            \
+  }
+
+#define DECL_MAPPINGS_X(REAL, FAKE)                                           \
+  DECL_MAPPING_X(REAL, FAKE)                                                  \
+  DECL_MAPPING_X(FAKE, REAL)                                                  \
+  DECL_MAPPING_X(const REAL, const FAKE)                                      \
+  DECL_MAPPING_X(const FAKE, const REAL)
+#define DECL_MAPPINGS(REAL, FAKE)                                             \
+  DECL_MAPPINGS_X(REAL, FAKE)                                                 \
+  DECL_UNMAPPING(REAL)
 
 /// Get a reference/pointer to the "Value Of" a map entry.
 #define DECL_VOF(CV, QUAL, ...)                                               \
@@ -714,9 +734,10 @@ private:
   ////////////////////////////////////////////////////////////////////////
   // Handle Mapping
 
-  DECL_MAPPING(URIEntry, STURIEntry)
-  DECL_MAPPING(ValueEntry, STValueEntry)
-  DECL_MAPPING(InlineStr, QualName)
+  DECL_MAPPINGS(PrefixEntry,  STPrefixEntry)
+  DECL_MAPPINGS(URIEntry,     STURIEntry)
+  DECL_MAPPINGS(ValueEntry,   STValueEntry)
+  DECL_MAPPINGS_X(InlineStr, QualName)
 
   DECL_VOF(, &, Entry.second)
   DECL_VOF(, *, &Entry->second)
@@ -726,6 +747,12 @@ private:
   /// Equivalent to invokes `(VOf ∘ X)(Val)`.
   ALWAYS_INLINE static decltype(auto) VOfX(auto&& Val) {
     return VOf(X(EXI_FWD(Val)));
+  }
+  /// Equivalent to invokes `(X ∘ Unmap)(Val)`.
+  template <typename T>
+  requires (!is_opaque_handle<std::remove_const_t<T>>)
+  ALWAYS_INLINE static auto XUnmap(T* Val) {
+    return X(Unmap(Val));
   }
 
 public:
@@ -913,8 +940,10 @@ private:
   void initLocalName(URIEntry* URI, const QualName* ID);
 };
 
-#undef DECL_MAPPING_I
-#undef DECL_MAPPING
+#undef DECL_MAPPING_X
+#undef DECL_UNMAPPING
+#undef DECL_MAPPINGS_X
+#undef DECL_MAPPINGS
 #undef DECL_VOF
 
 } // namespace encode
