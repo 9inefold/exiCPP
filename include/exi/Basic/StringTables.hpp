@@ -521,7 +521,7 @@ class StringTable {
       }
       return false;
     }
-    unsigned mappedPrefixes() const {
+    unsigned numMappedPrefixes() const {
       return PfxMap.size();
     }
   };
