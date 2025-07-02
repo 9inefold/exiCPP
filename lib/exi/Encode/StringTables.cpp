@@ -22,6 +22,7 @@
 //===----------------------------------------------------------------===//
 
 #include <exi/Basic/StringTables.hpp>
+#include <core/Common/STLExtras.hpp>
 #include <core/Common/Twine.hpp>
 #include <core/Support/ErrorHandle.hpp>
 #include <core/Support/Logging.hpp>
@@ -95,6 +96,88 @@ void StringTable::setup(const ExiOptions& Opts) {
   }
 }
 
+//////////////////////////////////////////////////////////////////////////
+// Prefixes
+
+void StringTable::pushURIContext(PrefixEntry* EPfx, URIEntry* URI) {
+  exi_invariant(EPfx);
+  PrefixInfo& Pfx = *VOf(EPfx);
+  
+  exi_assert(URI && Pfx.Link);
+  exi_invariant(VOfX(Pfx.Link)->contains(&Pfx),
+               "Prefix is unset in current link!");
+
+  const bool WasEmpty = URIStackMap.empty();
+  bool WillInsert = true;
+  // Don't cleanup if map was just lazily initialized.
+  if (EXI_LIKELY(!WasEmpty)) {
+    if (!URIStackMap->contains(EPfx)) {
+      WillInsert = true;
+      this->cleanupURIStacks();
+    }
+  }
+
+  URIStackMap[EPfx].emplace_back(Pfx);
+  if EXI_UNLIKELY(WillInsert)
+    URIStackMap.updateCacheIfOutOfDate();
+  // Only remap if the value is different.
+  if (Pfx.Link != X(URI))
+    Pfx = MakePrefix(&Pfx, URI);
+}
+
+void StringTable::popURIContext(PrefixEntry* EPfx) {
+  exi_assert(EPfx);
+  PrefixInfo& Pfx = *VOf(EPfx);
+
+#if EXI_ASSERTS
+  if EXI_NEVER(!URIStackMap->contains(EPfx)) {
+    exi::format_fatal_error(
+      "Prefix '{}' was never pushed.", EPfx->getKey());
+  }
+#endif
+
+  URIStack& TheStack = URIStackMap[EPfx];
+  if EXI_NEVER(TheStack.empty()) {
+    exi::format_fatal_error(
+      "Prefix '{}' has no saved context.", EPfx->getKey());
+  }
+
+  Pfx = TheStack.pop_back_val();
+  exi_assert(VOfX(Pfx.Link)->contains(&Pfx));
+}
+
+void StringTable::URIStackMapHandler::cleanupUnusedStacks() {
+  if (empty())
+    return;
+  // Stack is known to be initialized.
+  auto I = TheStacks->begin();
+  auto E = TheStacks->cend();
+  // Remove all empty stacks.
+  for (; I != E; ++I) {
+    const PrefixEntry* Key = I->first;
+    if (!I->second.empty())
+      continue;
+    uncache(Key);
+    TheStacks->erase(I);
+  }
+  // Fix up any potential cache mishaps...
+  // TODO: Check if necessary?
+  this->updateCacheIfOutOfDate();
+}
+
+void StringTable::cleanupURIStacks() {
+  if (URIStackMap.empty())
+    return;
+  if EXI_LIKELY(!GuessIfMapIsReallocating(*URIStackMap))
+    // The map is very unlikely to reallocate.
+    return;
+  // Last ditch effort to avoid reallocating...
+  URIStackMap.cleanupUnusedStacks();
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Uniquing
+
 const QualName* StringTable::internQualName(u32 URI, StrRef LocalName) {
   SmallStr<80> Storage;
   this->writeURITagChecked(URI, Storage);
@@ -125,6 +208,9 @@ std::pair<StringTable::URIEntry*, StringTable::PrefixEntry*>
 
   exi_unreachable("nested pfx contexts unimplemented.");
 }
+
+//////////////////////////////////////////////////////////////////////////
+// Batch Initialization
 
 void StringTable::createInitialEntries(bool UsesSchema) {
   // D.1 & D.2 - Initial Entries in Uri & Prefix Partition

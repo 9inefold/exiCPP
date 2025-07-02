@@ -116,6 +116,7 @@ public:
 
   [[nodiscard]] bool empty() const { return getNumEntries() == 0; }
   unsigned size() const { return getNumEntries(); }
+  unsigned approximate_capacity() const { return getNumBuckets(); }
 
   /// Grow the densemap so that it can contain at least \p NumEntries items
   /// before resizing again.

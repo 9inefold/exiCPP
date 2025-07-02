@@ -442,6 +442,8 @@ template <typename Value, bool IsOwned = false>
 using BumpStringMap = StringMap<Value,
   std::conditional_t<IsOwned, BumpPtrAllocator, BumpPtrAllocator&>>;
 
+/// Typed handle for `StringTable::PrefixEntry`.
+struct STPrefixEntry;
 /// Typed handle for `StringTable::URIEntry`.
 struct STURIEntry;
 /// Typed handle for `StringTable::ValueEntry`.
@@ -499,6 +501,29 @@ class StringTable {
     u32 LocalNames = 0;
     /// Iterate while recording the index to find the PfxID.
     SmallVec<PrefixInfo*, 2> PfxMap;
+
+  public:
+    /// Finds the index of an existing prefix mapping, otherwise appends.
+    unsigned try_emplace(PrefixInfo* Pfx) {
+      exi_assert(Pfx != nullptr);
+      for (auto [Ix, Val] : exi::enumerate(PfxMap)) {
+        if (Pfx == Val)
+          return Ix;
+      }
+
+      PfxMap.emplace_back(Pfx);
+      return PfxMap.size() - 1u;
+    }
+    bool contains(PrefixInfo* Pfx) const {
+      for (auto* I : PfxMap) {
+        if (I == Pfx)
+          return true;
+      }
+      return false;
+    }
+    unsigned mappedPrefixes() const {
+      return PfxMap.size();
+    }
   };
   /// Maps a URI to its associated ID.
   using URIMapType = BumpStringMap<URIInfo>;
@@ -517,25 +542,98 @@ private:
   /// Used to map Prefixes to URIs (and their IDs).
   PrefixMapType PrefixMap;
 
-  // TODO: Add Deque<ExAllocBumpStringMap<QualName*>>?
+  // TODO: Add Deque<ExternAllocBumpStringMap<QualName*>>?
   
+  static constexpr unsigned kURIStackElts = 8;
   /// Represents nested namespace contexts.
   using URIStack = SmallVec<PrefixInfo, 1>;
   /// Maps a PrefixEntry to a stack of URI values.
   using URIStackMapType = SmallDenseMap<const PrefixEntry*, URIStack, 8>;
   /// Wraps the `URIStackMapType`.
   struct URIStackMapHandler {
-    Box<URIStackMapType> TheStack = nullptr;
+    Box<URIStackMapType> TheStacks = nullptr;
+    const void* StackHandle = nullptr;
+    // TODO: Add cache...
   private:
     EXI_COLD EXI_PRESERVE_MOST void initStackMap() {
-      exi_relassert(TheStack == nullptr);
-      this->TheStack = std::make_unique<URIStackMapType>(1);
+      exi_relassert(empty(), "Cache already initialized.");
+      this->TheStacks = std::make_unique<URIStackMapType>(1);
+      this->loadStackHandle();
     }
+    void loadStackHandle() {
+      exi_invariant(!empty(), "Cache has not been initialized.");
+      this->StackHandle = TheStacks->getPointerIntoBucketsArray();
+    }
+
+    void updateCacheEntries() {
+      exi_invariant(isCacheOutOfDate(), "Cache already up to date.");
+      // FIXME: Update when cache is implemented.
+      this->loadStackHandle();
+    }
+    bool isCacheOutOfDate() const {
+      exi_invariant(!empty(), "Cache has not been initialized.");
+      return TheStacks->isPointerIntoBucketsArray(StackHandle);
+    }
+
   public:
+    /// Causes the stack to be setup if uninitialized, then returns the pointer.
     EXI_INLINE URIStackMapType* get() {
-      if EXI_UNLIKELY(!TheStack)
+      if EXI_UNLIKELY(empty())
         this->initStackMap();
-      return &*TheStack;
+      return TheStacks.get();
+    }
+    /// Returns the stack pointer without initializing.
+    inline Naked<URIStackMapType> getUnchecked() const {
+      return TheStacks.get();
+    }
+    /// Causes the stack to be setup if uninitialized.
+    inline URIStackMapType& operator*() {
+      return *this->get();
+    }
+    /// Causes the stack to be setup if uninitialized.
+    inline URIStackMapType* operator->() {
+      return this->get();
+    }
+    inline URIStack& operator[](PrefixEntry* Pfx) {
+      return operator*()[Pfx];
+    }
+
+    /// Adds an item to the cache.
+    bool cache(const PrefixEntry* Key, URIStack* Value) {
+      // FIXME: Only allow nullptrs in permissive mode?
+      if EXI_NEVER(!Key || !Value || this->empty()) {
+        // FIXME: Add warning log.
+        return false;
+      }
+      URIStackMapType::AssertValidKey(Key);
+      exi_relassert(TheStacks->isPointerIntoBucketsArray(Value));
+
+      exi_todo("implement cache!");
+    }
+    /// Explicitly removes an item from the cache.
+    /// Returns whether or not it was found.
+    bool uncache(const PrefixEntry* Key) {
+      exi_todo("implement uncache!");
+    }
+    /// Checks if the cache is invalid, if it is, invalidate the entries.
+    void updateCacheIfOutOfDate() {
+      if EXI_UNLIKELY(StackHandle == nullptr) {
+        exi_assert(!empty(), "URI stack has been initialized without "
+                             "assigning the stack handle!");
+        // Stack has not been initialized, exit.
+        return;
+      }
+      if (isCacheOutOfDate())
+        this->updateCacheEntries();
+    }
+
+    /// Removes empty stacks from the set to avoid allocations. `SmallDenseMap`
+    /// allocates enough memory for 64 elements, which is unnecessary. You should
+    /// really never have enough active nested contexts to trigger allocations.
+    void cleanupUnusedStacks();
+
+    EXI_INLINE bool empty() const {
+      return TheStacks == nullptr;
     }
   };
   /// Maps a PrefixEntry to a stack of URIs representing nested namespace contexts.
@@ -625,6 +723,11 @@ private:
   DECL_VOF(const, &, Entry.second)
   DECL_VOF(const, *, &Entry->second)
 
+  /// Equivalent to invokes `(VOf ∘ X)(Val)`.
+  ALWAYS_INLINE static decltype(auto) VOfX(auto&& Val) {
+    return VOf(X(EXI_FWD(Val)));
+  }
+
 public:
   StringTable();
   StringTable(const ExiOptions& Opts) : StringTable() {
@@ -651,6 +754,46 @@ public:
 
 private:
   // TODO: Finish design...
+
+  ////////////////////////////////////////////////////////////////////////
+  // Prefixes
+
+  static PrefixInfo MakePrefix(PrefixInfo* Pfx, URIEntry* URI) {
+    exi_invariant(Pfx->Link != X(URI),
+                 "Prefix has already been mapped to this URI.");
+    const u16 PfxID = IntCast<u16>(VOf(URI)->try_emplace(Pfx));
+    return PrefixInfo {
+      .Link = X(URI),
+      .WithURI = VOf(URI)->URI,
+      .Pfx = PfxID,
+      .PfxLog = CompactIDLog2(PfxID)
+    };
+  }
+
+  /// Pushes the URI context currently associated with the given prefix to the
+  /// stack, then replaces it with the given URI.
+  void pushURIContext(PrefixEntry* EPfx, URIEntry* URI);
+
+  /// Pops the last URI context from the prefix's associated stack, then
+  /// restores to that state.
+  void popURIContext(PrefixEntry* EPfx);
+
+  /// A simple heuristic for determining if the map is likely to reallocate.
+  /// Only considers the case when 3/4 full.
+  static bool GuessIfMapIsReallocating(const URIStackMapType& Map) {
+    const unsigned Buckets = Map.approximate_capacity();
+    if (Buckets > kURIStackElts)
+      // Already reallocated, who cares...
+      return false;
+    exi_invariant(Buckets == kURIStackElts);
+    const unsigned Elts = Map.size() + 1u;
+    return EXI_UNLIKELY(Elts * 4 >= kURIStackElts * 3u);
+  }
+
+  /// Removes empty stacks from the set to avoid allocations when capacity will
+  /// be reached on the next insertion.
+  /// TODO: Profile, may not be necessary.
+  void cleanupURIStacks();
 
   ////////////////////////////////////////////////////////////////////////
   // Qualified Names
@@ -747,9 +890,8 @@ private:
   
   // Add other stuff...
 
-  /// Creates the initial entries for the string table. The values inserted
-  /// depend on the schema.
-  void createInitialEntries(bool UsesSchema);
+  ////////////////////////////////////////////////////////////////////////
+  // Batch Initialization
 
 public:
   /// Only really used for initialization. Maps `"pfx:[ln]" -> "URI$pfx:ln"`.
@@ -759,6 +901,9 @@ public:
   };
 
 private:
+  /// Creates the initial entries for the string table. The values inserted
+  /// depend on the schema.
+  void createInitialEntries(bool UsesSchema);
   /// Appends LocalNames to the provided URI.
   void appendLocalNames(URIEntry* ID, ArrayRef<NameMapping> LNMappings);
   /// Appends LocalNames to the provided URI.
