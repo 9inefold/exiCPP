@@ -53,6 +53,9 @@
 
 // TODO: Refactor to use embedded counters with RTTI handles
 
+/// If the cache should be LRU (a single pair otherwise).
+#define EXI_ENCODE_URISTACK_CACHE 0
+
 namespace exi {
 
 struct ExiOptions;
@@ -573,7 +576,8 @@ private:
   struct URIStackMapHandler {
     Box<URIStackMapType> TheStacks = nullptr;
     const void* StackHandle = nullptr;
-    // TODO: Add cache...
+    // TODO: Profile cache...
+    std::pair<const PrefixEntry*, URIStack*> TheCache;
   private:
     EXI_COLD EXI_PRESERVE_MOST void initStackMap() {
       exi_relassert(empty(), "Cache already initialized.");
@@ -587,12 +591,18 @@ private:
 
     void updateCacheEntries() {
       exi_invariant(isCacheOutOfDate(), "Cache already up to date.");
-      // FIXME: Update when cache is implemented.
+      if EXI_LIKELY(!isCacheEmpty()) {
+        auto* Bucket = &*TheStacks->find(TheCache.first);
+        TheCache.second = &Bucket->second;
+      }
       this->loadStackHandle();
     }
     bool isCacheOutOfDate() const {
       exi_invariant(!empty(), "Cache has not been initialized.");
       return TheStacks->isPointerIntoBucketsArray(StackHandle);
+    }
+    ALWAYS_INLINE bool isCacheEmpty() const {
+      return TheCache.first == nullptr;
     }
 
   public:
@@ -615,25 +625,43 @@ private:
       return this->get();
     }
     inline URIStack& operator[](PrefixEntry* Pfx) {
-      return operator*()[Pfx];
+      return lookup(Pfx);
+    }
+
+    bool contains(PrefixEntry* Pfx) const {
+      exi_invariant(!empty());
+      if (TheCache.first == Pfx)
+        return true;
+      return TheStacks->contains(Pfx);
+    }
+    URIStack& lookup(PrefixEntry* Pfx) {
+      auto& Stacks = *get();
+      if (TheCache.first == Pfx)
+        return *TheCache.second;
+      auto& Out = Stacks[Pfx];
+      cache(Pfx, &Out);
+      return Out;
     }
 
     /// Adds an item to the cache.
     bool cache(const PrefixEntry* Key, URIStack* Value) {
+      //if EXI_NEVER(empty())
+      //  return false;
       // FIXME: Only allow nullptrs in permissive mode?
-      if EXI_NEVER(!Key || !Value || this->empty()) {
-        // FIXME: Add warning log.
-        return false;
-      }
+      exi_invariant(Key && Value);
       URIStackMapType::AssertValidKey(Key);
       exi_relassert(TheStacks->isPointerIntoBucketsArray(Value));
-
-      exi_todo("implement cache!");
+      TheCache = {Key, Value};
+      return true;
     }
     /// Explicitly removes an item from the cache.
     /// Returns whether or not it was found.
     bool uncache(const PrefixEntry* Key) {
-      exi_todo("implement uncache!");
+      exi_invariant(Key != nullptr);
+      if (TheCache.first != Key)
+        return false;
+      TheCache = {nullptr, nullptr};
+      return true;
     }
     /// Checks if the cache is invalid, if it is, invalidate the entries.
     void updateCacheIfOutOfDate() {

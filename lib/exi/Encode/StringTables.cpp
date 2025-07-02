@@ -102,16 +102,15 @@ void StringTable::setup(const ExiOptions& Opts) {
 void StringTable::pushURIContext(PrefixEntry* EPfx, URIEntry* URI) {
   exi_invariant(EPfx);
   PrefixInfo& Pfx = *VOf(EPfx);
-  
+
   exi_assert(URI && Pfx.Link);
   exi_invariant(VOfX(Pfx.Link)->contains(&Pfx),
                "Prefix is unset in current link!");
 
-  const bool WasEmpty = URIStackMap.empty();
-  bool WillInsert = true;
+  bool WillInsert = false;
   // Don't cleanup if map was just lazily initialized.
-  if (EXI_LIKELY(!WasEmpty)) {
-    if (!URIStackMap->contains(EPfx)) {
+  if EXI_LIKELY(!URIStackMap.empty()) {
+    if (!URIStackMap.contains(EPfx)) {
       WillInsert = true;
       this->cleanupURIStacks();
     }
@@ -206,7 +205,7 @@ std::pair<StringTable::URIEntry*, StringTable::PrefixEntry*>
     return {URIP, &*It};
   }
 
-  exi_unreachable("nested pfx contexts unimplemented.");
+  exi_todo("nested pfx contexts unimplemented.");
 }
 
 //////////////////////////////////////////////////////////////////////////
