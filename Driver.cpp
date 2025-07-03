@@ -55,6 +55,13 @@
 
 using namespace exi;
 
+ALWAYS_INLINE static constexpr 
+ void SetLogLevel([[maybe_unused]] LogLevelType NewLevel) {
+#if EXI_LOGGING
+  exi::DebugFlag = NewLevel;
+#endif
+}
+
 static Option<bool> EnvAsBoolean(StrRef Env) {
   return StringSwitch<Option<bool>>(Env)
     .Cases("TRUE", "YES", "ON", true)
@@ -234,7 +241,7 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr);
 
 int main(int Argc, char* Argv[]) {
   using enum raw_ostream::Colors;
-  exi::DebugFlag = LogLevel::WARN;
+  SetLogLevel(LogLevel::WARN);
   HandleEscapeCodeSetup();
 
   outs().enable_colors(true);
@@ -333,13 +340,13 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
   for (int NIters = 0; CheckIters<MaxIters, 5>(NIters);)
 #endif // !EXI_LOGGING
   {
-    exi::DebugFlag = LogLevel::VERBOSE;
+    SetLogLevel(LogLevel::VERBOSE);
     // SpecExample.xml with default settings and no options.
     // The example data provided by EXI.
     DECODE_ORD_BITS("SpecExample.exi");
     DECODE_ORD_BYTES("SpecExampleB.exi");
 
-    exi::DebugFlag = LogLevel::INFO;
+    SetLogLevel(LogLevel::INFO);
     // Basic.xml with default settings and no options.
     DECODE_ORD_BITS("BasicNoopt.exi");
     DECODE_ORD_BYTES("BasicNooptB.exi");
@@ -350,7 +357,7 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
     DECODE_ORD_BYTES("CustomersNooptB.exi", Prefixes);
   }
 
-  exi::DebugFlag = LogLevel::INFO;
+  SetLogLevel(LogLevel::INFO);
   // Thai.xml with default settings and no options.
   // Unicode string example.
   DECODE_ORD_BITS("ThaiNoopt.exi");
@@ -362,7 +369,7 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
   DECODE_ORD_BYTES("NamespaceNooptB.exi", All & ~LexicalValues);
 
 #if TEST_LARGE_EXAMPLES
-  exi::DebugFlag = LogLevel::WARN;
+  NewLevel(LogLevel::WARN);
 #if !EXI_LOGGING
   constexpr int MaxLargeIters = 100;
   WithColor(outs(), BRIGHT_WHITE)
