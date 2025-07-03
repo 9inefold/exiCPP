@@ -10,6 +10,7 @@ This is a TODO list for the C++ version of exiCPP.
 - Little endian read/write for `BitStream`
 - `BitStream*` implementation
 - Skeleton for the EXI Header parser
+- `decode::StringTable`
 - Decode event codes
 - Refactor reader streams
 - Fully tested `ByteStream*` implementation
@@ -17,22 +18,27 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## In Progress
 
+- `encode::StringTable`
 - Produce event codes
+- Prepare for doxygen support
 - Update rapidxml
 - `ErrorCode` customization
 
 ## Unfinished
 
-- Add some in-source TODOs here...
-- `source_location` with Clang support
+- Add doxygen support
+- Add some more major in-source TODOs here...
 - `sys::` implementation on linux
+- Fix copying between streams, currently super wonky
+- Implement storage/lookup of typed values
+- `source_location` with Clang support
 - Add permissive mode for things like relaxed versioning and validation order?
 - `Option<Unchecked<T>>` + `UncheckedOption`
 - `CrashRecoveryContext` and `cpptrace`
 - Schema parser
-- Better `Chrono` and add `Duration`??
 - Real tests for `core`
 - `exi` example test suite
+- Better `Chrono` and add `Duration`??
 
 ## Considerations
   

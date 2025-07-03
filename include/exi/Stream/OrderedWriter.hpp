@@ -49,6 +49,7 @@ namespace exi {
 
 /// The bases for BitWriter/ByteWriter, which consume data in the order it
 /// appears. This allows for a much simpler implementation.
+// HACK: Proxy copying sucks! Please fix!
 class OrderedWriter : public WriterBase {
 public:
   struct BufferClone {
