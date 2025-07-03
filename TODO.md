@@ -44,6 +44,7 @@ This is a TODO list for the C++ version of exiCPP.
   
 - Unnamed namespace nesting
 - Namespace overwriting/nesting
+- No prefixes required in partition at POI in SE events
 
 ## Stretch Goals
 
