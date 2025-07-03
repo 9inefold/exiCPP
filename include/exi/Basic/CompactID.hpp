@@ -92,18 +92,19 @@ EXI_INLINE constexpr auto ID_AddOffsetLog2(Int ID) {
 }
 
 template <class> class IntrusiveCounterHandle;
-template <typename T, typename LogT> class IDCounterHandle;
+template <typename, typename, u64> class IDCounterHandle;
 
 /// A counter with the LogValue embedded.
 /// TODO: Check if a countdown would make this more efficient...
 template <std::unsigned_integral T, u64 Offset = 0>
 class IDLogCounter {
   template <class> friend class IntrusiveCounterHandle;
-  template <typename, typename> friend class IDCounterHandle;
+  template <typename, typename, u64> friend class IDCounterHandle;
+  using LogT = cmlog2_int_t<T>;
   T Value = 0;
-  u32 LogValue = 0;
+  LogT LogValue = 0;
 
-  ALWAYS_INLINE constexpr u32 Log2(T ID) {
+  ALWAYS_INLINE constexpr LogT Log2(T ID) {
     return ID_AddOffsetLog2<Offset>(ID);
   }
 
@@ -122,7 +123,9 @@ public:
   /// Returns the current value of the counter.
   EXI_INLINE constexpr T value() const { return Value; }
   /// Returns the minimum bits required for current value of the counter.
+  EXI_INLINE constexpr unsigned bits() const { return LogValue; }
   /// Returns the minimum bytes required for current value of the counter.
+  EXI_INLINE constexpr unsigned bytes() const {
     if EXI_UNLIKELY(Value == 0)
       return 0;
     return (LogValue / 8) + 1u;
@@ -164,7 +167,9 @@ template <u64 Offset = 0>
 using CompactIDCounter = IDLogCounter<CompactID, Offset>;
 
 /// A container wrapper which embeds a log counter based on `.size()`.
+template <class Clazz, u64 Offset = 0>
 class IntrusiveLogCounter {
+  template <class> friend class IntrusiveCounterHandle;
   Clazz Data;
   u32 LogValue = 0;
 
@@ -182,9 +187,9 @@ public:
    Data(EXI_FWD(Args)...), LogValue(Log2(Data.size())) {}
   
   /// Returns the minimum bits required for current value of the counter.
-  EXI_INLINE constexpr u32 bits() const { return LogValue; }
+  EXI_INLINE constexpr unsigned bits() const { return LogValue; }
   /// Returns the minimum bytes required for current value of the counter.
-  EXI_INLINE constexpr u32 bytes() const {
+  EXI_INLINE constexpr unsigned bytes() const {
     if EXI_UNLIKELY(Data.size() == 0)
       return 0;
     return (LogValue / 8) + 1u;
@@ -205,28 +210,51 @@ template <class Counter> class IntrusiveCounterHandle {
   static_assert(!std::is_const_v<Counter>);
   Counter& Data;
 public:
-  ALWAYS_INLINE IntrusiveCounterHandle(Counter& Data EXI_LIFETIMEBOUND) : Data(Data) {}
-  ALWAYS_INLINE ~IntrusiveCounterHandle() { Data.recalculateLog(); }
-  ALWAYS_INLINE Counter* operator->() { return &Data; }
+  // TODO: Mark pinned?
+  IntrusiveCounterHandle(Counter& Data EXI_LIFETIMEBOUND) : Data(Data) {}
+  ~IntrusiveCounterHandle() { Data.recalculateLog(); }
+  Counter* operator->() { return &Data; }
 };
 
 /// An RTTI handle that updates the log at the end of the scope.
-/// Assumes the counter starts at 0.
-template <typename T, typename LogT> class IDCounterHandle {
+/// Assumes the counter starts at 0 unless otherwise specified.
+template <typename Int, typename LogT, u64 Offset = 0>
+class IDCounterHandle {
   static_assert(!std::is_const_v<LogT>);
-  const T& Data;
+  const Int& Data;
   LogT& Log;
 public:
-  IDCounterHandle(const T& Data EXI_LIFETIMEBOUND,
-                 LogT& Log EXI_LIFETIMEBOUND) : Data(Data), Log(Log) {}
-  IDCounterHandle(T&&, LogT& Log) = delete;
-  ~IDCounterHandle() { Log = ID_Log2</*NeverZero=*/false>(Data); }
+  // TODO: Mark pinned?
+  IDCounterHandle(Int&&, LogT& Log) = delete;
+  IDCounterHandle(const Int& Data EXI_LIFETIMEBOUND, LogT& Log)
+      : Data(Data), Log(Log) {}
+  explicit IDCounterHandle(IDLogCounter<Int, Offset>& Val)
+      : Data(Val.Value), Log(Val.LogValue) {}
+  ~IDCounterHandle() { Log = ID_AddOffsetLog2<Offset, Int>(Data); }
 };
 
+template <u64 Offset, typename T, typename LogT>
+inline auto make_idhandle(const T& Data EXI_LIFETIMEBOUND, LogT& Log)
+ -> IDCounterHandle<T, LogT, Offset> {
+  return IDCounterHandle<T, LogT, Offset>(Data, Log);
+}
+
+template <typename T, u64 Offset>
+inline auto make_idhandle(IDLogCounter<T, Offset>& Val)
+ -> IDCounterHandle<T, cmlog2_int_t<T>, Offset> {
+  return IDCounterHandle<T, cmlog2_int_t<T>, Offset>(Val);
+}
+
 template <class Counter>
-IntrusiveCounterHandle(Counter&) -> IntrusiveCounterHandle<Counter>;
+IntrusiveCounterHandle(Counter&)
+  -> IntrusiveCounterHandle<Counter>;
 
 template <typename T, typename LogT>
-IDCounterHandle(T&, LogT&) -> IDCounterHandle<std::remove_const_t<T>, LogT>;
+IDCounterHandle(T&, LogT&)
+  -> IDCounterHandle<std::remove_const_t<T>, LogT>;
+
+template <typename T, u64 Offset>
+IDCounterHandle(IDLogCounter<T, Offset>&)
+  -> IDCounterHandle<T, cmlog2_int_t<T>, Offset>;
 
 } // namespace exi
