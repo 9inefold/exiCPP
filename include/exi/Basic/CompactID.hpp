@@ -34,28 +34,22 @@ using CompactID = u64;
 
 namespace H {
 
-ALWAYS_INLINE constexpr u32 CmLog2Dispatch(u64 ID) {
-  return Log2_64(ID - 1ul) + 1u;
-}
+template <typename Int>
+using cmlog2_int_t = std::conditional_t<
+  sizeof(Int) >= 4, unsigned, std::make_unsigned_t<Int>>;
 
-ALWAYS_INLINE constexpr u32 CmLog2Dispatch(u32 ID) {
-  return Log2_32(ID - 1u) + 1u;
-}
-
-inline constexpr u16 CmLog2Dispatch(u16 ID) {
-  return std::countl_zero(u16(ID - 1u)) + 1u;
-}
-
-inline constexpr u8 CmLog2Dispatch(u8 ID) {
-  return std::countl_zero(u8(ID - 1u)) + 1u;
+template <std::unsigned_integral UInt>
+ALWAYS_INLINE constexpr cmlog2_int_t<UInt> CmLog2Dispatch(UInt ID) {
+  constexpr_static unsigned kSubtract = bitsizeof_v<UInt>;
+  return kSubtract - std::countl_zero(UInt(ID - 1u));
 }
 
 template <std::signed_integral Int>
 [[deprecated("likely an accidental signed input, "
   "ensure small types are handled correctly!")]]
-EXI_INLINE constexpr auto CmLog2Dispatch(Int ID) {
+EXI_INLINE constexpr cmlog2_int_t<Int> CmLog2Dispatch(Int ID) {
   // TODO: Fix in permissive mode
-  COMPILE_FAILURE(Int);
+  COMPILE_FAILURE(Int, "Signed inputs are not allowed!");
   using UInt = std::make_unsigned_t<Int>;
   exi_assume(ID >= 0);
   return CmLog2Dispatch(static_cast<UInt>(ID));
@@ -64,8 +58,10 @@ EXI_INLINE constexpr auto CmLog2Dispatch(Int ID) {
 } // namespace H
 
 /// Calculates `⌈ log2(ID) ⌉`.
+/// @note Call `Log2_N_Ceil` directly if exact size is required.
+/// @tparam NeverZero Whether the zero case need be considered.
 template <bool NeverZero = false, std::integral Int>
-EXI_INLINE constexpr auto CompactIDLog2(Int ID) {
+EXI_INLINE constexpr auto ID_Log2(Int ID) {
   // Faster algorithm.
   if constexpr (NeverZero) {
     exi_invariant(ID > 0);
@@ -73,8 +69,17 @@ EXI_INLINE constexpr auto CompactIDLog2(Int ID) {
   } else {
     return EXI_LIKELY(ID != 0u)
       ? H::CmLog2Dispatch(ID)
-      : Int(0u);
+      : H::cmlog2_int_t<Int>(0u);
   }
+}
+
+/// Calculates `⌈ log2(ID) ⌉`.
+/// @note Call `Log2_N_Ceil` directly if exact size is required.
+/// @tparam Offset The offset of logarithm inputs.
+template <u64 Offset = 0, std::integral Int>
+EXI_INLINE constexpr auto ID_OffsetLog2(Int ID) {
+  exi_invariant(ID >= Offset);
+  return ID_Log2<Offset != 0>(ID);
 }
 
 template <class> class LogCounterHandle;
@@ -88,7 +93,7 @@ class EmbeddedLogCounter {
   u32 LogValue = 0;
 
   ALWAYS_INLINE constexpr u32 Log2(T ID) {
-    return CompactIDLog2<Offset != 0>(ID);
+    return ID_OffsetLog2<Offset>(ID);
   }
 
   /// Runs the compact log2 calculation on the current value. 
@@ -157,7 +162,7 @@ class EmbeddedClassCounter {
   u32 LogValue = 0;
 
   ALWAYS_INLINE constexpr u32 Log2(auto ID) {
-    return CompactIDLog2<Offset != 0>(ID);
+    return ID_Log2<Offset != 0>(ID);
   }
 
   /// Runs the compact log2 calculation on the current value. 
@@ -209,7 +214,7 @@ public:
   LogProxyHandle(const T& Data EXI_LIFETIMEBOUND,
                  LogT& Log EXI_LIFETIMEBOUND) : Data(Data), Log(Log) {}
   LogProxyHandle(T&&, LogT& Log) = delete;
-  ~LogProxyHandle() { Log = CompactIDLog2</*NeverZero=*/false>(Data); }
+  ~LogProxyHandle() { Log = ID_Log2</*NeverZero=*/false>(Data); }
 };
 
 template <class Counter>

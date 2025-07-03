@@ -63,10 +63,10 @@ GrammarTerm BuiltinGrammar::getTerm(OrdReader& Strm, bool IsStart) {
 void BuiltinGrammar::setLog(bool IsStart) {
   if (IsStart) {
     const u32 Log = getStartTagCount();
-    StartTagLog = CompactIDLog2(Log);
+    StartTagLog = ID_Log2(Log);
   } else {
     const u32 Log = getElementCount();
-    ElementLog = CompactIDLog2(Log);
+    ElementLog = ID_Log2(Log);
   }
 }
 

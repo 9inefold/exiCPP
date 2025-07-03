@@ -198,7 +198,7 @@ std::pair<StringTable::URIEntry*, StringTable::PrefixEntry*>
 
     PI.Link = X(URIP);
     PI.Pfx = PfxMap.size();
-    PI.PfxLog = CompactIDLog2<true>(u16(PI.Pfx + 1u));
+    PI.PfxLog = ID_Log2<true>(u16(PI.Pfx + 1u));
     PI.WithURI = URIP->second.URI;
 
     PfxMap.push_back(&PI);
