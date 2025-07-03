@@ -74,7 +74,7 @@ void StringTable::setup(const ExiOptions& Opts) {
   /// Populates the URI, Prefix, and LocalName partitions.
   createInitialEntries(UsesSchema);
   if (UsesSchema) {
-    // TODO: Reserve for schema.
+    exi_todo("Reserve for schema.");
     // SchemaResolver[*ID]->getExtraEntryCount();
   }
 
@@ -89,8 +89,7 @@ void StringTable::setup(const ExiOptions& Opts) {
     GValueMap.reserve(kDefaultReserveSize);
 
   if (Opts.DatatypeRepresentationMap) {
-    // TODO: DatatypeRepresentationMap?
-    exi_unreachable("datatype mapping is unsupported.");
+    exi_unimplemented("DatatypeRepresentationMap is unsupported.");
   }
 }
 

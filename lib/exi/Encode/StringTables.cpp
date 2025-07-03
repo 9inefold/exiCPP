@@ -91,8 +91,7 @@ void StringTable::setup(const ExiOptions& Opts) {
   }
 
   if (Opts.DatatypeRepresentationMap) {
-    // TODO: DatatypeRepresentationMap?
-    exi_unimplemented("datatype mapping is unsupported.");
+    exi_unimplemented("DatatypeRepresentationMap is unsupported.");
   }
 }
 
