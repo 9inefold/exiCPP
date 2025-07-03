@@ -32,11 +32,12 @@ namespace exi {
 /// The Compact ID type.
 using CompactID = u64;
 
-namespace H {
-
+/// The "real" return type of log2 functions.
 template <typename Int>
 using cmlog2_int_t = std::conditional_t<
   sizeof(Int) >= 4, unsigned, std::make_unsigned_t<Int>>;
+
+namespace H {
 
 template <std::unsigned_integral UInt>
 ALWAYS_INLINE constexpr cmlog2_int_t<UInt> CmLog2Dispatch(UInt ID) {
@@ -69,7 +70,7 @@ constexpr auto ID_Log2(Int ID) {
   } else {
     return EXI_LIKELY(ID != 0u)
       ? H::CmLog2Dispatch(ID)
-      : H::cmlog2_int_t<Int>(0u);
+      : cmlog2_int_t<Int>(0u);
   }
 }
 
@@ -90,13 +91,15 @@ EXI_INLINE constexpr auto ID_AddOffsetLog2(Int ID) {
   return ID_Log2<Offset != 0, Int>(ID + Int(Offset));
 }
 
-template <class> class LogCounterHandle;
+template <class> class IntrusiveCounterHandle;
+template <typename T, typename LogT> class IDCounterHandle;
 
 /// A counter with the LogValue embedded.
 /// TODO: Check if a countdown would make this more efficient...
 template <std::unsigned_integral T, u64 Offset = 0>
 class IDLogCounter {
-  template <class> friend class LogCounterHandle;
+  template <class> friend class IntrusiveCounterHandle;
+  template <typename, typename> friend class IDCounterHandle;
   T Value = 0;
   u32 LogValue = 0;
 
@@ -119,9 +122,7 @@ public:
   /// Returns the current value of the counter.
   EXI_INLINE constexpr T value() const { return Value; }
   /// Returns the minimum bits required for current value of the counter.
-  EXI_INLINE constexpr u32 bits() const { return LogValue; }
   /// Returns the minimum bytes required for current value of the counter.
-  EXI_INLINE constexpr u32 bytes() const {
     if EXI_UNLIKELY(Value == 0)
       return 0;
     return (LogValue / 8) + 1u;
@@ -163,10 +164,8 @@ template <u64 Offset = 0>
 using CompactIDCounter = IDLogCounter<CompactID, Offset>;
 
 /// A container wrapper which embeds a log counter based on `.size()`.
-template <class T, u64 Offset = 0>
 class IntrusiveLogCounter {
-  template <class> friend class LogCounterHandle;
-  T Data;
+  Clazz Data;
   u32 LogValue = 0;
 
   ALWAYS_INLINE constexpr u32 Log2(auto ID) {
@@ -191,43 +190,43 @@ public:
     return (LogValue / 8) + 1u;
   }
 
-  constexpr T& value() { return Data; }
-  constexpr const T& value() const { return Data; }
+  constexpr Clazz& value() { return Data; }
+  constexpr const Clazz& value() const { return Data; }
 
-  constexpr T& operator*() { return Data; }
-  constexpr const T& operator*() const { return Data; }
+  constexpr Clazz& operator*() { return Data; }
+  constexpr const Clazz& operator*() const { return Data; }
 
-  constexpr T* operator->() { return &Data; }
-  constexpr const T* operator->() const { return &Data; }
+  constexpr Clazz* operator->() { return &Data; }
+  constexpr const Clazz* operator->() const { return &Data; }
 };
 
 /// An RTTI handle that updates the log at the end of the scope.
-template <class Counter> class LogCounterHandle {
+template <class Counter> class IntrusiveCounterHandle {
   static_assert(!std::is_const_v<Counter>);
   Counter& Data;
 public:
-  ALWAYS_INLINE LogCounterHandle(Counter& Data EXI_LIFETIMEBOUND) : Data(Data) {}
-  ALWAYS_INLINE ~LogCounterHandle() { Data.recalculateLog(); }
+  ALWAYS_INLINE IntrusiveCounterHandle(Counter& Data EXI_LIFETIMEBOUND) : Data(Data) {}
+  ALWAYS_INLINE ~IntrusiveCounterHandle() { Data.recalculateLog(); }
   ALWAYS_INLINE Counter* operator->() { return &Data; }
 };
 
 /// An RTTI handle that updates the log at the end of the scope.
 /// Assumes the counter starts at 0.
-template <typename T, typename LogT> class LogProxyHandle {
+template <typename T, typename LogT> class IDCounterHandle {
   static_assert(!std::is_const_v<LogT>);
   const T& Data;
   LogT& Log;
 public:
-  LogProxyHandle(const T& Data EXI_LIFETIMEBOUND,
+  IDCounterHandle(const T& Data EXI_LIFETIMEBOUND,
                  LogT& Log EXI_LIFETIMEBOUND) : Data(Data), Log(Log) {}
-  LogProxyHandle(T&&, LogT& Log) = delete;
-  ~LogProxyHandle() { Log = ID_Log2</*NeverZero=*/false>(Data); }
+  IDCounterHandle(T&&, LogT& Log) = delete;
+  ~IDCounterHandle() { Log = ID_Log2</*NeverZero=*/false>(Data); }
 };
 
 template <class Counter>
-LogCounterHandle(Counter&) -> LogCounterHandle<Counter>;
+IntrusiveCounterHandle(Counter&) -> IntrusiveCounterHandle<Counter>;
 
 template <typename T, typename LogT>
-LogProxyHandle(T&, LogT&) -> LogProxyHandle<std::remove_const_t<T>, LogT>;
+IDCounterHandle(T&, LogT&) -> IDCounterHandle<std::remove_const_t<T>, LogT>;
 
 } // namespace exi
