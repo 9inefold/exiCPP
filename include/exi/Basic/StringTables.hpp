@@ -751,7 +751,7 @@ private:
   /// Handles the mapping from the string representation of a value to the
   /// value's data. Lookups aren't done through NameCache to reduce the number
   /// of searches required for that.
-  EmbeddedClassCounter<ValueMapType> GValueMap;
+  IntrusiveLogCounter<ValueMapType> GValueMap;
 
   bool DidSetup : 1 = false;
   /// If the tables should wrap once reaching their capacity.

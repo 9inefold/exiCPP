@@ -61,7 +61,7 @@ EXI_INLINE constexpr cmlog2_int_t<Int> CmLog2Dispatch(Int ID) {
 /// @note Call `Log2_N_Ceil` directly if exact size is required.
 /// @tparam NeverZero Whether the zero case need be considered.
 template <bool NeverZero = false, std::integral Int>
-EXI_INLINE constexpr auto ID_Log2(Int ID) {
+constexpr auto ID_Log2(Int ID) {
   // Faster algorithm.
   if constexpr (NeverZero) {
     exi_invariant(ID > 0);
@@ -76,36 +76,44 @@ EXI_INLINE constexpr auto ID_Log2(Int ID) {
 /// Calculates `⌈ log2(ID) ⌉`.
 /// @note Call `Log2_N_Ceil` directly if exact size is required.
 /// @tparam Offset The offset of logarithm inputs.
-template <u64 Offset = 0, std::integral Int>
+template <u64 Offset, std::integral Int>
 EXI_INLINE constexpr auto ID_OffsetLog2(Int ID) {
   exi_invariant(ID >= Offset);
-  return ID_Log2<Offset != 0>(ID);
+  return ID_Log2<Offset != 0, Int>(ID);
+}
+
+/// Calculates `⌈ log2(ID + Offset) ⌉`.
+/// @warning THIS WILL ADD THE OFFSET! Use `ID_OffsetLog2` for normal checks.
+/// @tparam Offset The offset used on the inputs.
+template <u64 Offset, std::integral Int>
+EXI_INLINE constexpr auto ID_AddOffsetLog2(Int ID) {
+  return ID_Log2<Offset != 0, Int>(ID + Int(Offset));
 }
 
 template <class> class LogCounterHandle;
 
 /// A counter with the LogValue embedded.
 /// TODO: Check if a countdown would make this more efficient...
-template <std::integral T, u64 Offset = 0>
-class EmbeddedLogCounter {
+template <std::unsigned_integral T, u64 Offset = 0>
+class IDLogCounter {
   template <class> friend class LogCounterHandle;
   T Value = 0;
   u32 LogValue = 0;
 
   ALWAYS_INLINE constexpr u32 Log2(T ID) {
-    return ID_OffsetLog2<Offset>(ID);
+    return ID_AddOffsetLog2<Offset>(ID);
   }
 
   /// Runs the compact log2 calculation on the current value. 
   EXI_INLINE constexpr void recalculateLog() {
-    LogValue = Log2(this->Value + T(Offset));
+    LogValue = Log2(this->Value);
   }
 
 public:
   /// Starts counter from 0.
-  EXI_INLINE constexpr EmbeddedLogCounter() = default;
+  EXI_INLINE constexpr IDLogCounter() = default;
   /// Starts counter from `StartingID`.
-  constexpr EmbeddedLogCounter(T StartingID) :
+  constexpr IDLogCounter(T StartingID) :
    Value(StartingID), LogValue(Log2(StartingID)) {}
   
   /// Returns the current value of the counter.
@@ -133,12 +141,12 @@ public:
     recalculateLog();
   }
 
-  EXI_INLINE constexpr EmbeddedLogCounter& operator++() {
+  EXI_INLINE constexpr IDLogCounter& operator++() {
     this->inc();
     return *this;
   }
-  EXI_INLINE constexpr EmbeddedLogCounter operator++(int) {
-    EmbeddedLogCounter Out = *this;
+  EXI_INLINE constexpr IDLogCounter operator++(int) {
+    IDLogCounter Out = *this;
     this->inc();
     return Out;
   }
@@ -150,29 +158,28 @@ public:
   }
 };
 
-// An EmbeddedLogCounter for `CompactID`s.
+// An IDLogCounter for `CompactID`s.
 template <u64 Offset = 0>
-using CompactIDCounter = EmbeddedLogCounter<CompactID, Offset>;
+using CompactIDCounter = IDLogCounter<CompactID, Offset>;
 
 /// A container wrapper which embeds a log counter based on `.size()`.
 template <class T, u64 Offset = 0>
-class EmbeddedClassCounter {
+class IntrusiveLogCounter {
   template <class> friend class LogCounterHandle;
   T Data;
   u32 LogValue = 0;
 
   ALWAYS_INLINE constexpr u32 Log2(auto ID) {
-    return ID_Log2<Offset != 0>(ID);
+    return ID_AddOffsetLog2<Offset>(ID);
   }
 
   /// Runs the compact log2 calculation on the current value. 
   EXI_INLINE constexpr void recalculateLog() {
-    using IDType = decltype(Data.size());
-    LogValue = Log2(Data.size() + IDType(Offset));
+    LogValue = Log2(Data.size());
   }
 
 public:
-  constexpr EmbeddedClassCounter(auto&&...Args) :
+  constexpr IntrusiveLogCounter(auto&&...Args) :
    Data(EXI_FWD(Args)...), LogValue(Log2(Data.size())) {}
   
   /// Returns the minimum bits required for current value of the counter.
