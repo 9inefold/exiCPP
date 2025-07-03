@@ -96,7 +96,7 @@ public:
   /// Returns the minimum bits required for current amount of local values.
   u32 bits() const {
     // exi_invariant(not LocalValues.empty());
-    return CompactIDLog2(LocalValues.size() + 1);
+    return ID_Log2(LocalValues.size() + 1);
   }
   /// Returns the minimum bytes required for current amount of local values.
   u32 bytes() const {
@@ -334,20 +334,20 @@ public:
     const u64 Count = URIMap[URI].PrefixElts;
     if EXI_UNLIKELY(Count == 0)
       return 0;
-    return CompactIDLog2(Count - 1);
+    return ID_Log2(Count - 1);
   }
 
   /// Gets the bit number for QName prefixes.
   u64 getPrefixLog(CompactID URI) const {
     exi_invariant(URI < URIMap.size());
     this->assertPartitionsInSync();
-    return CompactIDLog2(URIMap[URI].PrefixElts);
+    return ID_Log2(URIMap[URI].PrefixElts);
   }
 
   u64 getLocalNameLog(CompactID URI) const {
     exi_invariant(URI < URIMap.size());
     this->assertPartitionsInSync();
-    return CompactIDLog2(URIMap[URI].LNElts);
+    return ID_Log2(URIMap[URI].LNElts);
   }
 
   EXI_INLINE u64 getGlobalValueLog() const {
@@ -361,7 +361,7 @@ public:
   u64 getLocalValueLog(SmallQName IDs) const {
     exi_assert(IDs.isQName());
     const LNPartition* Values = getLVPartition(IDs);
-    return CompactIDLog2(Values->size());
+    return ID_Log2(Values->size());
   }
 
 private:
@@ -827,7 +827,7 @@ private:
       .Link = X(URI),
       .WithURI = VOf(URI)->URI,
       .Pfx = PfxID,
-      .PfxLog = CompactIDLog2(PfxID)
+      .PfxLog = ID_Log2(PfxID)
     };
   }
 
