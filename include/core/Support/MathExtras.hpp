@@ -350,6 +350,18 @@ template <usize kValue> constexpr usize CTLog2() {
 template <> constexpr usize CTLog2<1>() { return 0; }
 
 /// Return the floor log base 2 of the specified value, -1 if the value is zero.
+/// (8 bit edition.)
+constexpr inline u8 Log2_8(u8 Value) {
+  return 7u - std::countl_zero(Value);
+}
+
+/// Return the floor log base 2 of the specified value, -1 if the value is zero.
+/// (16 bit edition.)
+constexpr inline u16 Log2_16(u16 Value) {
+  return 15u - std::countl_zero(Value);
+}
+
+/// Return the floor log base 2 of the specified value, -1 if the value is zero.
 /// (32 bit edition.)
 /// Ex. Log2_32(32) == 5, Log2_32(1) == 0, Log2_32(0) == -1, Log2_32(6) == 2
 constexpr inline unsigned Log2_32(u32 Value) {
@@ -362,17 +374,29 @@ constexpr inline unsigned Log2_64(u64 Value) {
   return 63 - std::countl_zero(Value);
 }
 
+/// Return the ceil log base 2 of the specified value, 8 if the value is zero.
+/// (8 bit edition).
+constexpr inline u8 Log2_8_Ceil(u8 Value) {
+  return 8u - std::countl_zero(Value - 1u);
+}
+
+/// Return the ceil log base 2 of the specified value, 16 if the value is zero.
+/// (16 bit edition.)
+constexpr inline u16 Log2_16_Ceil(u16 Value) {
+  return 16u - std::countl_zero(Value - 1u);
+}
+
 /// Return the ceil log base 2 of the specified value, 32 if the value is zero.
 /// (32 bit edition).
 /// Ex. Log2_32_Ceil(32) == 5, Log2_32_Ceil(1) == 0, Log2_32_Ceil(6) == 3
 constexpr inline unsigned Log2_32_Ceil(u32 Value) {
-  return 32 - std::countl_zero(Value - 1);
+  return 32u - std::countl_zero(Value - 1u);
 }
 
 /// Return the ceil log base 2 of the specified value, 64 if the value is zero.
 /// (64 bit edition.)
 constexpr inline unsigned Log2_64_Ceil(u64 Value) {
-  return 64 - std::countl_zero(Value - 1);
+  return 64u - std::countl_zero(Value - 1u);
 }
 
 /// A and B are either alignments or offsets. Return the minimum alignment that
