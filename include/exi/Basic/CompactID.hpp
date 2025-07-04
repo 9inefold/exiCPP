@@ -177,11 +177,6 @@ class IntrusiveLogCounter {
     return ID_AddOffsetLog2<Offset>(ID);
   }
 
-  /// Runs the compact log2 calculation on the current value. 
-  EXI_INLINE constexpr void recalculateLog() {
-    LogValue = Log2(Data.size());
-  }
-
 public:
   constexpr IntrusiveLogCounter(auto&&...Args) :
    Data(EXI_FWD(Args)...), LogValue(Log2(Data.size())) {}
@@ -193,6 +188,11 @@ public:
     if EXI_UNLIKELY(Data.size() == 0)
       return 0;
     return (LogValue / 8) + 1u;
+  }
+
+  /// Runs the compact log2 calculation on the current value. 
+  EXI_INLINE constexpr void recalculateLog() {
+    LogValue = Log2(Data.size());
   }
 
   constexpr Clazz& value() { return Data; }
