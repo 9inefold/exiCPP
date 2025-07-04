@@ -26,9 +26,10 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## Unfinished
 
-- Add doxygen support
-- Add some more major in-source TODOs here...
+- Implement `Throw<Ex>(...)`, handle some exceptional cases...
 - `sys::` implementation on linux
+- Add some more major in-source TODOs here...
+- Add doxygen support
 - Fix copying between streams, currently super wonky
 - Implement storage/lookup of typed values
 - `source_location` with Clang support
