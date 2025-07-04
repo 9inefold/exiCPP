@@ -38,6 +38,7 @@
 #include <core/Support/StringSaver.hpp>
 #include <exi/Basic/CompactID.hpp>
 #include <exi/Basic/EventCodes.hpp>
+#include <exi/Basic/Except.hpp>
 
 #include <core/Common/CachedHashString.hpp>
 #include <core/Common/DenseMap.hpp>
@@ -49,9 +50,11 @@
 #include <core/Support/StringSaver.hpp>
 #include <exi/Basic/CompactID.hpp>
 #include <exi/Basic/EventCodes.hpp>
+#include <exi/Basic/Except.hpp>
 #include <type_traits>
 
 // TODO: Refactor to use embedded counters with RTTI handles
+// TODO: Replace some assertions with Throw(...)?
 
 /// If the cache should be LRU (a single pair otherwise).
 #define EXI_ENCODE_URISTACK_CACHE 0
@@ -469,14 +472,28 @@ struct PrefixInfo {
   /// The ID of the URI.
   u32 WithURI = max_v<u32>;
   /// The ID of the prefix.
-  u16 Pfx = 0;
+  u16 Pfx = max_v<u16>;
   /// The cached prefix log.
   u16 PfxLog = 0;
-  /// The cached Prefix.
-  //char URITag[6] {};
 public:
+  /// Checked if the Prefix is synced with `Link`.
+  inline bool isSyncedWithURI() const;
   /// Syncs `PfxLog` with `Link->PfxMap`s size.
   inline void syncWithURI();
+  /// Returns URI if valid.
+  u32 uri() const {
+    exi_expensive_invariant(this->isSyncedWithURI());
+    if EXI_NEVER(WithURI == max_v<u32>)
+      Throw<uninit_error>("URI is uninitialized!");
+    return this->URI;
+  }
+  /// Returns Prefix if valid.
+  u16 pfx() const {
+    exi_expensive_invariant(this->isSyncedWithURI());
+    if EXI_NEVER(Pfx == max_v<u16>)
+      Throw<uninit_error>("Prefix is uninitialized!");
+    return this->Pfx;
+  }
 };
 
 #define DECL_MAPPING_X(TO, FROM)                                              \
@@ -555,7 +572,7 @@ class StringTable {
       Pfx->Link     = XUnmap(const_cast<URIInfo*>(this));
       Pfx->Pfx      = ID;
       Pfx->PfxLog   = Log2(Size);
-      Pfx->WithURI  = getURIChecked();
+      Pfx->WithURI  = uri();
     }
     template <bool BindToThis>
     inline void bindNewPfx(PrefixInfo* Pfx, u16 ID) const {
@@ -584,9 +601,8 @@ class StringTable {
     EXI_COLD u16 emplaceAndBroadcast(PrefixInfo* Pfx) {
       exi_expensive_invariant(!this->contains(Pfx));
       const u16 ID = PfxMap.size();
-      //TODO: Throw(...)
-      //if EXI_NEVER(ID > kURIMax)
-      //  Throw<...>("Exceeded the maximum number of URIs!")
+      if EXI_NEVER(ID > kURIMax)
+        Throw<range_error>("Exceeded the maximum number of URIs!");
 
       PfxMap.emplace_back(Pfx);
       bindNewPfx<BindToThis>(Pfx, ID);
@@ -642,9 +658,9 @@ class StringTable {
     u16 pfxLog() const {
       return Log2(numMappedPrefixes());
     }
-    u32 getURIChecked() const {
-      //if EXI_NEVER(URI == kURIUninit)
-      //  Throw<...>("Exceeded the maximum number of URIs!");
+    u32 uri() const {
+      if EXI_NEVER(URI == kURIUninit)
+        Throw<uninit_error>("URI is uninitialized!");
       return this->URI;
     }
   };
@@ -1060,9 +1076,20 @@ private:
   void initLocalName(URIEntry* URI, const QualName* ID);
 };
 
+bool PrefixInfo::isSyncedWithURI() const {
+  if EXI_NEVER(Link == nullptr)
+    Throw<uninit_error>("Prefix::Link is uninitialized!");
+  auto* UI = StringTable::VOfX(Link);
+  return WithURI == UI->uri()
+      && PfxLog  == UI->pfxLog()
+      && UI->contains(this);
+}
+
 void PrefixInfo::syncWithURI() {
-  exi_relassert(Link != nullptr);
-  PfxLog = StringTable::VOfX(Link)->pfxLog();
+  if EXI_NEVER(Link == nullptr)
+    Throw<uninit_error>("Prefix::Link is uninitialized!");
+  // exi_relassert(Link != nullptr);
+  PfxLog  = StringTable::VOfX(Link)->pfxLog();
 }
 
 #undef DECL_MAPPING_X

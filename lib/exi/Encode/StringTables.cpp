@@ -103,7 +103,7 @@ void StringTable::pushURIContext(PrefixEntry* EPfx, URIEntry* URI) {
   PrefixInfo& Pfx = *VOf(EPfx);
 
   exi_assert(URI && Pfx.Link);
-  exi_invariant(VOfX(Pfx.Link)->contains(&Pfx),
+  exi_invariant(Pfx.isSyncedWithURI(),
                "Prefix is unset in current link!");
 
   bool WillInsert = false;
