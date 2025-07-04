@@ -47,7 +47,7 @@ template <typename Ex>
 } // namespace H
 
 /// Implements "throwing" in a way that reduces register pressure.
-template <typename Ex>
+template <typename Ex = std::runtime_error>
 [[noreturn]] EXI_ERROR_CC void Throw(StringLiteral Msg = "") {
   except_detail::ThrowImpl<Ex>(Msg.data());
 }
