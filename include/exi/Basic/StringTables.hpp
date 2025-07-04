@@ -467,7 +467,7 @@ EXI_OPAQUE_HANDLE(QualName, StringTable);
 struct PrefixInfo {
   STURIEntry* Link = nullptr;
   /// The ID of the URI.
-  u32 WithURI = 0;
+  u32 WithURI = max_v<u32>;
   /// The ID of the prefix.
   u16 Pfx = 0;
   /// The cached prefix log.
@@ -532,10 +532,11 @@ class StringTable {
   }
 
   /// TODO: Use to pack memory? (and profile...)
-  static constexpr usize kURIMax = 0xFFFFFF;
+  static constexpr u32 kURIMax = 0xFFFFFF;
+  static constexpr u32 kURIUninit = max_v<u32>;
   /// Contains URI's ID and reverse mappings for prefixes.
   struct URIInfo {
-    u32 URI = 0;
+    u32 URI = kURIUninit;
     /// The number of associated LocalNames.
     u32 LocalNames = 0;
     /// Iterate while recording the index to find the PfxID.
@@ -550,6 +551,25 @@ class StringTable {
     }
 
   private:
+    ALWAYS_INLINE void bindPfx(PrefixInfo* Pfx, u16 ID, unsigned Size) const {
+      Pfx->Link     = XUnmap(const_cast<URIInfo*>(this));
+      Pfx->Pfx      = ID;
+      Pfx->PfxLog   = Log2(Size);
+      Pfx->WithURI  = getURIChecked();
+    }
+    template <bool BindToThis>
+    inline void bindNewPfx(PrefixInfo* Pfx, u16 ID) const {
+      if constexpr (BindToThis) {
+        exi_invariant(Pfx == PfxMap.back());
+        this->bindPfx(Pfx, ID, ID + 1u);
+      }
+    }
+    template <bool BindToThis>
+    inline void bindOldPfx(PrefixInfo* Pfx, u16 ID) const {
+      if constexpr (BindToThis)
+        this->bindPfx(Pfx, ID, PfxMap.size());
+    }
+
     EXI_COLD void broadcastLog(u16 Log) {
       // BUG: This ICEs on Clang...
       STURIEntry* const self = XUnmap(this);
@@ -560,32 +580,49 @@ class StringTable {
       }
     }
     // FIXME: Consider what happens when inserting empty.
-    // Should the newest value be modified?
+    template <bool BindToThis>
     EXI_COLD u16 emplaceAndBroadcast(PrefixInfo* Pfx) {
       exi_expensive_invariant(!this->contains(Pfx));
       const u16 ID = PfxMap.size();
+      //TODO: Throw(...)
+      //if EXI_NEVER(ID > kURIMax)
+      //  Throw<...>("Exceeded the maximum number of URIs!")
+
       PfxMap.emplace_back(Pfx);
+      bindNewPfx<BindToThis>(Pfx, ID);
       // Only happens once, quite unlikely.
-      if EXI_UNLIKELY(ID == 0)
+      if EXI_UNLIKELY(ID == 0) {
         // TODO: If wrapping occurs, Throw(...)
-        // FIXME? Value is never set.
-        return /*log2(ID+1)=*/0;
+        return 0;
+      }
       // Check if update broadcast is required.
+      // Add 1 so it matches the current size.
       // This gets less likely the more prefixes are added.
       if EXI_UNLIKELY(NeedsBroadcast(ID + 1u))
         this->broadcastLog(Log2(ID + 1u));
       return ID;
     }
+    template <bool BindToThis = false>
+    u16 emplaceImpl(PrefixInfo* Pfx) {
+      exi_assert(Pfx != nullptr);
+      for (auto [ID, Val] : exi::enumerate(PfxMap)) {
+        if (Pfx != Val)
+          continue;
+        bindOldPfx<BindToThis>(Pfx, ID);
+        return ID;
+      }
+      return emplaceAndBroadcast<BindToThis>(Pfx);
+    }
 
   public:
     /// Finds the index of an existing prefix mapping, otherwise appends.
     u16 try_emplace(PrefixInfo* Pfx) {
-      exi_assert(Pfx != nullptr);
-      for (auto [Ix, Val] : exi::enumerate(PfxMap)) {
-        if (Pfx == Val)
-          return Ix;
-      }
-      return emplaceAndBroadcast(Pfx);
+      tail_return this->emplaceImpl<false>(Pfx);
+    }
+    /// Finds the index of an existing prefix mapping and rebinds.
+    /// Otherwise, appends and creates a new binding.
+    u16 try_emplace_and_bind(PrefixInfo* Pfx) {
+      tail_return this->emplaceImpl<true>(Pfx);
     }
 
     EXI_COLD void recalculateLog() {
@@ -604,6 +641,11 @@ class StringTable {
     }
     u16 pfxLog() const {
       return Log2(numMappedPrefixes());
+    }
+    u32 getURIChecked() const {
+      //if EXI_NEVER(URI == kURIUninit)
+      //  Throw<...>("Exceeded the maximum number of URIs!");
+      return this->URI;
     }
   };
   /// Maps a URI to its associated ID.
@@ -869,17 +911,10 @@ private:
   ////////////////////////////////////////////////////////////////////////
   // Prefixes
 
-  // FIXME: Update name & behaviour, currently confusing as it mutates input.
-  static PrefixInfo MakePrefix(PrefixInfo* Pfx, URIEntry* URI) {
+  static u16 BindPrefixToNewURI(PrefixInfo* Pfx, URIEntry* URI) {
     exi_invariant(Pfx->Link != X(URI),
                  "Prefix has already been mapped to this URI.");
-    const u16 PfxID = VOf(URI)->try_emplace(Pfx);
-    return PrefixInfo {
-      .Link = X(URI),
-      .WithURI = VOf(URI)->URI,
-      .Pfx = PfxID,
-      .PfxLog = ID_Log2(PfxID)
-    };
+    return VOf(URI)->try_emplace_and_bind(Pfx);
   }
 
   /// Pushes the URI context currently associated with the given prefix to the

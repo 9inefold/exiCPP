@@ -120,7 +120,7 @@ void StringTable::pushURIContext(PrefixEntry* EPfx, URIEntry* URI) {
     URIStackMap.updateCacheIfOutOfDate();
   // Only remap if the value is different.
   if (Pfx.Link != X(URI))
-    Pfx = MakePrefix(&Pfx, URI);
+    BindPrefixToNewURI(&Pfx, URI);
 }
 
 void StringTable::popURIContext(PrefixEntry* EPfx) {
