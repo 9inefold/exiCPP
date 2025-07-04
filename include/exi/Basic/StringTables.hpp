@@ -474,6 +474,9 @@ struct PrefixInfo {
   u16 PfxLog = 0;
   /// The cached Prefix.
   //char URITag[6] {};
+public:
+  /// Syncs `PfxLog` with `Link->PfxMap`s size.
+  inline void syncWithURI();
 };
 
 #define DECL_MAPPING_X(TO, FROM)                                              \
@@ -514,8 +517,21 @@ class StringTable {
   // TODO: Figure out if necessary?
   exi::UniqueStringSaver NameCache;
 
-  /// Used to cache!!
-  /// TODO: Use to pack memory (and profile...)
+  /// These are before everything else as they cause an ICE on Clang otherwise.
+  /// ^ For "good" reason, it's used before auto can be deduced.
+
+  /// Equivalent to invoking `(VOf ∘ X)(Val)`.
+  ALWAYS_INLINE static decltype(auto) VOfX(auto&& Val) {
+    return VOf(X(EXI_FWD(Val)));
+  }
+  /// Equivalent to invoking `(X ∘ Unmap)(Val)`.
+  template <typename T>
+  requires (!is_opaque_handle<std::remove_const_t<T>>)
+  ALWAYS_INLINE static auto XUnmap(T* Val) {
+    return X(Unmap(Val));
+  }
+
+  /// TODO: Use to pack memory? (and profile...)
   static constexpr usize kURIMax = 0xFFFFFF;
   /// Contains URI's ID and reverse mappings for prefixes.
   struct URIInfo {
@@ -525,18 +541,57 @@ class StringTable {
     /// Iterate while recording the index to find the PfxID.
     SmallVec<PrefixInfo*, 2> PfxMap;
 
+    static u16 Log2(unsigned ID) {
+      return ID_AddOffsetLog2<1>(ID);
+    }
+    static bool NeedsBroadcast(unsigned ID) {
+      /// TODO: Verify this! I'm tired
+      return ((ID + 1u) & ID) == 0;
+    }
+
+  private:
+    EXI_COLD void broadcastLog(u16 Log) {
+      // BUG: This ICEs on Clang...
+      STURIEntry* const self = XUnmap(this);
+      for (PrefixInfo* PI : PfxMap) {
+        // Skips over any prefixes not currently mapped to this URI.
+        if EXI_LIKELY(PI->Link == self)
+          PI->PfxLog = Log;
+      }
+    }
+    // FIXME: Consider what happens when inserting empty.
+    // Should the newest value be modified?
+    EXI_COLD u16 emplaceAndBroadcast(PrefixInfo* Pfx) {
+      exi_expensive_invariant(!this->contains(Pfx));
+      const u16 ID = PfxMap.size();
+      PfxMap.emplace_back(Pfx);
+      // Only happens once, quite unlikely.
+      if EXI_UNLIKELY(ID == 0)
+        // TODO: If wrapping occurs, Throw(...)
+        // FIXME? Value is never set.
+        return /*log2(ID+1)=*/0;
+      // Check if update broadcast is required.
+      // This gets less likely the more prefixes are added.
+      if EXI_UNLIKELY(NeedsBroadcast(ID + 1u))
+        this->broadcastLog(Log2(ID + 1u));
+      return ID;
+    }
+
   public:
     /// Finds the index of an existing prefix mapping, otherwise appends.
-    unsigned try_emplace(PrefixInfo* Pfx) {
+    u16 try_emplace(PrefixInfo* Pfx) {
       exi_assert(Pfx != nullptr);
       for (auto [Ix, Val] : exi::enumerate(PfxMap)) {
         if (Pfx == Val)
           return Ix;
       }
-
-      PfxMap.emplace_back(Pfx);
-      return PfxMap.size() - 1u;
+      return emplaceAndBroadcast(Pfx);
     }
+
+    EXI_COLD void recalculateLog() {
+      this->broadcastLog(Log2(PfxMap.size()));
+    }
+
     bool contains(PrefixInfo* Pfx) const {
       for (auto* I : PfxMap) {
         if (I == Pfx)
@@ -547,6 +602,9 @@ class StringTable {
     unsigned numMappedPrefixes() const {
       return PfxMap.size();
     }
+    u16 pfxLog() const {
+      return Log2(numMappedPrefixes());
+    }
   };
   /// Maps a URI to its associated ID.
   using URIMapType = BumpStringMap<URIInfo>;
@@ -554,6 +612,7 @@ class StringTable {
   using URIEntry = URIMapType::value_type;
 
 public:
+  friend struct PrefixInfo;
   /// Maps a Prefix to its corresponding URI(s).
   using PrefixMapType = BumpStringMap<PrefixInfo>;
   /// Stores the mapping between a Prefix and its corresponding URI(s).
@@ -561,7 +620,7 @@ public:
 
 private:
   /// Used to map URIs to IDs.
-  URIMapType URIMap;
+  IntrusiveLogCounter<URIMapType, 1> URIMap;
   /// Used to map Prefixes to URIs (and their IDs).
   PrefixMapType PrefixMap;
 
@@ -743,6 +802,11 @@ private:
     CompactID GID = 0;
     /// The latest LocalName using this Value.
     const QualName* Name = nullptr;
+    /// The latest `[LocalValues, ID]` associated with this Value.
+    std::pair<LocalValuesType*, u32> LVs = {nullptr, 0xFFFFFFFF};
+    /// The latest specific bucket associated with this Value.
+    /// @warning May be invalid, ensure `isPointerIntoBucketsArray` is checked.
+    const LocalValuesType::mapped_type* LocalValue = nullptr;
   };
   /// Maps a Value to its corresponding data.
   using ValueMapType = BumpStringMap<ValueInfo, /*IsOwned=*/true>;
@@ -765,23 +829,15 @@ private:
   DECL_MAPPINGS(PrefixEntry,  STPrefixEntry)
   DECL_MAPPINGS(URIEntry,     STURIEntry)
   DECL_MAPPINGS(ValueEntry,   STValueEntry)
-  DECL_MAPPINGS_X(InlineStr, QualName)
+  DECL_MAPPINGS_X(InlineStr,  QualName)
 
   DECL_VOF(, &, Entry.second)
   DECL_VOF(, *, &Entry->second)
   DECL_VOF(const, &, Entry.second)
   DECL_VOF(const, *, &Entry->second)
 
-  /// Equivalent to invokes `(VOf ∘ X)(Val)`.
-  ALWAYS_INLINE static decltype(auto) VOfX(auto&& Val) {
-    return VOf(X(EXI_FWD(Val)));
-  }
-  /// Equivalent to invokes `(X ∘ Unmap)(Val)`.
-  template <typename T>
-  requires (!is_opaque_handle<std::remove_const_t<T>>)
-  ALWAYS_INLINE static auto XUnmap(T* Val) {
-    return X(Unmap(Val));
-  }
+  // See VOfX(auto&&) further up...
+  // See XUnmap(auto*) further up...
 
 public:
   StringTable();
@@ -813,15 +869,16 @@ private:
   ////////////////////////////////////////////////////////////////////////
   // Prefixes
 
+  // FIXME: Update name & behaviour, currently confusing as it mutates input.
   static PrefixInfo MakePrefix(PrefixInfo* Pfx, URIEntry* URI) {
     exi_invariant(Pfx->Link != X(URI),
                  "Prefix has already been mapped to this URI.");
-    const u16 PfxID = IntCast<u16>(VOf(URI)->try_emplace(Pfx));
+    const u16 PfxID = VOf(URI)->try_emplace(Pfx);
     return PrefixInfo {
       .Link = X(URI),
       .WithURI = VOf(URI)->URI,
       .Pfx = PfxID,
-      .PfxLog = CompactIDLog2(PfxID)
+      .PfxLog = ID_Log2(PfxID)
     };
   }
 
@@ -882,7 +939,7 @@ private:
     }
 
     if constexpr (CheckID) {
-      if EXI_UNLIKELY(ID >= URIMap.size())
+      if EXI_UNLIKELY(ID >= URIMap->size())
         return false;
     }
     return (*I == '$') && (I + 1 != E);
@@ -903,7 +960,7 @@ private:
   }
 
   EXI_INLINE void writeURITagChecked(u32 ID, SmallVecImpl<char>& Buf) const {
-    exi_invariant(ID < URIMap.size());
+    exi_invariant(ID < URIMap->size());
     return WriteURITag(ID, Buf);
   }
 
@@ -920,11 +977,11 @@ private:
 
   /// Gets a new (URI*, DidInsert) pair from a URI.
   std::pair<URIEntry*, bool> createURIOnly(CachedHashStrRef URI) {
-    auto [It, DidInsert] = URIMap.try_emplace(URI);
+    auto [It, DidInsert] = URIMap->try_emplace(URI);
     if (DidInsert) {
-      // Since the item was already inserted, decrement.
-      It->second.URI = URIMap.size() - 1;
-      // FIXME: Update log size?
+      URIMap.recalculateLog();
+      // Since the URI was already inserted, decrement.
+      It->second.URI = URIMap->size() - 1;
     }
     return {&*It, DidInsert};
   }
@@ -967,6 +1024,11 @@ private:
   /// Initializes a unique LocalName entry.
   void initLocalName(URIEntry* URI, const QualName* ID);
 };
+
+void PrefixInfo::syncWithURI() {
+  exi_relassert(Link != nullptr);
+  PfxLog = StringTable::VOfX(Link)->pfxLog();
+}
 
 #undef DECL_MAPPING_X
 #undef DECL_UNMAPPING

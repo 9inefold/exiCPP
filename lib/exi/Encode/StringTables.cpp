@@ -192,6 +192,7 @@ std::pair<StringTable::URIEntry*, StringTable::PrefixEntry*>
 
   auto [It, DidInsert] = PrefixMap.try_emplace(*Pfx);
   if (DidInsert) {
+    // FIXME: Use MakePrefix
     auto& PI = VOf(*It);
     auto& PfxMap = VOf(URIP)->PfxMap;
 
