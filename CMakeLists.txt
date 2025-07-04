@@ -23,7 +23,6 @@ set(EFL_NAMESPACE exi) # Unused... for now
 # list(APPEND CMAKE_CXX_FLAGS "-fsanitize=address")
 
 # TODO: Remove when complete?
-option(EXI_USE_EXIP     "Enables the old version of exicpp." OFF)
 option(EXI_DRIVER       "If the driver should be built (always ON at top level)." OFF)
 option(EXI_TESTS        "If tests should be run." OFF)
 
@@ -44,7 +43,9 @@ option(EXI_ENABLE_EXPENSIVE_CHECKS "If additional expensive checks should be ena
 option(EXI_OPTIMIZE_UNREACHABLE "If exi_unreachable should be undefined behaviour in release builds." ON)
 option(EXI_NATIVE_CODEGEN  "If code should be optimized for the native architecture." OFF)
 
-option(EXI_ANSI         "If ANSI should be enabled." ON) # DEPRECATED
+# TODO: Remove when complete?
+option(EXI_USE_EXIP "[DEPRECATED] Enables the old version of exicpp." OFF)
+option(EXI_ANSI     "[DEPRECATED] If ANSI should be enabled." ON)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")
