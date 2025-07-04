@@ -409,9 +409,12 @@
 // FIXME: Only enable for supported platforms. Does not work on x32 & arm win
 #if EXI_HAS_ATTR(preserve_most) && EXI_SUPPORTS_PRESERVE_CC
 # define EXI_PRESERVE_MOST __attribute__((preserve_most))
+# define EXI_PRESERVE_CALLSITE __attribute__((preserve_most, noinline))
 #else
 # define EXI_PRESERVE_MOST
+# define EXI_PRESERVE_CALLSITE EXI_NO_INLINE
 #endif
+#define EXI_ERROR_CC EXI_COLD EXI_PRESERVE_CALLSITE
 
 #if EXI_HAS_ATTR(preserve_all) && EXI_SUPPORTS_PRESERVE_CC
 # define EXI_PRESERVE_ALL __attribute__((preserve_all))

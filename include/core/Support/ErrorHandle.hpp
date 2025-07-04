@@ -47,20 +47,20 @@ class StrRef;
 class Twine;
 
 /// @brief Reports a fatal error.
-[[noreturn]] EXI_PRESERVE_MOST EXI_COLD void report_fatal_error(
+[[noreturn]] EXI_ERROR_CC void report_fatal_error(
   const char* Msg, bool GenCrashDiag = true);
 /// @brief Reports a fatal error.
-[[noreturn]] EXI_PRESERVE_MOST EXI_COLD void report_fatal_error(
+[[noreturn]] EXI_ERROR_CC void report_fatal_error(
   StrRef Msg, bool GenCrashDiag = true);
 /// @brief Reports a fatal error.
-[[noreturn]] EXI_PRESERVE_MOST EXI_COLD void report_fatal_error(
+[[noreturn]] EXI_ERROR_CC void report_fatal_error(
   const Twine& Msg, bool GenCrashDiag = true);
 
 /// @brief Reports a fatal allocation error.
 /// If exceptions are enabled, throws `std::bad_alloc`, otherwise aborts.
 [[noreturn]] EXI_COLD void fatal_alloc_error(const char* Msg) EXI_NOEXCEPT;
 
-[[noreturn]] EXI_PRESERVE_MOST EXI_COLD void exi_assert_impl(
+[[noreturn]] EXI_ERROR_CC void exi_assert_impl(
  H::AssertionKind Kind, const char* Msg = nullptr,
  const char* File = nullptr, unsigned Line = 0
 );

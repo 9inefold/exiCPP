@@ -93,17 +93,17 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
     std::exit(1);
 }
 
-[[noreturn]] EXI_PRESERVE_MOST EXI_COLD void
+[[noreturn]] EXI_ERROR_CC void
  exi::report_fatal_error(const char* Msg, bool GenCrashDiag) {
   reportFatalError(Twine(Msg), GenCrashDiag);
 }
 
-[[noreturn]] EXI_PRESERVE_MOST EXI_COLD void
+[[noreturn]] EXI_ERROR_CC void
  exi::report_fatal_error(StrRef Msg, bool GenCrashDiag) {
   reportFatalError(Twine(Msg), GenCrashDiag);
 }
 
-[[noreturn]] EXI_PRESERVE_MOST EXI_COLD void
+[[noreturn]] EXI_ERROR_CC void
  exi::report_fatal_error(const Twine& Msg, bool GenCrashDiag) {
   reportFatalError(Msg, GenCrashDiag);
 }
@@ -125,7 +125,7 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
 #endif
 }
 
-[[noreturn]] EXI_PRESERVE_MOST EXI_COLD void exi::exi_assert_impl(
+[[noreturn]] EXI_ERROR_CC void exi::exi_assert_impl(
  H::AssertionKind Kind, const char* Msg,
  const char* File, unsigned Line
 ) {

@@ -97,10 +97,8 @@ EXI_INLINE auto format(
 }
 
 template <typename...Args>
-[[noreturn]] EXI_PRESERVE_MOST EXI_COLD
-void format_fatal_error(
- fmt::format_string<const Args&...> Fmt,
- const Args&...args) {
+[[noreturn]] EXI_ERROR_CC void format_fatal_error(
+ fmt::format_string<const Args&...> Fmt, const Args&...args) {
   exi::report_fatal_error(FormatObject<Args...>(Fmt, args...));
 }
 
