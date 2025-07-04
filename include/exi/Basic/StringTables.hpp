@@ -601,8 +601,8 @@ class StringTable {
     EXI_COLD u16 emplaceAndBroadcast(PrefixInfo* Pfx) {
       exi_expensive_invariant(!this->contains(Pfx));
       const u16 ID = PfxMap.size();
-      if EXI_NEVER(ID > kURIMax)
-        Throw<range_error>("Exceeded the maximum number of URIs!");
+      if EXI_NEVER(ID >= max_v<u16>)
+        Throw<range_error>("Exceeded the maximum number of PfxIDs!");
 
       PfxMap.emplace_back(Pfx);
       bindNewPfx<BindToThis>(Pfx, ID);
