@@ -485,7 +485,7 @@ public:
     exi_expensive_invariant(this->isSyncedWithURI());
     if EXI_NEVER(WithURI == max_v<u32>)
       Throw<uninit_error>("URI is uninitialized!");
-    return this->URI;
+    return this->WithURI;
   }
   /// Returns Prefix if valid.
   u16 pfx() const {
@@ -645,7 +645,7 @@ class StringTable {
       this->broadcastLog(Log2(PfxMap.size()));
     }
 
-    bool contains(PrefixInfo* Pfx) const {
+    bool contains(const PrefixInfo* Pfx) const {
       for (auto* I : PfxMap) {
         if (I == Pfx)
           return true;
@@ -907,7 +907,16 @@ public:
   /// The signature will have to change when schemas are introduced.
   void setup(const ExiOptions& Opts);
 
+  static CachedHashStrRef GetEmptyHashString() {
+    static CachedHashStrRef S
+      = CachedHashStrRef(""_str);
+    return S;
+  }
+
   static CachedHashStrRef prehash(StrRef S) {
+    // TODO: Profile
+    if (S.empty())
+      return GetEmptyHashString();
     const u32 Hash = StringMapImpl::hash(S);
     return CachedHashStrRef(S, Hash);
   }
@@ -919,6 +928,51 @@ public:
   EXI_INLINE static u32 GetID(const STURIEntry* Entry) {
     exi_invariant(Entry != nullptr);
     return X(Entry)->second.URI;
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Setters
+
+  /// The result of entring a Namespace context.
+  struct NSContext {
+    template <class EntryT>
+    using EntryType = std::pair<EntryT*, bool>;
+    /// The URI.
+    STURIEntry* URI = nullptr;
+    /// The OPTIONAL Prefix value.
+    PrefixEntry* Pfx = nullptr;
+    /// If this is a newly inserted URI.
+    bool NewURI : 1 = false;
+    /// If this is a newly inserted Prefix.
+    bool NewPfx : 1 = false;
+    /// If this is an anonymous namespace.
+    bool Anonymous : 1 = false;
+    /// If this overwrites an existing context.
+    bool Overwrites : 1 = false;
+  
+  public:
+    /// Creates a new unbound NSContext.
+    EXI_COLD static NSContext Unbound(EntryType<URIEntry> URI);
+    /// Creates a new NSContext.
+    static NSContext New(EntryType<URIEntry> URI, EntryType<PrefixEntry> Pfx);
+    /// Creates a NSContext that overwrote an old one.
+    EXI_COLD static NSContext Overwrite(EntryType<URIEntry> URI,
+                                        EntryType<PrefixEntry> Pfx);
+  private:
+    // HACK: Work on uri()
+    friend class StringTable;
+    URIEntry* uri() const { return X(URI); }
+  };
+
+  NSContext declareURI(StrRef URI) {
+    return createURI(prehash(URI), std::nullopt);
+  }
+  NSContext declareURI(CachedHashStrRef URI) {
+    return createURI(URI, std::nullopt);
+  }
+  /// When encountering a `xmlns:[Pfx]=[URI]`.
+  NSContext enterNamespace(StrRef Pfx, StrRef URI) {
+    return createURI(prehash(URI), Pfx);
   }
 
 private:
@@ -1026,28 +1080,29 @@ private:
 
   const QualName* internQualName(u32 URI, StrRef LocalName);
 
-  /// Gets a new (URI*, DidInsert) pair from a URI.
+  /// Gets a new `(URI*, IsNewURI)` from a URI.
   std::pair<URIEntry*, bool> createURIOnly(CachedHashStrRef URI) {
     auto [It, DidInsert] = URIMap->try_emplace(URI);
     if (DidInsert) {
       URIMap.recalculateLog();
       // Since the URI was already inserted, decrement.
-      It->second.URI = URIMap->size() - 1;
+      const u32 NewURI = URIMap->size() - 1;
+      if EXI_NEVER(NewURI > kURIMax)
+        Throw<range_error>("Exceeded the maximum number of URIs!");
+      It->second.URI = NewURI;
     }
     return {&*It, DidInsert};
   }
-  /// Gets a new (URI*, DidInsert) pair from a URI.
+  /// Gets a new `(URI*, IsNewURI)` from a URI.
   std::pair<URIEntry*, bool> createURIOnly(StrRef URI) {
     /// Hash needs to be computed anyways, skip a step...
     return createURIOnly(prehash(URI));
   }
 
   /// Gets a new (URI*, Pfx*?) pair from a URI and Prefix.
-  std::pair<URIEntry*, PrefixEntry*>
-   createURI(CachedHashStrRef URI, Option<StrRef> Pfx = std::nullopt);
+  NSContext createURI(CachedHashStrRef URI, Option<StrRef> Pfx = std::nullopt);
   /// Gets a new (URI*, Pfx*?) pair from a URI and Prefix.
-  std::pair<URIEntry*, PrefixEntry*>
-   createURI(StrRef URI, Option<StrRef> Pfx = std::nullopt) {
+  NSContext createURI(StrRef URI, Option<StrRef> Pfx = std::nullopt) {
     return createURI(prehash(URI), Pfx);
   }
   
@@ -1089,7 +1144,7 @@ void PrefixInfo::syncWithURI() {
   if EXI_NEVER(Link == nullptr)
     Throw<uninit_error>("Prefix::Link is uninitialized!");
   // exi_relassert(Link != nullptr);
-  PfxLog  = StringTable::VOfX(Link)->pfxLog();
+  PfxLog = StringTable::VOfX(Link)->pfxLog();
 }
 
 #undef DECL_MAPPING_X

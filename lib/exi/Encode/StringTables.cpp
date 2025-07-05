@@ -41,6 +41,7 @@
 using namespace exi;
 
 using NameMapping = encode::StringTable::NameMapping;
+using NSContext = encode::StringTable::NSContext;
 
 namespace {
 enum : u64 { kDefaultReserveSize = 64 };
@@ -60,11 +61,34 @@ static const Option<String&> PullSchemaID(const Option<MaybeBox<String>>& ID) {
   return ID.expect("schema should resolve to value or nil").get();
 }
 
+namespace exi::encode {
+
+EXI_COLD NSContext NSContext::Unbound(NSContext::EntryType<URIEntry> URI) {
+  return NSContext {
+    .URI      = X(URI.first),
+    .NewURI   = URI.second
+  };
+}
+NSContext NSContext::New(NSContext::EntryType<URIEntry> URI,
+                         NSContext::EntryType<PrefixEntry> Pfx) {
+  return NSContext {
+    .URI        = X(URI.first),
+    .Pfx        = Pfx.first,
+    .NewURI     = URI.second,
+    .NewPfx     = Pfx.second,
+    .Anonymous  = Pfx.first->getKey().empty()
+  };
+}
+EXI_COLD NSContext NSContext::Overwrite(NSContext::EntryType<URIEntry> URI,
+                                        NSContext::EntryType<PrefixEntry> Pfx) {
+  NSContext Out = NSContext::New(URI, Pfx);
+  Out.Overwrites = true;
+  return Out;
+}
+
 //===----------------------------------------------------------------===//
 // Encoding
 //===----------------------------------------------------------------===//
-
-namespace exi::encode {
 
 StringTable::StringTable()
     : NameCache(Alloc), URIMap(4, Alloc),
@@ -103,8 +127,16 @@ void StringTable::pushURIContext(PrefixEntry* EPfx, URIEntry* URI) {
   PrefixInfo& Pfx = *VOf(EPfx);
 
   exi_assert(URI && Pfx.Link);
-  exi_invariant(Pfx.isSyncedWithURI(),
-               "Prefix is unset in current link!");
+#if EXI_INVARIANTS
+  if EXI_NEVER(!Pfx.isSyncedWithURI()) {
+    StrRef LinkName = Pfx.Link
+      ? X(Pfx.Link)->getKey()
+      : "<nullptr>";
+    exi::format_fatal_error(
+      "Prefix '{}' is unset in URI \"{}\"!",
+        EPfx->getKey(), LinkName);
+  }
+#endif
 
   bool WillInsert = false;
   // Don't cleanup if map was just lazily initialized.
@@ -141,7 +173,8 @@ void StringTable::popURIContext(PrefixEntry* EPfx) {
   }
 
   Pfx = TheStack.pop_back_val();
-  exi_assert(VOfX(Pfx.Link)->contains(&Pfx));
+  Pfx.syncWithURI();
+  exi_assert(Pfx.isSyncedWithURI());
 }
 
 void StringTable::URIStackMapHandler::cleanupUnusedStacks() {
@@ -184,28 +217,21 @@ const QualName* StringTable::internQualName(u32 URI, StrRef LocalName) {
   return X(NameCache.saveRaw(Storage.str()));
 }
 
-std::pair<StringTable::URIEntry*, StringTable::PrefixEntry*>
- StringTable::createURI(CachedHashStrRef URI, Option<StrRef> Pfx) {
-  URIEntry* URIP = createURIOnly(URI).first;
+NSContext StringTable::createURI(CachedHashStrRef URI, Option<StrRef> Pfx) {
+  auto [UE, IsNewURI] = createURIOnly(URI);
   if (!Pfx)
-    return {URIP, nullptr};
+    return NSContext::Unbound({UE, IsNewURI});
 
-  auto [It, DidInsert] = PrefixMap.try_emplace(*Pfx);
-  if (DidInsert) {
-    // FIXME: Use MakePrefix
-    auto& PI = VOf(*It);
-    auto& PfxMap = VOf(URIP)->PfxMap;
-
-    PI.Link = X(URIP);
-    PI.Pfx = PfxMap.size();
-    PI.PfxLog = ID_Log2<true>(u16(PI.Pfx + 1u));
-    PI.WithURI = URIP->second.URI;
-
-    PfxMap.push_back(&PI);
-    return {URIP, &*It};
+  auto [It, IsNewPfx] = PrefixMap.try_emplace(*Pfx);
+  if (IsNewPfx) {
+    BindPrefixToNewURI(&It->second, UE);
+    return NSContext::New(
+      {UE, IsNewURI}, {&*It, IsNewPfx});
+  } else {
+    pushURIContext(&*It, UE);
+    return NSContext::Overwrite(
+      {UE, IsNewURI}, {&*It, IsNewPfx});
   }
-
-  exi_todo("nested pfx contexts unimplemented.");
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -213,19 +239,20 @@ std::pair<StringTable::URIEntry*, StringTable::PrefixEntry*>
 
 void StringTable::createInitialEntries(bool UsesSchema) {
   // D.1 & D.2 - Initial Entries in Uri & Prefix Partition
-  auto* Nil = createURI(""_str,  ""_str).first;
-  auto* Xml = createURI(XML_URI, "xml"_str).first;
-  auto* Xsi = createURI(XSI_URI, "xsi"_str).first;
+  auto Nil = createURI(""_str,  ""_str);
+  auto Xml = createURI(XML_URI, "xml"_str);
+  auto Xsi = createURI(XSI_URI, "xsi"_str);
+  // TODO: Setup predefined URIs
 
   // D.3 - Initial Entries in LocalName Partitions
-  appendLocalNames(Xml, XML_InitialValues);
-  appendLocalNames(Xsi, XSI_InitialValues);
+  appendLocalNames(Xml.uri(), XML_InitialValues);
+  appendLocalNames(Xsi.uri(), XSI_InitialValues);
 
   if (UsesSchema) {
     // TODO: When a schema is provided, prepopulate with the LocalName of each
     // attribute, element and type explicitly declared in the schema.
-    auto* Xsd = createURI(XSD_URI).first;
-    appendLocalNames(Xsd, XSD_InitialValues);
+    auto Xsd = createURI(XSD_URI);
+    appendLocalNames(Xsd.uri(), XSD_InitialValues);
   }
 }
 
