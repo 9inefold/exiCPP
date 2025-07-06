@@ -82,6 +82,11 @@ public:
   const char* data() const { return P; }
   u32 size() const { return Size; }
   u32 hash() const { return Hash; }
+
+  inline bool equals(CachedHashStrRef Other) const {
+    return Hash == Other.hash()
+      && val().equals(Other.val());
+  }
 };
 
 template <> struct DenseMapInfo<CachedHashStrRef> {
