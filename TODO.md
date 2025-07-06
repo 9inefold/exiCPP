@@ -23,10 +23,11 @@ This is a TODO list for the C++ version of exiCPP.
 - Prepare for doxygen support
 - Update rapidxml
 - `ErrorCode` customization
+- Implement `Throw<Ex>(...)`, handle some exceptional cases...
 
 ## Unfinished
 
-- Implement `Throw<Ex>(...)`, handle some exceptional cases...
+- Add more info to rapidxml nodes?
 - `sys::` implementation on linux
 - Add some more major in-source TODOs here...
 - Add doxygen support
