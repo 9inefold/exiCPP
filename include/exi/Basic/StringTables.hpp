@@ -450,6 +450,14 @@ template <typename Value, bool IsOwned = false>
 using BumpStringMap = StringMap<Value,
   std::conditional_t<IsOwned, BumpPtrAllocator, BumpPtrAllocator&>>;
 
+/// Allows `CachedHashStrRef`s to be implicitly constructed. Since we use them
+/// internally, it makes passing arguments simpler.
+class ImplicitHashStrRef : public CachedHashStrRef {
+public:
+  using CachedHashStrRef::CachedHashStrRef;
+  ImplicitHashStrRef(StrRef S) : CachedHashStrRef(S) {}
+};
+
 // TODO: Enable macro expansion for EXI_OPAQUE_HANDLE
 // See https://stackoverflow.com/questions/42300539/documenting-macros-using-doxygen
 
@@ -1052,8 +1060,8 @@ public:
     return createURI(URI, std::nullopt);
   }
   /// When encountering a `xmlns:[Pfx]=[URI]`.
-  NSContext enterNamespace(StrRef Pfx, StrRef URI) {
-    return createURI(prehash(URI), Pfx);
+  NSContext enterNamespace(ImplicitHashStrRef Pfx, ImplicitHashStrRef URI) {
+    return createURI(URI, Pfx);
   }
 
 private:
