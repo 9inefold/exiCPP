@@ -884,6 +884,11 @@ private:
   /// of searches required for that.
   IntrusiveLogCounter<ValueMapType> GValueMap;
 
+  PrefixEntry* Pfx_NIL = nullptr; // xmlns="..."
+  PrefixEntry* Pfx_xml = nullptr; // xmlns:xml="..."
+  PrefixEntry* Pfx_xsi = nullptr; // xmlns:xsi="..."
+  PrefixEntry* Pfx_xsd = nullptr; // xmlns:xsd="..."
+
   bool DidSetup : 1 = false;
   /// If the tables should wrap once reaching their capacity.
   bool WrappingValues : 1 = false;

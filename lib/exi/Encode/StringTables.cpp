@@ -222,7 +222,10 @@ void StringTable::createInitialEntries(bool UsesSchema) {
   auto Nil = createURI(""_str,  ""_str);
   auto Xml = createURI(XML_URI, "xml"_str);
   auto Xsi = createURI(XSI_URI, "xsi"_str);
-  // TODO: Setup predefined URIs
+
+  this->Pfx_NIL = Nil.Pfx;
+  this->Pfx_xml = Xml.Pfx;
+  this->Pfx_xsi = Xsi.Pfx;
 
   // D.3 - Initial Entries in LocalName Partitions
   appendLocalNames(Xml.URI, XML_InitialValues);
@@ -232,6 +235,7 @@ void StringTable::createInitialEntries(bool UsesSchema) {
     // TODO: When a schema is provided, prepopulate with the LocalName of each
     // attribute, element and type explicitly declared in the schema.
     auto Xsd = createURI(XSD_URI);
+    this->Pfx_xsd = Xsd.Pfx;
     appendLocalNames(Xsd.URI, XSD_InitialValues);
   }
 }
