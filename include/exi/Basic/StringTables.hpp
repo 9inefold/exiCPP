@@ -53,6 +53,7 @@
 #include <exi/Basic/Except.hpp>
 #include <type_traits>
 
+// FIXME: Split StringTables into separate files...
 // TODO: Refactor to use embedded counters with RTTI handles
 // TODO: Replace some assertions with Throw(...)?
 

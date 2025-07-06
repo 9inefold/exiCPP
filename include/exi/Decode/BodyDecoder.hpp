@@ -31,7 +31,7 @@
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/ExiHeader.hpp>
-#include <exi/Basic/StringTables.hpp>
+#include <exi/Decode/StringTable.hpp>
 #include <exi/Decode/HeaderDecoder.hpp>
 // #include <exi/Decode/Serializer.hpp>
 #include <exi/Decode/UnifyBuffer.hpp>

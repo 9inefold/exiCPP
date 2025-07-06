@@ -21,7 +21,7 @@
 ///
 //===----------------------------------------------------------------===//
 
-#include <exi/Basic/StringTables.hpp>
+#include <exi/Decode/StringTable.hpp>
 #include <core/Common/Twine.hpp>
 #include <core/Support/ErrorHandle.hpp>
 #include <core/Support/Logging.hpp>
