@@ -195,20 +195,34 @@ const QualName* StringTable::internQualName(u32 URI, StrRef LocalName) {
   return X(NameCache.saveRaw(Storage.str()));
 }
 
-NSContext StringTable::createURI(CachedHashStrRef URI, Option<StrRef> Pfx) {
+std::pair<StringTable::URIEntry*, bool>
+ StringTable::createURIOnly(CachedHashStrRef URI) {
+  auto [It, DidInsert] = URIMap->try_emplace(URI);
+  if (DidInsert) {
+    URIMap.recalculateLog();
+    // Since the URI was already inserted, decrement.
+    const u32 NewURI = URIMap->size() - 1;
+    if EXI_NEVER(NewURI > kURIMax)
+      Throw<range_error>("Exceeded the maximum number of URIs!");
+    It->second.URI = NewURI;
+  }
+  return {&*It, DidInsert};
+}
+
+NSContext StringTable::createURI(CachedHashStrRef URI,
+                                 Option<CachedHashStrRef> Pfx) {
   XEntry<URIEntry> UEntry = createURIOnly(URI);
   NSContext Ctx(UEntry);
   if (!Pfx)
     return Ctx.Unbound();
 
-  auto [It, IsNewPfx] = PrefixMap.try_emplace(*Pfx);
-  Ctx.Prefix(&*It, IsNewPfx)
-     .Anonymous(&*It == Pfx_NIL);
+  auto [PI, IsNewPfx] = createPfxOnly(*Pfx);
+  Ctx.Prefix(PI, IsNewPfx).Anonymous(PI == Pfx_NIL);
   if (IsNewPfx) {
-    BindPrefixToNewURI(&It->second, UEntry.data());
+    BindPrefixToNewURI(&PI->second, UEntry.data());
     return Ctx;
   } else {
-    pushURIContext(&*It, UEntry.data());
+    pushURIContext(PI, UEntry.data());
     return Ctx.Overwrite(true);
   }
 }

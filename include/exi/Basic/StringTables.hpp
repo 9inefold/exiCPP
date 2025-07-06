@@ -1188,18 +1188,7 @@ private:
   const QualName* internQualName(u32 URI, StrRef LocalName);
 
   /// Gets a new `(URI*, IsNewURI)` from a URI.
-  std::pair<URIEntry*, bool> createURIOnly(CachedHashStrRef URI) {
-    auto [It, DidInsert] = URIMap->try_emplace(URI);
-    if (DidInsert) {
-      URIMap.recalculateLog();
-      // Since the URI was already inserted, decrement.
-      const u32 NewURI = URIMap->size() - 1;
-      if EXI_NEVER(NewURI > kURIMax)
-        Throw<range_error>("Exceeded the maximum number of URIs!");
-      It->second.URI = NewURI;
-    }
-    return {&*It, DidInsert};
-  }
+  std::pair<URIEntry*, bool> createURIOnly(CachedHashStrRef URI);
   /// Gets a new `(URI*, IsNewURI)` from a URI.
   std::pair<URIEntry*, bool> createURIOnly(StrRef URI) {
     /// Hash needs to be computed anyways, skip a step...
@@ -1207,10 +1196,21 @@ private:
   }
 
   /// Gets a new (URI*, Pfx*?) pair from a URI and Prefix.
-  NSContext createURI(CachedHashStrRef URI, Option<StrRef> Pfx = std::nullopt);
+  NSContext createURI(CachedHashStrRef URI,
+                      Option<CachedHashStrRef> Pfx = std::nullopt);
   /// Gets a new (URI*, Pfx*?) pair from a URI and Prefix.
   NSContext createURI(StrRef URI, Option<StrRef> Pfx = std::nullopt) {
-    return createURI(prehash(URI), Pfx);
+    return createURI(prehash(URI), Pfx.transform([](StrRef S) {
+      return StringTable::prehash(S);
+    }));
+  }
+
+  std::pair<PrefixEntry*, bool> createPfxOnly(CachedHashStrRef Pfx) {
+    CheckIsValidPrefix(Pfx);
+    if (GetEmptyHashString().equals(Pfx))
+      return {Pfx_NIL, false};
+    auto [It, IsNewPfx] = PrefixMap.try_emplace(Pfx);
+    return {&*It, IsNewPfx};
   }
   
   // Add other stuff...
