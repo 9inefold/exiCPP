@@ -103,15 +103,16 @@ void StringTable::setup(const ExiOptions& Opts) {
 void StringTable::pushURIContext(PrefixEntry* EPfx, URIEntry* URI) {
   exi_invariant(EPfx);
   PrefixInfo& Pfx = *VOf(EPfx);
-
+  
   exi_assert(URI && Pfx.Link);
+  // FIXME: Do nothing if Pfx.Link == X(URI)
 #if EXI_INVARIANTS
   if EXI_NEVER(!Pfx.isSyncedWithURI()) {
     StrRef LinkName = Pfx.Link
       ? X(Pfx.Link)->getKey()
       : "<nullptr>";
     exi::format_fatal_error(
-      "Prefix '{}' is unset in URI \"{}\"!",
+      "Prefix '{}' is unset in current URI \"{}\"!",
         EPfx->getKey(), LinkName);
   }
 #endif
