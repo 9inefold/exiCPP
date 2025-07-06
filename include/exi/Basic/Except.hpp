@@ -27,6 +27,12 @@
 
 namespace exi {
 
+/// Thrown for invalid arguments.
+class argument_error : public std::runtime_error {
+public:
+  using std::runtime_error::runtime_error;
+};
+
 /// Thrown for known uninitialized values.
 class uninit_error : public std::runtime_error {
 public:
