@@ -950,18 +950,23 @@ public:
   /// The signature will have to change when schemas are introduced.
   void setup(const ExiOptions& Opts);
 
-  static CachedHashStrRef GetEmptyHashString() {
-    static CachedHashStrRef S
-      = CachedHashStrRef(""_str);
-    return S;
-  }
-
   static CachedHashStrRef prehash(StrRef S) {
     // TODO: Profile
     if (S.empty())
       return GetEmptyHashString();
     const u32 Hash = StringMapImpl::hash(S);
     return CachedHashStrRef(S, Hash);
+  }
+  ALWAYS_INLINE static CachedHashStrRef
+   prehash(CachedHashStrRef S) { return S; }
+
+  static CachedHashStrRef GetEmptyHashString() {
+    static CachedHashStrRef S = prehash(""_str);
+    return S;
+  }
+  static CachedHashStrRef GetXMLNSHashString() {
+    static CachedHashStrRef S = prehash("xmlns"_str);
+    return S;
   }
 
   EXI_INLINE static StrRef GetURI(const STURIEntry* Entry) {
@@ -1075,6 +1080,14 @@ private:
   ////////////////////////////////////////////////////////////////////////
   // Prefixes
 
+  /// Checks if a prefix is valid.
+  void CheckIsValidPrefix(CachedHashStrRef Pfx) const {
+    if EXI_NEVER(GetXMLNSHashString().equals(Pfx))
+      Throw<argument_error>("'xmlns' is not a valid prefix!");
+    // TODO: Add other prefix validity checks?
+  }
+
+  /// Binds prefix to a uri it isn't already bound to.
   static u16 BindPrefixToNewURI(PrefixInfo* Pfx, URIEntry* URI) {
     exi_invariant(Pfx->Link != X(URI),
                  "Prefix has already been mapped to this URI.");
