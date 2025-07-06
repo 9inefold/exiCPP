@@ -535,7 +535,7 @@ class StringTable {
   // TODO: Figure out if necessary?
   exi::UniqueStringSaver NameCache;
 
-  /// These are before everything else as they cause an ICE on Clang otherwise.
+  /// These function are before everything else, as they cause an ICE on Clang.
   /// ^ For "good" reason, it's used before auto can be deduced.
 
   /// Equivalent to invoking `(VOf ∘ X)(Val)`.
@@ -898,6 +898,35 @@ private:
   // See VOfX(auto&&) further up...
   // See XUnmap(auto*) further up...
 
+  /// Gets the type mapping `X(T) -> XType`.
+  template <typename T>
+  using XType = std::remove_reference_t<
+    decltype(StringTable::X(std::declval<T&>()))>;
+  
+  /// Type used for new entries into the table.
+  template <typename T> class XEntry {
+    using type = std::remove_const_t<T>;
+    using x_type = XType<T>;
+    static_assert(!is_opaque_handle<type>,
+                  "Real type must be used!");
+    T* Data = nullptr;
+    bool Inserted = false;
+
+  public:
+    explicit XEntry(T* Data, bool In = false) : Data(Data), Inserted(In) {}
+    explicit XEntry(x_type* Data, bool In = false) : XEntry(X(Data), In) {}
+
+    template <typename U> requires std::convertible_to<U*, T*>
+    XEntry(std::pair<U*, bool> V) : XEntry(V.first, V.second) {}
+
+    template <typename U> requires std::convertible_to<U*, x_type*>
+    XEntry(std::pair<U*, bool> V) : XEntry(X(V.first), V.second) {}
+
+    T* data() const { return Data; }
+    x_type* xdata() const { return X(Data); }
+    bool inserted() const { return Inserted; }
+  };
+
 public:
   StringTable();
   StringTable(const ExiOptions& Opts) : StringTable() {
@@ -935,11 +964,11 @@ public:
   // Setters
 
   /// The result of entring a Namespace context.
-  struct NSContext {
-    template <class EntryT>
-    using EntryType = std::pair<EntryT*, bool>;
+  /// TODO: Use PointerIntUnion + enums to pack better?
+  class NSContext {
+    friend class StringTable;
     /// The URI.
-    STURIEntry* URI = nullptr;
+    URIEntry* URI = nullptr;
     /// The OPTIONAL Prefix value.
     PrefixEntry* Pfx = nullptr;
     /// If this is a newly inserted URI.
@@ -947,24 +976,75 @@ public:
     /// If this is a newly inserted Prefix.
     bool NewPfx : 1 = false;
     /// If this is an anonymous namespace.
-    bool Anonymous : 1 = false;
+    bool IsAnonymous : 1 = false;
     /// If this overwrites an existing context.
-    bool Overwrites : 1 = false;
-  
+    bool IsOverwrite : 1 = false;
+
+    Option<bool> isSelfAnonymous() const {
+      if (Pfx == nullptr)
+        return std::nullopt;
+      return Pfx->getKey().empty();
+    }
+    bool isAnonymousForAssert(bool Val) const {
+      if (auto Chk = isSelfAnonymous())
+        return *Chk = Val;
+      return true;
+    }
+
   public:
-    /// Creates a new unbound NSContext.
-    EXI_COLD static NSContext Unbound(EntryType<URIEntry> URI);
-    /// Creates a new NSContext.
-    static NSContext New(EntryType<URIEntry> URI, EntryType<PrefixEntry> Pfx);
-    /// Creates a NSContext that overwrote an old one.
-    EXI_COLD static NSContext Overwrite(EntryType<URIEntry> URI,
-                                        EntryType<PrefixEntry> Pfx);
-  private:
-    // HACK: Work on uri()
-    friend class StringTable;
-    URIEntry* uri() const { return X(URI); }
+    NSContext(URIEntry* URI, bool NewURI) :
+     URI(URI), NewURI(NewURI) {
+      exi_assert(URI != nullptr);
+    }
+    explicit NSContext(XEntry<URIEntry> Val) :
+     NSContext(Val.data(), Val.inserted()) {
+    }
+    NSContext& Prefix(PrefixEntry* Pfx, bool NewPfx) {
+      exi_assert(Pfx != nullptr);
+      exi_invariant(this->unbound());
+      this->Pfx = Pfx;
+      this->NewPfx = NewPfx;
+      return *this;
+    }
+    NSContext& Prefix(XEntry<PrefixEntry> Val) {
+      return Prefix(Val.data(), Val.inserted());
+    }
+    NSContext& Unbound(bool Val = true) {
+      exi_invariant(unbound() == Val);
+      return *this;
+    }
+    NSContext& Anonymous(bool Val) {
+      exi_invariant(isAnonymousForAssert(Val),
+                   "Input value does not match prefix!");
+      this->IsAnonymous = Val;
+      return *this;
+    }
+    NSContext& Overwrite(bool Val = true) {
+      this->IsOverwrite = Val;
+      return *this;
+    }
+
+    /// Gets the URI.
+    STURIEntry* uri() const { return X(URI); }
+    /// Gets the OPTIONAL Prefix.
+    STPrefixEntry* pfx() const { return X(Pfx); }
+    /// Gets the URI's string value.
+    StrRef uriName() const { return URI->getKey(); }
+    /// Gets the Prefix's string value, if available.
+    StrRef pfxName() const { return Pfx ? Pfx->getKey() : ""_str; }
+    /// Is an unbound URI?
+    bool unbound() const { return !Pfx; }
+    /// Is a newly inserted URI?
+    bool newUri() const { return NewURI; }
+    /// Is a newly inserted Prefix?
+    bool newPfx() const { return NewPfx; }
+    /// Is an anonymous (unnamed) namespace?
+    bool anonymous() const { return IsAnonymous; }
+    /// Does the Prefix overwrite an existing URI mapping?
+    bool overwrite() const { return IsOverwrite; }
   };
 
+  /// For declaring namespaces in a schema.
   NSContext declareURI(StrRef URI) {
     return createURI(prehash(URI), std::nullopt);
   }

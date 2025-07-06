@@ -41,7 +41,7 @@
 using namespace exi;
 
 using NameMapping = encode::StringTable::NameMapping;
-using NSContext = encode::StringTable::NSContext;
+using NSContext   = encode::StringTable::NSContext;
 
 namespace {
 enum : u64 { kDefaultReserveSize = 64 };
@@ -63,29 +63,6 @@ static const Option<String&> PullSchemaID(const Option<MaybeBox<String>>& ID) {
 
 namespace exi::encode {
 
-EXI_COLD NSContext NSContext::Unbound(NSContext::EntryType<URIEntry> URI) {
-  return NSContext {
-    .URI      = X(URI.first),
-    .NewURI   = URI.second
-  };
-}
-NSContext NSContext::New(NSContext::EntryType<URIEntry> URI,
-                         NSContext::EntryType<PrefixEntry> Pfx) {
-  return NSContext {
-    .URI        = X(URI.first),
-    .Pfx        = Pfx.first,
-    .NewURI     = URI.second,
-    .NewPfx     = Pfx.second,
-    .Anonymous  = Pfx.first->getKey().empty()
-  };
-}
-EXI_COLD NSContext NSContext::Overwrite(NSContext::EntryType<URIEntry> URI,
-                                        NSContext::EntryType<PrefixEntry> Pfx) {
-  NSContext Out = NSContext::New(URI, Pfx);
-  Out.Overwrites = true;
-  return Out;
-}
-
 //===----------------------------------------------------------------===//
 // Encoding
 //===----------------------------------------------------------------===//
@@ -106,6 +83,7 @@ void StringTable::setup(const ExiOptions& Opts) {
   createInitialEntries(UsesSchema);
   if (UsesSchema) {
     // TODO: Reserve for schema.
+    exi_todo("schemas are currently unsupported.");
     // SchemaResolver[*ID]->getExtraEntryCount();
   }
 
@@ -218,19 +196,20 @@ const QualName* StringTable::internQualName(u32 URI, StrRef LocalName) {
 }
 
 NSContext StringTable::createURI(CachedHashStrRef URI, Option<StrRef> Pfx) {
-  auto [UE, IsNewURI] = createURIOnly(URI);
+  XEntry<URIEntry> UEntry = createURIOnly(URI);
+  NSContext Ctx(UEntry);
   if (!Pfx)
-    return NSContext::Unbound({UE, IsNewURI});
+    return Ctx.Unbound();
 
   auto [It, IsNewPfx] = PrefixMap.try_emplace(*Pfx);
+  Ctx.Prefix(&*It, IsNewPfx)
+     .Anonymous(&*It == Pfx_NIL);
   if (IsNewPfx) {
-    BindPrefixToNewURI(&It->second, UE);
-    return NSContext::New(
-      {UE, IsNewURI}, {&*It, IsNewPfx});
+    BindPrefixToNewURI(&It->second, UEntry.data());
+    return Ctx;
   } else {
-    pushURIContext(&*It, UE);
-    return NSContext::Overwrite(
-      {UE, IsNewURI}, {&*It, IsNewPfx});
+    pushURIContext(&*It, UEntry.data());
+    return Ctx.Overwrite(true);
   }
 }
 
@@ -239,20 +218,21 @@ NSContext StringTable::createURI(CachedHashStrRef URI, Option<StrRef> Pfx) {
 
 void StringTable::createInitialEntries(bool UsesSchema) {
   // D.1 & D.2 - Initial Entries in Uri & Prefix Partition
+  // FIXME: Move these to the constructor?
   auto Nil = createURI(""_str,  ""_str);
   auto Xml = createURI(XML_URI, "xml"_str);
   auto Xsi = createURI(XSI_URI, "xsi"_str);
   // TODO: Setup predefined URIs
 
   // D.3 - Initial Entries in LocalName Partitions
-  appendLocalNames(Xml.uri(), XML_InitialValues);
-  appendLocalNames(Xsi.uri(), XSI_InitialValues);
+  appendLocalNames(Xml.URI, XML_InitialValues);
+  appendLocalNames(Xsi.URI, XSI_InitialValues);
 
   if (UsesSchema) {
     // TODO: When a schema is provided, prepopulate with the LocalName of each
     // attribute, element and type explicitly declared in the schema.
     auto Xsd = createURI(XSD_URI);
-    appendLocalNames(Xsd.uri(), XSD_InitialValues);
+    appendLocalNames(Xsd.URI, XSD_InitialValues);
   }
 }
 
