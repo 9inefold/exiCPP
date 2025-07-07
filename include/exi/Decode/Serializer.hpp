@@ -105,15 +105,13 @@ public:
   // TODO: Make typed AT variants that forward to normal AT by default.
 
   /// Namespace Declaration
-  // TODO: Fix signature, non-local NS will refer back to another prefix.
-  virtual ExiError NS(StrRef URI, StrRef Prefix, bool LocalElementNS) {
+  virtual ExiError NS(StrRef URI, StrRef Prefix) {
     return ExiError::OK;
   }
 
-  /// Namespace Declaration
-  // TODO: Fix signature, non-local NS will refer back to another prefix.
-  virtual ExiError NS(StrRef URI, StrRef Prefix, bool LocalElementNS, u64 ID) {
-    return this->NS(URI, Prefix, LocalElementNS);
+  /// Namespace Declaration - Local
+  virtual ExiError NS_Local(StrRef URI, StrRef Prefix, u64 ID) {
+    return this->NS(URI, Prefix);
   }
 
   /// Characters

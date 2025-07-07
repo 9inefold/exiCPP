@@ -25,6 +25,7 @@
 
 #include <core/Common/Twine.hpp>
 #include <core/Support/raw_ostream.hpp>
+#include <exi/Basic/Except.hpp>
 #include <exi/Basic/XMLContainer.hpp>
 #include <exi/Decode/Serializer.hpp>
 
@@ -82,21 +83,23 @@ public:
   }
 
   /// Namespace Declaration
-  ExiError NS(StrRef URI, StrRef Prefix, bool LocalElementNS) override {
+  ExiError NS(StrRef URI, StrRef Prefix) override {
     const auto Name = QName::New(URI, Prefix, "xmlns"_str);
     this->Attr = allocAttr(Name, URI);
     Curr->append_attribute(Attr);
     return ExiError::OK;
   }
 
-  /// Namespace Declaration
-  ExiError NS(StrRef URI, StrRef Prefix, bool LocalElementNS, u64 ID) override {
-    if (hasUnboundPrefix() && UnboundURI == ID) {
-      // TODO: Verify this is correct?
-      StrRef FullName = intern(Prefix, Curr->name());
-      Curr->name(FullName);
-    }
-    return this->NS(URI, Prefix, LocalElementNS);
+  /// Namespace Declaration - Local
+  ExiError NS_Local(StrRef URI, StrRef Prefix, u64 ID) override {
+    if EXI_NEVER(!hasUnboundPrefix())
+      Throw<argument_error>("local-name-ns set without valid SE!");
+    if EXI_UNLIKELY(UnboundURI != ID)
+      Throw<argument_error>("local-name-ns does not match SE URI!");
+    // TODO: Verify this is correct?
+    StrRef FullName = intern(Prefix, Curr->name());
+    Curr->name(FullName);
+    return this->NS(URI, Prefix);
   }
 
   /// Namespace Declaration
