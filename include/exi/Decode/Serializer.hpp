@@ -111,6 +111,12 @@ public:
   }
 
   /// Namespace Declaration
+  // TODO: Fix signature, non-local NS will refer back to another prefix.
+  virtual ExiError NS(StrRef URI, StrRef Prefix, bool LocalElementNS, u64 ID) {
+    return this->NS(URI, Prefix, LocalElementNS);
+  }
+
+  /// Characters
   virtual ExiError CH(StrRef Value) {
     return ExiError::OK;
   }

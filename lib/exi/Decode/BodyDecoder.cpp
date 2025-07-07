@@ -333,7 +333,7 @@ ExiError ExiDecoder::handleNS(Serializer* S, EventUID) {
   StrRef Pfx = Idents.getPrefix(Name.URI, Event.Prefix);
 
   LOG_EXTRA("Decoded NS");
-  return S->NS(URI, Pfx, Event.isLocal());
+  return S->NS(URI, Pfx, Event.isLocal(), Name.URI);
 }
 
 // Characters (value)

@@ -31,12 +31,13 @@
 namespace exi {
 
 // TODO: Definitely wanna do some caching here...
-class XMLSerializer : public Serializer {
+class XMLSerializer final : public Serializer {
   using enum xml::NodeKind;
 
   mutable XMLDocument Doc;
   XMLNode* Curr = nullptr;
   XMLAttribute* Attr = nullptr;
+  u64 UnboundURI = kInvalidPrefix;
 
 public:
   XMLSerializer() : Doc() {}
@@ -59,6 +60,7 @@ public:
   /// Start Element
   ExiError SE(QName Name) override {
     XMLNode* Node = allocNode(node_element, Name);
+    UnboundURI = Name.id();
     Curr->append_node(Node);
     Curr = Node;
     return ExiError::OK;
@@ -85,6 +87,16 @@ public:
     this->Attr = allocAttr(Name, URI);
     Curr->append_attribute(Attr);
     return ExiError::OK;
+  }
+
+  /// Namespace Declaration
+  ExiError NS(StrRef URI, StrRef Prefix, bool LocalElementNS, u64 ID) override {
+    if (hasUnboundPrefix() && UnboundURI == ID) {
+      // TODO: Verify this is correct?
+      StrRef FullName = intern(Prefix, Curr->name());
+      Curr->name(FullName);
+    }
+    return this->NS(URI, Prefix, LocalElementNS);
   }
 
   /// Namespace Declaration
@@ -128,6 +140,10 @@ public:
   bool needsPersistence() const override { return true; }
 
 private:
+  bool hasUnboundPrefix() const {
+    return Curr && UnboundURI != kInvalidLNI;
+  }
+
   XMLNode* allocNode(NodeKind Kind, QName Name) {
     StrRef FullName = getFullName(Name);
     return Doc.allocate_node(Kind,
@@ -164,11 +180,9 @@ private:
   }
 
   EXI_INLINE StrRef getFullName(const QName& Name) {
-    StrRef FullName = Name.getName();
-    if (Name.hasPrefix()) {
-      const StrRef Prefix = Name.getPrefix();
-      return intern(Prefix + Twine(':') + FullName);
-    }
+    StrRef FullName = Name.name();
+    if (Name.hasPrefix())
+      return intern(FullName, Name.pfx());
     return FullName;
   }
 
@@ -176,6 +190,10 @@ private:
     SmallStr<32> Data;
     StrRef Val = FullName.toStrRef(Data);
     return this->intern(Val);
+  }
+
+  inline StrRef intern(StrRef Prefix, StrRef Name) {
+    return intern(Prefix + Twine(':') + Name);
   }
 
   StrRef intern(StrRef FullName) {
