@@ -76,12 +76,6 @@ namespace xml {
 
 #ifdef RAPIDXML_NO_EXCEPTIONS
 
-# define RAPIDXML_PARSE_ERROR(what, where)                                     \
-do {                                                                           \
-  parse_error_handler(what, where);                                            \
-  exi_unreachable("'parse_error_handler' returned!");                          \
-} while(false)
-
 //! When exceptions are disabled by defining `RAPIDXML_NO_EXCEPTIONS`,
 //! this function is called to notify user about the error.
 //! It must be defined by the user.
@@ -99,9 +93,24 @@ do {                                                                           \
 //! \param where Pointer to character data where error was detected.
 void parse_error_handler(const char* what, void* where);
 
+/// Calls the user-defined error handler `parse_error_handler`.
+[[noreturn]] EXI_ERROR_CC inline void
+ HandleParseError(const char* What, void* Where) {
+  parse_error_handler(What, Where);
+  exi_unreachable("'parse_error_handler' returned!");
+}
+
 #else
-# define RAPIDXML_PARSE_ERROR(what, where) throw parse_error(what, where)
+
+/// Throws an `xml::parse_error`.
+[[noreturn]] EXI_ERROR_CC inline void
+ HandleParseError(const char* What, void* Where) {
+  throw parse_error(What, Where);
+}
+
 #endif // RAPIDXML_NO_EXCEPTIONS
+
+# define RAPIDXML_PARSE_ERROR(WHAT, WHERE) ::xml::HandleParseError(WHAT, WHERE)
 
 //! Forces the use of exceptions if `RAPIDXML_NO_EXCEPTIONS` is defined.
 //! Useful for testing.
@@ -714,9 +723,9 @@ protected:
   }
 
   Ch* m_name = nullptr;   // Name of node, or 0 if no name
-  usize m_name_size = 0;  // Length of node name, or undefined of no name
   Ch* m_value = nullptr;  // Value of node, or 0 if no value
-  usize m_value_size = 0; // Length of node value, or undefined if no value
+  u32 m_name_size = 0;    // Length of node name, or undefined of no name
+  u32 m_value_size = 0;   // Length of node value, or undefined if no value
   NodeType* m_parent = 0; // Pointer to parent node, or 0 if none
 };
 
