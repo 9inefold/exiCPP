@@ -81,7 +81,7 @@ public:
 
   /// Namespace Declaration
   ExiError NS(StrRef URI, StrRef Prefix, bool LocalElementNS) override {
-    const QName Name { .Name = Prefix, .Prefix = "xmlns"_str };
+    const auto Name = QName::New(URI, Prefix, "xmlns"_str);
     this->Attr = allocAttr(Name, URI);
     Curr->append_attribute(Attr);
     return ExiError::OK;

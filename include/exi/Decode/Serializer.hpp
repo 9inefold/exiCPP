@@ -28,22 +28,43 @@
 #include <core/Common/StrRef.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
+#include <exi/Basic/EventCodes.hpp>
 
 #define DEBUG_TYPE "BodyDecoder"
 
 namespace exi {
 
 class QName {
-public:
   // FIXME: Use more compact representation.
-  StrRef URI = "";
-  StrRef Name = "";
-  StrRef Prefix = "";
+  const char* URI = nullptr;
+  const char* Name = nullptr;
+  const char* Pfx = nullptr;
+  u32 URISize = 0;
+  u32 NameSize = 0;
+  u64 PfxSizeOrID = 0;
+
+  QName(StrRef URI, StrRef Name, usize ID) :
+   URI(URI.data()), Name(Name.data()), Pfx(nullptr),
+   URISize(URI.size()), NameSize(Name.size()), PfxSizeOrID(ID) {}
+
+  QName(StrRef URI, StrRef Name, StrRef Pfx) :
+   URI(URI.data()), Name(Name.data()), Pfx(Pfx.data()),
+   URISize(URI.size()), NameSize(Name.size()), PfxSizeOrID(Pfx.size()) {}
+
 public:
-  StrRef getURI() const { return URI; }
-  StrRef getName() const { return Name; }
-  StrRef getPrefix() const { return Prefix; }
-  bool hasPrefix() const { return !Prefix.empty(); }
+  static QName New(StrRef URI, StrRef Name, StrRef Pfx) {
+    return QName(URI, Name, Pfx);
+  }
+  static QName Unbound(StrRef URI, StrRef Name, u64 ID) {
+    return QName(URI, Name, ID);
+  }
+
+  StrRef uri() const { return {URI, URISize}; }
+  StrRef name() const { return {Name, NameSize}; }
+  StrRef pfx() const { return Pfx ? StrRef(Pfx, PfxSizeOrID) : "?"_str; }
+  u64 id() const { return EXI_ALWAYS(!Pfx) ? PfxSizeOrID : kInvalidPrefix; }
+  bool hasPrefix() const { return Pfx; }
+  bool hasID() const { return !Pfx; }
 };
 
 class Serializer {

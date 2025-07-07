@@ -305,7 +305,7 @@ ExiError ExiDecoder::handleEE(Serializer* S, EventUID Event) {
   }
 
   const QName Name = this->getQName(Event);
-  LOG_INFO(">> EE[{}:{}]\n", Name.Prefix, Name.Name);
+  LOG_INFO(">> EE[{}:{}]\n", Name.pfx(), Name.name());
   return S->EE(Name);
 }
 
@@ -391,21 +391,12 @@ ExiError ExiDecoder::handleER(Serializer* S) {
 QName ExiDecoder::getQName(EventUID Event) {
   exi_invariant(Event.hasQName());
   auto [URI, LocalName] = Idents.getQName(Event.Name);
-  if (!Event.hasPrefix()) {
-    return QName {
-      .URI = URI,
-      .Name = LocalName
-    };
-  }
-
+  if (!Event.hasPrefix())
+    return QName::Unbound(URI, LocalName, Event.getURI());
+  /// Full name found.
   StrRef Pfx = Idents.getPrefix(
-    Event.getURI(), Event.getPrefix()
-  );
-  return QName {
-    .URI = URI,
-    .Name = LocalName,
-    .Prefix = Pfx
-  };
+    Event.getURI(), Event.getPrefix());
+  return QName::New(URI, LocalName, Pfx);
 }
 
 StrRef ExiDecoder::getPfxOrURI(EventUID Event) {
