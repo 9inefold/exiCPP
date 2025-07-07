@@ -182,7 +182,7 @@ private:
   EXI_INLINE StrRef getFullName(const QName& Name) {
     StrRef FullName = Name.name();
     if (Name.hasPrefix())
-      return intern(FullName, Name.pfx());
+      return intern(Name.pfx(), FullName);
     return FullName;
   }
 
