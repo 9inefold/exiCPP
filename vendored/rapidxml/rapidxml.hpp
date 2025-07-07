@@ -133,15 +133,26 @@ namespace xml {
 //! Enumeration listing all node types produced by the parser.
 //! Use XMLNode::type() function to query node type.
 enum NodeKind : int {
-  node_document,    //!< A document node. Name and value are empty.
-  node_element,     //!< An element node. Name contains element name. Value contains Text of first data node.
-  node_data,        //!< A data node. Name is empty. Value contains data Text.
-  node_cdata,       //!< A CDATA node. Name is empty. Value contains data Text.
-  node_comment,     //!< A comment node. Name is empty. Value contains comment Text.
-  node_declaration, //!< A declaration node. Name and value are empty. Declaration parameters (version, encoding and standalone) are in node attributes.
-  node_doctype,     //!< A DOCTYPE node. Name is empty. Value contains DOCTYPE Text.
-  node_pi,          //!< A PI node. Name contains target. Value contains instructions.
+  node_document,    // A document node. Name and value are empty.
+  node_element,     // An element node. Name contains element name. Value contains Text of first data node.
+  node_data,        // A data node. Name is empty. Value contains data Text.
+  node_cdata,       // A CDATA node. Name is empty. Value contains data Text.
+  node_comment,     // A comment node. Name is empty. Value contains comment Text.
+  node_declaration, // A declaration node. Name and value are empty. Declaration parameters (version, encoding and standalone) are in node attributes.
+  node_doctype,     // A DOCTYPE node. Name is empty. Value contains DOCTYPE Text.
+  node_pi,          // A PI node. Name contains target. Value contains instructions.
   node_last
+};
+
+//! Enumeration listing all attribute types produced by the parser.
+//! Use XMLAttribute::idtype() function to query attribute type.
+enum IdentifierKind : unsigned {
+  IK_None     = 0b00'000, // An empty value.
+  IK_Name     = 0b00'001, // A `[ns]:[name]` value.
+  IK_XsiNil   = 0b00'010, // A `xsi:nil` value.
+  IK_XsiType  = 0b00'100, // A `xsi:type` value.
+  IK_AnonNS   = 0b01'000, // A `xmlns` value.
+  IK_NamedNS  = 0b10'000, // A `xmlns:[ns]` value.
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -279,80 +290,151 @@ constexpr int parse_full = parse_declaration_node | parse_all | parse_validate_c
 
 //! \cond internal
 namespace internal {
-  // Struct that contains lookup tables for the parser
-  // It must be a template to allow correct linking (because it has static data
-  // members, which are defined in a header file).
-  template <int Dummy> struct LookupTables {
-    static const u8 whitespace[256];            // Whitespace table
-    static const u8 node_name[256];             // Node name table
-    static const u8 Text[256];                  // Text table
-    static const u8 text_pure_no_ws[256];       // Text table
-    static const u8 text_pure_with_ws[256];     // Text table
-    static const u8 attribute_name[256];        // Attribute name table
-    static const u8 attribute_data_1[256];      // Attribute data table with single quote
-    static const u8 attribute_data_1_pure[256]; // Attribute data table with single quote
-    static const u8 attribute_data_2[256];      // Attribute data table with double quotes
-    static const u8 attribute_data_2_pure[256]; // Attribute data table with double quotes
-    static const u8 digits[256];                // Digits
-    static const u8 upcase[256];                // To uppercase conversion table for ASCII characters
-  };
+// Struct that contains lookup tables for the parser
+// It must be a template to allow correct linking (because it has static data
+// members, which are defined in a header file).
+template <int Dummy> struct LookupTables {
+  static const u8 whitespace[256];            // Whitespace table
+  static const u8 node_name[256];             // Node name table
+  static const u8 Text[256];                  // Text table
+  static const u8 text_pure_no_ws[256];       // Text table
+  static const u8 text_pure_with_ws[256];     // Text table
+  static const u8 attribute_name[256];        // Attribute name table
+  static const u8 attribute_data_1[256];      // Attribute data table with single quote
+  static const u8 attribute_data_1_pure[256]; // Attribute data table with single quote
+  static const u8 attribute_data_2[256];      // Attribute data table with double quotes
+  static const u8 attribute_data_2_pure[256]; // Attribute data table with double quotes
+  static const u8 digits[256];                // Digits
+  static const u8 upcase[256];                // To uppercase conversion table for ASCII characters
+};
 
-  template <class Ch> struct string_type {
-    using type = std::basic_string_view<Ch>;
-  };
+template <class Ch> struct string_type {
+  using type = std::basic_string_view<Ch>;
+};
 
-  template <> struct string_type<char> {
-    using type = exi::StrRef;
-  };
+template <> struct string_type<char> {
+  using type = exi::StrRef;
+};
 
 #if defined(__cpp_char8_t)
-  template <> struct string_type<char8_t> {
-    using type = exi::StrRef;
-  };
+template <> struct string_type<char8_t> {
+  using type = exi::StrRef;
+};
 #endif
 
-  template <class Ch>
-  using string_type_t = typename string_type<char>::type;
+template <class Ch>
+using string_type_t = typename string_type<char>::type;
 
-  // Find length of the string
-  template <class Ch> inline usize measure(const Ch* p) {
-    return std::char_traits<Ch>::length(p);
-  }
+// Find length of the string
+template <class Ch> inline usize measure(const Ch* p) {
+  return std::char_traits<Ch>::length(p);
+}
 
-  // Compare strings for equality
-  template <class Ch>
-  inline bool compare(const Ch* p1, usize size1, const Ch* p2, usize size2,
-                      bool CaseInsensitive) {
-    if (size1 != size2)
-      return false;
-    if (CaseInsensitive) {
-      for (const Ch* end = p1 + size1; p1 < end; ++p1, ++p2)
-        if (*p1 != *p2)
-          return false;
-    } else {
-      for (const Ch* end = p1 + size1; p1 < end; ++p1, ++p2)
-        if (LookupTables<0>::upcase[u8(*p1)] !=
-            LookupTables<0>::upcase[u8(*p2)])
-          return false;
-    }
-    return true;
+// Compare strings for equality
+template <class Ch>
+inline bool compare(const Ch* p1, usize size1, const Ch* p2, usize size2,
+                    bool CaseInsensitive) {
+  if (size1 != size2)
+    return false;
+  if (CaseInsensitive) {
+    for (const Ch* end = p1 + size1; p1 < end; ++p1, ++p2)
+      if (*p1 != *p2)
+        return false;
+  } else {
+    for (const Ch* end = p1 + size1; p1 < end; ++p1, ++p2)
+      if (LookupTables<0>::upcase[u8(*p1)] !=
+          LookupTables<0>::upcase[u8(*p2)])
+        return false;
   }
+  return true;
+}
 
-  template <class Ch>
-  inline bool compare(std::basic_string_view<Ch> Str1,
-                      std::basic_string_view<Ch> Str2, bool CaseInsensitive) {
-    return internal::compare(
-      Str1.data(), Str1.size(),
-      Str2.data(), Str2.size(), CaseInsensitive);
-  }
+template <class Ch>
+inline bool compare(std::basic_string_view<Ch> Str1,
+                    std::basic_string_view<Ch> Str2, bool CaseInsensitive) {
+  return internal::compare(
+    Str1.data(), Str1.size(),
+    Str2.data(), Str2.size(), CaseInsensitive);
+}
 
-  inline bool compare(exi::StrRef Str1, exi::StrRef Str2, bool CaseInsensitive) {
-    if (not CaseInsensitive)
-      return Str1.compare(Str2) == 0;
-    return internal::compare(
-      Str1.data(), Str1.size(),
-      Str2.data(), Str2.size(), true);
+inline bool compare(exi::StrRef Str1, exi::StrRef Str2, bool CaseInsensitive) {
+  if (not CaseInsensitive)
+    return Str1.compare(Str2) == 0;
+  return internal::compare(
+    Str1.data(), Str1.size(),
+    Str2.data(), Str2.size(), true);
+}
+
+// Prefix checking.
+
+template <std::unsigned_integral Int, unsigned N>
+consteval Int Constant(const char(&Arr)[N]) {
+  static_assert(sizeof(Int) >= (N - 1));
+  return [&Arr] <unsigned...II> (std::integer_sequence<unsigned, II...>) {
+    return (... | (Int(Arr[II]) << (II * 8)));
+  } (std::make_integer_sequence<unsigned, N - 1>{});
+}
+
+template <std::unsigned_integral Int, unsigned Bytes = sizeof(Int)>
+ALWAYS_INLINE Int Load(const char* S) {
+  static_assert(sizeof(Int) >= Bytes);
+  static constexpr Int Mask = ~Int(0) >> ((sizeof(Int) - Bytes) * 8);
+  // FIXME: Uses ub. Also may not work on big endian.
+  return *reinterpret_cast<const Int*>(S) & Mask;
+}
+
+inline IdentifierKind VerifyTail_xmlns(const char* S, unsigned = 0) {
+  static constexpr u16 s_ = Constant<u16>("s:");
+  return EXI_LIKELY(Load<u16>(S + 4) == s_) ? IK_NamedNS : IK_Name;
+}
+
+inline IdentifierKind VerifyTail_xsi(const char* S, unsigned N) {
+  if (N == 7) {
+    constexpr u32 nil = Constant<u32>("nil");
+    if EXI_LIKELY(Load<u32, 3>(S + 4) == nil)
+      return IK_XsiNil;
+  } else if (N == 8) {
+    constexpr u32 type = Constant<u32>("type");
+    if EXI_LIKELY(Load<u32>(S + 4) == type)
+      return IK_XsiType;
   }
+  return IK_Name;
+}
+
+template <bool Exact = false>
+IdentifierKind Verify(const char* S, unsigned N) {
+  if constexpr (Exact) {
+    constexpr u64 xmlns = Constant<u64>("xmlns");
+    return (Load<u64, 5>(S) == xmlns) ? IK_AnonNS : IK_Name;
+  } else {
+    constexpr u32 xmln = Constant<u32>("xmln");
+    constexpr u32 xsi_ = Constant<u32>("xsi:");
+    const u32 Val = Load<u32>(S);
+    if (Val == xmln)
+      tail_return VerifyTail_xmlns(S, N);
+    else if (Val != xsi_)
+      return IK_Name;
+    else
+      tail_return VerifyTail_xsi(S, N);
+  }
+}
+
+inline IdentifierKind FastStringCheck(const char* S, unsigned N) {
+  if (N < 5)
+    return IK_Name;
+  if (N == 5)
+    tail_return Verify<true>(S, N);
+  else
+    tail_return Verify<false>(S, N);
+}
+
+template <typename Ch>
+ALWAYS_INLINE IdentifierKind fast_string_check(const Ch* S, unsigned N) {
+  static_assert(std::same_as<char, Ch>,
+    "Only normal characters are supported!");
+  return FastStringCheck(S, N);
+}
+
 } // namespace internal
 //! \endcond
 
@@ -724,9 +806,9 @@ protected:
 
   Ch* m_name = nullptr;   // Name of node, or 0 if no name
   Ch* m_value = nullptr;  // Value of node, or 0 if no value
+  NodeType* m_parent = 0; // Pointer to parent node, or 0 if none
   u32 m_name_size = 0;    // Length of node name, or undefined of no name
   u32 m_value_size = 0;   // Length of node value, or undefined if no value
-  NodeType* m_parent = 0; // Pointer to parent node, or 0 if none
 };
 
 //! Class representing attribute node of XML document.
@@ -738,6 +820,7 @@ protected:
 template <class Ch = char>
 class alignas(kAlignVal) XMLAttribute : public XMLBase<Ch> {
   friend class XMLNode<Ch>;
+  using BaseType = XMLBase<Ch>;
   RAPIDXML_ALIASES(Ch)
 public:
   ///////////////////////////////////////////////////////////////////////////
@@ -746,7 +829,22 @@ public:
   //! Constructs an empty attribute with the specified type.
   //! Consider using MemoryPool of appropriate XMLDocument if allocating
   //! attributes manually.
-  XMLAttribute() {}
+  XMLAttribute() = default;
+
+  XMLAttribute(const Ch* Name, usize Size) :
+   m_kind(internal::fast_string_check<Ch>(Name, Size)) {
+    BaseType::name(Name, Size);
+  }
+
+  using BaseType::name;
+
+  void name(const Ch* Name, usize Size) {
+    BaseType::name(Name, Size);
+    m_kind = internal::fast_string_check<Ch>(Name, Size);
+  }
+
+  IdentifierKind idkind() const { return m_kind; }
+  unsigned idrank() const { return unsigned(m_kind); }
 
   ///////////////////////////////////////////////////////////////////////////
   // Related nodes access
@@ -817,6 +915,7 @@ public:
 private:
   AttrType* m_prev_attribute; // Pointer to previous sibling of attribute, or 0 if none; only valid if parent is non-zero
   AttrType* m_next_attribute; // Pointer to next sibling of attribute, or 0 if none; only valid if parent is non-zero
+  IdentifierKind m_kind = IK_None;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -840,7 +939,7 @@ public:
   //! Constructs an empty node with the specified type.
   //! Consider using MemoryPool of appropriate document to allocate nodes
   //! manually. \param type Type of node to construct.
-  XMLNode(NodeKind type) : m_type(type), m_first_node(0), m_first_attribute(0) {}
+  XMLNode(NodeKind type) : m_first_node(0), m_first_attribute(0), m_type(type) {}
 
   ///////////////////////////////////////////////////////////////////////////
   // Node data access
@@ -1257,13 +1356,13 @@ private:
   // 3. prev_sibling and next_sibling are valid only if node has a parent,
   // otherwise they contain garbage
 
-  NodeKind m_type;           // Type of node; always valid
   NodeType* m_first_node; // Pointer to first child node, or 0 if none; always valid
   NodeType* m_last_node;  // Pointer to last child node, or 0 if none; this value is only valid if m_first_node is non-zero
   AttrType* m_first_attribute; // Pointer to first attribute of node, or 0 if none; always valid
   AttrType* m_last_attribute; // Pointer to last attribute of node, or 0 if none; this value is only valid if m_first_attribute is non-zero
   NodeType* m_prev_sibling; // Pointer to previous sibling of node, or 0 if none; this value is only valid if m_parent is non-zero
   NodeType* m_next_sibling; // Pointer to next sibling of node, or 0 if none; this value is only valid if m_parent is non-zero
+  NodeKind  m_type;          // Type of node; always valid
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -2051,7 +2150,12 @@ private:
       // Create new attribute
       AttrType* attribute = this->allocate_attribute();
       attribute->name(name, Text - name);
-      node->append_attribute(attribute);
+
+      if (attribute->idkind() == IK_Name)
+        node->append_attribute(attribute);
+      else
+        // Throw it in front, should make sorting a bit faster.
+        node->prepend_attribute(attribute);
 
       // Skip whitespace after attribute name
       skip<whitespace_pred, Flags>(Text);
