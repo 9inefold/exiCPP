@@ -843,8 +843,8 @@ public:
     m_kind = internal::fast_string_check<Ch>(Name, Size);
   }
 
-  IdentifierKind idkind() const { return m_kind; }
-  unsigned idrank() const { return unsigned(m_kind); }
+  IdentifierKind id_kind() const { return m_kind; }
+  unsigned id_rank() const { return unsigned(m_kind); }
 
   ///////////////////////////////////////////////////////////////////////////
   // Related nodes access
@@ -2151,7 +2151,7 @@ private:
       AttrType* attribute = this->allocate_attribute();
       attribute->name(name, Text - name);
 
-      if (attribute->idkind() == IK_Name)
+      if (attribute->id_kind() == IK_Name)
         node->append_attribute(attribute);
       else
         // Throw it in front, should make sorting a bit faster.
