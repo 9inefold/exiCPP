@@ -107,8 +107,8 @@ void XMLContainer::setEntry(const MapEntry& ME, Option<XMLKind> Kind) {
   if (this->isParsed()) {
 #if EXI_LOGGING
     if (const auto* Entry = this->ME)
-      LOG_ERROR("The XMLContainer '{}' "
-                "has already been parsed!", Entry->getKey());
+      LOG_WARN("The XMLContainer '{}' "
+               "has already been parsed!", Entry->getKey());
 #endif
     return;
   }
