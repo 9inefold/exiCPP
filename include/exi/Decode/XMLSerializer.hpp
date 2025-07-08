@@ -86,7 +86,7 @@ public:
   ExiError NS(StrRef URI, StrRef Prefix) override {
     const auto Name = QName::New(URI, Prefix, "xmlns"_str);
     this->Attr = allocAttr(Name, URI);
-    Curr->append_attribute(Attr);
+    Curr->prepend_attribute(Attr);
     return ExiError::OK;
   }
 
