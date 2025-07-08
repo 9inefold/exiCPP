@@ -27,6 +27,8 @@
 
 namespace exi {
 
+using std::runtime_error;
+
 /// Thrown for invalid arguments.
 class argument_error : public std::runtime_error {
 public:
