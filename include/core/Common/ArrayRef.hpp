@@ -175,6 +175,9 @@ DIAGNOSTIC_POP()
   /// size - Get the array size.
   usize size() const { return Length; }
 
+  /// size - Get the array size in bytes.
+  usize size_in_bytes() const { return Length * sizeof(T); }
+
   /// front - Get the first element.
   const T &front() const {
     assert(!empty());
