@@ -63,6 +63,8 @@
 namespace exi {
 
 struct ExiOptions;
+namespace decode { class StringTable; }
+namespace encode { class StringTable; }
 
 //===----------------------------------------------------------------===//
 // Decoding
@@ -70,8 +72,6 @@ struct ExiOptions;
 
 /// Defines utilities for decoding EXI.
 namespace decode {
-
-class StringTable;
 
 /// For single associations.
 using IDPair = std::pair<StrRef, CompactID>;
@@ -444,11 +444,11 @@ private:
 /// Defines utilities for encoding EXI.
 namespace encode {
 
-class StringTable;
+using TableBumpAllocator = exi::BumpPtrAllocator;
 
 template <typename Value, bool IsOwned = false>
 using BumpStringMap = StringMap<Value,
-  std::conditional_t<IsOwned, BumpPtrAllocator, BumpPtrAllocator&>>;
+  std::conditional_t<IsOwned, TableBumpAllocator, TableBumpAllocator&>>;
 
 /// Allows `CachedHashStrRef`s to be implicitly constructed. Since we use them
 /// internally, it makes passing arguments simpler.
@@ -537,8 +537,9 @@ public:
 /// The string table used for encoding. Assumes all inputs it recieves are valid.
 /// TODO: Check if we can get a more optimal memory layout.
 class StringTable {
+  friend class exi::NamespaceContextStack;
   /// The allocator shared internally.
-  mutable exi::BumpPtrAllocator Alloc;
+  mutable TableBumpAllocator Alloc;
   /// Used to unique strings for lookup.
   // TODO: Figure out if necessary?
   exi::UniqueStringSaver NameCache;
