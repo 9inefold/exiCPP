@@ -24,6 +24,7 @@
 #include <Support/MemoryBuffer.hpp>
 #include <Support/ScopedSave.hpp>
 #include <Support/raw_ostream.hpp>
+#include <exi/Basic/Except.hpp>
 #include <exi/Basic/XMLManager.hpp>
 #include <exi/Basic/XMLContainer.hpp>
 #include <algorithm>
@@ -291,41 +292,37 @@ void XMLDumper::printAttr(const XMLAttribute* Attr) {
   putString(Attr->value());
 }
 
-static bool SortAttrsQName(const XMLAttribute* LHS, const XMLAttribute* RHS) {
-  exi_invariant(LHS && RHS);
-  StrRef LHS_FullName = LHS->name(), RHS_FullName = RHS->name();
-  
-  const bool LHS_xmlns = LHS_FullName.starts_with("xmlns");
-  if (LHS_xmlns && LHS_FullName.size() == 5)
-    return false;
-  
-  const bool RHS_xmlns = RHS_FullName.starts_with("xmlns");
-  if (RHS_xmlns && RHS_FullName.size() == 5)
-    return true;
+static bool SortAttrsXmlns(const XMLAttribute* LHS, const XMLAttribute* RHS) {
+  StrRef LHS_NS = LHS->name().drop_front(6),
+         RHS_NS = RHS->name().drop_front(6);
+  return (LHS_NS < RHS_NS);
+}
 
-  auto [LHSNs, LHSName] = XMLDumper::SplitNodeName(LHS_FullName);
-  auto [RHSNs, RHSName] = XMLDumper::SplitNodeName(RHS_FullName);
-  
+static bool SortAttrsNormal(const XMLAttribute* LHS, const XMLAttribute* RHS) {
+  auto [LHSNs, LHSName] = XMLDumper::SplitNodeName(LHS->name());
+  auto [RHSNs, RHSName] = XMLDumper::SplitNodeName(RHS->name());
   const int NsCmp = LHSNs.compare(RHSNs);
-  if (NsCmp == 0) {
+  if (NsCmp == 0)
     // Same namespace.
-    if (LHSNs == "xsi")
-      return (LHSName != "type");
     return (LHSName < RHSName);
-  }
-  
-  // Namespaces are different.
-  if (LHS_xmlns || RHS_xmlns)
-    // Check our cached xmlns lookup.
-    return RHS_xmlns;
-  
-  if (LHSNs == "xsi")
-    return false;
-  if (RHSNs == "xsi")
-    return true;
-  
   // Return if less than in cached check.
   return (NsCmp < 0);
+}
+
+static bool SortAttrsQName(const XMLAttribute* LHS, const XMLAttribute* RHS) {
+  exi_invariant(LHS && RHS);
+  if (LHS->id_rank() != RHS->id_rank())
+    return LHS->id_rank() < RHS->id_rank();
+  
+  using enum xml::IdentifierKind;
+  switch (LHS->id_rank()) {
+    case IK_Name:
+      tail_return SortAttrsNormal(LHS, RHS);
+    case IK_NamedNS:
+      tail_return SortAttrsXmlns(LHS, RHS);
+    default:
+      exi::Throw<argument_error>("Invalid IdentifierKind!");
+  }
 }
 
 static bool SortAttrs(const XMLNode* Node,
@@ -340,17 +337,15 @@ static bool SortAttrs(const XMLNode* Node,
   }
   
   std::sort(Attrs.begin(), Attrs.end(),
-  [] (auto LHS, auto RHS) -> bool {
-    bool Result;
-    INLINE_STMT Result = SortAttrsQName(LHS, RHS);
-    return !Result;
+  [] (auto* LHS, auto* RHS) -> bool {
+    return !SortAttrsQName(LHS, RHS);
   });
   
   return true;
 }
 
 void XMLDumper::printAttrs(NodeT Node) {
-  SmallVec<const XMLAttribute*> Attrs;
+  SmallVec<const XMLAttribute*, 16> Attrs;
   if (!SortAttrs(Node, Attrs))
     return;
   for (auto*& Attr : Attrs) {
