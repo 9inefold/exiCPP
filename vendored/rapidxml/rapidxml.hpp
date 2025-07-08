@@ -1242,7 +1242,7 @@ public:
   //! \param attribute Attribute to append.
   void append_attribute(AttrType* attribute) {
     assert(attribute && !attribute->parent());
-    if EXI_UNLIKELY(attribute && !attribute->parent())
+    if EXI_NEVER(!attribute || attribute->parent())
       return;
     if (first_attribute()) {
       attribute->m_prev_attribute = m_last_attribute;
