@@ -59,10 +59,12 @@ void tests_main(int Argc, char* Argv[]);
 void FullXMLDump(exi::XMLManager& Mgr,
                  const exi::Twine& Filepath,
                  exi::Option<exi::raw_ostream&> InOS = std::nullopt,
-                 bool DbgPrintTypes = false);
+                 bool DbgPrintTypes = false,
+                 bool Conforming = false);
 
 void FullXMLDump(exi::XMLDocument& Doc,
                  exi::Option<exi::raw_ostream&> InOS = std::nullopt,
-                 bool DbgPrintTypes = false);
+                 bool DbgPrintTypes = false,
+                 bool Conforming = false);
 
 } // namespace root

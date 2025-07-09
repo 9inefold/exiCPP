@@ -852,6 +852,19 @@ public:
   IdentifierKind id_kind() const { return m_kind; }
   unsigned id_rank() const { return unsigned(m_kind); }
 
+  bool is_name() const {
+    return id_rank() >= unsigned(IK_Name)
+        && id_rank() <= unsigned(IK_XsiType);
+  }
+  bool is_xsi() const {
+    return id_kind() == IK_XsiNil
+        || id_kind() == IK_XsiType;
+  }
+  bool is_namespace() const {
+    return id_kind() == IK_AnonNS
+        || id_kind() == IK_NamedNS;
+  }
+
   ///////////////////////////////////////////////////////////////////////////
   // Related nodes access
 

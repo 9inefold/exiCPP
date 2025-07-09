@@ -20,6 +20,7 @@
 #include <Common/SmallStr.hpp>
 #include <Common/IntrusiveRefCntPtr.hpp>
 #include <Common/MMatch.hpp>
+#include <Common/STLExtras.hpp>
 #include <Support/Format.hpp>
 #include <Support/MemoryBuffer.hpp>
 #include <Support/ScopedSave.hpp>
@@ -46,6 +47,9 @@ public:
   using Colors = raw_ostream::Colors;
 
   bool DebugPrint = false;
+  /// If `true`, namespaces will be in document order.
+  /// Otherwise, namespaces will be in shortlex order.
+  bool ConformingSort = false;
 
   Colors COLOR_default = CYAN;
   Colors COLOR_name    = BRIGHT_CYAN;
@@ -115,6 +119,8 @@ private:
   void printName(NodeT Node);
   void printAttrName(const XMLAttribute* Attr);
   void printAttr(const XMLAttribute* Attr);
+  void printAttrsSlxOrd(NodeT Node); // Shortlex Order
+  void printAttrsDocOrd(NodeT Node); // Document Order
   void printAttrs(NodeT Node);
   void printDOCTYPEData(StrRef Data,
                         Option<raw_ostream&> IOS = std::nullopt);
@@ -326,18 +332,24 @@ static bool SortAttrsQName(const XMLAttribute* LHS, const XMLAttribute* RHS) {
 }
 
 static bool SortAttrs(const XMLNode* Node,
-                      SmallVecImpl<const XMLAttribute*>& Attrs) {
-  if (!XMLDumper::HasAttributes(Node))
-    return false;
-  
+                      SmallVecImpl<const XMLAttribute*>& Attrs,
+                      SmallVecImpl<const XMLAttribute*>* NS = nullptr) {
+  exi_invariant(XMLDumper::HasAttributes(Node));
+  bool HasSplitNS = NS && (&Attrs != NS);
+  if (NS == nullptr)
+    NS = &Attrs;
+
   auto* Curr = Node->first_attribute();
   while (Curr) {
-    Attrs.push_back(Curr);
+    if (Curr->is_name())
+      Attrs.push_back(Curr);
+    else
+      NS->push_back(Curr);
     Curr = Curr->next_attribute();
   }
 
   if (Attrs.size() <= 1)
-    return !Attrs.empty();
+    return !(Attrs.empty() && NS->empty());
   
   std::sort(Attrs.begin(), Attrs.end(),
   [] (auto* LHS, auto* RHS) -> bool {
@@ -347,16 +359,42 @@ static bool SortAttrs(const XMLNode* Node,
   return true;
 }
 
-void XMLDumper::printAttrs(NodeT Node) {
+void XMLDumper::printAttrsSlxOrd(NodeT Node) {
   SmallVec<const XMLAttribute*, 16> Attrs;
   if (!SortAttrs(Node, Attrs))
     return;
+  auto** Back = &Attrs.back();
   for (auto*& Attr : Attrs) {
     printAttr(Attr);
-    if (Attr == Attrs.back())
+    if (&Attr == Back)
       break;
     OS << ' ';
   }
+}
+void XMLDumper::printAttrsDocOrd(NodeT Node) {
+  using AttrT = const XMLAttribute*;
+  SmallVec<AttrT, 4> NS;
+  SmallVec<AttrT, 12> Attrs;
+  if (!SortAttrs(Node, Attrs, &NS))
+    return;
+  AttrT* Back = Attrs.empty()
+    ? &NS.back() : &Attrs.back();
+  for (auto*& Attr : exi::concat<AttrT>(NS, Attrs)) {
+    printAttr(Attr);
+    if (&Attr == Back)
+      break;
+    OS << ' ';
+  }
+}
+
+void XMLDumper::printAttrs(NodeT Node) {
+  if (!XMLDumper::HasAttributes(Node))
+    return;
+  
+  if (ConformingSort)
+    tail_return printAttrsDocOrd(Node);
+  else
+    tail_return printAttrsSlxOrd(Node);
 }
 
 void XMLDumper::printDOCTYPEData(StrRef Data, Option<raw_ostream&> IOS) {
@@ -597,7 +635,7 @@ static void HandleErr(XMLManager& Mgr, StrRef Name, raw_ostream& OS) {
 
 void root::FullXMLDump(exi::XMLDocument& Doc,
                        exi::Option<raw_ostream&> InOS,
-                       bool DbgPrintTypes) {
+                       bool DbgPrintTypes, bool Conforming) {
   raw_ostream& OutS = InOS.value_or(outs());
   const bool OSProvided = InOS.has_value();
 
@@ -609,6 +647,7 @@ void root::FullXMLDump(exi::XMLDocument& Doc,
   OS.enable_colors(outs().has_colors());
 
   XMLDumper Dumper(Doc, 2, OS);
+  Dumper.ConformingSort = Conforming;
   Dumper.DebugPrint = DbgPrintTypes;
   Dumper.dump(/*InitialIndent=*/ OSProvided ? 0 : 1);
 
@@ -620,7 +659,7 @@ void root::FullXMLDump(exi::XMLDocument& Doc,
 void root::FullXMLDump(exi::XMLManager& Mgr,
                        const exi::Twine& Filepath,
                        exi::Option<raw_ostream&> InOS,
-                       bool DbgPrintTypes) {
+                       bool DbgPrintTypes, bool Conforming) {
   SmallStr<80> Storage;
   StrRef Name = Filepath.toStrRef(Storage);
 
@@ -639,6 +678,7 @@ void root::FullXMLDump(exi::XMLManager& Mgr,
     OS.enable_colors(outs().has_colors());
 
     XMLDumper Dumper(*Doc, 2, OS);
+    Dumper.ConformingSort = Conforming;
     Dumper.DebugPrint = DbgPrintTypes;
     Dumper.dump(/*InitialIndent=*/ OSProvided ? 0 : 1);
 
