@@ -43,6 +43,7 @@
 #include <exi/Basic/StringTables.hpp>
 #include <exi/Basic/XMLManager.hpp>
 #include <exi/Basic/XMLContainer.hpp>
+#include <exi/Encode/NamespaceContextStack.hpp>
 #include <exi/Decode/BodyDecoder.hpp>
 #include <exi/Decode/XMLSerializer.hpp>
 #include <exi/Stream/OrderedReader.hpp>

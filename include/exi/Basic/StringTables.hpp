@@ -63,6 +63,7 @@
 namespace exi {
 
 struct ExiOptions;
+class NSContextStack;
 namespace decode { class StringTable; }
 namespace encode { class StringTable; }
 
@@ -537,7 +538,7 @@ public:
 /// The string table used for encoding. Assumes all inputs it recieves are valid.
 /// TODO: Check if we can get a more optimal memory layout.
 class StringTable {
-  friend class exi::NamespaceContextStack;
+  friend class exi::NSContextStack;
   /// The allocator shared internally.
   mutable TableBumpAllocator Alloc;
   /// Used to unique strings for lookup.
@@ -1074,6 +1075,13 @@ public:
   NSContext enterNamespace(ImplicitHashStrRef Pfx, ImplicitHashStrRef URI) {
     return createURI(URI, Pfx);
   }
+
+  /// When exiting a scoped namespace context.
+  void exitNamespace(STPrefixEntry* Pfx) {
+    exi_invariant(Pfx != nullptr);
+    return popURIContext(X(Pfx));
+  }
+  // TODO: Add method for normal users to access?
 
 private:
   // TODO: Finish design...

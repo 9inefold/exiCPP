@@ -95,6 +95,7 @@ include_items(EXICPP_SRC "lib/exi"
   Decode/StringTables.cpp
 
   Encode/HeaderEncoder.cpp
+  Encode/NamespaceContextStack.cpp
   Encode/StringTables.cpp
 
   Grammar/Grammar.cpp
