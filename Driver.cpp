@@ -108,20 +108,21 @@ static void HandleEscapeCodeSetup() {
   Process::UseUTF8Codepage(true);
 }
 
-static void RunDumps(XMLManager& Mgr) {
+static void RunDumps(XMLManager& Mgr, bool Conforming = false) {
   using namespace root;
-  FullXMLDump(Mgr, "examples/022.xml");
-  FullXMLDump(Mgr, "examples/044.xml");
-  FullXMLDump(Mgr, "examples/079.xml");
-  FullXMLDump(Mgr, "examples/085.xml");
-  FullXMLDump(Mgr, "examples/103.xml");
-  FullXMLDump(Mgr, "examples/116.xml");
-  FullXMLDump(Mgr, "examples/Namespace.xml");
-  FullXMLDump(Mgr, "examples/SortTest.xml");
-  FullXMLDump(Mgr, "examples/Thai.xml");
+  DumpOptions Opts {.Conforming = Conforming};
+  FullXMLDump(Mgr, "examples/022.xml", Opts);
+  FullXMLDump(Mgr, "examples/044.xml", Opts);
+  FullXMLDump(Mgr, "examples/079.xml", Opts);
+  FullXMLDump(Mgr, "examples/085.xml", Opts);
+  FullXMLDump(Mgr, "examples/103.xml", Opts);
+  FullXMLDump(Mgr, "examples/116.xml", Opts);
+  FullXMLDump(Mgr, "examples/Namespace.xml", Opts);
+  FullXMLDump(Mgr, "examples/SortTest.xml", Opts);
+  FullXMLDump(Mgr, "examples/Thai.xml", Opts);
 
   // Without prints this runs in 0.2 seconds!
-  // FullXMLDump(Mgr, "large-examples/treebank_e.xml");
+  // FullXMLDump(Mgr, "large-examples/treebank_e.xml", Opts);
 }
 
 static void TestSchema(StrRef Name, ExiOptions::PreserveOpts Preserve) {
@@ -261,7 +262,8 @@ int main(int Argc, char* Argv[]) {
 
   // Add https://www.w3.org/TR/xmlschema-0/#ipo.xsd
 
-  root::FullXMLDump(*Mgr, "examples/Namespace.xml");
+  root::DumpOptions DO {.Conforming = true};
+  root::FullXMLDump(*Mgr, "examples/Namespace.xml", DO);
   {
     using enum exi::PreserveKind;
     const StrRef File = "examples/NamespaceNooptB.exi";
@@ -289,7 +291,7 @@ int main(int Argc, char* Argv[]) {
     }
 
     outs() << "'" << File << "':\n";
-    root::FullXMLDump(S.document());
+    root::FullXMLDump(S.document(), DO);
   }
   
   WithColor OS(outs(), BRIGHT_GREEN);

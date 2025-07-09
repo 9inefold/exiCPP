@@ -54,6 +54,13 @@ public:
 
 namespace root {
 
+struct DumpOptions {
+  exi::Option<exi::raw_ostream&> OS = std::nullopt;
+  int IdentLevel = 2; // Currently unused...
+  bool Conforming = false;
+  bool Debug = false;
+};
+
 void tests_main(int Argc, char* Argv[]);
 
 void FullXMLDump(exi::XMLManager& Mgr,
@@ -66,5 +73,18 @@ void FullXMLDump(exi::XMLDocument& Doc,
                  exi::Option<exi::raw_ostream&> InOS = std::nullopt,
                  bool DbgPrintTypes = false,
                  bool Conforming = false);
+
+inline void FullXMLDump(exi::XMLManager& Mgr,
+                        const exi::Twine& Filepath,
+                        const DumpOptions& Opts) {
+  FullXMLDump(Mgr, Filepath,
+    Opts.OS, Opts.Debug, Opts.Conforming);
+}
+
+inline void FullXMLDump(exi::XMLDocument& Doc,
+                        const DumpOptions& Opts) {
+  FullXMLDump(Doc,
+    Opts.OS, Opts.Debug, Opts.Conforming);
+}
 
 } // namespace root
