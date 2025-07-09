@@ -353,6 +353,7 @@ static bool SortAttrs(const XMLNode* Node,
   
   std::sort(Attrs.begin(), Attrs.end(),
   [] (auto* LHS, auto* RHS) -> bool {
+    // TODO: Add variant that sorts by LN, then URI?
     return !SortAttrsQName(LHS, RHS);
   });
   
