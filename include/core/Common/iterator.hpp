@@ -229,6 +229,14 @@ public:
   }
 };
 
+/// Implements a special case of `iterator_facade_base` where the iterator itself
+/// is used as a pointer, and the value is a proxy reference.
+template <typename DerivedT, typename IteratorCategoryT,
+  typename T, typename DifferenceTypeT = std::ptrdiff_t>
+using iterator_proxy_base =
+  iterator_facade_base<DerivedT, IteratorCategoryT,
+    T, DifferenceTypeT, DerivedT, T>;
+
 /// CRTP base class for adapting an iterator to a different type.
 ///
 /// This class can be used through CRTP to adapt one iterator into another.
