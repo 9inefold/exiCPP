@@ -31,6 +31,7 @@
 # error DenseSet required!
 #endif
 
+#include <Common/CRTPTraits.hpp>
 #include <Common/DenseSet.hpp>
 #include <Common/StrRef.hpp>
 #include <Common/Twine.hpp>
@@ -60,48 +61,54 @@ public:
   }
 };
 
-/// Saves strings in the provided stable storage and returns a
-/// StrRef with a stable character pointer.
-class StringSaver final {
-  BumpPtrAllocator &Alloc;
+class StringSaverBase {
+public:
+  static StrRef Save(BumpPtrAllocator& Alloc, StrRef S);
+  static StrRef Save(BumpPtrAllocator& Alloc, const Twine& S);
+
+  static InlineStr* SaveRaw(BumpPtrAllocator& Alloc, StrRef S);
+  static InlineStr* SaveRaw(BumpPtrAllocator& Alloc, const Twine& S);
+};
+
+template <class Derived>
+class StringSaverImpl : private StringSaverBase {
+  EXI_CRTP_DEFINE_SUPER(Derived)
+  using BaseT = StringSaverBase;
+
+  EXI_INLINE BumpPtrAllocator& alloc() const {
+    return super()->getAllocator();
+  }
 
 public:
-  StringSaver(BumpPtrAllocator &Alloc) : Alloc(Alloc) {}
-  BumpPtrAllocator& getAllocator() const { return Alloc; }
-
   // All returned strings are null-terminated: *save(S).end() == 0.
   StrRef save(const char *S) { return save(StrRef(S)); }
   StrRef save(const char *S, usize N) { return save(StrRef(S, N)); }
-  StrRef save(StrRef S);
-  StrRef save(const Twine &S);
+  StrRef save(StrRef S) { return BaseT::Save(alloc(), S); }
+  StrRef save(const Twine &S) { return BaseT::Save(alloc(), S); }
   StrRef save(const std::string &S) { return save(StrRef(S)); }
 
   InlineStr* saveRaw(const char *S) { return saveRaw(StrRef(S)); }
   InlineStr* saveRaw(const char *S, usize N) { return saveRaw(StrRef(S, N)); }
-  InlineStr* saveRaw(StrRef S);
-  InlineStr* saveRaw(const Twine &S);
+  InlineStr* saveRaw(StrRef S) { return BaseT::SaveRaw(alloc(), S); }
+  InlineStr* saveRaw(const Twine &S) { return BaseT::SaveRaw(alloc(), S); }
 };
 
 /// Saves strings in the provided stable storage and returns a
 /// StrRef with a stable character pointer.
-class OwningStringSaver final {
-  mutable BumpPtrAllocator Alloc;
+class StringSaver final : public StringSaverImpl<StringSaver> {
+  BumpPtrAllocator &Alloc;
+public:
+  StringSaver(BumpPtrAllocator &Alloc) : Alloc(Alloc) {}
+  BumpPtrAllocator& getAllocator() const { return Alloc; }
+};
 
+/// Saves strings in the provided stable storage and returns a
+/// StrRef with a stable character pointer.
+class OwningStringSaver final : public StringSaverImpl<OwningStringSaver> {
+  mutable BumpPtrAllocator Alloc;
 public:
   OwningStringSaver() = default;
   BumpPtrAllocator& getAllocator() const { return Alloc; }
-
-  // All returned strings are null-terminated: *save(S).end() == 0.
-  StrRef save(const char *S) { return save(StrRef(S)); }
-  StrRef save(const char *S, usize N) { return save(StrRef(S, N)); }
-  StrRef save(StrRef S);
-  StrRef save(const Twine &S);
-  StrRef save(const std::string &S) { return save(StrRef(S)); }
-
-  InlineStr* saveRaw(const char *S) { return saveRaw(StrRef(S)); }
-  InlineStr* saveRaw(const char *S, usize N) { return saveRaw(StrRef(S, N)); }
-  InlineStr* saveRaw(StrRef S);
-  InlineStr* saveRaw(const Twine &S);
 };
 
 /// Saves strings in the provided stable storage and returns a StrRef with a

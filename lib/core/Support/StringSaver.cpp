@@ -70,45 +70,42 @@ ALWAYS_INLINE static StrRef
 
 //////////////////////////////////////////////////////////////////////////
 
-StrRef StringSaver::save(StrRef S) {
-  return SaveWith(this->Alloc, S);
+StrRef StringSaverBase::Save(
+ BumpPtrAllocator& Alloc, StrRef S) {
+  return SaveWith(Alloc, S);
 }
 
-StrRef StringSaver::save(const Twine &S) {
+StrRef StringSaverBase::Save(
+ BumpPtrAllocator& Alloc, const Twine& S) {
   SmallStr<128> Storage;
-  return save(S.toStrRef(Storage));
+  return SaveWith(Alloc, S.toStrRef(Storage));
 }
 
-InlineStr* StringSaver::saveRaw(StrRef S) {
-  return SaveWithRaw(this->Alloc, S);
+InlineStr* StringSaverBase::SaveRaw(
+ BumpPtrAllocator& Alloc, StrRef S) {
+  return SaveWithRaw(Alloc, S);
 }
 
-InlineStr* StringSaver::saveRaw(const Twine &S) {
+InlineStr* StringSaverBase::SaveRaw(
+ BumpPtrAllocator& Alloc, const Twine& S) {
   SmallStr<128> Storage;
-  return saveRaw(S.toStrRef(Storage));
+  return SaveWithRaw(Alloc, S.toStrRef(Storage));
 }
 
 //////////////////////////////////////////////////////////////////////////
 
-StrRef OwningStringSaver::save(StrRef S) {
-  return SaveWith(this->Alloc, S);
+EXI_INLINE const InlineStr* InlStrFromData(const char* Data,
+                          [[maybe_unused]] usize Size) {
+  exi_invariant(Data != nullptr);
+  auto* const Off = Data - kReverseOffset;
+  auto* const Str = reinterpret_cast<const InlineStr*>(Off);
+  exi_invariant(Str->Size == Size);
+  return Str;
 }
 
-StrRef OwningStringSaver::save(const Twine &S) {
-  SmallStr<128> Storage;
-  return save(S.toStrRef(Storage));
-}
-
-InlineStr* OwningStringSaver::saveRaw(StrRef S) {
-  return SaveWithRaw(this->Alloc, S);
-}
-
-InlineStr* OwningStringSaver::saveRaw(const Twine &S) {
-  SmallStr<128> Storage;
-  return saveRaw(S.toStrRef(Storage));
-}
-
-//////////////////////////////////////////////////////////////////////////
+#if !EXI_INVARIANTS
+# define InlStrFromData(DATA, SIZE) ::InlStrFromData(Data, 0)
+#endif
 
 StrRef UniqueStringSaver::save(StrRef S) {
   auto [It, CacheMiss] = Unique.insert(S);
@@ -130,8 +127,7 @@ const InlineStr* UniqueStringSaver::saveRaw(StrRef S) {
     return Raw;
   }
 
-  auto* const Off = It->data() - kReverseOffset; 
-  return reinterpret_cast<const InlineStr*>(Off);
+  return InlStrFromData(It->data(), It->size());
 }
 
 const InlineStr* UniqueStringSaver::saveRaw(const Twine &S) {
