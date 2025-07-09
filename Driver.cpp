@@ -288,6 +288,7 @@ int main(int Argc, char* Argv[]) {
       return Ret;
     }
 
+    outs() << "'" << File << "':\n";
     root::FullXMLDump(S.document());
   }
   

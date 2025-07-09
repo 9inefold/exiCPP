@@ -295,7 +295,7 @@ void XMLDumper::printAttr(const XMLAttribute* Attr) {
 static bool SortAttrsXmlns(const XMLAttribute* LHS, const XMLAttribute* RHS) {
   StrRef LHS_NS = LHS->name().drop_front(6),
          RHS_NS = RHS->name().drop_front(6);
-  return (LHS_NS < RHS_NS);
+  return LHS_NS.compare_shortlex(RHS_NS) < 0;
 }
 
 static bool SortAttrsNormal(const XMLAttribute* LHS, const XMLAttribute* RHS) {
@@ -335,6 +335,9 @@ static bool SortAttrs(const XMLNode* Node,
     Attrs.push_back(Curr);
     Curr = Curr->next_attribute();
   }
+
+  if (Attrs.size() <= 1)
+    return !Attrs.empty();
   
   std::sort(Attrs.begin(), Attrs.end(),
   [] (auto* LHS, auto* RHS) -> bool {

@@ -54,13 +54,26 @@ static int AsciiStrncasecmp(const char *LHS, const char *RHS, usize Length) {
   return 0;
 }
 
+ALWAYS_INLINE static int AsciiStrncasecmp(const StrRef& LHS,
+                                          const StrRef& RHS) {
+  return AsciiStrncasecmp(LHS.data(), RHS.data(),
+                 std::min(LHS.size(), RHS.size()));
+}
+
 int StrRef::compare_insensitive(StrRef RHS) const {
-  if (int Res =
-          AsciiStrncasecmp(data(), RHS.data(), std::min(size(), RHS.size())))
+  if (int Res = AsciiStrncasecmp(*this, RHS))
     return Res;
   if (size() == RHS.size())
     return 0;
   return size() < RHS.size() ? -1 : 1;
+}
+
+int StrRef::compare_shortlex_insensitive(StrRef RHS) const {
+  if (size() != RHS.size())
+    return size() < RHS.size() ? -1 : 1;
+  if (int Res = AsciiStrncasecmp(*this, RHS))
+    return Res;
+  return 0;
 }
 
 bool StrRef::starts_with_insensitive(StrRef Prefix) const {

@@ -111,6 +111,10 @@ private:
                          Suffix.data(), Suffix.size());
   }
 
+  EXI_INLINE int compareMemory_min(StrRef RHS) const {
+    return compareMemory(data(), RHS.data(), std::min(size(), RHS.size()));
+  }
+
 public:
   /// @name Constructors
   /// @{
@@ -250,8 +254,7 @@ public:
   /// the \p RHS.
   [[nodiscard]] int compare(StrRef RHS) const {
     // Check the prefix for a mismatch.
-    if (int Res =
-            compareMemory(data(), RHS.data(), std::min(size(), RHS.size())))
+    if (int Res = compareMemory_min(RHS))
       return Res < 0 ? -1 : 1;
 
     // Otherwise the prefixes match, so we only need to check the lengths.
@@ -260,8 +263,24 @@ public:
     return size() < RHS.size() ? -1 : 1;
   }
 
+  /// compare_shortlex - Compare two strings in shortlex ordering.
+  [[nodiscard]] int compare_shortlex(StrRef RHS) const {
+    // In shortlex ordering, if the lengths don't match, you can determine the
+    // ordering much faster. This allows us to skip a memcmp.
+    if (size() != RHS.size())
+      return size() < RHS.size() ? -1 : 1;
+
+    // Otherwise check the strings for a mismatch.
+    if (int Res = compareMemory_min(RHS))
+      return Res < 0 ? -1 : 1;
+    return 0;
+  }
+
   /// Compare two strings, ignoring case.
   [[nodiscard]] int compare_insensitive(StrRef RHS) const;
+
+  /// Compare two strings in shortlex ordering, ignoring case.
+  [[nodiscard]] int compare_shortlex_insensitive(StrRef RHS) const;
 
   /// compare_numeric - Compare two strings, treating sequences of digits as
   /// numbers.
