@@ -158,6 +158,15 @@ inline bool isAddrAligned(Align Lhs, const void *Addr) {
   return isAligned(Lhs, reinterpret_cast<uintptr_t>(Addr));
 }
 
+/// Checks that Addr is a multiple of the alignment.
+template <typename T>
+ALWAYS_INLINE constexpr bool isAddrAligned(const void *Addr) {
+  if (std::is_constant_evaluated())
+    return true;
+  else
+    return isAddrAligned(Align::Of<T>(), Addr);
+}
+
 /// Returns a multiple of A needed to store `Size` bytes.
 inline constexpr u64 alignTo(u64 Size, Align A) {
   const u64 Value = A.value();
