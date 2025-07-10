@@ -1582,8 +1582,11 @@ private:
   static Ch* skip_and_expand_character_refs(Ch*& Text) {
     // If entity translation, whitespace condense and whitespace trimming is
     // disabled, use plain skip
-    if (Flags & parse_no_entity_translation && !(Flags & parse_normalize_whitespace) &&
-        !(Flags & parse_trim_whitespace)) {
+    if constexpr (
+           Flags & parse_no_entity_translation
+      && !(Flags & parse_normalize_whitespace)
+      && !(Flags & parse_trim_whitespace))
+    {
       skip<StopPred, Flags>(Text);
       return Text;
     }
@@ -1596,7 +1599,7 @@ private:
     Ch* dest = src;
     while (StopPred::test(*src)) {
       // If entity translation is enabled
-      if (!(Flags & parse_no_entity_translation)) {
+      if constexpr (!(Flags & parse_no_entity_translation)) {
         // Test if replacement is needed
         if (src[0] == Ch('&')) {
           switch (src[1]) {
@@ -1691,7 +1694,7 @@ private:
       }
 
       // If whitespace condensing is enabled
-      if (Flags & parse_normalize_whitespace) {
+      if constexpr (Flags & parse_normalize_whitespace) {
         // Test if condensing is needed
         if (whitespace_pred::test(*src)) {
           *dest = Ch(' ');
@@ -1759,7 +1762,7 @@ private:
   // Parse XML comment (<!--...)
   template <int Flags> NodeType* parse_comment(Ch*& Text) {
     // If parsing of comments is disabled
-    if (!(Flags & parse_comment_nodes)) {
+    if constexpr (!(Flags & parse_comment_nodes)) {
       // Skip until end of comment
       while (Text[0] != Ch('-') || Text[1] != Ch('-') || Text[2] != Ch('>')) {
         if (!Text[0])
@@ -1785,7 +1788,7 @@ private:
     comment->value(value, Text - value);
 
     // Place zero terminator after comment value
-    if (!(Flags & parse_no_string_terminators))
+    if constexpr (!(Flags & parse_no_string_terminators))
       *Text = Ch('\0');
 
     Text += 3; // Skip '-->'
@@ -1827,7 +1830,7 @@ private:
     }
 
     // If DOCTYPE nodes enabled
-    if (Flags & parse_doctype_node) {
+    if constexpr (Flags & parse_doctype_node) {
       // Create a new doctype node
       NodeType* doctype = this->allocate_node(node_doctype);
       doctype->value(value, Text - value);
@@ -1847,7 +1850,7 @@ private:
   // Parse PI
   template <int Flags> NodeType* parse_pi(Ch*& Text) {
     // If creation of PI nodes is enabled
-    if (Flags & parse_pi_nodes) {
+    if constexpr (Flags & parse_pi_nodes) {
       // Create pi node
       NodeType* pi = this->allocate_node(node_pi);
 
