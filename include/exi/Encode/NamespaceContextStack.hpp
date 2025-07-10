@@ -76,37 +76,45 @@ struct ContextBlockHead : ContextBlockInfo<uhalfptr> {
 
 public:
   ContextBlockHead* next() & {
-    exi_invariant(BaseT::NumElts != 0);
-    return reinterpret_cast<ContextBlockHead*>(
-      getOffsetPtr() - (BaseT::NumElts + 1));
+    auto* Next = static_cast<const ContextBlockHead*>(this)->next();
+    return const_cast<ContextBlockHead*>(Next);
   }
   const ContextBlockHead* next() const& {
-    return mut_self()->next();
+    exi_invariant(BaseT::NumElts != 0);
+    return reinterpret_cast<const ContextBlockHead*>(
+      getOffsetPtr() - (BaseT::NumElts + 1));
   }
 
   ElemT* begin() & { return getFirstEl(); }
   ElemT* end() & { return getLastEl(); }
-  const ElemT* begin() const& { return mut_self()->getFirstEl(); }
-  const ElemT* end() const& { return mut_self()->getLastEl(); }
+  const ElemT* begin() const& { return getFirstEl(); }
+  const ElemT* end() const& { return getLastEl(); }
 
   ElemT* data() & { return getFirstEl(); }
-  const ElemT* data() const& { return mut_self()->getFirstEl(); }
+  const ElemT* data() const& { return getFirstEl(); }
 
   MutArrayRef<ElemT> arr() & { return {begin(), end()}; }
   ArrayRef<ElemT> arr() const& { return {begin(), end()}; }
 
 private:
-  ALWAYS_INLINE ContextBlockHead* mut_self() const {
-    return const_cast<ContextBlockHead*>(this);
-  }
   ALWAYS_INLINE void** getOffsetPtr() {
     return reinterpret_cast<void**>(this);
   }
+  ALWAYS_INLINE void* const* getOffsetPtr() const {
+    return reinterpret_cast<void* const*>(this);
+  }
+
   ALWAYS_INLINE ElemT* getFirstEl() {
     return reinterpret_cast<ElemT*>(getOffsetPtr() - BaseT::NumElts);
   }
   ALWAYS_INLINE ElemT* getLastEl() {
     return reinterpret_cast<ElemT*>(getOffsetPtr());
+  }
+  ALWAYS_INLINE const ElemT* getFirstEl() const {
+    return reinterpret_cast<const ElemT*>(getOffsetPtr() - BaseT::NumElts);
+  }
+  ALWAYS_INLINE const ElemT* getLastEl() const {
+    return reinterpret_cast<const ElemT*>(getOffsetPtr());
   }
 };
 
