@@ -23,6 +23,7 @@
 //===----------------------------------------------------------------===//
 
 #include <exi/Encode/NamespaceContextStack.hpp>
+#include <core/Support/Lifetimes.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/Except.hpp>
 #include <exi/Encode/StringTable.hpp>
@@ -46,7 +47,9 @@ EXI_COLD EXI_PRESERVE_MOST void NSContextStack::pushScope(
 #endif
   const usize OldSize = Scopes.size();
   Scopes.resize_for_overwrite(OldSize + N);
-  std::memcpy(Scopes.data() + OldSize, Elts.data(), Elts.size_in_bytes());
+  exi::trivial_copy_bytes<ContextEntry, true>(
+    Scopes.data() + OldSize,
+    Elts.data(), Elts.size_in_bytes());
   this->Head = addHeadImpl(N);
 }
 
