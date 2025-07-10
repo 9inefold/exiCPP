@@ -119,6 +119,7 @@ public:
   constexpr ContextBlockEntry() {}
   constexpr ContextBlockEntry(encode::STPrefixEntry* Pfx) : Pfx(Pfx) {}
   constexpr ContextBlockEntry(uhalfptr NumElts) : Info(NumElts) {}
+
   static ContextBlockEntry Head(usize NumElts) {
     return ContextBlockEntry(IntCast<uhalfptr>(NumElts));
   }
