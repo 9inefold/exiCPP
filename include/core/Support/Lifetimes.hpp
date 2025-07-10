@@ -61,22 +61,28 @@ exi_copy_constexpr T* trivial_move(T* Dst, const T* Src, usize Count) {
 
 /// Copies an array of `byte[Bytes]` from `Dst` to `Src`, assuming `Dst` is aligned.
 /// Then implicitly creates an array `T[Bytes / sizeof(T)]` of trivial types.
-template <typename T> requires std::is_trivially_copyable_v<T>
+template <typename T, bool SkipChecks = false>
+requires std::is_trivially_copyable_v<T>
 exi_copy_constexpr T* trivial_copy_bytes(
  void* Dst, const void* Src, usize Bytes) {
-  exi_expensive_invariant((Bytes % sizeof(T)) == 0);
-  exi_invariant(exi::isAddrAligned<T>(Dst));
+  if constexpr (!SkipChecks) {
+    exi_expensive_invariant((Bytes % sizeof(T)) == 0);
+    exi_invariant(exi::isAddrAligned<T>(Dst));
+  }
   return static_cast<T*>(exi___builtin_memcpy(
     EXI_ASSUME_ALIGNED(Dst, alignof(T)), Src, Bytes));
 }
 
 /// Moves an array of `byte[Bytes]` from `Dst` to `Src`, assuming `Dst` is aligned.
 /// Then implicitly creates an array `T[Bytes / sizeof(T)]` of trivial types.
-template <typename T> requires std::is_trivially_copyable_v<T>
+template <typename T, bool SkipChecks = false>
+requires std::is_trivially_copyable_v<T>
 exi_copy_constexpr T* trivial_move_bytes(
  void* Dst, const void* Src, usize Bytes) {
-  exi_expensive_invariant((Bytes % sizeof(T)) == 0);
-  exi_invariant(exi::isAddrAligned<T>(Dst));
+  if constexpr (!SkipChecks) {
+    exi_expensive_invariant((Bytes % sizeof(T)) == 0);
+    exi_invariant(exi::isAddrAligned<T>(Dst));
+  }
   return static_cast<T*>(exi___builtin_memmove(
     EXI_ASSUME_ALIGNED(Dst, alignof(T)), Src, Bytes));
 }
