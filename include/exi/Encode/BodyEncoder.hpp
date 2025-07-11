@@ -17,36 +17,56 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file implements encoding of the EXI body to a stream.
+/// This file provides the interface for encoding of the EXI body to a stream.
 ///
 //===----------------------------------------------------------------===//
 
 #pragma once
 
 #include <core/Common/ArrayRef.hpp>
-#include <core/Common/DenseMap.hpp>
 #include <core/Common/Option.hpp>
-#include <core/Common/StringMap.hpp>
-#include <core/Common/Vec.hpp>
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/ExiHeader.hpp>
-#include <exi/Basic/StringTables.hpp>
-#include <exi/Decode/HeaderDecoder.hpp>
 #include <exi/Decode/UnifyBuffer.hpp>
 #include <exi/Grammar/Schema.hpp>
-#include <exi/Stream/OrderedWriter.hpp>
 
 namespace exi {
 
 struct EncoderFlags {
-  
+  /// If the header was validated.
+  bool ValidHeader : 1 = false;
+  /// If the header has already been "written".
+  bool DidHeader : 1 = false;
+  /// If init has already been run.
+  bool DidInit : 1 = false;
+};
+
+/// The top-level interface for encoder implementations.
+class BodyEncoder {
+  virtual void anchor();
+public:
+  virtual ~Encoder() = default;
+  virtual ExiError run() = 0;
 };
 
 /// The EXI encoding processor.
 /// FIXME: Split this up into more implementations.
 class ExiEncoder {
+  /// The provided Header.
+  ExiHeader Header = {};
+  /// The encoder, the type of which is determined by the header.
+  Box<BodyEncoder> TheEncoder;
 
+  /// The stream used for diagnostics.
+  Option<raw_ostream&> OS;
+  /// State of the decoder in terms of progression.
+  EncoderFlags Flags = {};
+
+public:
+  ExiEncoder(Option<raw_ostream&> OS = std::nullopt) : OS(OS) {}
+  ExiEncoder(MaybeBox<ExiOptions> Opts, Option<raw_ostream&> OS = std::nullopt);
+  ~ExiEncoder();
 };
 
 } // namespace exi
