@@ -1,4 +1,4 @@
-//===- exi/Stream/OrderedReader.hpp ---------------------------------===//
+//===- exi/Stream/OrderedWriter.hpp ---------------------------------===//
 //
 // MODIFIED FOR THE PURPOSES OF THE EXICPP LIBRARY.
 //
@@ -25,7 +25,7 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines the in-order readers.
+/// This file defines the in-order writers.
 /// Sections adapted from: llvm-project/llvm/include/llvm/Bitstream/BitstreamWriter.h
 ///
 //===----------------------------------------------------------------===//
