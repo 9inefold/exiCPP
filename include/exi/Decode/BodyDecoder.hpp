@@ -24,10 +24,7 @@
 #pragma once
 
 #include <core/Common/ArrayRef.hpp>
-#include <core/Common/DenseMap.hpp>
 #include <core/Common/Option.hpp>
-#include <core/Common/StringMap.hpp>
-#include <core/Common/Vec.hpp>
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/ExiHeader.hpp>
@@ -57,7 +54,7 @@ class ExiDecoder {
   friend class decode::Schema::Get;
 
   /// The provided Header.
-  ExiHeader Header;
+  ExiHeader Header = {};
   /// The provided `StreamReader`.
   OrdReader Reader;
   /// A BumpPtrAllocator for processor internals.
@@ -67,15 +64,15 @@ class ExiDecoder {
   /// The schema for the current document.
   /// TODO: Add SchemaResolver...
   Box<decode::Schema> CurrentSchema;
-  /// The stack of current grammars.
-  SmallVec<const InlineStr*> GrammarStack;
+
+  // The grammar stack is now stored in the schema.
 
   /// The stream used for diagnostics.
   Option<raw_ostream&> OS;
   /// State of the decoder in terms of progression.
-  DecoderFlags Flags;
+  DecoderFlags Flags = {};
   /// Preserve options.
-  ExiOptions::PreserveOpts Preserve;
+  ExiOptions::PreserveOpts Preserve = {};
 
 public:
   ExiDecoder(Option<raw_ostream&> OS = std::nullopt) : OS(OS) {}
@@ -88,7 +85,7 @@ public:
   bool didHeader() const { return Flags.DidHeader; }
 
   /// Returns the stream used for diagnostics.
-  raw_ostream& os() const EXI_READONLY; // TODO: Remove readonly?
+  raw_ostream& os() const;
   /// Diagnoses errors in the current context.
   void diagnose(ExiError E, bool Force = false) const;
   /// Diagnoses errors in the current context, then returns.
@@ -97,28 +94,6 @@ public:
     return E;
   }
 
-private:
-  /// Interns a single string with the given allocator.
-  // TODO: Make this global? Or maybe integrate into `BumpPtrAllocator`...
-  static void InternString(BumpPtrAllocator& BP, StrRef& Str) {
-    if (Str.empty()) {
-      Str = ""_str;
-      return;
-    }
-
-    const usize Size = Str.size();
-    char* Raw = BP.Allocate<char>(Size + 1);
-    std::memcpy(Raw, Str.data(), Size);
-    Raw[Size] = 0;
-    Str = {Raw, Size};
-  }
-
-  /// Interns a collection of strings with `BP`.
-  EXI_INLINE void internStrings(auto&...Strs) {
-    (InternString(this->BP, Strs), ...);
-  }
-
-public:
   ////////////////////////////////////////////////////////////////////////
   // Initialization
 
@@ -169,6 +144,26 @@ protected:
 
   ////////////////////////////////////////////////////////////////////////
   // Values
+
+  /// Interns a single string with the given allocator.
+  // TODO: Make this global? Or maybe integrate into `BumpPtrAllocator`...
+  EXI_NO_INLINE static void InternString(BumpPtrAllocator& BP, StrRef& Str) {
+    if (Str.empty()) {
+      Str = ""_str;
+      return;
+    }
+
+    const usize Size = Str.size();
+    char* Raw = BP.Allocate<char>(Size + 1);
+    std::memcpy(Raw, Str.data(), Size);
+    Raw[Size] = 0;
+    Str = {Raw, Size};
+  }
+
+  /// Interns a collection of strings with `BP`.
+  EXI_INLINE void internStrings(auto&...Strs) {
+    (InternString(this->BP, Strs), ...);
+  }
 
   /// Decodes a QName.
   ExiResult<EventUID> decodeQName();
