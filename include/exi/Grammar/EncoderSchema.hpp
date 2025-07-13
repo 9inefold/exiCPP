@@ -37,13 +37,11 @@ namespace encode {
 
 /// The base for all schemas.
 class Schema : public RTTIExtends<Schema, RTTIRoot> {
-  friend class exi::ExiEncoder;
 public:
   /// Gets the terminal symbol at the current position.
-  [[nodiscard]] virtual EventUID encode(ExiDecoder* D) = 0;
+  // FIXME: Add the actual functions.
+  [[nodiscard]] virtual EventUID encode(ExiEncoder* D) = 0;
   virtual void dump() const {}
-protected:
-  class Get;
 private:
   EXI_RTTI_EXTENDS(Schema, RTTIRoot);
   virtual void anchor();

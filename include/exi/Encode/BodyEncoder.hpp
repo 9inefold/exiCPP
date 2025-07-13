@@ -28,8 +28,7 @@
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/ExiHeader.hpp>
-#include <exi/Decode/UnifyBuffer.hpp>
-#include <exi/Grammar/Schema.hpp>
+#include <exi/Grammar/EncoderSchema.hpp>
 
 namespace exi {
 
@@ -46,8 +45,10 @@ struct EncoderFlags {
 class BodyEncoder {
   virtual void anchor();
 public:
-  virtual ~Encoder() = default;
+  virtual ~BodyEncoder() = default;
   virtual ExiError run() = 0;
+  virtual ExiError init(raw_ostream& Strm, u32 FlushThreshold = 512) = 0;
+  virtual ExiError init(SmallVecImpl<char>& Buf) = 0;
 };
 
 /// The EXI encoding processor.
@@ -55,6 +56,8 @@ public:
 class ExiEncoder {
   /// The provided Header.
   ExiHeader Header = {};
+  /// The schema for the current encoder.
+  Box<encode::Schema> CurrentSchema;
   /// The encoder, the type of which is determined by the header.
   Box<BodyEncoder> TheEncoder;
 
@@ -67,6 +70,8 @@ public:
   ExiEncoder(Option<raw_ostream&> OS = std::nullopt) : OS(OS) {}
   ExiEncoder(MaybeBox<ExiOptions> Opts, Option<raw_ostream&> OS = std::nullopt);
   ~ExiEncoder();
+
+  raw_ostream& os() const;
 };
 
 } // namespace exi

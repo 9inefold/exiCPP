@@ -40,7 +40,7 @@ ExiEncoder::ExiEncoder(MaybeBox<ExiOptions> Opts,
 }
 
 ExiEncoder::~ExiEncoder() {
-  os().flush()
+  os().flush();
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -94,7 +94,9 @@ include_items(EXICPP_SRC "lib/exi"
   Decode/Serializer.cpp
   Decode/StringTables.cpp
 
+  Encode/BodyEncoder.cpp
   Encode/HeaderEncoder.cpp
+  Encode/OrderedEncoder.cpp
   Encode/NamespaceContextStack.cpp
   Encode/StringTables.cpp
 

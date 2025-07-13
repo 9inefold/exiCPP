@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <exi/Basic/XML.hpp>
 #include <exi/Encode/BodyEncoder.hpp>
 #include <exi/Encode/StringTable.hpp>
 #include <exi/Stream/OrderedWriter.hpp>
@@ -32,8 +33,7 @@
 namespace exi {
 
 class OrderedEncoder final : public BodyEncoder {
-  friend class encode::Schema::Get;
-
+  friend class ExiEncoder;
   /// The options for the current encoding
   const ExiOptions& Opts;
   /// The provided `OrderedWriter`.
@@ -42,9 +42,23 @@ class OrderedEncoder final : public BodyEncoder {
   exi::BumpPtrAllocator BP;
   /// The table holding decoded string values (QNames, LocalNames, etc.)
   encode::StringTable Idents;
+  /// The schema for the current document.
+  encode::Schema* CurrentSchema = nullptr;
+
 public:
   OrderedEncoder(ExiOptions& Opts);
   ExiError run() override;
+  ExiError init(raw_ostream& Strm, u32 FlushThreshold = 512) override;
+  ExiError init(SmallVecImpl<char>& Buf) override;
+
+private:
+  void initWriter(auto&&...Args) {
+    if (Opts.Alignment == AlignKind::BitPacked) {
+      Writer.emplace<BitWriter>(EXI_FWD(Args)...);
+    } else /*AlignKind::BytePacked*/ {
+      Writer.emplace<ByteWriter>(EXI_FWD(Args)...);
+    }
+  }
 };
 
 } // namespace exi
