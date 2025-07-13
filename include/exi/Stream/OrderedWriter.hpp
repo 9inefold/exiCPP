@@ -73,7 +73,9 @@ public:
   using refproxy_t = StreamProxy<BufferRef>;
   using RefProxyT  = refproxy_t;
 
-  /// @brief Currently uses MB.
+  /// @brief Default flushing threshold in MiB.
+  static constexpr size_type kFlushThreshold = 512;
+  /// @brief Currently uses MiB.
   static constexpr size_type kFlushUnits = 20;
 
 protected:
@@ -139,6 +141,13 @@ protected:
                    reinterpret_cast<const char*>(&Val + 1));
   }
 
+  void writePartialWord(word_t Val, usize N) {
+    Val = support::endian::byte_swap<word_t, endianness::little>(Val);
+    const char* Ptr = reinterpret_cast<const char*>(&Val);
+    N = std::min(N, sizeof(word_t));
+    Buffer->append(Ptr, Ptr + N);
+  }
+
   void writeBytes(ArrayRef<char> Bytes) {
     Buffer->append(Bytes.begin(), Bytes.end());
   }
@@ -161,7 +170,7 @@ public:
   /// (besides write), the BitstreamWriter will also flush incrementally, when a
   /// subblock is finished, and if the FlushThreshold is passed.
   ///
-  /// NOTE: \p FlushThreshold's unit is MB.
+  /// NOTE: \p FlushThreshold's unit is MiB.
   OrderedWriter(raw_ostream& Strm, u32 FlushThreshold = 512)
       : Buffer(getInternalBufferFromStream(Strm)),
         FS(!isa<raw_svector_ostream>(Strm) ? &Strm : nullptr),
