@@ -116,7 +116,7 @@ public:
   /// @param ME The MapEntry pointing to `this`.
   /// @param IsVolatile Passed to `loadBuffer` if required.
   Expected<XMLDocument&> loadAndParse(const MapEntry& ME,
-                                       bool IsVolatile = false);
+                                      bool IsVolatile = false);
 
 private:
   Expected<MemoryBufferRef> loadBuffer(const MapEntry& ME, bool IsVolatile);
