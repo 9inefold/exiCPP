@@ -28,6 +28,7 @@
 #include <core/Support/Format.hpp>
 #include <core/Support/Logging.hpp>
 #include <core/Support/raw_ostream.hpp>
+#include <exi/Basic/ExiOptions.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 
 #define DEBUG_TYPE "OrderedEncoder"
@@ -35,6 +36,34 @@
 using namespace exi;
 using namespace exi::encode;
 
-ExiError OrderedEncoder::run() {
+/// This should never fail, as it gets checked in the header, but check anyways.
+EXI_INLINE static void AssertIsOrdered(const ExiOptions& Opts) {
+#if EXI_ASSERTS
+  using enum AlignKind;
+  MMatch Align = mmatch<AlignKind>(Opts.Alignment);
+  exi_assert(Align.is(BitPacked, BytePacked), "Invalid alignment type.");
+  exi_invariant(!Opts.Compression, "Compression cannot be enabled.");
+#endif
+}
 
+OrderedEncoder::OrderedEncoder(ExiOptions& Opts) : Opts(Opts) {
+  AssertIsOrdered(Opts);
+}
+
+ExiError OrderedEncoder::init(raw_ostream& Strm, u32 FlushThreshold) {
+  if (Writer.has_value()) {
+    LOG_ERROR("Writer has already been initialized.");
+    return ErrorCode::kUnexpectedError;
+  }
+  initWriter(Strm, FlushThreshold);
+  return ExiError::OK;
+}
+
+ExiError OrderedEncoder::init(SmallVecImpl<char>& Buf) {
+  if (Writer.has_value()) {
+    LOG_ERROR("Writer has already been initialized.");
+    return ErrorCode::kUnexpectedError;
+  }
+  initWriter(Buf);
+  return ExiError::OK;
 }
