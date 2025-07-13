@@ -26,12 +26,24 @@
 #include <exi/Encode/BodyEncoder.hpp>
 #include <exi/Encode/StringTable.hpp>
 #include <exi/Stream/OrderedWriter.hpp>
+#include <exi/Grammar/EncoderSchema.hpp>
+#include <exi/Stream/OrderedWriter.hpp>
 
 namespace exi {
 
 class OrderedEncoder final : public BodyEncoder {
+  friend class encode::Schema::Get;
+
+  /// The options for the current encoding
+  const ExiOptions& Opts;
+  /// The provided `OrderedWriter`.
+  OrdWriter Writer;
+  /// A BumpPtrAllocator for processor internals.
   exi::BumpPtrAllocator BP;
+  /// The table holding decoded string values (QNames, LocalNames, etc.)
+  encode::StringTable Idents;
 public:
+  OrderedEncoder(ExiOptions& Opts);
   ExiError run() override;
 };
 

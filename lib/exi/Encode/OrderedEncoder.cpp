@@ -29,7 +29,6 @@
 #include <core/Support/Logging.hpp>
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
-#include <exi/Basic/Runes.hpp>
 
 #define DEBUG_TYPE "OrderedEncoder"
 
