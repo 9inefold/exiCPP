@@ -119,7 +119,7 @@ ExiError ExiDecoder::init() {
   if (hasDbgLogLevel(INFO))
     CurrentSchema->dump();
   // TODO: Load schema
-  Idents.setup(Opts);
+  Strings.setup(Opts);
 
   Preserve = Opts.Preserve;
   Flags.DidHeader = true;
@@ -251,7 +251,7 @@ ExiError ExiDecoder::handleEE(EventUID Event) {
 #if EXI_LOGGING
   if (Event.hasQName()) {
     StrRef URI = this->getPfxOrURI(Event);
-    StrRef LocalName = Idents.getLocalName(Event.Name);
+    StrRef LocalName = Strings.getLocalName(Event.Name);
     LOG_INFO(">> EE[{}:{}]\n", URI, LocalName);
   } else {
     LOG_EXTRA("Decoded EE");
@@ -318,7 +318,7 @@ ExiError ExiDecoder::handleAT(Serializer* S, EventUID Event) {
   const auto ValueID = $unwrap(std::move(R));
 
   const QName Name = this->getQName(Event);
-  StrRef Value = Idents.getValue(ValueID);
+  StrRef Value = Strings.getValue(ValueID);
 
   LOG_EXTRA("Decoded AT");
   return S->AT(Name, Value);
@@ -329,8 +329,8 @@ ExiError ExiDecoder::handleNS(Serializer* S, EventUID) {
   const auto Event = $unwrap(decodeNS());
   const auto Name = Event.Name;
   
-  StrRef URI = Idents.getURI(Name.URI);
-  StrRef Pfx = Idents.getPrefix(Name.URI, Event.Prefix);
+  StrRef URI = Strings.getURI(Name.URI);
+  StrRef Pfx = Strings.getPrefix(Name.URI, Event.Prefix);
 
   LOG_EXTRA("Decoded NS");
   if EXI_LIKELY(!Event.isLocal())
@@ -341,7 +341,7 @@ ExiError ExiDecoder::handleNS(Serializer* S, EventUID) {
 
 // Characters (value)
 ExiError ExiDecoder::handleCH(Serializer* S, EventUID Event) {
-  StrRef Value = Idents.getValue(Event);
+  StrRef Value = Strings.getValue(Event);
   LOG_EXTRA("Decoded CH");
   return S->CH(Value);
 }
@@ -393,11 +393,11 @@ ExiError ExiDecoder::handleER(Serializer* S) {
 
 QName ExiDecoder::getQName(EventUID Event) {
   exi_invariant(Event.hasQName());
-  auto [URI, LocalName] = Idents.getQName(Event.Name);
+  auto [URI, LocalName] = Strings.getQName(Event.Name);
   if (!Event.hasPrefix())
     return QName::Unbound(URI, LocalName, Event.getURI());
   /// Full name found.
-  StrRef Pfx = Idents.getPrefix(
+  StrRef Pfx = Strings.getPrefix(
     Event.getURI(), Event.getPrefix());
   return QName::New(URI, LocalName, Pfx);
 }
@@ -407,10 +407,10 @@ StrRef ExiDecoder::getPfxOrURI(EventUID Event) {
     return "*"_str;
   
   const CompactID URI = Event.getURI();
-  if (!Idents.hasPrefix(URI)) {
+  if (!Strings.hasPrefix(URI)) {
     LOG_META("No Prefix for @{}: {}", URI, Preserve.Prefixes);
-    if (Idents.hasURI(URI))
-      return Idents.getURI(URI);
+    if (Strings.hasURI(URI))
+      return Strings.getURI(URI);
     else
       return "?"_str;
   }
@@ -429,14 +429,14 @@ StrRef ExiDecoder::getPfxOrURI(EventUID Event) {
     return *X;
   }
 
-  return Idents.getURI(URI);
+  return Strings.getURI(URI);
 }
 
 Option<StrRef> ExiDecoder::tryGetPfx(CompactID URI, CompactID PfxID) {
-  if (!Idents.hasPrefix(URI, PfxID))
+  if (!Strings.hasPrefix(URI, PfxID))
     return std::nullopt;
   
-  StrRef Pfx = Idents.getPrefix(URI, PfxID);
+  StrRef Pfx = Strings.getPrefix(URI, PfxID);
   if (Pfx.empty() && URI != 0) {
     // Don't allow arbitrary empty prefixes when printing.
     // May be confusing for the reader.
@@ -475,7 +475,7 @@ ExiResult<EventUID> ExiDecoder::decodeNS() {
 
 ExiResult<CompactID> ExiDecoder::decodeURI() {
   CompactID URI; {
-    const u64 NBits = Idents.getURILog();
+    const u64 NBits = Strings.getURILog();
     LOG_POSITION(this);
     LOG_EXTRA("Decoding <{}>", NBits);
     exi_try_r(Reader->readBits64(URI, NBits));
@@ -487,13 +487,13 @@ ExiResult<CompactID> ExiDecoder::decodeURI() {
     SmallStr<32> Data;
     LOG_POSITION(this);
     StrRef Str = $unwrap(Reader->decodeString(Data));
-    std::tie(URIStr, URI) = Idents.addURI(Str);
+    std::tie(URIStr, URI) = Strings.addURI(Str);
     LOG_INFO(">> URI(Miss) @{}: \"{}\"", URI, URIStr);
   } else {
     // Cache hit
     URI -= 1;
 #if EXI_LOGGING
-    StrRef URIStr = Idents.getURI(URI);
+    StrRef URIStr = Strings.getURI(URI);
     LOG_INFO(">> URI(Hit) @{}: \"{}\"", URI, URIStr);
 #endif
   }
@@ -512,19 +512,19 @@ ExiResult<CompactID> ExiDecoder::decodeName(CompactID URI) {
   StrRef LocalName;
   if (LnID == 0) {
     // Cache hit
-    const u64 NBits = Idents.getLocalNameLog(URI);
+    const u64 NBits = Strings.getLocalNameLog(URI);
     LOG_POSITION(this);
     LOG_EXTRA("Decoding <{}>", NBits);
     exi_try_r(Reader->readBits64(LnID, NBits));
 #if EXI_LOGGING
-    LocalName = Idents.getLocalName(URI, LnID);
+    LocalName = Strings.getLocalName(URI, LnID);
 #endif
   } else {
     // Cache miss
     LnID -= 1;
     SmallStr<32> Data;
     StrRef Str = $unwrap(Reader->readString(LnID, Data));
-    std::tie(LocalName, LnID) = Idents.addLocalName(URI, Str);
+    std::tie(LocalName, LnID) = Strings.addLocalName(URI, Str);
   }
 
   LOG_INFO(">> LN @{}: \"{}\"", LnID, LocalName);
@@ -534,11 +534,11 @@ ExiResult<CompactID> ExiDecoder::decodeName(CompactID URI) {
 ExiResult<Option<CompactID>> ExiDecoder::decodePfxQ(CompactID URI) {
   if (!Preserve.Prefixes)
     return Ok(std::nullopt);
-  if (!Idents.hasPrefix(URI))
+  if (!Strings.hasPrefix(URI))
     return Ok(std::nullopt);
   
   CompactID PfxID = 0;
-  const u64 NBits = Idents.getPrefixLogQ(URI);
+  const u64 NBits = Strings.getPrefixLogQ(URI);
 
   if (NBits) {
     LOG_POSITION(this);
@@ -547,7 +547,7 @@ ExiResult<Option<CompactID>> ExiDecoder::decodePfxQ(CompactID URI) {
   }
 
 #if EXI_LOGGING
-  StrRef Pfx = Idents.getPrefix(URI, PfxID);
+  StrRef Pfx = Strings.getPrefix(URI, PfxID);
   LOG_INFO(">> PXQ @{}: \"{}\"", PfxID, Pfx);
 #endif
 
@@ -557,7 +557,7 @@ ExiResult<Option<CompactID>> ExiDecoder::decodePfxQ(CompactID URI) {
 ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
   exi_invariant(Preserve.Prefixes, "NS event occurred without prefixes.");
   CompactID PfxID = 0;
-  const u64 NBits = Idents.getPrefixLog(URI);
+  const u64 NBits = Strings.getPrefixLog(URI);
 
   LOG_POSITION(this);
   LOG_EXTRA("Decoding <{}>", NBits);
@@ -567,16 +567,16 @@ ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
   if (PfxID != 0) {
     // Cache hit
     PfxID -= 1;
-    if EXI_UNLIKELY(!Idents.hasPrefix(URI, PfxID))
+    if EXI_UNLIKELY(!Strings.hasPrefix(URI, PfxID))
       return Err(ErrorCode::kInvalidEXIInput);
 #if EXI_LOGGING
-    Pfx = Idents.getPrefix(URI, PfxID);
+    Pfx = Strings.getPrefix(URI, PfxID);
 #endif
   } else {
     // Cache miss
     SmallStr<32> Data;
     StrRef Str = $unwrap(Reader->decodeString(Data));
-    std::tie(Pfx, PfxID) = Idents.addPrefix(URI, Str);
+    std::tie(Pfx, PfxID) = Strings.addPrefix(URI, Str);
   }
 
   LOG_INFO(">> PXNS @{}: \"{}\"", PfxID, Pfx);
@@ -594,14 +594,14 @@ ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
 
   if (ValID == 0) {
     // LocalValue hit
-    const u64 NBits = Idents.getLocalValueLog(Name);
+    const u64 NBits = Strings.getLocalValueLog(Name);
     LOG_POSITION(this);
     LOG_EXTRA("Decoding <{}>", NBits);
     exi_try_r(Reader->readBits64(ValID, NBits));
 
 #if EXI_LOGGING
-    auto [URI, LocalName] = Idents.getQName(Name);
-    StrRef LocalVal = Idents.getLocalValue(Name, ValID);
+    auto [URI, LocalName] = Strings.getQName(Name);
+    StrRef LocalVal = Strings.getLocalValue(Name, ValID);
     LOG_INFO(">> LV @[{}:{}]:{}: \"{}\"",
       URI, LocalName, ValID, LocalVal);
 #endif
@@ -609,13 +609,13 @@ ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
     return EventUID::NewLocalValue(Name, ValID);
   } else if (ValID == 1) {
     // GlobalValue hit
-    const u64 NBits = Idents.getGlobalValueLog();
+    const u64 NBits = Strings.getGlobalValueLog();
     LOG_POSITION(this);
     LOG_EXTRA("Decoding <{}>", NBits);
     exi_try_r(Reader->readBits64(ValID, NBits));
 
 #if EXI_LOGGING
-    StrRef GlobalVal = Idents.getGlobalValue(ValID);
+    StrRef GlobalVal = Strings.getGlobalValue(ValID);
     LOG_INFO(">> GV @{}: \"{}\"", ValID, GlobalVal);
 #endif
     // Create unbound GlobalValue.
@@ -625,10 +625,10 @@ ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
     const u64 Size = (ValID - 2);
     SmallStr<32> Data;
     StrRef Str = $unwrap(readString(Size, Data));
-    auto [Value, GID, LnID] = Idents.addValue(Name, Str);
+    auto [Value, GID, LnID] = Strings.addValue(Name, Str);
 
 #if EXI_LOGGING
-    auto [URI, LocalName] = Idents.getQName(Name);
+    auto [URI, LocalName] = Strings.getQName(Name);
     LOG_INFO(">> LV @[{}:{}]:{}: \"{}\"",
       URI, LocalName, LnID, Value);
 #endif

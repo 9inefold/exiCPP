@@ -55,12 +55,12 @@ class ExiDecoder {
 
   /// The provided Header.
   ExiHeader Header = {};
-  /// The provided `StreamReader`.
+  /// The provided `OrderedReader`.
   OrdReader Reader;
   /// A BumpPtrAllocator for processor internals.
   exi::BumpPtrAllocator BP;
   /// The table holding decoded string values (QNames, LocalNames, etc.)
-  decode::StringTable Idents;
+  decode::StringTable Strings;
   /// The schema for the current document.
   /// TODO: Add SchemaResolver...
   Box<decode::Schema> CurrentSchema;

@@ -32,7 +32,7 @@ namespace exi::decode {
 class Schema::Get {
 public:
   static BumpPtrAllocator& BP(ExiDecoder* D) { return D->BP; }
-  static decode::StringTable& Idents(ExiDecoder* D) { return D->Idents; }
+  static decode::StringTable& Strings(ExiDecoder* D) { return D->Strings; }
 
   template <class StrmT>
   static StrmT* Reader(ExiDecoder* D) { return &cast<StrmT>(D->Reader); }

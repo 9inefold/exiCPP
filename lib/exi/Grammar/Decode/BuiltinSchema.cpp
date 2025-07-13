@@ -872,7 +872,7 @@ void DynBuiltinSchema<StrmT>::logCurrentGrammar(ExiDecoder* D) {
   const bool IsContent = mmatch(Current).is(StartTagContent, ElementContent);
   if EXI_LIKELY(IsContent && !GStack.empty()) {
     const SmallQName ID = GStack.back()->getName();
-    auto [URI, Name] = Get::Idents(D).getQName(ID);
+    auto [URI, Name] = Get::Strings(D).getQName(ID);
     if (URI.empty())
       dbgs() << format("[{}]", Name);
     else
