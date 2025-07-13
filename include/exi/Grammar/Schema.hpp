@@ -24,7 +24,7 @@
 #pragma once
 
 #include <exi/Grammar/DecoderSchema.hpp>
-// #include <exi/Grammar/EncoderSchema.hpp>
+#include <exi/Grammar/EncoderSchema.hpp>
 
 namespace exi {
 
