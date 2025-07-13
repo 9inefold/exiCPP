@@ -51,7 +51,7 @@ private:
 
 /// The builtin (or fallback) schema.
 class BuiltinSchema : public RTTIExtends<BuiltinSchema, Schema> {
-protected:
+public:
   /// Possible Grammar states for schemaless.
   enum class Grammar {
     Document,
@@ -63,7 +63,6 @@ protected:
     Last = ElementContent
   };
   
-public:
   /// @brief Gets a builtin schema.
   [[nodiscard]] static Box<BuiltinSchema> New(const ExiOptions& Opts);
 private:
