@@ -39,13 +39,13 @@ namespace decode {
 class Schema : public RTTIExtends<Schema, RTTIRoot> {
   friend class exi::ExiDecoder;
 public:
-  static const char ID;
   /// Gets the terminal symbol at the current position.
   [[nodiscard]] virtual EventUID decode(ExiDecoder* D) = 0;
   virtual void dump() const {}
 protected:
   class Get;
 private:
+  EXI_RTTI_EXTENDS(Schema, RTTIRoot);
   virtual void anchor();
 };
 
@@ -64,27 +64,23 @@ protected:
   };
   
 public:
-  static const char ID;
   /// @brief Gets a builtin schema.
   [[nodiscard]] static Box<BuiltinSchema> New(const ExiOptions& Opts);
 private:
+  EXI_RTTI_EXTENDS(BuiltinSchema, Schema);
   virtual void anchor();
 };
 
 /// A schema which was compiled at runtime.
 class DynamicSchema : public RTTIExtends<DynamicSchema, Schema> {
+  EXI_RTTI_EXTENDS(DynamicSchema, Schema);
   // TODO: Add Grammar.
-public:
-  static const char ID;
-private:
   virtual void anchor();
 };
 
 /// A precompiled schema.
 class CompiledSchema : public RTTIExtends<CompiledSchema, Schema> {
-public:
-  static const char ID;
-private:
+  EXI_RTTI_EXTENDS(CompiledSchema, Schema);
   virtual void anchor();
 };
 

@@ -916,7 +916,7 @@ void BuiltinSchema::anchor() {}
 void DynamicSchema::anchor() {}
 void CompiledSchema::anchor() {}
 
-const char Schema::ID = 0;
-const char BuiltinSchema::ID = 0;
-const char DynamicSchema::ID = 0;
-const char CompiledSchema::ID = 0;
+char Schema::ID = 0;
+char BuiltinSchema::ID = 0;
+char DynamicSchema::ID = 0;
+char CompiledSchema::ID = 0;

@@ -79,6 +79,11 @@
 
 #include <Common/Features.hpp>
 
+/// Makes the current class' base a friend and defines an ID.
+#define EXI_RTTI_EXTENDS(...)                                                 \
+  friend class ::exi::RTTIExtends<__VA_ARGS__>;                               \
+  static char ID;
+
 namespace exi {
 
 /// Base class for the extensible RTTI hierarchy.
