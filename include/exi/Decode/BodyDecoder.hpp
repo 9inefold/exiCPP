@@ -52,7 +52,6 @@ struct DecoderFlags {
 /// FIXME: Split this up into more implementations.
 class ExiDecoder {
   friend class decode::Schema::Get;
-
   /// The provided Header.
   ExiHeader Header = {};
   /// The provided `OrderedReader`.
@@ -64,7 +63,6 @@ class ExiDecoder {
   /// The schema for the current document.
   /// TODO: Add SchemaResolver...
   Box<decode::Schema> CurrentSchema;
-
   // The grammar stack is now stored in the schema.
 
   /// The stream used for diagnostics.
