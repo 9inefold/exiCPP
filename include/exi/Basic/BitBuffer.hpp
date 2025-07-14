@@ -72,8 +72,8 @@ class EXI_EMPTY_BASES BitReadBuffer : public BitBufferBase {
 
   constexpr BitReadBuffer(buffer_t Data, usize Bytes, usize Bits) :
    Data(Data), Offset(Cast(Bytes)), BitOffset(u32(Bits)) {
-    // FIXME: Do a bit fixup?
-    exi_invariant(Bits < 8, "Illegal bit offset!");
+    if EXI_NEVER(Bits >= 8)
+      Throw<argument_error>("Bit offset >= 8!");
   }
 
 public:
@@ -87,15 +87,16 @@ public:
   }
   static BitReadBuffer FromBytesAndBits(
    buffer_t Data, usize Bytes, usize Bits) {
-    if EXI_NEVER(Bits >= 8)
-      Throw<argument_error>("Bit offset >= 8!");
+    if (Bits >= 8)
+      // Provide a fixup.
+      return FromBits(Data, (Bytes * 8) + Bits);
     return BitReadBuffer(Data, Bytes, Bits);
   }
 
   buffer_t arr() const { return Data; }
   usize bytes() const { return Offset; }
   usize bits() const { return BitOffset; }
-  
+
   bool aligned() const { return bits() == 0; }
   usize aligned_bytes() const {
     return aligned() ? Offset : Offset + 1;
@@ -116,8 +117,8 @@ class EXI_EMPTY_BASES BitWriteBuffer : public BitBufferBase {
 
   BitWriteBuffer(buffer_t* Data, usize Bytes, usize Bits) :
    Data(Data), Offset(Cast(Bytes)), BitOffset(u32(Bits)) {
-    // FIXME: Do a bit fixup?
-    exi_invariant(Bits < 8, "Illegal bit offset!");
+    if EXI_NEVER(Bits >= 8)
+      Throw<argument_error>("Bit offset >= 8!");
   }
 
 public:
@@ -131,8 +132,9 @@ public:
   }
   static BitWriteBuffer FromBytesAndBits(
    buffer_t& Data, usize Bytes, usize Bits) {
-    if EXI_NEVER(Bits >= 8)
-      Throw<argument_error>("Bit offset >= 8!");
+    if (Bits >= 8)
+      // Provide a fixup.
+      return FromBits(Data, (Bytes * 8) + Bits);
     return BitWriteBuffer(&Data, Bytes, Bits);
   }
 
