@@ -28,12 +28,10 @@
 #include <core/Common/CRTPTraits.hpp>
 #include <core/Support/ErrorHandle.hpp>
 #include <core/Support/Limits.hpp>
+#include <exi/Basic/BitBuffer.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 
 namespace exi {
-
-static_assert(kCHAR_BIT == 8,
-  "Weird platform... if you need support open an issue.");
 
 namespace H {
 
@@ -87,7 +85,7 @@ struct StreamBase {
   };
 
   using size_type = usize;
-  using word_t    = u64;
+  using word_t    = bit_word_t;
   using WordType  = word_t;
 
   static constexpr size_type kWordSize = sizeof(WordType);

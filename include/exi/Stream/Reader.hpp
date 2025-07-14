@@ -27,6 +27,7 @@
 #include <core/Common/StringExtras.hpp>
 #include <core/Support/Endian.hpp>
 #include <core/Support/MemoryBufferRef.hpp>
+#include <exi/Basic/BitBuffer.hpp>
 #include <exi/Basic/NBitInt.hpp>
 #include <exi/Stream/Stream.hpp>
 

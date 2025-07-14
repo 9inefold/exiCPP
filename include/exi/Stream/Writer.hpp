@@ -29,6 +29,7 @@
 #include <core/Support/Endian.hpp>
 #include <core/Support/MemoryBufferRef.hpp>
 #include <core/Support/raw_ostream.hpp>
+#include <exi/Basic/BitBuffer.hpp>
 #include <exi/Basic/NBitInt.hpp>
 #include <exi/Stream/Stream.hpp>
 
