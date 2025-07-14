@@ -37,8 +37,8 @@ namespace exi {
 class EXI_EMPTY_BASES ReaderBase : public StreamBase {
 public:
   using buffer_t = ArrayRef<u8>;
-  using proxy_t  = StreamProxy<buffer_t>;
   using BufferT  = buffer_t;
+  using proxy_t  = BitReadBuffer;
   using ProxyT   = proxy_t;
 
 public:

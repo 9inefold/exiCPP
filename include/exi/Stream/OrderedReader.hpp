@@ -70,9 +70,8 @@ protected:
 
 public:
   OrderedReader() = default;
-  OrderedReader(proxy_t Proxy) : OrderedReader(Proxy.Bytes) {
-    if (Proxy.NBits != 0)
-      this->ByteOffset = MakeByteCount(Proxy.NBits);
+  OrderedReader(proxy_t Proxy) :
+    Stream(Proxy.arr()), ByteOffset(Proxy.bytes()) {
   }
 
   explicit OrderedReader(buffer_t Stream) : Stream(Stream) {}
@@ -106,7 +105,7 @@ public:
   bool hasData() const { return Stream.size() >= ByteOffset; }
 
 protected:
-  // TODO: EXI_PRESERVE_MOST?
+  // TODO: EXI_PRESERVE_MOST for DerivedT::fillStore?
   ExiResult<size_type> fillStoreImpl() {
     if EXI_UNLIKELY(ByteOffset >= Stream.size())
       // Read of an empty buffer.
@@ -125,6 +124,7 @@ protected:
       // Partial read.
       BytesRead = Stream.size() - ByteOffset;
       ByteOffset = 0;
+      exi_invariant(Store == 0, "Store was not cleared!");
       for (size_type Ix = 0; Ix != BytesRead; ++Ix)
         Store |= word_t(WordPtr[Ix]) << (Ix * 8);
     }
@@ -137,10 +137,10 @@ protected:
     return Ok(BytesRead);
   }
 
+  [[deprecated("Use setProxy(proxy_t)")]]
   void setProxyBase(proxy_t Proxy) {
-    auto [Bytes, NBits] = Proxy;
-    this->Stream = Bytes;
-    this->ByteOffset = NBits ? MakeByteCount(NBits) : 0;
+    this->Stream = Proxy.arr();
+    this->ByteOffset = Proxy.bytes();
     this->Store = 0;
   }
 
@@ -258,22 +258,23 @@ public:
   }
 
   proxy_t getProxy() const override {
-    return {BaseT::Stream, (ByteOffset * 8) - BitsInStore};
+    const usize BitOffset = (ByteOffset * 8) - BitsInStore;
+    return proxy_t::FromBits(BaseT::Stream, BitOffset);
   }
 
   void setProxy(proxy_t Proxy) override {
-    BaseT::setProxyBase(Proxy);
-    // Align to the old offset.
-    BaseT::ByteOffset -= (BaseT::ByteOffset % sizeof(word_t));
+    BaseT::Stream = Proxy.arr();
+    BaseT::ByteOffset = Proxy.bytes();
+    BaseT::Store = 0;
+
     // Load data into store.
     if (auto E = fillStore()) {
       dbgs() << E << '\n';
       exi_unreachable("unable to load store");
     }
 
-    const auto Off = (Proxy.NBits % kBitsPerWord);
-    Store <<= Off;
-    BitsInStore -= Off;
+    Store <<= Proxy.bits();
+    BitsInStore -= Proxy.bits();
   }
 
   void align() {
@@ -513,26 +514,23 @@ public:
   }
 
   proxy_t getProxy() const override {
-    return {BaseT::Stream, (ByteOffset - BytesInStore) * 8};
+    return proxy_t::FromBytes(
+      BaseT::Stream, ByteOffset - BytesInStore);
   }
 
   // TODO: Make this return an `Error`.
   void setProxy(proxy_t Proxy) override {
-    // TODO: check if aligned
+    exi_invariant(Proxy.aligned());
     // exi_unreachable("TODO");
+    BaseT::Stream = Proxy.arr();
+    BaseT::ByteOffset = Proxy.aligned_bytes();
+    BaseT::Store = 0;
 
-    BaseT::setProxyBase(Proxy);
-    const size_type Off = BaseT::ByteOffset % sizeof(word_t);
-    // Align to the old offset.
-    BaseT::ByteOffset -= Off;
     // Load data into store.
     if (auto E = fillStore()) {
       dbgs() << E << '\n';
       exi_unreachable("unable to load store");
     }
-
-    Store <<= (Off * 8);
-    BytesInStore -= Off;
   }
 
   StreamKind getStreamKind() const override {
