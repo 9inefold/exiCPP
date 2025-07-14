@@ -21,9 +21,9 @@
 ///
 //===----------------------------------------------------------------===//
 
-#include <exi/Decode/Serializer.hpp>
-#include <exi/Decode/XMLSerializer.hpp>
+#include <exi/Decode/Deserializer.hpp>
+#include <exi/Decode/XMLDeserializer.hpp>
 
 using namespace exi;
 
-void Serializer::anchor() {}
+void Deserializer::anchor() {}

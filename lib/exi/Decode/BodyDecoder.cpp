@@ -29,7 +29,7 @@
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/Runes.hpp>
-#include <exi/Decode/Serializer.hpp>
+#include <exi/Decode/Deserializer.hpp>
 #include <fmt/ranges.h>
 
 #define DEBUG_TYPE "BodyDecoder"
@@ -155,14 +155,14 @@ ExiError ExiDecoder::prepareForDecoding() {
 }
 
 ExiError ExiDecoder::decodeBody() {
-  Serializer S{};
+  Deserializer S{};
   return this->decodeBody(&S);
 }
 
-ExiError ExiDecoder::decodeBody(Serializer* S) {
+ExiError ExiDecoder::decodeBody(Deserializer* S) {
   if (S == nullptr) {
     // TODO: Allow defaulting in permissive mode?
-    LOG_ERROR("Serializer cannot be null!");
+    LOG_ERROR("Deserializer cannot be null!");
     return ErrorCode::kInvalidEXIInput;
   }
 
@@ -184,7 +184,7 @@ ExiError ExiDecoder::decodeBody(Serializer* S) {
   return ExiError::OK;
 }
 
-EXI_HOT ExiError ExiDecoder::decodeEvent(Serializer* S) {
+EXI_HOT ExiError ExiDecoder::decodeEvent(Deserializer* S) {
   LOG_POSITION(this);
   const EventUID Event = CurrentSchema->decode(this);
   
@@ -209,7 +209,7 @@ EXI_HOT ExiError ExiDecoder::decodeEvent(Serializer* S) {
   }
 }
 
-EXI_COLD ExiError ExiDecoder::dispatchUncommonEvent(Serializer* S,
+EXI_COLD ExiError ExiDecoder::dispatchUncommonEvent(Deserializer* S,
                                                     const EventUID Event) {
   // ...
   switch (Event.getTerm()) {
@@ -290,13 +290,13 @@ ExiError ExiDecoder::handleCH(EventUID Event) {
 // Start Element (*)
 // Start Element (uri:*)
 // Start Element (qname)
-ExiError ExiDecoder::handleSE(Serializer* S, EventUID Event) {
+ExiError ExiDecoder::handleSE(Deserializer* S, EventUID Event) {
   const QName Name = this->getQName(Event);
   LOG_EXTRA("Decoded SE");
   return S->SE(Name);
 }
 
-ExiError ExiDecoder::handleEE(Serializer* S, EventUID Event) {
+ExiError ExiDecoder::handleEE(Deserializer* S, EventUID Event) {
   if (!Event.hasQName()) {
     LOG_EXTRA("Decoded EE");
     if (hasDbgLogLevel(INFO))
@@ -312,7 +312,7 @@ ExiError ExiDecoder::handleEE(Serializer* S, EventUID Event) {
 // Attribute (*, value)
 // Attribute (uri:*, value)
 // Attribute (qname, value)
-ExiError ExiDecoder::handleAT(Serializer* S, EventUID Event) {
+ExiError ExiDecoder::handleAT(Deserializer* S, EventUID Event) {
   exi_invariant(Event.hasQName());
   Result R = decodeValue(Event.Name);
   const auto ValueID = $unwrap(std::move(R));
@@ -325,7 +325,7 @@ ExiError ExiDecoder::handleAT(Serializer* S, EventUID Event) {
 }
 
 // Namespace Declaration (uri, prefix, local-element-ns)
-ExiError ExiDecoder::handleNS(Serializer* S, EventUID) {
+ExiError ExiDecoder::handleNS(Deserializer* S, EventUID) {
   const auto Event = $unwrap(decodeNS());
   const auto Name = Event.Name;
   
@@ -340,7 +340,7 @@ ExiError ExiDecoder::handleNS(Serializer* S, EventUID) {
 }
 
 // Characters (value)
-ExiError ExiDecoder::handleCH(Serializer* S, EventUID Event) {
+ExiError ExiDecoder::handleCH(Deserializer* S, EventUID Event) {
   StrRef Value = Strings.getValue(Event);
   LOG_EXTRA("Decoded CH");
   return S->CH(Value);
@@ -352,14 +352,14 @@ ExiError ExiDecoder::handleCH(Serializer* S, EventUID Event) {
   if EXI_UNLIKELY(NAME.is_err())                                              \
     return NAME.error();
 
-ExiError ExiDecoder::handleCM(Serializer* S) {
+ExiError ExiDecoder::handleCM(Deserializer* S) {
   READ_STRING(Comment, 80, Reader)
   if (S->needsPersistence())
     this->internStrings(*Comment);
   return S->CM(*Comment);
 }
 
-ExiError ExiDecoder::handlePI(Serializer* S) {
+ExiError ExiDecoder::handlePI(Deserializer* S) {
   return Reader.visit([this, S] (auto& Strm) -> ExiError {
     READ_STRING(Target, 16, &Strm)
     READ_STRING(Text,   48, &Strm)
@@ -369,7 +369,7 @@ ExiError ExiDecoder::handlePI(Serializer* S) {
   });
 }
 
-ExiError ExiDecoder::handleDT(Serializer* S) {
+ExiError ExiDecoder::handleDT(Deserializer* S) {
   return Reader.visit([this, S] (auto& Strm) -> ExiError {
     READ_STRING(Name,  16, &Strm)
     READ_STRING(PubID, 16, &Strm)
@@ -381,7 +381,7 @@ ExiError ExiDecoder::handleDT(Serializer* S) {
   });
 }
 
-ExiError ExiDecoder::handleER(Serializer* S) {
+ExiError ExiDecoder::handleER(Deserializer* S) {
   READ_STRING(Entity, 16, Reader)
   if (S->needsPersistence())
     this->internStrings(*Entity);

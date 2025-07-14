@@ -30,13 +30,13 @@
 #include <exi/Basic/ExiHeader.hpp>
 #include <exi/Decode/StringTable.hpp>
 #include <exi/Decode/HeaderDecoder.hpp>
-// #include <exi/Decode/Serializer.hpp>
+// #include <exi/Decode/Deserializer.hpp>
 #include <exi/Decode/UnifyBuffer.hpp>
 #include <exi/Grammar/DecoderSchema.hpp>
 #include <exi/Stream/OrderedReader.hpp>
 
 namespace exi {
-class Serializer;
+class Deserializer;
 class QName;
 
 struct DecoderFlags {
@@ -108,7 +108,7 @@ public:
   /// Decodes the body from the current stream.
   ExiError decodeBody();
   /// Decodes the body from the current stream with the provided serializer.
-  ExiError decodeBody(Serializer* S);
+  ExiError decodeBody(Deserializer* S);
 
 protected:
   /// Initializes StringTable and Schema.
@@ -117,23 +117,23 @@ protected:
   ExiError prepareForDecoding();
 
   /// Decodes events and then dispatches.
-  EXI_HOT ExiError decodeEvent(Serializer* S);
+  EXI_HOT ExiError decodeEvent(Deserializer* S);
   /// Dispatches less common events.
-  EXI_COLD ExiError dispatchUncommonEvent(Serializer* S, EventUID Event);
+  EXI_COLD ExiError dispatchUncommonEvent(Deserializer* S, EventUID Event);
 
   ////////////////////////////////////////////////////////////////////////
   // Terms
 
-  ExiError handleSE(Serializer* S, EventUID Event);
-  ExiError handleEE(Serializer* S, EventUID Event);
-  ExiError handleAT(Serializer* S, EventUID Event);
-  ExiError handleNS(Serializer* S, EventUID Event);
-  ExiError handleCH(Serializer* S, EventUID Event);
+  ExiError handleSE(Deserializer* S, EventUID Event);
+  ExiError handleEE(Deserializer* S, EventUID Event);
+  ExiError handleAT(Deserializer* S, EventUID Event);
+  ExiError handleNS(Deserializer* S, EventUID Event);
+  ExiError handleCH(Deserializer* S, EventUID Event);
 
-  ExiError handleCM(Serializer* S);
-  ExiError handlePI(Serializer* S);
-  ExiError handleDT(Serializer* S);
-  ExiError handleER(Serializer* S);
+  ExiError handleCM(Deserializer* S);
+  ExiError handlePI(Deserializer* S);
+  ExiError handleDT(Deserializer* S);
+  ExiError handleER(Deserializer* S);
 
   QName getQName(EventUID Event);
   // TODO: Add optional `UserPrefixLookup*` type.

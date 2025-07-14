@@ -1,4 +1,4 @@
-//===- exi/Decode/Serializer.hpp -------------------------------------===//
+//===- exi/Decode/XMLDeserializer.hpp --------------------------------===//
 //
 // Copyright (C) 2025 Eightfold
 //
@@ -27,12 +27,12 @@
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/Except.hpp>
 #include <exi/Basic/XMLContainer.hpp>
-#include <exi/Decode/Serializer.hpp>
+#include <exi/Decode/Deserializer.hpp>
 
 namespace exi {
 
 // TODO: Definitely wanna do some caching here...
-class XMLSerializer final : public Serializer {
+class XMLDeserializer final : public Deserializer {
   using enum xml::NodeKind;
 
   mutable XMLDocument Doc;
@@ -41,7 +41,7 @@ class XMLSerializer final : public Serializer {
   u64 UnboundURI = kInvalidPrefix;
 
 public:
-  XMLSerializer() : Doc() {}
+  XMLDeserializer() : Doc() {}
 
   /// Start Document
   ExiError SD() override {

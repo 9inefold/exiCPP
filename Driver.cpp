@@ -45,7 +45,7 @@
 #include <exi/Basic/XMLContainer.hpp>
 #include <exi/Encode/NamespaceContextStack.hpp>
 #include <exi/Decode/BodyDecoder.hpp>
-#include <exi/Decode/XMLSerializer.hpp>
+#include <exi/Decode/XMLDeserializer.hpp>
 #include <exi/Stream/OrderedReader.hpp>
 
 #include <algorithm>
@@ -177,7 +177,7 @@ static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
   return 0;
 }
 
-static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB, Serializer* S) {
+static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB, Deserializer* S) {
   LOG_INFO("Decoding header...");
   if (auto E = Decoder.decodeHeader(MB)) {
     Decoder.diagnose(E);
@@ -282,7 +282,7 @@ int main(int Argc, char* Argv[]) {
 
     LOG_INFO("Decoding: \"{}\"", File);
     ExiDecoder Decoder(Opts, errs());
-    XMLSerializer S;
+    XMLDeserializer S;
 
     if (int Ret = Decode(Decoder, MB, &S)) {
       WithColor OS(outs(), BRIGHT_RED);

@@ -1,4 +1,4 @@
-//===- exi/Decode/Serializer.hpp -------------------------------------===//
+//===- exi/Decode/Deserializer.hpp -----------------------------------===//
 //
 // Copyright (C) 2025 Eightfold
 //
@@ -17,7 +17,7 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file implements the interface used to decode EXI as XML.
+/// This file implements the interface used to decode EXI.
 ///
 //===----------------------------------------------------------------===//
 
@@ -30,7 +30,7 @@
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/EventCodes.hpp>
 
-#define DEBUG_TYPE "BodyDecoder"
+#define DEBUG_TYPE "Deserializer"
 
 namespace exi {
 
@@ -67,7 +67,7 @@ public:
   bool hasID() const { return !Pfx; }
 };
 
-class Serializer {
+class Deserializer {
 public:
   /// Start Document
   virtual ExiError SD() {
@@ -148,7 +148,7 @@ public:
   /// values. Enable if strings are saved beyond the lifetime of the function.
   virtual bool needsPersistence() const { return false; }
 
-  virtual ~Serializer() = default;
+  virtual ~Deserializer() = default;
 
 private:
   virtual void anchor();
