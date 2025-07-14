@@ -1,6 +1,6 @@
 //===- exi/Grammar/Decode/BuiltinSchema.cpp -------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2024-2025 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@
 ///
 //===----------------------------------------------------------------===//
 
-// #include <exi/Grammar/Schema.hpp>
 #include <exi/Grammar/DecoderSchema.hpp>
 #include <core/Common/DenseMap.hpp>
 #include <core/Common/EnumArray.hpp>
@@ -906,17 +905,3 @@ Box<BuiltinSchema> BuiltinSchema::New(const ExiOptions& Opts) {
     return DynBuiltinSchema<ByteReader>::New(Opts);
   exi_todo("channel readers are currently unsupported!");
 }
-
-//===----------------------------------------------------------------===//
-// Miscellaneous
-//===----------------------------------------------------------------===//
-
-void Schema::anchor() {}
-void BuiltinSchema::anchor() {}
-void DynamicSchema::anchor() {}
-void CompiledSchema::anchor() {}
-
-char Schema::ID = 0;
-char BuiltinSchema::ID = 0;
-char DynamicSchema::ID = 0;
-char CompiledSchema::ID = 0;

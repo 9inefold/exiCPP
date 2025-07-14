@@ -102,6 +102,7 @@ include_items(EXICPP_SRC "lib/exi"
 
   Grammar/Grammar.cpp
   #Grammar/Schema.cpp
+  Grammar/Decode/Schema.cpp
   Grammar/Decode/BuiltinSchema.cpp
 
   Stream/Stream.cpp
