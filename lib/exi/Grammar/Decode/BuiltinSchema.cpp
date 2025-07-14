@@ -581,9 +581,9 @@ private:
   }
 
 #if EXI_LOGGING
-  void logCurrentGrammar(ExiDecoder* D);
-  void logCurrentEvent();
-  void logEvent(EventTerm Term);
+  EXI_PRESERVE_CALLSITE void logCurrentGrammar(ExiDecoder* D);
+  EXI_PRESERVE_CALLSITE void logCurrentEvent();
+  EXI_PRESERVE_CALLSITE void logEvent(EventTerm Term);
 #else
   ALWAYS_INLINE constexpr void logCurrentGrammar(ExiDecoder*) {}
   ALWAYS_INLINE constexpr void logCurrentEvent() {}
@@ -859,7 +859,7 @@ void DynBuiltinSchema<StrmT>::PrintGrammar(BuiltinSchema::Grammar G) const {
 
 #if EXI_LOGGING
 template <class StrmT>
-void DynBuiltinSchema<StrmT>::logCurrentGrammar(ExiDecoder* D) {
+EXI_PRESERVE_CALLSITE void DynBuiltinSchema<StrmT>::logCurrentGrammar(ExiDecoder* D) {
   using enum raw_ostream::Colors;
   if (!hasDbgLogLevel(VERBOSE))
     // Don't do any work if log level is insufficient.
@@ -883,14 +883,14 @@ void DynBuiltinSchema<StrmT>::logCurrentGrammar(ExiDecoder* D) {
 }
 
 template <class StrmT>
-void DynBuiltinSchema<StrmT>::logCurrentEvent() {
+EXI_PRESERVE_CALLSITE void DynBuiltinSchema<StrmT>::logCurrentEvent() {
   if EXI_UNLIKELY(!Event.hasTerm())
     return;
   this->logEvent(Event.getTerm());
 }
 
 template <class StrmT>
-void DynBuiltinSchema<StrmT>::logEvent(EventTerm Term) {
+EXI_PRESERVE_CALLSITE void DynBuiltinSchema<StrmT>::logEvent(EventTerm Term) {
   LOG_INFO("> With {}: {}",
     get_event_name(Term),
     get_event_signature(Term)
