@@ -141,6 +141,7 @@ protected:
                    reinterpret_cast<const char*>(&Val + 1));
   }
 
+  /// Will only be used when copying by proxy.
   void writePartialWord(word_t Val, usize N) {
     Val = support::endian::byte_swap<word_t, endianness::little>(Val);
     const char* Ptr = reinterpret_cast<const char*>(&Val);
