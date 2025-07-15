@@ -56,6 +56,14 @@ protected:
   EXI_INLINE static constexpr usize GetBits(usize Bits) {
     return Bits & usize(0b111);
   }
+  /// Get the byte offset from a global bit offset.
+  EXI_INLINE static constexpr usize GetBytes64(usize Bits) {
+    return Bits >> 6;
+  }
+  /// Get the local bit offset from a global bit offset.
+  EXI_INLINE static constexpr usize GetBits64(usize Bits) {
+    return Bits & usize(0b111'111);
+  }
 };
 
 //===----------------------------------------------------------------===//
@@ -117,24 +125,21 @@ class EXI_EMPTY_BASES BitWriteBuffer : public BitBufferBase {
 
   BitWriteBuffer(buffer_t* Data, usize Bytes, usize Bits) :
    Data(Data), Offset(Cast(Bytes)), BitOffset(u32(Bits)) {
-    if EXI_NEVER(Bits >= 8)
-      Throw<argument_error>("Bit offset >= 8!");
+    if EXI_NEVER(Bits >= 64)
+      Throw<argument_error>("Bit offset >= 64!");
   }
 
 public:
   explicit BitWriteBuffer(buffer_t& Data) : Data(&Data) {}
 
   static BitWriteBuffer FromBits(buffer_t& Data, usize Bits) {
-    return BitWriteBuffer(&Data, GetBytes(Bits), GetBits(Bits));
+    return BitWriteBuffer(&Data, GetBytes64(Bits), GetBits64(Bits));
   }
   static BitWriteBuffer FromBytes(buffer_t& Data, usize Bytes) {
     return BitWriteBuffer(&Data, Bytes, 0);
   }
   static BitWriteBuffer FromBytesAndBits(
    buffer_t& Data, usize Bytes, usize Bits) {
-    if (Bits >= 8)
-      // Provide a fixup.
-      return FromBits(Data, (Bytes * 8) + Bits);
     return BitWriteBuffer(&Data, Bytes, Bits);
   }
 
@@ -144,7 +149,7 @@ public:
 
   bool aligned() const { return bits() == 0; }
   usize aligned_bytes() const {
-    return aligned() ? Offset : Offset + 1;
+    return aligned() ? Offset : Offset + 8;
   }
 };
 

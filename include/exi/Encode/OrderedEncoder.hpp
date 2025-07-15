@@ -47,9 +47,13 @@ class OrderedEncoder final : public BodyEncoder {
 
 public:
   OrderedEncoder(ExiOptions& Opts);
-  ExiError run() override;
+
+  /// Generic interface for initializing the OrderedWriter.
   ExiError init(raw_ostream& Strm, u32 FlushThreshold = 512) override;
+  /// Generic interface for initializing the OrderedWriter.
   ExiError init(SmallVecImpl<char>& Buf) override;
+
+  ExiError run() override;
 
 private:
   void initWriter(auto&&...Args) {

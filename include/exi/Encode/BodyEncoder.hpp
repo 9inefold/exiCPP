@@ -71,7 +71,19 @@ public:
   ExiEncoder(MaybeBox<ExiOptions> Opts, Option<raw_ostream&> OS = std::nullopt);
   ~ExiEncoder();
 
+  /// Get the state flags.
+  EncoderFlags flags() const { return Flags; }
+  /// Returns if the header was successfully decoded.
+  bool didHeader() const { return Flags.DidHeader && Flags.ValidHeader; }
+
+  /// Returns the stream used for diagnostics.
   raw_ostream& os() const;
+
+  ////////////////////////////////////////////////////////////////////////
+  // Initialization
+
+  /// Sets options for encoding.
+  ExiError setOptions(MaybeBox<ExiOptions> Opts);
 };
 
 } // namespace exi

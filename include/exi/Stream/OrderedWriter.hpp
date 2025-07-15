@@ -67,8 +67,12 @@ public:
     static constexpr bool ExternBuffer = true;
   };
 
-  using proxy_t = StreamProxy<BufferClone>;
+  // TODO: Implement this?
+  using proxy_t = BitWriteBuffer;
   using ProxyT  = proxy_t;
+
+  using proxy_old_t = StreamProxy<BufferClone>;
+  using ProxyOldT   = proxy_old_t;
 
   using refproxy_t = StreamProxy<BufferRef>;
   using RefProxyT  = refproxy_t;
@@ -161,6 +165,11 @@ protected:
     return dyn_cast_or_null<raw_fd_stream>(&*FS);
   }
 
+  [[deprecated("Move the whole container.")]]
+  OrderedWriter(proxy_old_t Proxy) : Buffer(Proxy->Buffer) {
+    this->setProxy(Proxy);
+  }
+
 public:
   /// Create a BitstreamWriter over a raw_ostream \p OutStream.
   /// If \p OutStream is a raw_svector_ostream, the BitstreamWriter will write
@@ -181,19 +190,13 @@ public:
   /// needing to wrap it in a raw_svector_ostream.
   OrderedWriter(SmallVecImpl<char>& Buf) : 
    Buffer(Buf), FS(nullptr), FlushThreshold(0) {}
-
-protected:
-  OrderedWriter(proxy_t Proxy) : Buffer(Proxy->Buffer) {
-    this->setProxy(Proxy);
-  }
-
-public:
+  
   ~OrderedWriter() {
     this->flushToWord();
     this->flushToFile(/*OnClosing=*/true);
   }
 
-  proxy_t getProxy() const {
+  proxy_old_t getProxy() const {
     return {
       {
         *Buffer, FS,
@@ -212,7 +215,7 @@ public:
   }
 
   // TODO: Add different modes? eg. emplace, append, etc.
-  void setProxy(proxy_t Proxy) {
+  void setProxy(proxy_old_t Proxy) {
     // TODO: Improve this logic more later. For now, just overwrite fancily.
     this->Buffer = Proxy->Buffer;
     if (Proxy->ExternBuffer)
@@ -333,13 +336,13 @@ protected:
 
 private:
   template <size_type Bytes = 8>
-  EXI_COLD void failUInt() {
+  EXI_ERROR_CC void failUInt() {
     // TODO: Add NO_INLINE?
     LOG_WARN("uint exceeded {} octets.\n", Bytes);
     //return Err(ErrorCode::kInvalidEXIInput);
   }
 
-  // FIXME: Only inconsistent override?
+  // HACK: Only inconsistent override?
   virtual void anchorX();
 };
 
@@ -352,7 +355,7 @@ class BitWriter final : public OrderedWriter {
   using BaseT::Store;
 public:
   using OrderedWriter::OrderedWriter;
-  BitWriter(proxy_t Proxy) : OrderedWriter(Proxy) {}
+  BitWriter(proxy_old_t Proxy) : OrderedWriter(Proxy) {}
 
   /// Writes a single bit.
   void writeBit(bool Val) override {
