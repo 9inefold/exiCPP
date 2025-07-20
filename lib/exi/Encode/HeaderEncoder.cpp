@@ -222,10 +222,11 @@ ExiError exi::encodeHeader(const ExiHeader& Header, OrdWriter& Strm) {
     return encodeHeaderImpl(Header, *Bits);
   }
 
-  auto& Bytes = cast<ByteWriter>(Strm);
-  BitWriter Bits(Bytes.getProxy());
-
+  // TODO: Verify this all works
+  ByteWriter& Bytes = cast<ByteWriter>(Strm);
+  BitWriter Bits(std::move(Bytes));
+  
   ExiError Out = encodeHeaderImpl(Header, Bits);
-  Bytes.setProxy(Bits.getProxy());
+  Strm.emplace<ByteWriter>(std::move(Bits));
   return Out;
 }

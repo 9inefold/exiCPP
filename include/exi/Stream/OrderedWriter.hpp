@@ -121,6 +121,12 @@ private:
     return OwnBuffer;
   }
 
+  SmallVecImpl<char>& getInternalBufferFromExternalSource(OrderedWriter& O) {
+    if (O.isOwnBuffer())
+      return O.Buffer;
+    return OwnBuffer;
+  }
+
   bool isOwnBuffer() const {
     auto* SelfBuf = static_cast<const buffer_t*>(&OwnBuffer);
     return Buffer.data() == SelfBuf;
@@ -170,6 +176,18 @@ protected:
     this->setProxy(Proxy);
   }
 
+  OrderedWriter(OrderedWriter&& O) :
+   OwnBuffer(std::move(O.OwnBuffer)),
+   Buffer(getInternalBufferFromExternalSource(O)),
+   FS(std::move(O.FS)), FlushThreshold(O.FlushThreshold),
+   BitsInStore(O.BitsInStore), Store(O.Store) {
+    exi_invariant(O.OwnBuffer.empty());
+    O.Buffer = O.OwnBuffer;
+    O.FS.emplace(nullptr);
+    O.BitsInStore = 0;
+    O.Store = 0;
+  }
+
 public:
   /// Create a BitstreamWriter over a raw_ostream \p OutStream.
   /// If \p OutStream is a raw_svector_ostream, the BitstreamWriter will write
@@ -196,6 +214,8 @@ public:
     this->flushToFile(/*OnClosing=*/true);
   }
 
+#if 1
+  [[deprecated("Move the whole container.")]]
   proxy_old_t getProxy() const {
     return {
       {
@@ -207,6 +227,7 @@ public:
     };
   }
 
+  [[deprecated("Use OrderedWriterRebind<>")]]
   refproxy_t getRefProxy() const {
     return {
       { *Buffer, Store },
@@ -214,7 +235,7 @@ public:
     };
   }
 
-  // TODO: Add different modes? eg. emplace, append, etc.
+  [[deprecated("Move the whole container.")]]
   void setProxy(proxy_old_t Proxy) {
     // TODO: Improve this logic more later. For now, just overwrite fancily.
     this->Buffer = Proxy->Buffer;
@@ -230,7 +251,7 @@ public:
     this->flushToFile();
   }
 
-  // TODO: Rethink implementation
+  [[deprecated("Use OrderedWriterRebind<>")]]
   void setProxy(refproxy_t Proxy) {
     this->flushToFile(/*OnClosing=*/true);
     this->Buffer = Proxy->Buffer;
@@ -239,6 +260,7 @@ public:
     this->BitsInStore = Proxy.NBits;
     this->Store = Proxy->Store;
   }
+#endif
 
   void flushToWord() {
     if EXI_UNLIKELY(!BitsInStore)
@@ -334,7 +356,7 @@ protected:
     this->writeBits64(0, Bits);
   }
 
-  template <StreamKind Kind> consteval bool IsBitPacked() {
+  template <StreamKind Kind> static consteval bool IsBitPacked() {
     static_assert(Kind == SK_Bit || Kind == SK_Byte);
     return Kind == SK_Bit;
   }
@@ -385,6 +407,14 @@ class BitWriter final : public OrderedWriter {
   using BaseT::Store;
 public:
   using OrderedWriter::OrderedWriter;
+  
+  template <std::derived_from<OrderedWriter> Strm>
+  BitWriter(Strm&& O) : OrderedWriter(std::move(O)) {}
+
+  template <std::derived_from<OrderedWriter> Strm>
+  BitWriter(const Strm& O) = delete;
+
+  [[deprecated("Move the whole container.")]]
   BitWriter(proxy_old_t Proxy) : OrderedWriter(Proxy) {}
 
   /// Writes a single bit.
@@ -416,8 +446,16 @@ class ByteWriter final : public OrderedWriter {
   using BaseT::BitsInStore;
   using BaseT::Store;
   using StreamBase::MakeByteCount;
+
+  static BitWriter&& AlignForMove(BitWriter&& O) {
+    O.align();
+    return std::move(O);
+  }
+
 public:
   using OrderedWriter::OrderedWriter;
+  ByteWriter(ByteWriter&& O) : OrderedWriter(std::move(O)) {}
+  ByteWriter(BitWriter&& O)  : OrderedWriter(AlignForMove(std::move(O))) {}
 
   /// Writes a single bit.
   void writeBit(bool Val) override {
