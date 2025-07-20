@@ -47,8 +47,6 @@ class BodyEncoder {
 public:
   virtual ~BodyEncoder() = default;
   virtual ExiError run() = 0;
-  virtual ExiError init(raw_ostream& Strm, u32 FlushThreshold = 512) = 0;
-  virtual ExiError init(SmallVecImpl<char>& Buf) = 0;
 };
 
 /// The EXI encoding processor.

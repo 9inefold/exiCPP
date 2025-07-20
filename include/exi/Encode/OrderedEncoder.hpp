@@ -49,9 +49,9 @@ public:
   OrderedEncoder(ExiOptions& Opts);
 
   /// Generic interface for initializing the OrderedWriter.
-  ExiError init(raw_ostream& Strm, u32 FlushThreshold = 512) override;
+  ExiError init(raw_ostream& Strm, u32 FlushThreshold = 512);
   /// Generic interface for initializing the OrderedWriter.
-  ExiError init(SmallVecImpl<char>& Buf) override;
+  ExiError init(SmallVecImpl<char>& Buf);
 
   ExiError run() override;
 
