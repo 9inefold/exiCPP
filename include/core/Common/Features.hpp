@@ -274,6 +274,12 @@
 #undef NO_INLINE
 #define NO_INLINE EXI_NO_INLINE
 
+#if EXI_HAS_ATTR(minsize)
+# define EXI_MINSIZE __attribute__((minsize))
+#else
+# define EXI_MINSIZE
+#endif
+
 #if !EXI_MSVC
 # define EXI_EMPTY_BASES
 # define EXI_NO_UNIQUE_ADDRESS [[no_unique_address]]
