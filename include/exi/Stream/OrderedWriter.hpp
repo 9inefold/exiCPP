@@ -334,6 +334,36 @@ protected:
     this->writeBits64(0, Bits);
   }
 
+  template <StreamKind Kind> consteval bool IsBitPacked() {
+    static_assert(Kind == SK_Bit || Kind == SK_Byte);
+    return Kind == SK_Bit;
+  }
+
+  /// Unified implementation for `writeBit`.
+  template <StreamKind Kind>
+  ALWAYS_INLINE void writeBitImpl(bool Val) {
+    if constexpr (IsBitPacked<Kind>())
+      this->writeNBits(Val, 1);
+    else
+      this->writeByte(Val);
+  }
+
+  /// Unified implementation for `writeBits64`.
+  template <StreamKind Kind>
+  ALWAYS_INLINE void writeBits64Impl(u64 Val, size_type Bits) {
+    exi_invariant(Bits <= kBitsPerWord,
+      "Cannot write more than BitsPerWord bits!");
+    
+    if (Bits == 0)
+      // Do nothing...
+      return;
+    
+    if constexpr (IsBitPacked<Kind>())
+      this->writeNBits(Val, Bits);
+    else
+      this->writeNBits(Val, MakeByteCount(Bits));
+  }
+
 private:
   template <size_type Bytes = 8>
   EXI_ERROR_CC void failUInt() {
@@ -359,19 +389,12 @@ public:
 
   /// Writes a single bit.
   void writeBit(bool Val) override {
-    BaseT::writeNBits(Val, 1);
+    BaseT::writeBitImpl<SK_Bit>(Val);
   }
 
   /// Writes a variable number of bits (max of 64).
   void writeBits64(u64 Val, size_type Bits) override {
-    exi_invariant(Bits <= kBitsPerWord,
-      "Cannot write more than BitsPerWord bits!");
-    
-    if (Bits == 0)
-      // Do nothing...
-      return;
-    
-    BaseT::writeNBits(Val, Bits);
+    BaseT::writeBits64Impl<SK_Bit>(Val, Bits);
   }
 
   // Expose alignment for bit packing.
@@ -398,20 +421,12 @@ public:
 
   /// Writes a single bit.
   void writeBit(bool Val) override {
-    BaseT::writeByte(Val);
+    BaseT::writeBitImpl<SK_Byte>(Val);
   }
 
   /// Writes a variable number of bits (max of 64).
   void writeBits64(u64 Val, size_type Bits) override {
-    exi_invariant(Bits <= kBitsPerWord,
-      "Cannot write more than BitsPerWord bits!");
-    
-    if (Bits == 0)
-      // Do nothing...
-      return;
-    
-    const size_type Off = MakeByteCount(Bits);
-    BaseT::writeNBits(Val, Off);
+    BaseT::writeBits64Impl<SK_Byte>(Val, Bits);
   }
 
   StreamKind getStreamKind() const override {
