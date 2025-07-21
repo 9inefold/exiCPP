@@ -32,9 +32,10 @@
 static constexpr bool EXI_LOG_LINES = false;
 
 /// Format with a specified debug type.
+/// TODO: Check EXI_PRESERVE_MOST
 /// TODO: Add source_location?
 # define LOG_FORMAT_WITH(LEVEL, TYPE, COLOR, ...)                             \
-LOG_WITH_LEVEL_AND_TYPE(LEVEL, TYPE, [&]() {                                  \
+LOG_WITH_LEVEL_AND_TYPE(LEVEL, TYPE, [&]() EXI_PRESERVE_MOST {                \
   const auto _u_OldCol = dbgs().getColor();                                   \
   dbgs().changeColor(::exi::raw_ostream::COLOR)                               \
     << (EXI_LOG_LINES ? __FILE__ ":" STRINGIFY(__LINE__) ": " : "")           \
