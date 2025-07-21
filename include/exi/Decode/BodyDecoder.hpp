@@ -96,7 +96,9 @@ public:
   // Initialization
 
   /// Returns an error if the reader is empty.
-  ExiError readerExists() const;
+  bool isReaderInitialized() const { return !Reader.empty(); }
+  /// Returns an error if the reader is empty.
+  ExiError assumeReaderIsUninitialized() const;
   /// Sets options out-of-band.
   ExiError setOptions(MaybeBox<ExiOptions> Opts);
   /// Sets reader out-of-band. Options must be provided.

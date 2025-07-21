@@ -19,15 +19,17 @@ This is a TODO list for the C++ version of exiCPP.
 ## In Progress
 
 - `encode::StringTable`
-- Produce event codes
+- Produce event codes - set up `ExiEncoder`
 - Prepare for doxygen support
 - Update rapidxml
 - `ErrorCode` customization
 - Implement `Throw<Ex>(...)`, handle some exceptional cases...
+- Add more info to rapidxml nodes?
 
 ## Unfinished
 
-- Add more info to rapidxml nodes?
+- Refactor initialization of `ExiDecoder`, it makes no fucking sense
+- Split out implementation of `ExiDecoder` like with `ExiEncoder`
 - `sys::` implementation on linux
 - Add some more major in-source TODOs here...
 - Add doxygen support

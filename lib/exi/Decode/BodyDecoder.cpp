@@ -55,8 +55,8 @@ ExiDecoder::ExiDecoder(MaybeBox<ExiOptions> Opts,
 //////////////////////////////////////////////////////////////////////////
 // Initialization
 
-ExiError ExiDecoder::readerExists() const {
-  if (!Reader.empty()) {
+ExiError ExiDecoder::assumeReaderIsUninitialized() const {
+  if (isReaderInitialized()) {
     LOG_ERROR("Invalid processor state!");
     return ErrorCode::kInvalidConfig;
   }
@@ -65,11 +65,14 @@ ExiError ExiDecoder::readerExists() const {
 
 ExiError ExiDecoder::setOptions(MaybeBox<ExiOptions> Opts) {
   if (Flags.DidHeader) {
+    // FIXME: Why am I even checking this
     exi_invariant(Header.Opts, "Options not initialized!");
-    return this->readerExists();
+    return assumeReaderIsUninitialized();
   }
   Header.Opts = std::move(Opts);
-  if (!Reader.empty())
+  if (isReaderInitialized())
+    // HACK: The assumption is the header doesn't need to be read.
+    // This may not be true in all cases, so verify it.
     Flags.DidHeader = true;
   
   LOG_EXTRA("Options set manually.");
@@ -78,6 +81,8 @@ ExiError ExiDecoder::setOptions(MaybeBox<ExiOptions> Opts) {
 
 ExiError ExiDecoder::setReader(UnifiedBuffer Buffer) {
   if (!Header.Opts) {
+    // BUG: This error is actually incorrect, it doesn't matter what the initial
+    // type of the reader is, it acts as a BitReader anyways.
     LOG_ERROR("Cannot deduce stream type without header.");
     return ErrorCode::kInvalidConfig;
   }
@@ -97,7 +102,7 @@ ExiError ExiDecoder::setReader(UnifiedBuffer Buffer) {
 ExiError ExiDecoder::init() {
   if (Flags.DidInit) {
     exi_assert(Header.Opts);
-    return this->readerExists();
+    return this->assumeReaderIsUninitialized();
   }
 
   if (!Header.Opts || Reader.empty()) {
