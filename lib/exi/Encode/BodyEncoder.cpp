@@ -44,10 +44,21 @@ ExiEncoder::~ExiEncoder() {
 }
 
 //////////////////////////////////////////////////////////////////////////
-// Miscellaneous
+// Initialization
 
-void BodyEncoder::anchor() {}
+ExiError ExiEncoder::setOptions(MaybeBox<ExiOptions> Opts) {
+  if (Flags.DidHeader) {
+    LOG_ERROR("Header has already been written.");
+    return ExiError::kInvalidConfig;
+  }
+  return ExiError::OK;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Miscellaneous
 
 raw_ostream& ExiEncoder::os() const {
   return OS.value_or(errs());
 }
+
+void BodyEncoder::anchor() {}
