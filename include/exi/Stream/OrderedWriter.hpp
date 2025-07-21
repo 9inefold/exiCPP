@@ -52,31 +52,6 @@ namespace exi {
 // HACK: Proxy copying sucks! Please fix!
 class OrderedWriter : public WriterBase {
 public:
-  struct BufferClone {
-    buffer_t& Buffer;
-    raw_ostream* const FS = nullptr;
-    const u64 FlushThreshold = 0;
-    word_t Store = 0;
-    bool ExternBuffer = false;
-  };
-
-  // TODO: Rethink implementation
-  struct BufferRef {
-    buffer_t& Buffer;
-    word_t Store = 0;
-    static constexpr bool ExternBuffer = true;
-  };
-
-  // TODO: Implement this?
-  using proxy_t = BitWriteBuffer;
-  using ProxyT  = proxy_t;
-
-  using proxy_old_t = StreamProxy<BufferClone>;
-  using ProxyOldT   = proxy_old_t;
-
-  using refproxy_t = StreamProxy<BufferRef>;
-  using RefProxyT  = refproxy_t;
-
   /// @brief Default flushing threshold in MiB.
   static constexpr size_type kFlushThreshold = 512;
   /// @brief Currently uses MiB.
@@ -88,7 +63,7 @@ protected:
   SmallVec<char, 0> OwnBuffer;
   /// Internal buffer for unflushed bytes (unless there is no stream to flush
   /// to, case in which these are "the bytes").
-  Ref<buffer_t> Buffer;
+  SmallVecImpl<char>& Buffer;
 
   /// The file stream that Buffer flushes to. If FS is a `raw_fd_stream`, the
   /// writer will incrementally flush. Otherwise flushing will happen at the end
@@ -96,7 +71,7 @@ protected:
   ManualRebindPtr<raw_ostream> FS = nullptr;
 
   /// The threshold (unit B) to flush to FS, if FS is a `raw_fd_stream`.
-  ManualRebind<u64> FlushThreshold = 0;
+  const u64 FlushThreshold = 0;
 
   /// A value in the range [0, 64), specifies the next bit to use.
   size_type BitsInStore = 0;
@@ -110,9 +85,9 @@ protected:
 private:
   void flushAndClear() {
     exi_assert(FS);
-    exi_assert(!Buffer->empty());
-    FS->write(Buffer->data(), Buffer->size());
-    Buffer->clear();
+    exi_assert(!Buffer.empty());
+    FS->write(Buffer.data(), Buffer.size());
+    Buffer.clear();
   }
 
   SmallVecImpl<char>& getInternalBufferFromStream(raw_ostream& Strm) {
@@ -128,8 +103,7 @@ private:
   }
 
   bool isOwnBuffer() const {
-    auto* SelfBuf = static_cast<const buffer_t*>(&OwnBuffer);
-    return Buffer.data() == SelfBuf;
+    return &Buffer == &OwnBuffer;
   }
 
 protected:
@@ -137,18 +111,18 @@ protected:
   /// size is above a threshold. If \p OnClosing is true, flushing happens
   /// regardless of thresholds.
   void flushToFile(bool OnClosing = false) {
-    if (!FS || Buffer->empty())
+    if (!FS || Buffer.empty())
       return;
     if (OnClosing)
       return flushAndClear();
-    if (fdStream() && Buffer->size() > FlushThreshold)
+    if (fdStream() && Buffer.size() > FlushThreshold)
       flushAndClear();
   }
 
   void writeWord(word_t Val) {
     Val = support::endian::byte_swap<word_t, endianness::little>(Val);
-    Buffer->append(reinterpret_cast<const char*>(&Val),
-                   reinterpret_cast<const char*>(&Val + 1));
+    Buffer.append(reinterpret_cast<const char*>(&Val),
+                  reinterpret_cast<const char*>(&Val + 1));
   }
 
   /// Will only be used when copying by proxy.
@@ -156,11 +130,11 @@ protected:
     Val = support::endian::byte_swap<word_t, endianness::little>(Val);
     const char* Ptr = reinterpret_cast<const char*>(&Val);
     N = std::min(N, sizeof(word_t));
-    Buffer->append(Ptr, Ptr + N);
+    Buffer.append(Ptr, Ptr + N);
   }
 
   void writeBytes(ArrayRef<char> Bytes) {
-    Buffer->append(Bytes.begin(), Bytes.end());
+    Buffer.append(Bytes.begin(), Bytes.end());
   }
 
   raw_fd_stream* fdStream() {
@@ -169,11 +143,6 @@ protected:
 
   const raw_fd_stream* fdStream() const {
     return dyn_cast_or_null<raw_fd_stream>(&*FS);
-  }
-
-  [[deprecated("Move the whole container.")]]
-  OrderedWriter(proxy_old_t Proxy) : Buffer(Proxy->Buffer) {
-    this->setProxy(Proxy);
   }
 
   OrderedWriter(OrderedWriter&& O) :
@@ -213,54 +182,6 @@ public:
     this->flushToWord();
     this->flushToFile(/*OnClosing=*/true);
   }
-
-#if 1
-  [[deprecated("Move the whole container.")]]
-  proxy_old_t getProxy() const {
-    return {
-      {
-        *Buffer, FS,
-        FlushThreshold, Store,
-        !isOwnBuffer()
-      },
-      BitsInStore
-    };
-  }
-
-  [[deprecated("Use OrderedWriterRebind<>")]]
-  refproxy_t getRefProxy() const {
-    return {
-      { *Buffer, Store },
-      BitsInStore
-    };
-  }
-
-  [[deprecated("Move the whole container.")]]
-  void setProxy(proxy_old_t Proxy) {
-    // TODO: Improve this logic more later. For now, just overwrite fancily.
-    this->Buffer = Proxy->Buffer;
-    if (Proxy->ExternBuffer)
-      FS.assign(Proxy->FS);
-    else if (!this->isOwnBuffer())
-      FS.assign(nullptr);
-    FlushThreshold.assign(Proxy->FlushThreshold);
-    
-    this->BitsInStore = Proxy.NBits;
-    this->Store = Proxy->Store;
-
-    this->flushToFile();
-  }
-
-  [[deprecated("Use OrderedWriterRebind<>")]]
-  void setProxy(refproxy_t Proxy) {
-    this->flushToFile(/*OnClosing=*/true);
-    this->Buffer = Proxy->Buffer;
-    FS.assign(nullptr);
-    
-    this->BitsInStore = Proxy.NBits;
-    this->Store = Proxy->Store;
-  }
-#endif
 
   void flushToWord() {
     if EXI_UNLIKELY(!BitsInStore)
@@ -407,15 +328,12 @@ class BitWriter final : public OrderedWriter {
   using BaseT::Store;
 public:
   using OrderedWriter::OrderedWriter;
-  
+
   template <std::derived_from<OrderedWriter> Strm>
   BitWriter(Strm&& O) : OrderedWriter(std::move(O)) {}
 
   template <std::derived_from<OrderedWriter> Strm>
   BitWriter(const Strm& O) = delete;
-
-  [[deprecated("Move the whole container.")]]
-  BitWriter(proxy_old_t Proxy) : OrderedWriter(Proxy) {}
 
   /// Writes a single bit.
   void writeBit(bool Val) override {
