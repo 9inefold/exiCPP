@@ -32,6 +32,11 @@ namespace exi {
 
 enum class MemOp { Init, Uninit };
 
+template <typename T>
+inline constexpr MemOp kDefaultInitMemOp
+  = std::is_trivially_constructible_v<T>
+    ? MemOp::Uninit : MemOp::Init;
+
 namespace H {
 
 /// Implements byte-wise copies for `FastCopy`.
@@ -103,7 +108,7 @@ exi_mem_constexpr void FastUninitMove(T* Dst, T* Src, usize N) {
     H::FastNontrivialMove<MemOp::Uninit>(Dst, Src, N);
 }
 
-/// Copies an array from `Src` to `Dst`.
+/// Copies an array from `Src` to `Dst` with `MemOp::OP`.
 template <MemOp OP = MemOp::Init,
   bool PotentiallyOverlapping = false, typename T>
 exi_mem_constexpr void FastCopy(T* Dst, const T* Src, usize N) {
@@ -113,7 +118,7 @@ exi_mem_constexpr void FastCopy(T* Dst, const T* Src, usize N) {
     H::FastNontrivialCopy<OP>(Dst, Src, N);
 }
 
-/// Moves an array from `Src` to `Dst`.
+/// Moves an array from `Src` to `Dst` with `MemOp::OP`.
 template <MemOp OP = MemOp::Init,
   bool PotentiallyOverlapping = false, typename T>
 exi_mem_constexpr void FastMove(T* Dst, T* Src, usize N) {
@@ -121,6 +126,12 @@ exi_mem_constexpr void FastMove(T* Dst, T* Src, usize N) {
     H::FastTrivialCopy<PotentiallyOverlapping>(Dst, Src, N);
   else
     H::FastNontrivialMove<OP>(Dst, Src, N);
+}
+
+/// Copies an array from `Src` to `Dst`, assuming `Dst` is default-initialized.
+template <bool PotentiallyOverlapping = false, typename T>
+EXI_INLINE exi_mem_constexpr void FastDefaultCopy(T* Dst, const T* Src, usize N) {
+  return FastCopy<kDefaultInitMemOp<T>, PotentiallyOverlapping>(Dst, Src, N);
 }
 
 } // namespace exi
