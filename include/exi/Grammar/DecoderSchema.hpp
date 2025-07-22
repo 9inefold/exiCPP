@@ -1,6 +1,6 @@
 //===- exi/Grammar/DecoderSchema.hpp --------------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2024-2025 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@
 #include <core/Common/MaybeBox.hpp>
 #include <core/Support/ExtensibleRTTI.hpp>
 #include <exi/Basic/EventCodes.hpp>
+#include <exi/Grammar/State.hpp>
 
 namespace exi {
 
@@ -52,17 +53,7 @@ private:
 /// The builtin (or fallback) schema.
 class BuiltinSchema : public RTTIExtends<BuiltinSchema, Schema> {
 public:
-  /// Possible Grammar states for schemaless.
-  enum class Grammar {
-    Document,
-    DocContent,
-    DocEnd,
-    StartTagContent,
-    ElementContent,
-    Fragment,
-    Last = ElementContent
-  };
-  
+  using Grammar = BIGrammar;
   /// @brief Gets a builtin schema.
   [[nodiscard]] static Box<BuiltinSchema> New(const ExiOptions& Opts);
 private:
