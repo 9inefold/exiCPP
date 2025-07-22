@@ -55,8 +55,12 @@ else()
     -Wno-unused-variable -Wno-unused-function
     -Wno-unused-parameter)
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GCC")
+    # GCC only flags
     set(EXI_FLAGS "${EXI_FLAGS} -Wuninitialized=precise
       $<$<NOT:$<CONFIG:Debug>>:\"-ftrivial-auto-var-init=zero\">")
+  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # Clang only flags
+    # ...
   endif()
   if(EXI_NATIVE_CODEGEN)
     # TODO: Add a less narrowing version for production builds.
