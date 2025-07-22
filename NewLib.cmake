@@ -75,7 +75,7 @@ endif()
 
 ##########################################################################
 
-include_items(EXICPP_SRC "lib/exi"
+include_items(EXICPP_BASIC "lib/exi"
   Basic/ErrorCodes.cpp
   Basic/EventCodes.cpp
   Basic/ExiHeader.cpp
@@ -88,33 +88,62 @@ include_items(EXICPP_SRC "lib/exi"
   Basic/XML.cpp
   Basic/XMLContainer.cpp
   Basic/XMLManager.cpp
+)
 
+include_items(EXICPP_DECODE "lib/exi"
   Decode/BodyDecoder.cpp
   Decode/HeaderDecoder.cpp
   Decode/Serializer.cpp
   Decode/StringTables.cpp
+)
 
+include_items(EXICPP_ENCODE "lib/exi"
   Encode/BodyEncoder.cpp
   Encode/HeaderEncoder.cpp
   Encode/OrderedEncoder.cpp
   Encode/NamespaceContextStack.cpp
   Encode/StringTables.cpp
+)
 
+include_items(EXICPP_GRAMMAR "lib/exi"
   Grammar/Grammar.cpp
   Grammar/Encode/Schema.cpp
   #Grammar/Encode/BuiltinSchema.cpp
   Grammar/Decode/Schema.cpp
   Grammar/Decode/BuiltinSchema.cpp
+)
 
+include_items(EXICPP_STREAM "lib/exi"
   Stream/Stream.cpp
 )
 
-add_library(exicpp STATIC ${EXICPP_SRC})
-add_library(exi::exicpp ALIAS exicpp)
+function(exi_add_library lib src)
+  set(LIBNAME exi-${lib})
+  add_library(${LIBNAME} STATIC ${${src}})
+  add_library(exi::${lib} ALIAS ${LIBNAME})
 
-target_include_directories(exicpp PUBLIC include)
-target_link_libraries(exicpp PUBLIC exi::core rapidxml::rapidxml)
-target_compile_options(exicpp PRIVATE ${EXI_WARNING_FLAGS})
+  target_include_directories(${LIBNAME} PUBLIC include)
+  target_link_libraries(${LIBNAME} PUBLIC exi::core rapidxml::rapidxml)
+  target_compile_options(${LIBNAME} PRIVATE ${EXI_WARNING_FLAGS})
+endfunction(exi_add_library)
+
+exi_add_library(basic EXICPP_BASIC)
+exi_add_library(decode EXICPP_DECODE)
+exi_add_library(encode EXICPP_ENCODE)
+exi_add_library(grammar EXICPP_GRAMMAR)
+exi_add_library(stream EXICPP_STREAM)
+
+add_library(exi-exicpp INTERFACE)
+add_library(exi::exicpp ALIAS exi-exicpp)
+add_library(exi::exi ALIAS exi-exicpp)
+
+target_link_libraries(exi-exicpp INTERFACE
+  exi::basic
+  exi::decode
+  exi::encode
+  exi::grammar
+  exi::stream
+)
 
 if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
   add_executable(exi-driver Driver.cpp
