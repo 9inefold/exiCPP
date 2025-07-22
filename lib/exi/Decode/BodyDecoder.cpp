@@ -243,55 +243,6 @@ EXI_COLD ExiError ExiDecoder::dispatchUncommonEvent(Deserializer* S,
 //////////////////////////////////////////////////////////////////////////
 // Terms
 
-#if 0
-// Start Element (*)
-// Start Element (uri:*)
-// Start Element (qname)
-ExiError ExiDecoder::handleSE(EventUID Event) {
-  LOG_EXTRA("Decoded SE");
-  return ExiError::OK;
-}
-
-ExiError ExiDecoder::handleEE(EventUID Event) {
-#if EXI_LOGGING
-  if (Event.hasQName()) {
-    StrRef URI = this->getPfxOrURI(Event);
-    StrRef LocalName = Strings.getLocalName(Event.Name);
-    LOG_INFO(">> EE[{}:{}]\n", URI, LocalName);
-  } else {
-    LOG_EXTRA("Decoded EE");
-    if (hasDbgLogLevel(INFO))
-      dbgs() << '\n';
-  }
-#endif
-  return ExiError::OK;
-}
-
-// Attribute (*, value)
-// Attribute (uri:*, value)
-// Attribute (qname, value)
-ExiError ExiDecoder::handleAT(EventUID Event) {
-  exi_invariant(Event.hasQName());
-  Result R = decodeValue(Event.Name);
-  const auto Value = $unwrap(std::move(R));
-  LOG_EXTRA("Decoded AT");
-  return ExiError::OK;
-}
-
-// Namespace Declaration (uri, prefix, local-element-ns)
-ExiError ExiDecoder::handleNS(EventUID) {
-  const auto Event = $unwrap(decodeNS());
-  LOG_EXTRA("Decoded NS");
-  return ExiError::OK;
-}
-
-// Characters (value)
-ExiError ExiDecoder::handleCH(EventUID Event) {
-  LOG_EXTRA("Decoded CH");
-  return ExiError::OK;
-}
-#endif
-
 // Start Element (*)
 // Start Element (uri:*)
 // Start Element (qname)
