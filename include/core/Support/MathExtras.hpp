@@ -134,31 +134,37 @@ static constexpr u8 BitReverseTable256[256] = {
 };
 
 /// Reverse the bits in \p Val.
-template <typename T> T reverseBits(T Val) {
+template <typename T>
+exi_mem_constexpr T reverseBits(T Val) {
 #if __has_builtin(__builtin_bitreverse8)
   if constexpr (std::is_same_v<T, u8>)
     return __builtin_bitreverse8(Val);
+  else
 #endif
 #if __has_builtin(__builtin_bitreverse16)
   if constexpr (std::is_same_v<T, u16>)
     return __builtin_bitreverse16(Val);
+  else
 #endif
 #if __has_builtin(__builtin_bitreverse32)
   if constexpr (std::is_same_v<T, u32>)
     return __builtin_bitreverse32(Val);
+  else
 #endif
 #if __has_builtin(__builtin_bitreverse64)
   if constexpr (std::is_same_v<T, u64>)
     return __builtin_bitreverse64(Val);
+  else
 #endif
-
-  unsigned char in[sizeof(Val)];
-  unsigned char out[sizeof(Val)];
-  std::memcpy(in, &Val, sizeof(Val));
-  for (unsigned i = 0; i < sizeof(Val); ++i)
-    out[(sizeof(Val) - i) - 1] = BitReverseTable256[in[i]];
-  std::memcpy(&Val, out, sizeof(Val));
-  return Val;
+  {
+    alignas(T) unsigned char in[sizeof(Val)];
+    alignas(T) unsigned char out[sizeof(Val)];
+    exi___builtin_memcpy(in, &Val, sizeof(Val));
+    for (unsigned i = 0; i < sizeof(Val); ++i)
+      out[(sizeof(Val) - i) - 1] = BitReverseTable256[in[i]];
+    exi___builtin_memcpy(in, &Val, sizeof(Val));
+    return Val;
+  }
 }
 
 // NOTE: The following support functions use the _32/_64 extensions instead of

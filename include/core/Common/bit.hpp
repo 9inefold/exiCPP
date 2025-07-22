@@ -41,7 +41,7 @@
 # define EXI_BIT_CAST_CONSTEXPR constexpr
 #else
 # include <cstring>
-# define EXI_BIT_CAST_CONSTEXPR
+# define EXI_BIT_CAST_CONSTEXPR exi_mem_constexpr
 #endif
 
 #if defined(_MSC_VER) && !defined(_DEBUG)
@@ -112,7 +112,7 @@ template <
   return __builtin_bit_cast(To, from);
 #else
   To to;
-  std::memcpy(&to, &from, sizeof(To));
+  exi___builtin_memcpy(&to, &from, sizeof(To));
   return to;
 #endif
 }

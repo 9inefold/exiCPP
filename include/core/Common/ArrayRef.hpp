@@ -30,6 +30,7 @@
 #include <Common/Hashing.hpp>
 #include <Common/SmallVec.hpp>
 #include <Common/Vec.hpp>
+#include <Support/D/MemOps.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <algorithm>
 #include <array>
@@ -193,7 +194,7 @@ DIAGNOSTIC_POP()
   // copy - Allocate copy in Allocator and return ArrayRef<T> to it.
   template <typename Allocator> MutArrayRef<T> copy(Allocator &A) {
     T *Buff = A.template Allocate<T>(Length);
-    std::uninitialized_copy(begin(), end(), Buff);
+    FastUninitCopy(begin(), end(), Buff);
     return MutArrayRef<T>(Buff, Length);
   }
 
