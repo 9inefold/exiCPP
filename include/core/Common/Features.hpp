@@ -485,6 +485,21 @@
 # define EXI_PREFETCH(addr, rw, locality) (void(0))
 #endif
 
+#define HAS__builtin_memcpy  EXI_HAS_BUILTIN(__builtin_memcpy)
+#define HAS__builtin_memmove EXI_HAS_BUILTIN(__builtin_memmove)
+
+#if defined(__clang__) && HAS__builtin_memcpy && HAS__builtin_memmove
+# define EXI_HAS_CONSTEXPR_MEMOPS 1
+# define exi_mem_constexpr constexpr
+# define exi___builtin_memcpy(SRC, DST, SIZE) __builtin_memcpy(SRC, DST, SIZE)
+# define exi___builtin_memmove(SRC, DST, SIZE) __builtin_memmove(SRC, DST, SIZE)
+#else
+# define EXI_HAS_CONSTEXPR_MEMOPS 0
+# define exi_mem_constexpr
+# define exi___builtin_memcpy(SRC, DST, SIZE) ::memcpy(SRC, DST, SIZE)
+# define exi___builtin_memmove(SRC, DST, SIZE) ::memmove(SRC, DST, SIZE)
+#endif
+
 #if EXI_HAS_BUILTIN(__builtin_expect)
 # define HAS__builtin_expect 1
 # define EXI_EXPECT(EXPECTED, EXPR)                                           \

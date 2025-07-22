@@ -34,28 +34,17 @@
 # include <Support/Alignment.hpp>
 #endif
 
-#if EXI_HAS_BUILTIN(__builtin_memcpy) && EXI_HAS_BUILTIN(__builtin_memmove)
-# define EXI_HAS_CONSTEXPR_COPY 1
-# define exi_copy_constexpr constexpr
-# define exi___builtin_memcpy(SRC, DST, SIZE) __builtin_memcpy(SRC, DST, SIZE)
-# define exi___builtin_memmove(SRC, DST, SIZE) __builtin_memmove(SRC, DST, SIZE)
-#else
-# define exi_copy_constexpr
-# define exi___builtin_memcpy(SRC, DST, SIZE) ::memcpy(SRC, DST, SIZE)
-# define exi___builtin_memmove(SRC, DST, SIZE) ::memmove(SRC, DST, SIZE)
-#endif
-
 namespace exi {
 
 /// Copies an array of `T[Count]` of trivial type `T` from `Dst` to `Src`.
 template <typename T> requires std::is_trivially_copyable_v<T>
-exi_copy_constexpr T* trivial_copy(T* Dst, const T* Src, usize Count) {
+exi_mem_constexpr T* trivial_copy(T* Dst, const T* Src, usize Count) {
   return static_cast<T*>(exi___builtin_memcpy(Dst, Src, sizeof(T) * Count));
 }
 
 /// Moves an array of `T[Count]` of trivial type `T` from `Dst` to `Src`.
 template <typename T> requires std::is_trivially_copyable_v<T>
-exi_copy_constexpr T* trivial_move(T* Dst, const T* Src, usize Count) {
+exi_mem_constexpr T* trivial_move(T* Dst, const T* Src, usize Count) {
   return static_cast<T*>(exi___builtin_memmove(Dst, Src, sizeof(T) * Count));
 }
 
@@ -63,7 +52,7 @@ exi_copy_constexpr T* trivial_move(T* Dst, const T* Src, usize Count) {
 /// Then implicitly creates an array `T[Bytes / sizeof(T)]` of trivial types.
 template <typename T, bool SkipChecks = false>
 requires std::is_trivially_copyable_v<T>
-exi_copy_constexpr T* trivial_copy_bytes(
+exi_mem_constexpr T* trivial_copy_bytes(
  void* Dst, const void* Src, usize Bytes) {
   if constexpr (!SkipChecks) {
     exi_expensive_invariant((Bytes % sizeof(T)) == 0);
@@ -77,7 +66,7 @@ exi_copy_constexpr T* trivial_copy_bytes(
 /// Then implicitly creates an array `T[Bytes / sizeof(T)]` of trivial types.
 template <typename T, bool SkipChecks = false>
 requires std::is_trivially_copyable_v<T>
-exi_copy_constexpr T* trivial_move_bytes(
+exi_mem_constexpr T* trivial_move_bytes(
  void* Dst, const void* Src, usize Bytes) {
   if constexpr (!SkipChecks) {
     exi_expensive_invariant((Bytes % sizeof(T)) == 0);
