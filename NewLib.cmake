@@ -101,7 +101,8 @@ include_items(EXICPP_SRC "lib/exi"
   Encode/StringTables.cpp
 
   Grammar/Grammar.cpp
-  #Grammar/Schema.cpp
+  Grammar/Encode/Schema.cpp
+  #Grammar/Encode/BuiltinSchema.cpp
   Grammar/Decode/Schema.cpp
   Grammar/Decode/BuiltinSchema.cpp
 
