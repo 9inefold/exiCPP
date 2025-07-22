@@ -143,7 +143,7 @@ template <class StrmT>
 class INTERNAL_LINKAGE DynBuiltinSchema final
     : public BuiltinSchema,
       public TrailingArray<DynBuiltinSchema<StrmT>, EventTerm> {
-  using enum BuiltinSchema::Grammar;
+  using enum BIGrammar;
   class Builder;
 
   using BaseT = TrailingArray<DynBuiltinSchema, EventTerm>;
@@ -156,7 +156,7 @@ class INTERNAL_LINKAGE DynBuiltinSchema final
   /// The current event ID
   EventUID Event = EventUID::NewNull();
   /// The pseudo grammar stack.
-  BuiltinSchema::Grammar Current = Document;
+  BIGrammar Current = Document;
   /// The grammar stack.
   /// TODO: Profile...
   Vec<GrammarT> GStack;
@@ -246,7 +246,7 @@ private:
     return this->Event;
   }
 
-  ALWAYS_INLINE void pushGrammar(BuiltinSchema::Grammar New) {
+  ALWAYS_INLINE void pushGrammar(BIGrammar New) {
     Current = New;
   }
 
@@ -568,7 +568,7 @@ private:
 
 public:
   void dump() const override;
-  void PrintGrammar(BuiltinSchema::Grammar G) const;
+  void PrintGrammar(BIGrammar G) const;
 
 private:
   static StrRef GetGrammarName(Grammar G) {
@@ -794,7 +794,7 @@ void DynBuiltinSchema<StrmT>::dump() const {
 }
 
 template <class StrmT>
-void DynBuiltinSchema<StrmT>::PrintGrammar(BuiltinSchema::Grammar G) const {
+void DynBuiltinSchema<StrmT>::PrintGrammar(BIGrammar G) const {
   const StrRef Name = GetGrammarName(G);
   auto [Off, Code] = Info[G];
   const EventTerm* Base = BaseT::data() + Off;
