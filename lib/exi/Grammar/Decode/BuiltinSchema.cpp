@@ -136,6 +136,9 @@ struct EXI_TRIVIAL_ABI BIInfo {
   SEventCode Code = {};
 };
 
+using BIInfoArray = EnumeratedArray<BIInfo, BIGrammar,
+  BIGrammar::Last, BIGrammar::DocContent>;
+
 // TODO: Update other functions to use template.
 // It currently shows as slightly slower, but this may be because of split
 // behaviour in the IBP.
@@ -147,12 +150,11 @@ class INTERNAL_LINKAGE DynBuiltinSchema final
   class Builder;
 
   using BaseT = TrailingArray<DynBuiltinSchema, EventTerm>;
-  using InfoT = EnumeratedArray<BIInfo, Grammar, Last, DocContent>;
   using MatchT = MMatch<EventTerm, EventTerm>;
   using GrammarT = PointerIntPair<BuiltinGrammar*, 1, bool>;
 
   /// Contains info on the compressed grammars.
-  InfoT Info;
+  BIInfoArray Info;
   /// The current event ID
   EventUID Event = EventUID::NewNull();
   /// The pseudo grammar stack.
@@ -592,10 +594,9 @@ private:
 
 template <class StrmT>
 class DynBuiltinSchema<StrmT>::Builder {
-  using SuperT = DynBuiltinSchema<StrmT>;
 public:
   SmallVec<EventTerm, 8> Terms;
-  SmallVec<BIInfo, SuperT::InfoT::size()> Info;
+  SmallVec<BIInfo, BIInfoArray::size()> Info;
 
 private:
   ExiOptions::PreserveOpts Preserve;
@@ -625,6 +626,12 @@ public:
   Builder(const ExiOptions& Opts) :
    Preserve(Opts.Preserve),
    SelfContained(Opts.SelfContained) {
+  }
+
+  static Builder New(const ExiOptions& Opts) {
+    Builder B(Opts);
+    B.init();
+    return B;
   }
 
   static void Inc(SEventCode& C, i8 I = 1) {
@@ -764,17 +771,17 @@ void DynBuiltinSchema<StrmT>::Builder::CalculateLog(SEventCode* EC) {
     EC->Bits[Ix] = SmallLog2[Data[Ix]];
 }
 
+// TODO: Add SchemaFactory...
 template <class StrmT>
 Box<DynBuiltinSchema<StrmT>>
     DynBuiltinSchema<StrmT>::New(const ExiOptions& Opts) {
-  Builder B(Opts);
-  B.init();
-
   using Trailing = DynBuiltinSchema::BaseT;
+  auto B = Builder::New(Opts);
   void* Raw = Trailing::New(B.Terms.size());
   auto* Schema = new (Raw) DynBuiltinSchema(B.Terms);
 
   exi_assert(B.Info.size() == Schema->Info.size());
+  // TODO: Use FastCopy?
   for (auto [Ix, BuiltinInfo] : exi::enumerate(Schema->Info))
     // Copy all our generated info.
     BuiltinInfo = B.Info[Ix];
