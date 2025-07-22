@@ -34,8 +34,6 @@ namespace exi {
 
 class OrderedEncoder final : public BodyEncoder {
   friend class ExiEncoder;
-  /// The options for the current encoding
-  const ExiOptions& Opts;
   /// The provided `OrderedWriter`.
   OrdWriter Writer;
   /// A BumpPtrAllocator for processor internals.
@@ -46,14 +44,16 @@ class OrderedEncoder final : public BodyEncoder {
   encode::Schema* CurrentSchema = nullptr;
 
 public:
-  OrderedEncoder(ExiOptions& Opts);
+  OrderedEncoder(ExiOptions& Opts, encode::Schema* CS);
+  /// Initializes the writer with a stream/buffer.
+  template <typename InitT>
+  OrderedEncoder(ExiOptions& Opts, encode::Schema* CS, InitT& I)
+   : OrderedEncoder(Opts, CS) { this->init(I); }
 
   /// Generic interface for initializing the OrderedWriter.
-  ExiError init(raw_ostream& Strm, u32 FlushThreshold = 512);
+  ExiError init(raw_ostream& Strm);
   /// Generic interface for initializing the OrderedWriter.
   ExiError init(SmallVecImpl<char>& Buf);
-
-  ExiError run() override;
 
 private:
   void initWriter(auto&&...Args) {

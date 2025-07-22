@@ -28,37 +28,59 @@
 #include <core/Support/Logging.hpp>
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
+#include <exi/Basic/Except.hpp>
 
 #define DEBUG_TYPE "ExiEncoder"
 
 using namespace exi;
 using namespace exi::encode;
 
-ExiEncoder::ExiEncoder(MaybeBox<ExiOptions> Opts,
-                       Option<raw_ostream&> OS) : ExiEncoder(OS) {
-  Header.Opts = std::move(Opts);
+ExiEncoder::ExiEncoder(MaybeBox<ExiOptions>&& Opts) {
+  if (auto E = setOptions(std::move(Opts)))
+    Throw<argument_error>("Invalid options configuration.");
 }
 
-ExiEncoder::~ExiEncoder() {
-  os().flush();
-}
+ExiEncoder::~ExiEncoder() {}
 
 //////////////////////////////////////////////////////////////////////////
 // Initialization
 
-ExiError ExiEncoder::setOptions(MaybeBox<ExiOptions> Opts) {
-  if (Flags.DidHeader) {
+static ExiError ValidateBoxedOptions(MaybeBox<ExiOptions>& Opts) {
+  if (!Opts) {
+    LOG_ERROR("Passed null options.");
+    return ExiError::kNullptrRef;
+  }
+  if (Opts.owned())
+    return FixupAndValidateOptions(*Opts);
+  else
+    return ValidateOptions(*Opts);
+}
+
+ExiResult<ExiEncoder> ExiEncoder::New(MaybeBox<ExiOptions>&& Opts) {
+  if (auto E = ValidateBoxedOptions(Opts)) {
+    LOG_ERROR("Invalid options configuration.");
+    return Err(E);
+  }
+  return ExiEncoder(assumed_valid_tag{}, std::move(Opts));
+}
+
+ExiError ExiEncoder::setOptions(MaybeBox<ExiOptions>&& Opts) {
+  if (Flags.DidHeader || Flags.DidInit) {
     LOG_ERROR("Header has already been written.");
     return ExiError::kInvalidConfig;
+  } else if (auto E = ValidateBoxedOptions(Opts)) {
+    LOG_ERROR("Invalid options configuration.");
+    return E;
   }
+
+  Header.Opts = std::move(Opts);
+  Flags.ValidHeader = true;
   return ExiError::OK;
 }
 
 //////////////////////////////////////////////////////////////////////////
-// Miscellaneous
+// BodyEncoder
 
-raw_ostream& ExiEncoder::os() const {
-  return OS.value_or(errs());
-}
+BodyEncoder::BodyEncoder(ExiOptions& Opts) : Opts(Opts) {}
 
 void BodyEncoder::anchor() {}

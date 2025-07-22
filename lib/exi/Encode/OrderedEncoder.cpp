@@ -46,16 +46,28 @@ EXI_INLINE static void AssertIsOrdered(const ExiOptions& Opts) {
 #endif
 }
 
-OrderedEncoder::OrderedEncoder(ExiOptions& Opts) : Opts(Opts) {
+OrderedEncoder::OrderedEncoder(ExiOptions& Opts, encode::Schema* S)
+ : BodyEncoder(Opts), CurrentSchema(S) {
   AssertIsOrdered(Opts);
 }
 
+#if 0
 ExiError OrderedEncoder::init(raw_ostream& Strm, u32 FlushThreshold) {
   if (Writer.has_value()) {
     LOG_ERROR("Writer has already been initialized.");
     return ErrorCode::kUnexpectedError;
   }
   initWriter(Strm, FlushThreshold);
+  return ExiError::OK;
+}
+#endif
+
+ExiError OrderedEncoder::init(raw_ostream& Strm) {
+  if (Writer.has_value()) {
+    LOG_ERROR("Writer has already been initialized.");
+    return ErrorCode::kUnexpectedError;
+  }
+  initWriter(Strm, OrderedWriter::kFlushThreshold);
   return ExiError::OK;
 }
 

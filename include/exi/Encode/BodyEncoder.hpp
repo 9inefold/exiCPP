@@ -33,7 +33,7 @@
 namespace exi {
 
 struct EncoderFlags {
-  /// If the header was validated.
+  /// If the header options were validated.
   bool ValidHeader : 1 = false;
   /// If the header has already been "written".
   bool DidHeader : 1 = false;
@@ -43,30 +43,39 @@ struct EncoderFlags {
 
 /// The top-level interface for encoder implementations.
 class BodyEncoder {
-  virtual void anchor();
+protected:
+  /// The options for the current encoding
+  const ExiOptions& Opts;
 public:
+  BodyEncoder(ExiOptions& Opts);
   virtual ~BodyEncoder() = default;
-  virtual ExiError run() = 0;
+private:
+  virtual void anchor();
 };
 
 /// The EXI encoding processor.
 /// FIXME: Split this up into more implementations.
 class ExiEncoder {
   /// The provided Header.
+  // TODO: Check .HasOptions everywhere?
   ExiHeader Header = {};
   /// The schema for the current encoder.
   Box<encode::Schema> CurrentSchema;
   /// The encoder, the type of which is determined by the header.
   Box<BodyEncoder> TheEncoder;
-
-  /// The stream used for diagnostics.
-  Option<raw_ostream&> OS;
   /// State of the decoder in terms of progression.
   EncoderFlags Flags = {};
 
+private:
+  struct assumed_valid_tag {};
+  ExiEncoder(assumed_valid_tag, MaybeBox<ExiOptions>&& Opts) {
+    Header.Opts = std::move(Opts);
+    Flags.ValidHeader = true;
+  }
+
 public:
-  ExiEncoder(Option<raw_ostream&> OS = std::nullopt) : OS(OS) {}
-  ExiEncoder(MaybeBox<ExiOptions> Opts, Option<raw_ostream&> OS = std::nullopt);
+  ExiEncoder(MaybeBox<ExiOptions>&& Opts);
+  ExiEncoder(ExiEncoder&&) = default;
   ~ExiEncoder();
 
   /// Get the state flags.
@@ -74,14 +83,14 @@ public:
   /// Returns if the header was successfully decoded.
   bool didHeader() const { return Flags.DidHeader && Flags.ValidHeader; }
 
-  /// Returns the stream used for diagnostics.
-  raw_ostream& os() const;
-
   ////////////////////////////////////////////////////////////////////////
   // Initialization
 
+  /// Creates a new `ExiEncoder` if options are valid.
+  static ExiResult<ExiEncoder> New(MaybeBox<ExiOptions>&& Opts);
+
   /// Sets options for encoding.
-  ExiError setOptions(MaybeBox<ExiOptions> Opts);
+  ExiError setOptions(MaybeBox<ExiOptions>&& Opts);
 };
 
 } // namespace exi
