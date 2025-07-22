@@ -1,7 +1,7 @@
 
 //===- Common/EnumeratedArray.hpp -----------------------------------------===//
 //
-// Copyright (C) 2024-2025 Eightfold
+// Copyright (C) 2024 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,45 +18,35 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines an array indexed by an enum.
+/// This file defines traits/utilities for dealing with enums.
 ///
 //===----------------------------------------------------------------===//
 
 #pragma once
 
 #include <Common/EnumTraits.hpp>
-#include <Support/D/MemOps.hpp>
-#include <Support/ErrorHandle.hpp>
 #include <cassert>
 #include <iterator>
-#include <memory>
 
 namespace exi {
 
 /// Default type for EnumeratedArray.
-/// Uses a signed type to allow ranges with negative values.
-using EnumIdxDefaultType = isize;
+using EAIdxDefaultType = i64;
 
-template <typename IdxT = EnumIdxDefaultType, typename E>
+template <typename IdxT = EAIdxDefaultType, typename E>
 constexpr IdxT enum_distance(E First, E Last) {
   return static_cast<IdxT>(Last) - static_cast<IdxT>(First);
 }
 
-/// An array which is indexed by an enum value. The range and index type can be
-/// customized to allow for easier subrange access.
-///
-/// @tparam ValueT The type of the array.
-/// @tparam Enum The enum type to index with.
-/// @tparam Last The end, inclusive. Defaults to `Enum::Last`.
-/// @tparam First The start, inclusive. Defaults to `Enum(0)`.
 template <typename ValueT, exi::is_enum Enum,
           Enum Last = Enum::Last,
           Enum First = Enum(),
-          typename IdxT = EnumIdxDefaultType,
+          typename IdxT = EAIdxDefaultType,
           IdxT Size = 1 + enum_distance<IdxT>(First, Last)>
-struct EnumeratedArray {
-  static_assert(Size > 0, "Enum arrays cannot be zero-sized!");
-
+class EnumeratedArray {
+  using SelfT = EnumeratedArray;
+  ValueT Underlying[Size];
+public:
   using iterator = ValueT*;
   using const_iterator = const ValueT*;
 
@@ -69,48 +59,22 @@ struct EnumeratedArray {
   using pointer = ValueT*;
   using const_pointer = const ValueT*;
 
-  using SelfT = EnumeratedArray;
-  ValueT Underlying[Size];
-
-public:
-  /// Initializes with a size exactly matching the underlying array.
-  static constexpr EnumeratedArray New(ArrayRef<ValueT> Init) {
-    exi_assert(Init.size() == Size, "Incorrect initializer size");
-    SelfT Arr;
-    FastDefaultCopy(Arr.Underlying, Init.begin(), Size);
-    return Arr;
-  }
-  /// Initializes with a size that may not match the underlying array.
-  template <bool TrailingUninitialized = false>
-  static constexpr EnumeratedArray Partial(ArrayRef<ValueT> Init) {
-    if (Init.size() >= Size)
-      tail_return SelfT::New(Init.take_front(Size)); 
-    
-    SelfT Arr;
-    // Copy front elements from the input.
-    FastDefaultCopy(Arr.Underlying, Init.begin(), Init.size());
-    // Initialize the trailing elements, if necessary.
-    if constexpr (!TrailingUninitialized) {
-      // Don't leave remaining elements uninitialized.
-      if constexpr (std::is_trivially_constructible_v<ValueT>) {
-        // POD types, ensure they have a value.
-        const IdxT Start = IdxT(Init.size());
-        for (IdxT Ix = Start; Ix < Size; ++Ix)
-          Arr.Underlying[Ix] = ValueT{};
-      }
-    }
-    return Arr;
-  }
-  static constexpr EnumeratedArray Fill(const ValueT& V) {
-    SelfT Arr;
-    for (IdxT Ix = 0; Ix < Size; ++Ix)
-      Arr.Underlying[Ix] = V;
-    return Arr;
-  }
-
   static ALWAYS_INLINE constexpr IdxT ToIndex(Enum Index) {
     return static_cast<IdxT>(Index)
          - static_cast<IdxT>(First);
+  }
+
+  constexpr EnumeratedArray() = default;
+  constexpr EnumeratedArray(const ValueT& V) {
+    for (IdxT Ix = 0; Ix < Size; ++Ix) {
+      Underlying[Ix] = V;
+    }
+  }
+  constexpr EnumeratedArray(std::initializer_list<ValueT> Init) {
+    assert(Init.size() == Size && "Incorrect initializer size");
+    for (IdxT Ix = 0; Ix < Size; ++Ix) {
+      Underlying[Ix] = *(Init.begin() + Ix);
+    }
   }
 
   constexpr const ValueT& operator[](Enum Index) const {
@@ -144,7 +108,7 @@ public:
 /// Proxy type for `EnumeratedArray`, uses `EnumRange` for inputs by default.
 template <typename ValueT, exi::is_enum Enum,
           class RangeT = EnumRange<Enum>,
-          typename IdxT = EnumIdxDefaultType>
+          typename IdxT = EAIdxDefaultType>
 using EnumArray = EnumeratedArray<ValueT, Enum,
           RangeT::Last, RangeT::First,
           IdxT, static_cast<IdxT>(RangeT::size)>;
