@@ -56,18 +56,6 @@ protected:
   // This allows for `[0, 2,097,152)`, unicode only requiring `[0, 1,114,112)`.
   static constexpr size_type UnicodeReads = 3;
 
-  /// Creates a mask for the current word type.
-  inline static constexpr word_t MakeNBitMask(size_type Bits) EXI_READNONE {
-    constexpr_static word_t Mask = ~word_t(0);
-    return EXI_LIKELY(Bits != kBitsPerWord) ? ~(Mask << Bits) : Mask;
-  }
-
-  /// Get the number of bytes N bits can fit in.
-  inline static constexpr size_type MakeByteCount(size_type Bits) EXI_READNONE {
-    exi_invariant(Bits != 0);
-    return ((Bits - 1) >> 3) + 1zu;
-  }
-
 public:
   OrderedReader() = default;
   OrderedReader(proxy_t Proxy) :

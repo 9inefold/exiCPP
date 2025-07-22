@@ -114,7 +114,7 @@ struct StreamBase {
   /// Get the number of bytes N bits can fit in.
   inline static constexpr size_type MakeByteCount(size_type Bits) EXI_READNONE {
     exi_invariant(Bits != 0);
-    return ((Bits - 1) >> 3) + 1zu;
+    return ((Bits - 1) >> 3) + size_type(1);
   }
 
   /// Get the byte-aligned shift required for N bits.
