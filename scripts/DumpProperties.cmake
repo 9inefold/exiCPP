@@ -73,10 +73,8 @@ if(NOT DEFINED ENV{CMAKE_PROPERTY_LIST})
   unset(CMAKE_LANG_PFX)
 endif()
 
-# Lists all the properties of a given target.
-# ALIAS targets will get resolved to the target they alias.
-#  dump_target_properties(<target>)
-function(dump_target_properties tgt)
+# Sets tgt_name to the target's real name.
+macro(_deref_target tgt)
   if(NOT TARGET ${tgt})
     message(STATUS "No target named `${tgt}`.")
     return()
@@ -88,7 +86,13 @@ function(dump_target_properties tgt)
   else()
     set(tgt_name ${tgt_alias})
   endif()
+endmacro()
 
+# Lists all the properties of a given target.
+# ALIAS targets will get resolved to the target they alias.
+#  dump_target_properties(<target>)
+function(dump_target_properties tgt)
+  _deref_target(${tgt})
   set(PROP_LIST "")
   foreach(prop $ENV{CMAKE_PROPERTY_LIST})
     get_target_property(propval ${tgt_name} ${prop})
