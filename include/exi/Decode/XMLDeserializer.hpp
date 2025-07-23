@@ -41,7 +41,7 @@ class XMLDeserializer final : public Deserializer {
   u64 UnboundURI = kInvalidPrefix;
 
 public:
-  XMLDeserializer() : Doc() {}
+  XMLDeserializer() : Doc(), Curr(Doc.document()) {}
 
   /// Start Document
   ExiError SD() override {
