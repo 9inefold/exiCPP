@@ -16,6 +16,17 @@ macro(_hc_set_ver ls idx item in out)
   unset(_VERSION_${item})
 endmacro()
 
+# Sets the version variables from the inputs.
+# The function will set <prefix>_VERSION_(MAJOR|MINOR|PATCH|[TWEAK]).
+#
+# To get versions for the current project:
+#  set_version(<prefix> [PROJECT])
+#
+# To get versions from <version-prefix>_VERSION:
+#  set_version(<prefix> PREFIX <version-prefix>)
+#
+# To get versions from a "MAJOR.MINOR.PATCH[.TWEAK]" string:
+#  set_version(<prefix> STRING <version-string>)
 function(set_version prefix)
   cmake_parse_arguments(
     PARSE_ARGV 0 _V
