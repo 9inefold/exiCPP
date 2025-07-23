@@ -52,7 +52,7 @@
 #include <rapidxml.hpp>
 
 #define DEBUG_TYPE "__DRIVER__"
-#define TEST_LARGE_EXAMPLES 0
+#define TEST_LARGE_EXAMPLES 1
 
 using namespace exi;
 
@@ -376,7 +376,7 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
   DECODE_ORD_BYTES("NamespaceNooptB.exi", All & ~LexicalValues);
 
 #if TEST_LARGE_EXAMPLES
-  NewLevel(LogLevel::WARN);
+  SetLogLevel(LogLevel::WARN);
 #if !EXI_LOGGING
   constexpr int MaxLargeIters = 100;
   WithColor(outs(), BRIGHT_WHITE)
