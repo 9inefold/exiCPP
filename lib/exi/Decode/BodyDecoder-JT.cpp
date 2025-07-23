@@ -193,7 +193,6 @@ ExiError ExiDecoder::decodeBody(Deserializer* S) {
   return E;
 }
 
-// https://eli.thegreenplace.net/2012/07/12/computed-goto-for-efficient-dispatch-tables
 ExiError ExiDecoder::decodeEventLoop(Deserializer* S) {
   // Add an extra case with `EventTerm::Void` to get an "error handler" case.
   using DispatchTableType = EnumeratedArray<void*, EventTerm, EventTerm::Void>;
@@ -202,8 +201,7 @@ ExiError ExiDecoder::decodeEventLoop(Deserializer* S) {
                 "with EventTerm to function correctly.");
   static constexpr DispatchTableType DispatchTable {
     /* Document */
-    //&&caseSD, &&caseED,
-    &&caseRare, &&caseRare,
+    &&caseSD, &&caseED,
     /* Element */
     &&caseSE, &&caseSE, &&caseSE,
     &&caseEE,
@@ -211,41 +209,40 @@ ExiError ExiDecoder::decodeEventLoop(Deserializer* S) {
     &&caseCH, &&caseCH,
     &&caseNS,
     /* Uncommon */
-    &&caseRare, //&&caseCM,
-    &&caseRare, //&&casePI,
-    &&caseRare, //&&caseDT,
-    &&caseRare, //&&caseER,
-    &&caseRare, //&&caseSC,
+    &&caseCM,
+    &&casePI,
+    &&caseDT,
+    &&caseER,
+    &&caseSC,
     &&caseHalt
   };
 
   EventUID Event = CurrentSchema->decode(this);
   ExiError Out = ExiError::OK;
+  auto GetNextEvent = [this, &Event] () {
+    LOG_POSITION(this);
+    Event = CurrentSchema->decode(this);
+  };
 
 #define HandleEvent(CODE, ARGS...) do {                                       \
   Out = this->handle##CODE(ARGS);                                             \
-  goto caseNext;                                                              \
+  if EXI_NEVER(Out != ExiError::OK)                                           \
+    goto caseHalt;                                                            \
 } while (false)
 #define GotoNextEvent() do {                                                  \
-  LOG_POSITION(this);                                                         \
-  Event = CurrentSchema->decode(this);                                        \
+  GetNextEvent();                                                             \
   goto *DispatchTable[Event.getTerm()];                                       \
+  EXI_REAL_UNREACHABLE;                                                       \
 } while (false)
-#define DispatchMarkCase(ATTR, CODE, ...)                                     \
-case##CODE:                                                                   \
-  LABEL_ANNOTATE(ATTR)                                                        \
+#define DispatchMarkCase(ATTR, CODE, ...) case##CODE:                         \
+  LABEL_ANNOTATE(ATTR) {                                                      \
   HandleEvent(CODE __VA_OPT__(,) __VA_ARGS__);                                \
-  GotoNextEvent();
-#define DispatchCase(CODE, ...)                                               \
-  DispatchMarkCase(, CODE __VA_OPT__(,) __VA_ARGS__)
+  GotoNextEvent();                                                            \
+}
+#define DispatchCase(CODE, ...) DispatchMarkCase(, CODE __VA_OPT__(,) __VA_ARGS__)
 
+  // https://eli.thegreenplace.net/2012/07/12/computed-goto-for-efficient-dispatch-tables
   GotoNextEvent(); {
-    caseNext:
-      LABEL_ANNOTATE(hot) {
-      if EXI_NEVER(Out != ExiError::OK)
-        return Out;
-      GotoNextEvent();
-    }
     /* ELEMENTS */
     // Start Element (*)
     // Start Element (uri:*)
@@ -257,48 +254,37 @@ case##CODE:                                                                   \
     // Attribute (uri:*, value)
     // Attribute (qname, value)
     DispatchCase(AT, S, Event)
+    // Namespace Declaration (uri, prefix, local-element-ns)
+    DispatchCase(NS, S, Event)
     // Characters (value)
     // Characters (external-value)
     DispatchCase(CH, S, Event)
-    // Namespace Declaration (uri, prefix, local-element-ns)
-    DispatchCase(NS, S, Event)
     /* UNCOMMON */
-    caseRare:
+    // Comment text (text)
+    DispatchMarkCase(cold, CM, S)
+    // Processing Instruction (name, text)
+    DispatchMarkCase(cold, PI, S)
+    // DOCTYPE (name, public, system, text)
+    DispatchMarkCase(cold, DT, S)
+    // Entity Reference (name)
+    DispatchMarkCase(cold, ER, S)
+    /* DOCUMENT */
+    // Start Document
+    DispatchMarkCase(cold, SD, S)
+    // End Document
+    caseED:
       LABEL_ANNOTATE(cold)
-      Out = this->dispatchUncommonEvent(S, Event);
-      goto caseNext;
+      tail_return handleED(S);
+    // Self Contained
+    caseSC:
+      LABEL_ANNOTATE(cold, unused)
+      return ErrorCode::kUnimplemented;
     caseHalt:
       LABEL_ANNOTATE(cold)
       return Out;
   }
 
   exi_unreachable("Fell through DispatchTable?");
-}
-
-EXI_PRESERVE_CALLSITE 
-ExiError ExiDecoder::dispatchUncommonEvent(Deserializer* S,
-                                           const EventUID Event) {
-  switch (Event.getTerm()) {
-  case EventTerm::SD:       // Start Document
-    return S->SD();
-  case EventTerm::ED:
-    return this->handleED(S);
-  case EventTerm::CM:       // Comment text (text)
-    return this->handleCM(S);
-  case EventTerm::PI:       // Processing Instruction (name, text)
-    return this->handlePI(S);
-  case EventTerm::DT:       // DOCTYPE (name, public, system, text)
-    return this->handleDT(S);
-  case EventTerm::ER:       // Entity Reference (name)
-    return this->handleER(S);
-  case EventTerm::SC:       // Self Contained
-    LABEL_ANNOTATE(cold, unused)
-    return ErrorCode::kUnimplemented;
-  default:
-    LABEL_ANNOTATE(cold, unused)
-    exi_assert("unknown term");
-    return ErrorCode::kInvalidEXIInput;
-  }
 }
 
 #else /*!EXI_DECODER_COMPUTED_GOTO*/
@@ -355,6 +341,7 @@ EXI_HOT ExiError ExiDecoder::decodeEvent(Deserializer* S) {
 
 EXI_COLD ExiError ExiDecoder::dispatchUncommonEvent(Deserializer* S,
                                                     const EventUID Event) {
+  // ...
   switch (Event.getTerm()) {
   case EventTerm::SD:       // Start Document
     return S->SD();
@@ -383,11 +370,11 @@ EXI_COLD ExiError ExiDecoder::dispatchUncommonEvent(Deserializer* S,
 //////////////////////////////////////////////////////////////////////////
 // Terms
 
-ExiError ExiDecoder::handleSD(Deserializer* S) {
+EXI_COLD ExiError ExiDecoder::handleSD(Deserializer* S) {
   return S->SD();
 }
 
-ExiError ExiDecoder::handleED(Deserializer* S) {
+EXI_COLD ExiError ExiDecoder::handleED(Deserializer* S) {
   if (ExiError E = S->ED())
     return E;
   return ExiError::DONE;

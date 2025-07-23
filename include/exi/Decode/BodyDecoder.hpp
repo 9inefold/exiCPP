@@ -35,7 +35,7 @@
 #include <exi/Grammar/DecoderSchema.hpp>
 #include <exi/Stream/OrderedReader.hpp>
 
-#if EXI_ENABLE_UNSTABLE_FEATURES && defined(__GNUC__)
+#if 0 && EXI_ENABLE_UNSTABLE_FEATURES && defined(__GNUC__)
 # define EXI_DECODER_COMPUTED_GOTO 1
 #endif
 
@@ -125,6 +125,9 @@ protected:
 #if EXI_DECODER_COMPUTED_GOTO
   /// Decodes events and then dispatches.
   ExiError decodeEventLoop(Deserializer* S);
+  /// Dispatches less common events.
+  EXI_PRESERVE_CALLSITE ExiError
+   dispatchUncommonEvent(Deserializer* S, EventUID Event);
 #else
   /// Decodes events and then dispatches.
   EXI_HOT ExiError decodeEvent(Deserializer* S);
