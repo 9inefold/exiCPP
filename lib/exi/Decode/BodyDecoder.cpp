@@ -729,7 +729,7 @@ ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
   } else {
     // Cache miss
     const u64 Size = (ValID - 2);
-    SmallStr<32> Data;
+    SmallStr<80> Data;
     StrRef Str = $unwrap(readString(Size, Data));
     auto [Value, GID, LnID] = Strings.addValue(Name, Str);
 
