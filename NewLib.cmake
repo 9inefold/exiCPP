@@ -145,6 +145,12 @@ target_link_libraries(exi-exicpp INTERFACE
   exi::stream
 )
 
+if(DEFINED EXI_CODEGEN_TESTS)
+  include(CompileIR)
+  #dump_target_properties(exi::decode)
+  #dump_target_properties(exi::grammar)
+endif()
+
 if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
   add_executable(exi-driver Driver.cpp
     DriverTests.cpp XMLDumper.cpp)

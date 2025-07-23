@@ -97,6 +97,27 @@ if(EXI_FAST_DEBUG)
   set(MI_DEBUG_FAST ON)
 endif()
 
+# Formatted like `<core|exi>.<folder>[.subfolder].[filename]`,
+# eg. `exi.Decode.BodyDecoder`
+#
+# You can also use glob patterns,
+# eg.
+#   `exi.Grammar.Decode.*`
+#   `exi.Grammar.*.BuiltinSchema`
+#   `exi.Decode.*Decoder`
+if(DEFINED EXI_CODEGEN_TESTS)
+  if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    message(SEND_ERROR "EXI_CODEGEN_TESTS is only available with Clang.")
+    unset(EXI_CODEGEN_TESTS)
+  elseif(NOT EXI_CODEGEN_TESTS)
+    message(WARNING "EXI_CODEGEN_TESTS is empty, ignoring.")
+    unset(EXI_CODEGEN_TESTS)
+  elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS "EXI_CODEGEN_TESTS should not be used in debug.")
+    #unset(EXI_CODEGEN_TESTS)
+  endif()
+endif()
+
 # TODO: Remove when complete?
 if(EXI_USE_EXIP)
   # Sets the variables required for exip to function
@@ -115,6 +136,9 @@ else()
 endif()
 if(EXI_DEBUG_BUILD)
   message(STATUS "[exicpp] Fast debug     : ${EXI_FAST_DEBUG}")
+endif()
+if(DEFINED EXI_CODEGEN_TESTS)
+  message(STATUS "[exicpp] Codegen tests  : ${EXI_CODEGEN_TESTS}")
 endif()
 message(STATUS "[exicpp] Native codegen : ${EXI_NATIVE_CODEGEN}")
 
