@@ -35,28 +35,28 @@
 
 #define DEBUG_TYPE "BodyDecoder"
 
-#if EXI_DECODER_COMPUTED_GOTO
-# if !defined(__clang__)
-/// Can be used to annotate a label.
-#  define LABEL_ANNOTATE(...) __VA_OPT__(__attribute__((__VA_ARGS__));)
-# else
-/// Label attributes are not available on clang.
-#  define LABEL_ANNOTATE(...)
-# endif
-#endif
-
-#if 1
-// FIXME: Update if needed...
-# define LOG_POSITION(...)                                                    \
-  LOG_EXTRA("@[{}]:", ((__VA_ARGS__)->Reader->bitPos()))
+#if DECODER_LOG_POSITIONS
 # define LOG_META(...) LOG_EXTRA(__VA_ARGS__)
 #else
-# define LOG_POSITION(...) ((void)(0))
 # define LOG_META(...) ((void)(0))
 #endif
 
 using namespace exi;
 using namespace exi::decode;
+
+#ifdef __clang__
+/// Keep debug information clean when using clang.
+# define INTERNAL_LINKAGE [[clang::internal_linkage]]
+# define INTERNAL_NS exi
+#else
+# define INTERNAL_LINKAGE
+# define INTERNAL_NS
+#endif
+
+namespace INTERNAL_NS {
+/// A class that does nothing. Used for empty deserialization.
+class INTERNAL_LINKAGE BIDeserializer final : public Deserializer {};
+} // namespace INTERNAL_NS
 
 ExiDecoder::ExiDecoder(MaybeBox<ExiOptions> Opts,
                        Option<raw_ostream&> OS) : ExiDecoder(OS) {
@@ -171,186 +171,8 @@ ExiError ExiDecoder::prepareForDecoding() {
 }
 
 ExiError ExiDecoder::decodeBody() {
-  Deserializer S{};
+  BIDeserializer S{};
   return this->decodeBody(&S);
-}
-
-#if EXI_DECODER_COMPUTED_GOTO
-
-ExiError ExiDecoder::decodeBody(Deserializer* S) {
-  if (S == nullptr) {
-    // TODO: Allow defaulting in permissive mode?
-    LOG_ERROR("Deserializer cannot be null!");
-    return ErrorCode::kInvalidEXIInput;
-  }
-
-  if (ExiError E = prepareForDecoding())
-    return E;
-
-  ExiError E = this->decodeEventLoop(S);
-  if (E == ExiError::DONE)
-    return ExiError::OK;
-  return E;
-}
-
-// https://eli.thegreenplace.net/2012/07/12/computed-goto-for-efficient-dispatch-tables
-ExiError ExiDecoder::decodeEventLoop(Deserializer* S) {
-  // Add an extra case with `EventTerm::Void` to get an "error handler" case.
-  using DispatchTableType = EnumeratedArray<void*, EventTerm, EventTerm::Void>;
-  static_assert(DispatchTableType::size() == 18,
-                "DispatchTable is out of sync! This must be kept up to date "
-                "with EventTerm to function correctly.");
-  static constexpr DispatchTableType DispatchTable {
-    /* Document */
-    //&&caseSD, &&caseED,
-    &&caseRare, &&caseRare,
-    /* Element */
-    &&caseSE, &&caseSE, &&caseSE,
-    &&caseEE,
-    &&caseAT, &&caseAT, &&caseAT,
-    &&caseCH, &&caseCH,
-    &&caseNS,
-    /* Uncommon */
-    &&caseRare, //&&caseCM,
-    &&caseRare, //&&casePI,
-    &&caseRare, //&&caseDT,
-    &&caseRare, //&&caseER,
-    &&caseRare, //&&caseSC,
-    &&caseHalt
-  };
-
-  EventUID Event = CurrentSchema->decode(this);
-  ExiError Out = ExiError::OK;
-
-#define HandleEvent(CODE, ARGS...) do {                                       \
-  Out = this->handle##CODE(ARGS);                                             \
-  goto caseNext;                                                              \
-} while (false)
-#define GotoNextEvent() do {                                                  \
-  LOG_POSITION(this);                                                         \
-  Event = CurrentSchema->decode(this);                                        \
-  goto *DispatchTable[Event.getTerm()];                                       \
-} while (false)
-#define DispatchMarkCase(ATTR, CODE, ...)                                     \
-case##CODE:                                                                   \
-  LABEL_ANNOTATE(ATTR)                                                        \
-  HandleEvent(CODE __VA_OPT__(,) __VA_ARGS__);                                \
-  GotoNextEvent();
-#define DispatchCase(CODE, ...)                                               \
-  DispatchMarkCase(, CODE __VA_OPT__(,) __VA_ARGS__)
-
-  GotoNextEvent(); {
-    caseNext:
-      LABEL_ANNOTATE(hot) {
-      if EXI_NEVER(Out != ExiError::OK)
-        return Out;
-      GotoNextEvent();
-    }
-    /* ELEMENTS */
-    // Start Element (*)
-    // Start Element (uri:*)
-    // Start Element (qname)
-    DispatchMarkCase(hot, SE, S, Event)
-    // End Element
-    DispatchMarkCase(hot, EE, S, Event)
-    // Attribute (*, value)
-    // Attribute (uri:*, value)
-    // Attribute (qname, value)
-    DispatchCase(AT, S, Event)
-    // Characters (value)
-    // Characters (external-value)
-    DispatchCase(CH, S, Event)
-    // Namespace Declaration (uri, prefix, local-element-ns)
-    DispatchCase(NS, S, Event)
-    /* UNCOMMON */
-    caseRare:
-      LABEL_ANNOTATE(cold)
-      Out = this->dispatchUncommonEvent(S, Event);
-      goto caseNext;
-    caseHalt:
-      LABEL_ANNOTATE(cold)
-      return Out;
-  }
-
-  exi_unreachable("Fell through DispatchTable?");
-}
-
-EXI_PRESERVE_CALLSITE 
-ExiError ExiDecoder::dispatchUncommonEvent(Deserializer* S,
-                                           const EventUID Event) {
-  switch (Event.getTerm()) {
-  case EventTerm::SD:       // Start Document
-    return S->SD();
-  case EventTerm::ED:
-    return this->handleED(S);
-  case EventTerm::CM:       // Comment text (text)
-    return this->handleCM(S);
-  case EventTerm::PI:       // Processing Instruction (name, text)
-    return this->handlePI(S);
-  case EventTerm::DT:       // DOCTYPE (name, public, system, text)
-    return this->handleDT(S);
-  case EventTerm::ER:       // Entity Reference (name)
-    return this->handleER(S);
-  case EventTerm::SC:       // Self Contained
-    LABEL_ANNOTATE(cold, unused)
-    return ErrorCode::kUnimplemented;
-  default:
-    LABEL_ANNOTATE(cold, unused)
-    exi_assert("unknown term");
-    return ErrorCode::kInvalidEXIInput;
-  }
-}
-
-#else /*!EXI_DECODER_COMPUTED_GOTO*/
-
-ExiError ExiDecoder::decodeBody(Deserializer* S) {
-  if (S == nullptr) {
-    // TODO: Allow defaulting in permissive mode?
-    LOG_ERROR("Deserializer cannot be null!");
-    return ErrorCode::kInvalidEXIInput;
-  }
-
-  if (ExiError E = prepareForDecoding())
-    return E;
-
-  //LOG_EXTRA("Beginning decoding...");
-  while (Reader->hasData()) {
-    ExiError E = this->decodeEvent(S);
-    if EXI_LIKELY(E == ExiError::OK)
-      continue;
-    else if (E == ExiError::DONE)
-      break;
-    // Some other error code.
-    return E;
-  }
-
-  //LOG_EXTRA("Completed decoding!");
-  return ExiError::OK;
-}
-
-EXI_HOT ExiError ExiDecoder::decodeEvent(Deserializer* S) {
-  LOG_POSITION(this);
-  const EventUID Event = CurrentSchema->decode(this);
-  
-  switch (Event.getTerm()) {
-  case EventTerm::SE:       // Start Element (*)
-  case EventTerm::SEUri:    // Start Element (uri:*)
-  case EventTerm::SEQName:  // Start Element (qname)
-    return this->handleSE(S, Event);
-  case EventTerm::EE:       // End Element
-    return this->handleEE(S, Event);
-  case EventTerm::AT:       // Attribute (*, value)
-  case EventTerm::ATUri:    // Attribute (uri:*, value)
-  case EventTerm::ATQName:  // Attribute (qname, value)
-    return this->handleAT(S, Event);
-  case EventTerm::NS:       // Namespace Declaration (uri, prefix, local-element-ns)
-    return this->handleNS(S, Event);
-  case EventTerm::CH:       // Characters (value)
-  case EventTerm::CHExtern: // Characters (external-value)
-    return this->handleCH(S, Event);
-  default:
-    return this->dispatchUncommonEvent(S, Event);
-  }
 }
 
 EXI_COLD ExiError ExiDecoder::dispatchUncommonEvent(Deserializer* S,
@@ -378,8 +200,6 @@ EXI_COLD ExiError ExiDecoder::dispatchUncommonEvent(Deserializer* S,
   }
 }
 
-#endif
-
 //////////////////////////////////////////////////////////////////////////
 // Terms
 
@@ -391,65 +211,6 @@ ExiError ExiDecoder::handleED(Deserializer* S) {
   if (ExiError E = S->ED())
     return E;
   return ExiError::DONE;
-}
-
-// Start Element (*)
-// Start Element (uri:*)
-// Start Element (qname)
-ExiError ExiDecoder::handleSE(Deserializer* S, EventUID Event) {
-  const QName Name = this->getQName(Event);
-  LOG_EXTRA("Decoded SE");
-  return S->SE(Name);
-}
-
-ExiError ExiDecoder::handleEE(Deserializer* S, EventUID Event) {
-  if (!Event.hasQName()) {
-    LOG_EXTRA("Decoded EE");
-    if (hasDbgLogLevel(INFO))
-      dbgs() << '\n';
-    return ExiError::OK;
-  }
-
-  const QName Name = this->getQName(Event);
-  LOG_INFO(">> EE[{}:{}]\n", Name.pfx(), Name.name());
-  return S->EE(Name);
-}
-
-// Attribute (*, value)
-// Attribute (uri:*, value)
-// Attribute (qname, value)
-ExiError ExiDecoder::handleAT(Deserializer* S, EventUID Event) {
-  exi_invariant(Event.hasQName());
-  Result R = decodeValue(Event.Name);
-  const auto ValueID = $unwrap(std::move(R));
-
-  const QName Name = this->getQName(Event);
-  StrRef Value = Strings.getValue(ValueID);
-
-  LOG_EXTRA("Decoded AT");
-  return S->AT(Name, Value);
-}
-
-// Namespace Declaration (uri, prefix, local-element-ns)
-ExiError ExiDecoder::handleNS(Deserializer* S, EventUID) {
-  const auto Event = $unwrap(decodeNS());
-  const auto Name = Event.Name;
-  
-  StrRef URI = Strings.getURI(Name.URI);
-  StrRef Pfx = Strings.getPrefix(Name.URI, Event.Prefix);
-
-  LOG_EXTRA("Decoded NS");
-  if EXI_LIKELY(!Event.isLocal())
-    return S->NS(URI, Pfx);
-  else
-    return S->NS_Local(URI, Pfx, Name.URI);
-}
-
-// Characters (value)
-ExiError ExiDecoder::handleCH(Deserializer* S, EventUID Event) {
-  StrRef Value = Strings.getValue(Event);
-  LOG_EXTRA("Decoded CH");
-  return S->CH(Value);
 }
 
 #define READ_STRING(NAME, RESERVE, READER)                                    \
