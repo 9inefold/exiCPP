@@ -104,7 +104,7 @@ EXI_INLINE const InlineStr* InlStrFromData(const char* Data,
 }
 
 #if !EXI_INVARIANTS
-# define InlStrFromData(DATA, SIZE) ::InlStrFromData(Data, 0)
+# define InlStrFromData(DATA, SIZE) ::InlStrFromData(DATA, 0)
 #endif
 
 StrRef UniqueStringSaver::save(StrRef S) {

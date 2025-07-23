@@ -252,13 +252,13 @@ int main(int Argc, char* Argv[]) {
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
 
-#if 0
+#if 1
   if (int Ret = TestSchemalessDecoding(Mgr)) {
     WithColor OS(outs(), BRIGHT_RED);
     OS << "Decoding failed.\n";
     return Ret;
   }
-#endif
+#else
 
   // Add https://www.w3.org/TR/xmlschema-0/#ipo.xsd
 
@@ -293,6 +293,8 @@ int main(int Argc, char* Argv[]) {
     outs() << "'" << File << "':\n";
     root::FullXMLDump(S.document(), DO);
   }
+
+#endif
   
   WithColor OS(outs(), BRIGHT_GREEN);
   OS << "Decoding successful!\n";
@@ -312,6 +314,7 @@ int main(int Argc, char* Argv[]) {
   DECODE_GENERIC(DecodePreserveBytes, FILE, __VA_ARGS__)
 
 static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
+  using enum raw_ostream::Colors;
   ScopedSave FlagSave(exi::DebugFlag);
 
   auto DecodeFile = [Mgr = SharedMgr.get()]
