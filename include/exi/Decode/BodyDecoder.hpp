@@ -35,6 +35,10 @@
 #include <exi/Grammar/DecoderSchema.hpp>
 #include <exi/Stream/OrderedReader.hpp>
 
+#if EXI_ENABLE_UNSTABLE_FEATURES && defined(__GNUC__)
+# define EXI_DECODER_COMPUTED_GOTO 1
+#endif
+
 namespace exi {
 class Deserializer;
 class QName;
@@ -118,13 +122,21 @@ protected:
   /// Verifies initialization has been completed.
   ExiError prepareForDecoding();
 
+#if EXI_DECODER_COMPUTED_GOTO
+  /// Decodes events and then dispatches.
+  ExiError decodeEventLoop(Deserializer* S);
+#else
   /// Decodes events and then dispatches.
   EXI_HOT ExiError decodeEvent(Deserializer* S);
   /// Dispatches less common events.
   EXI_COLD ExiError dispatchUncommonEvent(Deserializer* S, EventUID Event);
+#endif
 
   ////////////////////////////////////////////////////////////////////////
   // Terms
+
+  [[maybe_unused]] EXI_COLD ExiError handleSD(Deserializer* S);
+  [[maybe_unused]] EXI_COLD ExiError handleED(Deserializer* S);
 
   ExiError handleSE(Deserializer* S, EventUID Event);
   ExiError handleEE(Deserializer* S, EventUID Event);
@@ -133,9 +145,9 @@ protected:
   ExiError handleCH(Deserializer* S, EventUID Event);
 
   ExiError handleCM(Deserializer* S);
-  ExiError handlePI(Deserializer* S);
-  ExiError handleDT(Deserializer* S);
-  ExiError handleER(Deserializer* S);
+  EXI_COLD ExiError handlePI(Deserializer* S);
+  EXI_COLD ExiError handleDT(Deserializer* S);
+  EXI_COLD ExiError handleER(Deserializer* S);
 
   QName getQName(EventUID Event);
   // TODO: Add optional `UserPrefixLookup*` type.

@@ -22,6 +22,7 @@
 //===----------------------------------------------------------------===//
 
 #include <exi/Decode/BodyDecoder.hpp>
+#include <core/Common/EnumArray.hpp>
 #include <core/Common/MMatch.hpp>
 #include <core/Common/Unwrap.hpp>
 #include <core/Support/Casting.hpp>
@@ -33,6 +34,16 @@
 #include <fmt/ranges.h>
 
 #define DEBUG_TYPE "BodyDecoder"
+
+#if EXI_DECODER_COMPUTED_GOTO
+# if !defined(__clang__)
+/// Can be used to annotate a label.
+#  define LABEL_ANNOTATE(...) __VA_OPT__(__attribute__((__VA_ARGS__));)
+# else
+/// Label attributes are not available on clang.
+#  define LABEL_ANNOTATE(...)
+# endif
+#endif
 
 #if 1
 // FIXME: Update if needed...
@@ -164,6 +175,120 @@ ExiError ExiDecoder::decodeBody() {
   return this->decodeBody(&S);
 }
 
+#if EXI_DECODER_COMPUTED_GOTO
+
+ExiError ExiDecoder::decodeBody(Deserializer* S) {
+  if (S == nullptr) {
+    // TODO: Allow defaulting in permissive mode?
+    LOG_ERROR("Deserializer cannot be null!");
+    return ErrorCode::kInvalidEXIInput;
+  }
+
+  if (ExiError E = prepareForDecoding())
+    return E;
+
+  ExiError E = this->decodeEventLoop(S);
+  if (E == ExiError::DONE)
+    return ExiError::OK;
+  return E;
+}
+
+ExiError ExiDecoder::decodeEventLoop(Deserializer* S) {
+  // Add an extra case with `EventTerm::Void` to get an "error handler" case.
+  using DispatchTableType = EnumeratedArray<void*, EventTerm, EventTerm::Void>;
+  static_assert(DispatchTableType::size() == 18,
+                "DispatchTable is out of sync! This must be kept up to date "
+                "with EventTerm to function correctly.");
+  static constexpr DispatchTableType DispatchTable {
+    /* Document */
+    &&caseSD, &&caseED,
+    /* Element */
+    &&caseSE, &&caseSE, &&caseSE,
+    &&caseEE,
+    &&caseAT, &&caseAT, &&caseAT,
+    &&caseCH, &&caseCH,
+    &&caseNS,
+    /* Uncommon */
+    &&caseCM,
+    &&casePI,
+    &&caseDT,
+    &&caseER,
+    &&caseSC,
+    &&caseHalt
+  };
+
+  EventUID Event = CurrentSchema->decode(this);
+  ExiError Out = ExiError::OK;
+  auto GetNextEvent = [this, &Event] () {
+    LOG_POSITION(this);
+    Event = CurrentSchema->decode(this);
+  };
+
+#define HandleEvent(CODE, ARGS...) do {                                       \
+  Out = this->handle##CODE(ARGS);                                             \
+  if EXI_NEVER(Out != ExiError::OK)                                           \
+    goto caseHalt;                                                            \
+} while (false)
+#define GotoNextEvent() do {                                                  \
+  GetNextEvent();                                                             \
+  goto *DispatchTable[Event.getTerm()];                                       \
+  EXI_REAL_UNREACHABLE;                                                       \
+} while (false)
+#define DispatchMarkCase(ATTR, CODE, ...) case##CODE:                         \
+  LABEL_ANNOTATE(ATTR) {                                                      \
+  HandleEvent(CODE __VA_OPT__(,) __VA_ARGS__);                                \
+  GotoNextEvent();                                                            \
+}
+#define DispatchCase(CODE, ...) DispatchMarkCase(, CODE __VA_OPT__(,) __VA_ARGS__)
+
+  // https://eli.thegreenplace.net/2012/07/12/computed-goto-for-efficient-dispatch-tables
+  GotoNextEvent(); {
+    /* ELEMENTS */
+    // Start Element (*)
+    // Start Element (uri:*)
+    // Start Element (qname)
+    DispatchMarkCase(hot, SE, S, Event)
+    // End Element
+    DispatchMarkCase(hot, EE, S, Event)
+    // Attribute (*, value)
+    // Attribute (uri:*, value)
+    // Attribute (qname, value)
+    DispatchCase(AT, S, Event)
+    // Namespace Declaration (uri, prefix, local-element-ns)
+    DispatchCase(NS, S, Event)
+    // Characters (value)
+    // Characters (external-value)
+    DispatchCase(CH, S, Event)
+    /* UNCOMMON */
+    // Comment text (text)
+    DispatchMarkCase(cold, CM, S)
+    // Processing Instruction (name, text)
+    DispatchMarkCase(cold, PI, S)
+    // DOCTYPE (name, public, system, text)
+    DispatchMarkCase(cold, DT, S)
+    // Entity Reference (name)
+    DispatchMarkCase(cold, ER, S)
+    /* DOCUMENT */
+    // Start Document
+    DispatchMarkCase(cold, SD, S)
+    // End Document
+    caseED:
+      LABEL_ANNOTATE(cold)
+      tail_return handleED(S);
+    // Self Contained
+    caseSC:
+      LABEL_ANNOTATE(cold, unused)
+      return ErrorCode::kUnimplemented;
+    caseHalt:
+      LABEL_ANNOTATE(cold)
+      return Out;
+  }
+
+  exi_unreachable("Fell through DispatchTable?");
+}
+
+#else /*!EXI_DECODER_COMPUTED_GOTO*/
+
 ExiError ExiDecoder::decodeBody(Deserializer* S) {
   if (S == nullptr) {
     // TODO: Allow defaulting in permissive mode?
@@ -240,8 +365,20 @@ EXI_COLD ExiError ExiDecoder::dispatchUncommonEvent(Deserializer* S,
   }
 }
 
+#endif
+
 //////////////////////////////////////////////////////////////////////////
 // Terms
+
+EXI_COLD ExiError ExiDecoder::handleSD(Deserializer* S) {
+  return S->SD();
+}
+
+EXI_COLD ExiError ExiDecoder::handleED(Deserializer* S) {
+  if (ExiError E = S->ED())
+    return E;
+  return ExiError::DONE;
+}
 
 // Start Element (*)
 // Start Element (uri:*)
@@ -315,7 +452,7 @@ ExiError ExiDecoder::handleCM(Deserializer* S) {
   return S->CM(*Comment);
 }
 
-ExiError ExiDecoder::handlePI(Deserializer* S) {
+EXI_COLD ExiError ExiDecoder::handlePI(Deserializer* S) {
   return Reader.visit([this, S] (auto& Strm) -> ExiError {
     READ_STRING(Target, 16, &Strm)
     READ_STRING(Text,   48, &Strm)
@@ -325,7 +462,7 @@ ExiError ExiDecoder::handlePI(Deserializer* S) {
   });
 }
 
-ExiError ExiDecoder::handleDT(Deserializer* S) {
+EXI_COLD ExiError ExiDecoder::handleDT(Deserializer* S) {
   return Reader.visit([this, S] (auto& Strm) -> ExiError {
     READ_STRING(Name,  16, &Strm)
     READ_STRING(PubID, 16, &Strm)
@@ -337,7 +474,7 @@ ExiError ExiDecoder::handleDT(Deserializer* S) {
   });
 }
 
-ExiError ExiDecoder::handleER(Deserializer* S) {
+EXI_COLD ExiError ExiDecoder::handleER(Deserializer* S) {
   READ_STRING(Entity, 16, Reader)
   if (S->needsPersistence())
     this->internStrings(*Entity);
