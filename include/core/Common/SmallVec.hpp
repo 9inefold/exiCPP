@@ -32,6 +32,7 @@
 #pragma once
 
 #include <Common/Fundamental.hpp>
+#include <Support/D/MemOps.hpp>
 #include <Support/Alloc.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <algorithm>
@@ -100,7 +101,7 @@ protected:
   /// capacity for.
   ///
   /// This does not construct or destroy any elements in the vector.
-  void set_size(usize N) {
+  EXI_INLINE void set_size(usize N) {
     exi_assert(N <= capacity()); // implies no overflow in assignment
     Size = static_cast<Size_T>(N);
   }
@@ -526,8 +527,8 @@ protected:
     // iterators): std::uninitialized_copy optimizes to memmove, but we can
     // use memcpy here. Note that I and E are iterators and thus might be
     // invalid for memcpy if they are equal.
-    if (I != E)
-      std::memcpy(reinterpret_cast<void *>(Dest), I, (E - I) * sizeof(T));
+    if EXI_LIKELY(I != E)
+      FastUninitCopy(Dest, I, E - I);
   }
 
   /// Double the size of the allocated memory, guaranteeing space for at
@@ -953,7 +954,7 @@ public:
   }
 
   template <typename... ArgTypes> reference emplace_back(ArgTypes &&... Args) {
-    if (EXI_UNLIKELY(this->size() >= this->capacity()))
+    if EXI_UNLIKELY(this->size() >= this->capacity())
       return this->growAndEmplaceBack(std::forward<ArgTypes>(Args)...);
 
     ::new ((void *)this->end()) T(std::forward<ArgTypes>(Args)...);

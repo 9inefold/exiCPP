@@ -74,7 +74,7 @@ ALWAYS_INLINE constexpr void FastNontrivialMove(T* Dst, T* Src, usize N) {
 
 /// Copies an array from `Src` to `Dst`.
 template <bool PotentiallyOverlapping = false, typename T>
-exi_mem_constexpr void FastInitCopy(T* Dst, const T* Src, usize N) {
+EXI_INLINE exi_mem_constexpr void FastInitCopy(T* Dst, const T* Src, usize N) {
   if constexpr (std::is_trivially_copyable_v<T>)
     H::FastTrivialCopy<PotentiallyOverlapping>(Dst, Src, N);
   else
@@ -83,7 +83,7 @@ exi_mem_constexpr void FastInitCopy(T* Dst, const T* Src, usize N) {
 
 /// Moves an array from `Src` to `Dst`.
 template <bool PotentiallyOverlapping = false, typename T>
-exi_mem_constexpr void FastInitMove(T* Dst, T* Src, usize N) {
+EXI_INLINE exi_mem_constexpr void FastInitMove(T* Dst, T* Src, usize N) {
   if constexpr (std::is_trivially_copyable_v<T>)
     H::FastTrivialCopy<PotentiallyOverlapping>(Dst, Src, N);
   else
@@ -92,7 +92,7 @@ exi_mem_constexpr void FastInitMove(T* Dst, T* Src, usize N) {
 
 /// Copies an array from `Src` to uninitialized `Dst`.
 template <bool PotentiallyOverlapping = false, typename T>
-exi_mem_constexpr void FastUninitCopy(T* Dst, const T* Src, usize N) {
+EXI_INLINE exi_mem_constexpr void FastUninitCopy(T* Dst, const T* Src, usize N) {
   if constexpr (std::is_trivially_copyable_v<T>)
     H::FastTrivialCopy<PotentiallyOverlapping>(Dst, Src, N);
   else
@@ -101,7 +101,7 @@ exi_mem_constexpr void FastUninitCopy(T* Dst, const T* Src, usize N) {
 
 /// Moves an array from `Src` to uninitialized `Dst`.
 template <bool PotentiallyOverlapping = false, typename T>
-exi_mem_constexpr void FastUninitMove(T* Dst, T* Src, usize N) {
+EXI_INLINE exi_mem_constexpr void FastUninitMove(T* Dst, T* Src, usize N) {
   if constexpr (std::is_trivially_copyable_v<T>)
     H::FastTrivialCopy<PotentiallyOverlapping>(Dst, Src, N);
   else
@@ -111,7 +111,7 @@ exi_mem_constexpr void FastUninitMove(T* Dst, T* Src, usize N) {
 /// Copies an array from `Src` to `Dst` with `MemOp::OP`.
 template <MemOp OP = MemOp::Init,
   bool PotentiallyOverlapping = false, typename T>
-exi_mem_constexpr void FastCopy(T* Dst, const T* Src, usize N) {
+EXI_INLINE exi_mem_constexpr void FastCopy(T* Dst, const T* Src, usize N) {
   if constexpr (std::is_trivially_copyable_v<T>)
     H::FastTrivialCopy<PotentiallyOverlapping>(Dst, Src, N);
   else
@@ -121,7 +121,7 @@ exi_mem_constexpr void FastCopy(T* Dst, const T* Src, usize N) {
 /// Moves an array from `Src` to `Dst` with `MemOp::OP`.
 template <MemOp OP = MemOp::Init,
   bool PotentiallyOverlapping = false, typename T>
-exi_mem_constexpr void FastMove(T* Dst, T* Src, usize N) {
+EXI_INLINE exi_mem_constexpr void FastMove(T* Dst, T* Src, usize N) {
   if constexpr (std::is_trivially_copyable_v<T>)
     H::FastTrivialCopy<PotentiallyOverlapping>(Dst, Src, N);
   else
