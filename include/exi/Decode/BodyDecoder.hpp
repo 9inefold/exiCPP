@@ -39,12 +39,12 @@
 #define DEBUG_TYPE "BodyDecoder"
 #define DECODER_LOG_POSITIONS 1
 
-#ifndef EXI_DECODER_COMPUTED_GOTO
+#ifndef EXI_DECODER_ALLOW_COMPUTED_GOTO
 // Temporary measures.
-# define EXI_DECODER_COMPUTED_GOTO 0
+# define EXI_DECODER_ALLOW_COMPUTED_GOTO 0
 #endif
 
-#ifndef EXI_DECODER_COMPUTED_GOTO
+#if EXI_DECODER_ALLOW_COMPUTED_GOTO
 // Currently ~2 seconds slower on the large tests. Seems like it messes with the
 // OrderedReader's IBP hits? Only the virtual functions are affected, the rest
 // actually spend *less* time running. May be viable with Schema integration?
@@ -151,8 +151,11 @@ public:
 
     if (ExiError E = prepareForDecoding())
       return E;
-
-    return this->decodeBodyImpl<SType>(S);
+#if EXI_DECODER_COMPUTED_GOTO
+    if (Reader->sizeInBytes() < 5000)
+      return decodeBodyLoopImpl<SType>(S);
+#endif
+    return decodeBodyImpl<SType>(S);
   }
 
 protected:
@@ -163,23 +166,52 @@ protected:
 
   /// Decodes the body from the current stream with the provided serializer.
   template <typename SType> ExiError decodeBodyImpl(Deserializer* S) {
-#if EXI_DECODER_COMPUTED_GOTO
-    ExiError E = this->decodeEventLoop<SType>(S);
-    if (E == ExiError::DONE)
-      return ExiError::OK;
-    return E;
-#else
     while (Reader->hasData()) {
       ExiError E = this->decodeEvent<SType>(S);
       if EXI_LIKELY(E == ExiError::OK)
         continue;
       else if (E == ExiError::DONE)
-        return ExiError::OK;
+        break;
       // Some other error code.
       return E;
     }
     return ExiError::OK;
+  }
+
+#if EXI_DECODER_COMPUTED_GOTO
+  /// Decodes the body from the current stream with the provided serializer.
+  template <typename SType> ExiError decodeBodyLoopImpl(Deserializer* S) {
+    ExiError E = this->decodeEventLoop<SType>(S);
+    if (E == ExiError::DONE)
+      return ExiError::OK;
+    return E;
+  }
 #endif
+
+  /// Decodes events and then dispatches.
+  template <typename SType> EXI_HOT ExiError decodeEvent(Deserializer* S) {
+    LOG_POSITION(this);
+    const EventUID Event = CurrentSchema->decode(this);
+
+    switch (Event.getTerm()) {
+    case EventTerm::SE:       // Start Element (*)
+    case EventTerm::SEUri:    // Start Element (uri:*)
+    case EventTerm::SEQName:  // Start Element (qname)
+      return this->handleSE<SType>(S, Event);
+    case EventTerm::EE:       // End Element
+      return this->handleEE<SType>(S, Event);
+    case EventTerm::AT:       // Attribute (*, value)
+    case EventTerm::ATUri:    // Attribute (uri:*, value)
+    case EventTerm::ATQName:  // Attribute (qname, value)
+      return this->handleAT<SType>(S, Event);
+    case EventTerm::NS:       // Namespace Declaration (uri, prefix, local-element-ns)
+      return this->handleNS<SType>(S, Event);
+    case EventTerm::CH:       // Characters (value)
+    case EventTerm::CHExtern: // Characters (external-value)
+      return this->handleCH<SType>(S, Event);
+    default:
+      return this->dispatchUncommonEvent(S, Event);
+    }
   }
 
 #if EXI_DECODER_COMPUTED_GOTO
@@ -267,32 +299,6 @@ case##CODE:                                                                   \
 # undef DispatchMarkCase
 # undef DispatchCase
     exi_unreachable("Fell through DispatchTable?");
-  }
-#else
-  /// Decodes events and then dispatches.
-  template <typename SType> EXI_HOT ExiError decodeEvent(Deserializer* S) {
-    LOG_POSITION(this);
-    const EventUID Event = CurrentSchema->decode(this);
-
-    switch (Event.getTerm()) {
-    case EventTerm::SE:       // Start Element (*)
-    case EventTerm::SEUri:    // Start Element (uri:*)
-    case EventTerm::SEQName:  // Start Element (qname)
-      return this->handleSE<SType>(S, Event);
-    case EventTerm::EE:       // End Element
-      return this->handleEE<SType>(S, Event);
-    case EventTerm::AT:       // Attribute (*, value)
-    case EventTerm::ATUri:    // Attribute (uri:*, value)
-    case EventTerm::ATQName:  // Attribute (qname, value)
-      return this->handleAT<SType>(S, Event);
-    case EventTerm::NS:       // Namespace Declaration (uri, prefix, local-element-ns)
-      return this->handleNS<SType>(S, Event);
-    case EventTerm::CH:       // Characters (value)
-    case EventTerm::CHExtern: // Characters (external-value)
-      return this->handleCH<SType>(S, Event);
-    default:
-      return this->dispatchUncommonEvent(S, Event);
-    }
   }
 #endif
 
