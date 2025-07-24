@@ -147,9 +147,17 @@ target_link_libraries(exi-exicpp INTERFACE
 
 if(DEFINED EXI_CODEGEN_TESTS)
   include(CompileIR)
-  if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    message(STATUS "EXI_CODEGEN_TESTS will compile in -O2.")
-    set(opt_FLAGS OPTLEVEL 2)
+  message(STATUS "")
+  if(NOT EXI_CODEGEN_LEVEL)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+      message(STATUS "EXI_CODEGEN_TESTS will compile in -O2.")
+      set(EXI_CODEGEN_LEVEL OPTLEVEL 2)
+    else()
+      set(EXI_CODEGEN_LEVEL "")
+    endif()
+  endif()
+  if(NOT EXI_CODEGEN_TYPE)
+    set(EXI_CODEGEN_TYPE "")
   endif()
 
   compile_ir(exi-irgen
@@ -164,8 +172,8 @@ if(DEFINED EXI_CODEGEN_TESTS)
           exi::encode
           exi::grammar
           exi::stream
-    ${opt_FLAGS}
-  )
+    ${EXI_CODEGEN_TYPE}
+    ${EXI_CODEGEN_LEVEL})
 else()
   add_custom_target(exi-irgen)
 endif()
