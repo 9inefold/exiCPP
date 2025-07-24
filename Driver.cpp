@@ -375,7 +375,7 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
   DECODE_ORD_BITS("NamespaceNoopt.exi",   All & ~LexicalValues);
   DECODE_ORD_BYTES("NamespaceNooptB.exi", All & ~LexicalValues);
 
-#if TEST_LARGE_EXAMPLES
+#if defined(NDEBUG) && TEST_LARGE_EXAMPLES
   SetLogLevel(LogLevel::WARN);
 #if !EXI_LOGGING
   constexpr int MaxLargeIters = 100;
