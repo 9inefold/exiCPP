@@ -56,11 +56,11 @@ else()
     -Wno-unused-parameter)
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GCC")
     # GCC only flags
-    set(EXI_FLAGS "${EXI_FLAGS} -Wuninitialized=precise
-      $<$<NOT:$<CONFIG:Debug>>:\"-ftrivial-auto-var-init=zero\">")
+    list(APPEND EXI_FLAGS -Wuninitialized=precise
+      $<$<NOT:$<CONFIG:Debug>>:\"-ftrivial-auto-var-init=zero\">)
   elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     # Clang only flags
-    # ...
+    list(APPEND EXI_FLAGS -fdiagnostics-show-template-tree)
   endif()
   if(EXI_NATIVE_CODEGEN)
     # TODO: Add a less narrowing version for production builds.
@@ -104,11 +104,6 @@ if(DEFINED EXI_CODEGEN_TESTS)
   elseif(NOT EXI_CODEGEN_TESTS)
     message(WARNING "EXI_CODEGEN_TESTS is empty, ignoring.")
     unset(EXI_CODEGEN_TESTS)
-  else()
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-      message(STATUS "EXI_CODEGEN_TESTS should not be used in debug.")
-    endif()
-    # include(CompileIR)
   endif()
 endif()
 
@@ -119,6 +114,10 @@ if(EXI_USE_EXIP)
 endif()
 
 message(STATUS "Library name(s)         : exi-exicpp, exi::exicpp, exi::exi")
+message(STATUS "Version                 : ${PROJECT_VERSION}")
+message(STATUS "Build type              : ${CMAKE_BUILD_TYPE}")
+message(STATUS "C++ Compiler            : ${CMAKE_CXX_COMPILER}")
+message(STATUS "Compiler flags          : ${EXI_WARNING_FLAGS};${EXI_FLAGS}")
 message(STATUS "[exicpp] Tests          : ${EXI_TESTS}")
 message(STATUS "[exicpp] Invariants     : ${EXI_INVARIANTS}")
 message(STATUS "[exicpp] Exceptions     : ${EXI_EXCEPTIONS}")

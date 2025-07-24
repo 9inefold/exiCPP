@@ -146,8 +146,12 @@ target_link_libraries(exi-exicpp INTERFACE
 )
 
 if(DEFINED EXI_CODEGEN_TESTS)
-  #include(DumpProperties)
   include(CompileIR)
+  if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS "EXI_CODEGEN_TESTS will compile in -O2.")
+    set(opt_FLAGS OPTLEVEL 2)
+  endif()
+
   compile_ir(exi-irgen
     SOURCES ${EXI_CODEGEN_TESTS}
     ROOTS
@@ -160,19 +164,16 @@ if(DEFINED EXI_CODEGEN_TESTS)
           exi::encode
           exi::grammar
           exi::stream
-    OPTLEVEL 2
+    ${opt_FLAGS}
   )
-
-  #dump_target_properties(exi::decode)
-  #dump_target_properties(exi::grammar)
+else()
+  add_custom_target(exi-irgen)
 endif()
 
 if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
   add_executable(exi-driver Driver.cpp
     DriverTests.cpp XMLDumper.cpp)
   target_link_libraries(exi-driver exi::exicpp)
-  if(TARGET exi-irgen)
-    #add_dependencies(exi-driver exi-irgen)
-  endif()
   exi_minject(exi-driver CLASSIC BACKUP)
+  add_dependencies(exi-exicpp exi-irgen)
 endif()

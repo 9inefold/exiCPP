@@ -3,20 +3,20 @@ include_guard(DIRECTORY)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 
 include(DumpProperties)
-# ...
+set(_ir_message_type STATUS)
 
 # Prints "[compile_ir] <message>".
-macro(ir_message message)
-  message(STATUS "[compile_ir] ${message}")
-endmacro(ir_message)
+macro(_ir_message message)
+  message(${_ir_message_type} "[compile_ir] ${message}")
+endmacro(_ir_message)
 # Sends error <message> then returns.
-macro(ir_throw message)
+macro(_ir_throw message)
   message(SEND_ERROR "[compile_ir] ${message}")
   return()
-endmacro(ir_throw)
+endmacro(_ir_throw)
 
 # Checks required arguments.
-macro(ir_check_required)
+macro(_ir_check_required)
   set(ir_excluded "")
   set(ir_required ${ARGV})
   foreach(required ${ir_required})
@@ -28,12 +28,12 @@ macro(ir_check_required)
 
   if(DEFINED ir_excluded AND ir_excluded)
     list(JOIN ir_excluded ", " ir_excluded_msg)
-    ir_throw("The following are required: ${ir_excluded_msg}")
+    _ir_throw("The following are required: ${ir_excluded_msg}")
   endif()
-endmacro(ir_check_required)
+endmacro(_ir_check_required)
 
 # Fixes the output folder.
-function(ir_update_destination folder)
+function(_ir_update_destination folder)
   if(NOT DEFINED ${folder})
     set(ifolder "${CMAKE_CURRENT_BINARY_DIR}/IR")
     if(NOT IS_DIRECTORY ifolder)
@@ -52,27 +52,27 @@ function(ir_update_destination folder)
     endif()
   endif()
   set(${folder} "${ifolder}" PARENT_SCOPE)
-endfunction(ir_update_destination)
+endfunction(_ir_update_destination)
 
-macro(_ir_get_property out target prop)
+macro(__ir_get_property out target prop)
   get_target_property(${out} ${target} ${prop})
   if(${out} STREQUAL "${out}-NOTFOUND")
     unset(${out})
   endif()
-endmacro(_ir_get_property)
+endmacro(__ir_get_property)
 
 # Sets options in the parent scope.
-macro(_ir_set_ilib_vals target)
-  _ir_get_property(_cpp_iincludes ${target} INTERFACE_INCLUDE_DIRECTORIES)
-  _ir_get_property(_cpp_ioptions ${target} INTERFACE_COMPILE_OPTIONS)
-  _ir_get_property(_cpp_idefs ${target} INTERFACE_COMPILE_DEFINITIONS)
+macro(__ir_set_ilib_vals target)
+  __ir_get_property(_cpp_iincludes ${target} INTERFACE_INCLUDE_DIRECTORIES)
+  __ir_get_property(_cpp_ioptions ${target} INTERFACE_COMPILE_OPTIONS)
+  __ir_get_property(_cpp_idefs ${target} INTERFACE_COMPILE_DEFINITIONS)
   list(APPEND cpp_iincludes ${_cpp_iincludes})
   list(APPEND cpp_ioptions ${_cpp_ioptions})
   list(APPEND cpp_idefs ${_cpp_idefs})
-endmacro(_ir_set_ilib_vals)
+endmacro(__ir_set_ilib_vals)
 
 # Recursively visits and updates target properties
-function(_ir_recurse_libs visited)
+function(__ir_recurse_libs visited)
   set(curr_libs ${ARGN})
   foreach(lib ${curr_libs})
     if(lib IN_LIST visited)
@@ -82,27 +82,108 @@ function(_ir_recurse_libs visited)
       continue()
     endif()
     list(APPEND visited ${lib})
-    _ir_set_ilib_vals(${lib})
+    __ir_set_ilib_vals(${lib})
     get_target_property(_sublibs ${lib} INTERFACE_LINK_LIBRARIES)
     if(_sublibs)
-      _ir_recurse_libs("${visited}" ${_sublibs})
+      __ir_recurse_libs("${visited}" ${_sublibs})
     endif()
   endforeach()
   set(cpp_iincludes ${cpp_iincludes} PARENT_SCOPE)
   set(cpp_ioptions ${cpp_ioptions} PARENT_SCOPE)
   set(cpp_idefs ${cpp_idefs} PARENT_SCOPE)
   set(visited ${visited} PARENT_SCOPE)
-endfunction(_ir_recurse_libs)
+endfunction(__ir_recurse_libs)
 
 # Recursively visits and updates target properties
-macro(ir_recurse_libs)
+macro(_ir_recurse_libs)
   if(ARGN)
-    _ir_recurse_libs("" ${ARGN})
+    __ir_recurse_libs("" ${ARGN})
   endif()
-endmacro(ir_recurse_libs)
+endmacro(_ir_recurse_libs)
+
+# Converts CMake name into native script name.
+macro(_ir_script_fixup_varname var)
+  string(TOUPPER "IR_${${var}}" ${var})
+  string(REGEX REPLACE "[.-]" "_" ${var} "${${var}}")
+endmacro(_ir_script_fixup_varname)
+
+# Strips invalid characters from variable value.
+macro(_ir_script_fixup_varvalue value)
+  list(JOIN ${value} " " ${value})
+  string(REGEX REPLACE "[\r\n]" " " ${value} "${${value}}")
+endmacro(_ir_script_fixup_varvalue)
+
+# Escapes strings when writing out.
+macro(_ir_script_escape_str value)
+  string(REGEX REPLACE "\"" "\\\\\"" ${value} "${${value}}")
+endmacro(_ir_script_escape_str)
+
+# API for generating script files.
+if(CMAKE_HOST_WIN32)
+  set(_ir_script_ext "bat" CACHE INTERNAL "")
+
+  # Initializes a .bat file
+  function(_ir_script_init filename)
+    file(WRITE "${filename}" "@echo off\n\n")
+  endfunction(_ir_script_init)
+
+  # Adds a comment to a .bat file
+  function(_ir_script_comment filename)
+    set(var_value ${ARGN})
+    _ir_script_fixup_varvalue(var_value)
+    file(APPEND "${filename}" ":: ${var_value}\n")
+  endfunction(_ir_script_comment)
+
+  # Adds a variable to a .bat file
+  function(_ir_script_var filename var)
+    set(var_name "${${var}}")
+    set(var_value ${ARGN})
+    _ir_script_fixup_varname(var_name)
+    _ir_script_fixup_varvalue(var_value)
+    file(APPEND "${filename}" "set ${var_name}=${var_value}\n")
+  endfunction(_ir_script_var)
+
+  # Fixes variable name for a .bat file
+  function(_ir_script_ref var)
+    set(var_name "${${var}}")
+    _ir_script_fixup_varname(var_name)
+    set(${var} "%${var_name}%" PARENT_SCOPE)
+  endfunction(_ir_script_ref)
+else()
+  set(_ir_script_ext "sh" CACHE INTERNAL "")
+
+  # Initializes a .sh file
+  function(_ir_script_init filename)
+    file(WRITE "${filename}" "#!/bin/sh\n\n")
+  endfunction(_ir_script_init)
+
+  # Adds a comment to a .sh file
+  function(_ir_script_comment filename)
+    set(var_value ${ARGN})
+    _ir_script_fixup_varvalue(var_value)
+    file(APPEND "${filename}" "# ${var_value}\n")
+  endfunction(_ir_script_comment)
+
+  # Adds a variable to a .sh file
+  function(_ir_script_var filename var)
+    set(var_name "${${var}}")
+    set(var_value ${ARGN})
+    _ir_script_fixup_varname(var_name)
+    _ir_script_fixup_varvalue(var_value)
+    _ir_script_escape_str(var_value)
+    file(APPEND "${filename}" "${var_name}=\"${var_value}\"\n")
+  endfunction(_ir_script_var)
+
+  # Fixes variable name for a .sh file
+  function(_ir_script_ref var)
+    set(var_name "${${var}}")
+    _ir_script_fixup_varname(var_name)
+    set(${var} "\$${var_name}" PARENT_SCOPE)
+  endfunction(_ir_script_ref)
+endif()
 
 # Generates a target for the roots
-function(ir_handle_roots ir_target root)
+function(_ir_handle_roots ir_target root)
   set(root_sources ${ARGN})
   set(root_folder "${${root}_FOLDER}")
   set(root_targets "${${root}_TARGETS}")
@@ -143,9 +224,9 @@ function(ir_handle_roots ir_target root)
   endforeach()
   list(REMOVE_DUPLICATES ir_cpp_sources)
   if(NOT ir_cpp_sources)
-    ir_throw("Unable to find sources for '${root}'!")
+    _ir_throw("Unable to find sources for '${root}'!")
   endif()
-  ir_message("Found: ${ir_cpp_sources}")
+  _ir_message("Found: ${ir_cpp_sources}")
 
   set(ir_cpp_targets "")
   foreach(cpp_source ${ir_cpp_sources})
@@ -166,24 +247,24 @@ function(ir_handle_roots ir_target root)
     string(REPLACE "-O[0123szg]" "-O${ir_OPTLEVEL}"
       cpp_global_flags ${cpp_global_flags})
   endif()
-  ir_message("global_flags: ${cpp_global_flags}")
+  _ir_message("global_flags: ${cpp_global_flags}")
 
-  add_custom_target(${ir_target})
+  set(ir_compile_commands "${ir_DESTINATION}/IRCompileCommands.${_ir_script_ext}")
+  _ir_script_init("${ir_compile_commands}")
   foreach(cpp_target ${ir_cpp_targets})
     set(sources ${ir_${cpp_target}})
     set(outputs ${sources})
     list(TRANSFORM sources PREPEND "${root_folder}/")
     list(TRANSFORM outputs REPLACE "\\.(cpp)$" ".${ir_extension}")
     list(TRANSFORM outputs REPLACE "/" ".")
-    #list(TRANSFORM outputs PREPEND "${ir_DESTINATION}/")
     
-    _ir_get_property(cpp_standard ${cpp_target} CXX_STANDARD)
-    _ir_get_property(cpp_includes ${cpp_target} INCLUDE_DIRECTORIES)
-    _ir_get_property(cpp_options ${cpp_target} COMPILE_OPTIONS)
-    _ir_get_property(cpp_defs ${cpp_target} COMPILE_DEFINITIONS)
+    __ir_get_property(cpp_standard ${cpp_target} CXX_STANDARD)
+    __ir_get_property(cpp_includes ${cpp_target} INCLUDE_DIRECTORIES)
+    __ir_get_property(cpp_options ${cpp_target} COMPILE_OPTIONS)
+    __ir_get_property(cpp_defs ${cpp_target} COMPILE_DEFINITIONS)
 
-    _ir_get_property(cpp_libs ${cpp_target} LINK_LIBRARIES)
-    ir_recurse_libs(${cpp_libs})
+    __ir_get_property(cpp_libs ${cpp_target} LINK_LIBRARIES)
+    _ir_recurse_libs(${cpp_libs})
 
     list(APPEND cpp_includes ${cpp_iincludes})
     list(APPEND cpp_options ${cpp_ioptions} "-w")
@@ -194,47 +275,43 @@ function(ir_handle_roots ir_target root)
 
     list(FILTER cpp_includes EXCLUDE REGEX "^\\$<INSTALL")
     list(TRANSFORM cpp_includes REPLACE "^\\$<[A-Z_]+:(.+)>$" "\\1")
-    list(TRANSFORM cpp_includes PREPEND "-I")
+    list(TRANSFORM cpp_includes REPLACE "^(.+)$" "-I\"\\1\"")
     list(FILTER cpp_options EXCLUDE REGEX "^-W[a-zA-Z0-9_-]+")
     list(TRANSFORM cpp_defs PREPEND "-D")
 
+    if(ir_NODEBUG)
+      list(FILTER cpp_options EXCLUDE REGEX "^-g$")
+    endif()
     if(NOT cpp_standard)
       set(cpp_standard ${CMAKE_CXX_STANDARD})
     endif()
 
-    set(clang_flags ${CMAKE_CXX_COMPILER} ${cpp_global_flags}
-      "-std=c++${cpp_standard}" ${cpp_includes} ${cpp_options} ${cpp_defs})
+    set(clang_flags ${cpp_global_flags} "-std=c++${cpp_standard}"
+      ${cpp_includes} ${cpp_options} ${cpp_defs})
     list(JOIN clang_flags " " clang_flags)
-    
-    #set(clang_commands "")
+
+    set(ir_shell_var "${cpp_target}")
+    _ir_script_comment("${ir_compile_commands}" "${cpp_target}: ${outputs}")
+    _ir_script_var("${ir_compile_commands}" ir_shell_var ${clang_flags})
+    _ir_script_ref(ir_shell_var)
+
     foreach(src out IN ZIP_LISTS sources outputs)
-      #list(APPEND clang_commands "COMMAND ${clang_flags} ${src} -o ${out}")
-      #message(STATUS "\rcmd: ${clang_flags} ${src} -o ${out}")
-      #add_custom_command(
-      #  OUTPUT "${out}"
-      #  COMMAND ${clang_flags} ${src} -o ${out}
-      #  DEPENDS ${cpp_target} "${src}"
-      #  COMMENT "Building \"${out}\" IR for '${ir_target}'"
-      #  WORKING_DIRECTORY ${ir_DESTINATION}
-      #)
-      set(clang_command "${clang_flags} ${src} -o ${ir_DESTINATION}/${out}")
-      separate_arguments(clang_command NATIVE_COMMAND "${clang_command}")
+      set(clang_command "${CMAKE_CXX_COMPILER} ${clang_flags} ${src} -o ${out}\n")
+      separate_arguments(clang_invocation NATIVE_COMMAND "${clang_command}")
+      file(APPEND "${ir_compile_commands}"
+        "${CMAKE_CXX_COMPILER} ${ir_shell_var} ${src} -o ${out}\n")
       add_custom_command(
-        #OUTPUT "${out}"
-        TARGET ${cpp_target} PRE_BUILD
-        COMMAND ${clang_command}
-        #DEPENDS ${cpp_target} "${src}"
+        TARGET ${ir_target} POST_BUILD
+        COMMAND ${clang_invocation}
         BYPRODUCTS "${ir_DESTINATION}/${out}"
         COMMENT "Building \"${out}\" IR for '${ir_target}'"
-        #WORKING_DIRECTORY "${ir_DESTINATION}"
-        VERBATIM COMMAND_EXPAND_LISTS USES_TERMINAL
+        WORKING_DIRECTORY "${ir_DESTINATION}"
+        VERBATIM COMMAND_EXPAND_LISTS
       )
     endforeach()
-    add_custom_target(${ir_target}_${cpp_target} DEPENDS ${outputs})
-    add_dependencies(${ir_target} ${ir_target}_${cpp_target})
+    file(APPEND "${ir_compile_commands}" "\n")
   endforeach()
-
-endfunction(ir_handle_roots)
+endfunction(_ir_handle_roots)
 
 # Generates an ir target from a list of input sources.
 #  compile_ir(<target>
@@ -246,7 +323,9 @@ endfunction(ir_handle_roots)
 #              >...
 #             [DESTINATION <folder>]
 #             [OPTLEVEL (0|1|2|3|s|z|g)]
-#             [BITCODE])
+#             [FLAGS [flags...]]
+#             [BITCODE]
+#             [NODEBUG])
 #
 # SOURCES:
 #  Sources are formatted like "<core|exi>.<folder>[.subfolder].[filename]",
@@ -270,27 +349,29 @@ endfunction(ir_handle_roots)
 #  The destination folder. Defaults to "${CMAKE_BINARY_DIR}/IR".
 #  When relative, the destination will be "${CMAKE_BINARY_DIR}/<folder>".
 function(compile_ir target_name)
-  set(ir_opts   BITCODE)
+  add_custom_target(${target_name})
+  set(ir_opts   BITCODE NODEBUG)
   set(ir_single DESTINATION OPTLEVEL)
-  set(ir_multi  ROOTS SOURCES)
+  set(ir_multi  ROOTS SOURCES FLAGS)
   cmake_parse_arguments(ir
     "${ir_opts}" "${ir_single}" "${ir_multi}"
     ${ARGN}
   )
 
   # Validate options
-  ir_check_required(ROOTS SOURCES)
+  _ir_check_required(ROOTS SOURCES)
   if(NOT ir_ROOTS)
-    ir_throw("No roots provided!")
+    _ir_throw("No roots provided!")
   endif()
   if(NOT ir_SOURCES)
-    ir_throw("No sources provided!")
+    _ir_throw("No sources provided!")
   endif()
   list(REMOVE_DUPLICATES ir_SOURCES)
+  _ir_message("TARGET: ${target_name}")
 
   # Update ir_DESTINATION
-  ir_update_destination(ir_DESTINATION)
-  ir_message("DESTINATION: ${ir_DESTINATION}")
+  _ir_update_destination(ir_DESTINATION)
+  _ir_message("DESTINATION: ${ir_DESTINATION}")
 
   if(ir_OPTLEVEL)
     string(TOLOWER "${ir_OPTLEVEL}" ir_OPTLEVEL)
@@ -299,13 +380,16 @@ function(compile_ir target_name)
       unset(ir_OPTLEVEL)
     endif()
   endif()
+  if(NOT ir_FLAGS)
+    set(ir_FLAGS "")
+  endif()
 
   if(DEFINED ir_BITCODE AND ir_BITCODE)
     set(ir_extension "bc")
   else()
     set(ir_extension "ll")
   endif()
-  ir_message("EXTENSION: .${ir_extension}")
+  _ir_message("EXTENSION: .${ir_extension}")
 
   # Get the ROOT directories
   set(ir_roots "")
@@ -330,7 +414,7 @@ function(compile_ir target_name)
     elseif(ir_ROOTS_parse STREQUAL "FOLDER")
       cmake_path(ABSOLUTE_PATH ROOT_arg NORMALIZE OUTPUT_VARIABLE root_dir)
       if(NOT IS_DIRECTORY "${root_dir}")
-        ir_throw("Invalid folder for '${ir_ROOTS_current}': \"${root_dir}\"")
+        _ir_throw("Invalid folder for '${ir_ROOTS_current}': \"${root_dir}\"")
       endif()
       set(${ir_ROOTS_current}_FOLDER "${root_dir}")
       set(ir_ROOTS_parse "")
@@ -338,27 +422,28 @@ function(compile_ir target_name)
       _deref_target(${ROOT_arg} ir_target)
       list(APPEND ${ir_ROOTS_current}_TARGETS ${ir_target})
     else()
-      ir_throw("Unknown argument '${ROOT_arg}'")
+      _ir_throw("Unknown argument '${ROOT_arg}'")
     endif()
   endforeach()
 
   if(NOT ir_ROOTS_current)
-    ir_throw("Unparsed root '${ir_ROOTS_current}'")
+    _ir_throw("Unparsed root '${ir_ROOTS_current}'")
   else()
     list(APPEND ir_roots ${ir_ROOTS_current})
   endif()
   if(NOT ir_roots)
-    ir_throw("No roots provided!")
+    _ir_throw("No roots provided!")
   endif()
-  ir_message("ROOTS: ${ir_roots}")
+  _ir_message("ROOTS: ${ir_roots}")
 
+  set(_ir_message_type VERBOSE)
   list(SORT ir_SOURCES COMPARE STRING)
   foreach(root ${ir_roots})
     if(NOT (DEFINED ${root}_FOLDER AND ${root}_FOLDER))
-      ir_throw("No folder provided for '${root}'")
+      _ir_throw("No folder provided for '${root}'")
     endif()
     if(NOT (DEFINED ${root}_TARGETS AND ${root}_TARGETS))
-      ir_throw("No targets provided for '${root}'")
+      _ir_throw("No targets provided for '${root}'")
     endif()
 
     set(root_sources ${ir_SOURCES})
@@ -367,7 +452,7 @@ function(compile_ir target_name)
       continue()
     endif()
     list(TRANSFORM root_sources REPLACE "^${root}\." "")
-    ir_handle_roots(${target_name} ${root} ${root_sources})
+    _ir_handle_roots(${target_name} ${root} ${root_sources})
   endforeach()
 endfunction(compile_ir)
 
@@ -375,7 +460,8 @@ else()
 
 # IR generation is not supported on this target.
 function(compile_ir ir_target)
-  message(WARNING "compile_ir is not supported on this compiler!")
+  add_custom_target(${ir_target})
+  _ir_message("IR is not supported on this compiler!")
 endfunction(compile_ir)
 
 endif()
