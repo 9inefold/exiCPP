@@ -146,7 +146,23 @@ target_link_libraries(exi-exicpp INTERFACE
 )
 
 if(DEFINED EXI_CODEGEN_TESTS)
+  #include(DumpProperties)
   include(CompileIR)
+  compile_ir(exi-irgen
+    SOURCES ${EXI_CODEGEN_TESTS}
+    ROOTS
+      ROOT core "lib/core"
+        TARGETS exi::core
+      ROOT exi "lib/exi"
+        TARGETS
+          exi::basic
+          exi::decode
+          exi::encode
+          exi::grammar
+          exi::stream
+    OPTLEVEL 2
+  )
+
   #dump_target_properties(exi::decode)
   #dump_target_properties(exi::grammar)
 endif()
@@ -155,5 +171,8 @@ if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
   add_executable(exi-driver Driver.cpp
     DriverTests.cpp XMLDumper.cpp)
   target_link_libraries(exi-driver exi::exicpp)
+  if(TARGET exi-irgen)
+    #add_dependencies(exi-driver exi-irgen)
+  endif()
   exi_minject(exi-driver CLASSIC BACKUP)
 endif()

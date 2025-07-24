@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.15)
 include_guard(DIRECTORY)
 
 project(
@@ -97,14 +97,6 @@ if(EXI_FAST_DEBUG)
   set(MI_DEBUG_FAST ON)
 endif()
 
-# Formatted like `<core|exi>.<folder>[.subfolder].[filename]`,
-# eg. `exi.Decode.BodyDecoder`
-#
-# You can also use glob patterns,
-# eg.
-#   `exi.Grammar.Decode.*`
-#   `exi.Grammar.*.BuiltinSchema`
-#   `exi.Decode.*Decoder`
 if(DEFINED EXI_CODEGEN_TESTS)
   if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     message(SEND_ERROR "EXI_CODEGEN_TESTS is only available with Clang.")
@@ -112,9 +104,11 @@ if(DEFINED EXI_CODEGEN_TESTS)
   elseif(NOT EXI_CODEGEN_TESTS)
     message(WARNING "EXI_CODEGEN_TESTS is empty, ignoring.")
     unset(EXI_CODEGEN_TESTS)
-  elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    message(STATUS "EXI_CODEGEN_TESTS should not be used in debug.")
-    #unset(EXI_CODEGEN_TESTS)
+  else()
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+      message(STATUS "EXI_CODEGEN_TESTS should not be used in debug.")
+    endif()
+    # include(CompileIR)
   endif()
 endif()
 

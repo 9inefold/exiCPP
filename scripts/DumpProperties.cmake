@@ -85,7 +85,7 @@ endfunction(_deref_target_alias)
 # Sets real_target to the target's real name.
 macro(_deref_target target out)
   if(NOT TARGET ${target})
-    message(STATUS "No target named `${target}`.")
+    message(WARNING "No target named `${target}`.")
     return()
   endif()
   _deref_target_alias(${target} ${out})
