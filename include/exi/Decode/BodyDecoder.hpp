@@ -174,11 +174,10 @@ protected:
       if EXI_LIKELY(E == ExiError::OK)
         continue;
       else if (E == ExiError::DONE)
-        break;
+        return ExiError::OK;
       // Some other error code.
       return E;
     }
-
     return ExiError::OK;
 #endif
   }
@@ -459,6 +458,10 @@ case##CODE:                                                                   \
     return Reader->readString(Size, Storage);
   }
 };
+
+/// May be used for simple JIT in the future.
+template <> EXI_USED
+ExiError ExiDecoder::decodeBody<>(Deserializer* S);
 
 } // namespace exi
 

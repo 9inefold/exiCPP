@@ -175,6 +175,20 @@ ExiError ExiDecoder::decodeBody() {
   return this->decodeBody(&S);
 }
 
+template <>
+EXI_USED ExiError ExiDecoder::decodeBody<>(Deserializer* S) {
+  if (S == nullptr) {
+    // TODO: Allow defaulting in permissive mode?
+    LOG_ERROR("Deserializer cannot be null!");
+    return ErrorCode::kInvalidEXIInput;
+  }
+
+  if (ExiError E = prepareForDecoding())
+    return E;
+
+  return decodeBodyImpl<Deserializer>(S);
+}
+
 EXI_COLD ExiError ExiDecoder::dispatchUncommonEvent(Deserializer* S,
                                                     const EventUID Event) {
   switch (Event.getTerm()) {
