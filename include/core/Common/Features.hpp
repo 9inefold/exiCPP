@@ -345,7 +345,11 @@
 #endif
 
 #if EXI_HAS_ATTR(used)
-# define EXI_USED __attribute__((__used__))
+# if EXI_HAS_ATTR(retain)
+#  define EXI_USED __attribute__((__used__, retain))
+# else
+#  define EXI_USED __attribute__((__used__))
+# endif
 #else
 # define EXI_USED
 #endif
