@@ -112,7 +112,7 @@ protected:
       // Partial read.
       BytesRead = Stream.size() - ByteOffset;
       ByteOffset = 0;
-      exi_invariant(Store == 0, "Store was not cleared!");
+      Store = 0;
       for (size_type Ix = 0; Ix != BytesRead; ++Ix)
         Store |= word_t(WordPtr[Ix]) << (Ix * 8);
     }
