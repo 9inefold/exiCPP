@@ -39,10 +39,16 @@
 #define DEBUG_TYPE "BodyDecoder"
 #define DECODER_LOG_POSITIONS 1
 
+#ifndef EXI_DECODER_COMPUTED_GOTO
+// Temporary measures.
+# define EXI_DECODER_COMPUTED_GOTO 0
+#endif
+
+#ifndef EXI_DECODER_COMPUTED_GOTO
 // Currently ~2 seconds slower on the large tests. Seems like it messes with the
 // OrderedReader's IBP hits? Only the virtual functions are affected, the rest
 // actually spend *less* time running. May be viable with Schema integration?
-#if 0 && EXI_ENABLE_UNSTABLE_FEATURES && defined(__GNUC__)
+#if EXI_ENABLE_UNSTABLE_FEATURES && defined(__GNUC__)
 # define EXI_DECODER_COMPUTED_GOTO 1
 # if !defined(__clang__)
 /// Can be used to annotate a label.
@@ -52,6 +58,7 @@
 #  define LABEL_ANNOTATE(...)
 # endif
 #endif
+#endif // EXI_DECODER_COMPUTED_GOTO
 
 #if DECODER_LOG_POSITIONS
 // FIXME: Update if needed...
