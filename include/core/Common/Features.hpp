@@ -732,6 +732,24 @@ consteval bool exi_compile_failure() {
     __VA_OPT__(, "In "#TYPE": ") __VA_ARGS__);
 #endif
 
+#if defined(__clang__)
+// Make sure this is only parsed if __clang__ is defined
+# if __has_warning("-Wunnecessary-virtual-specifier")
+# define EXI_DECLARE_VIRTUAL_ANCHOR_FUNCTION()                                \
+   _Pragma("clang diagnostic push")                                           \
+   _Pragma("clang diagnostic ignored \"-Wunnecessary-virtual-specifier\"")    \
+   virtual void anchor()                                                      \
+   _Pragma("clang diagnostic pop")
+# else // __has_warning
+# define EXI_DECLARE_VIRTUAL_ANCHOR_FUNCTION()                                \
+   virtual void anchor()
+# endif
+#else // defined(__clang__)
+# define EXI_DECLARE_VIRTUAL_ANCHOR_FUNCTION()                                \
+   virtual void anchor()
+#endif
+// clang-format on
+
 #define HELPER_NS H
 #define BEGIN_HELPER_NS namespace HELPER_NS
 
