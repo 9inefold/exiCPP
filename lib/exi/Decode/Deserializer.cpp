@@ -1,4 +1,4 @@
-//===- exi/Decode/Serializer.cpp -------------------------------------===//
+//===- exi/Decode/Deserializer.cpp -----------------------------------===//
 //
 // Copyright (C) 2025 Eightfold
 //

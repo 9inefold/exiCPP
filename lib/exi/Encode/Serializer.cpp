@@ -1,4 +1,4 @@
-//===- exi/Decode/Serializer.hpp -------------------------------------===//
+//===- exi/Decode/Serializer.cpp -------------------------------------===//
 //
 // Copyright (C) 2025 Eightfold
 //
@@ -17,29 +17,13 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file implements the interface used to encode EXI.
+/// This file implements the interface used to decode EXI as XML.
 ///
 //===----------------------------------------------------------------===//
 
-#pragma once
+#include <exi/Encode/Serializer.hpp>
+//#include <exi/Encode/XMLSerializer.hpp>
 
-#include <core/Common/ArrayRef.hpp>
-#include <core/Common/StrRef.hpp>
-#include <core/Support/Logging.hpp>
-#include <exi/Basic/ErrorCodes.hpp>
-#include <exi/Basic/EventCodes.hpp>
+using namespace exi;
 
-#define DEBUG_TYPE "Serializer"
-
-namespace exi {
-
-class Serializer {
-public:
-  virtual ~Serializer() = default;
-private:
-  virtual void anchor();
-};
-
-} // namespace exi
-
-#undef DEBUG_TYPE
+void Serializer::anchor() {}

@@ -92,8 +92,8 @@ include_items(EXICPP_BASIC "lib/exi"
 
 include_items(EXICPP_DECODE "lib/exi"
   Decode/BodyDecoder.cpp
+  Decode/Deserializer.cpp
   Decode/HeaderDecoder.cpp
-  Decode/Serializer.cpp
   Decode/StringTables.cpp
 )
 
@@ -102,6 +102,7 @@ include_items(EXICPP_ENCODE "lib/exi"
   Encode/HeaderEncoder.cpp
   Encode/OrderedEncoder.cpp
   Encode/NamespaceContextStack.cpp
+  Encode/Serializer.cpp
   Encode/StringTables.cpp
 )
 
