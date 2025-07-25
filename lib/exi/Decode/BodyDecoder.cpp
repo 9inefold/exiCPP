@@ -344,10 +344,8 @@ ExiResult<EventUID> ExiDecoder::decodeNS() {
 
   bool IsLocal = false;
   exi_try_r(reader<StrmT>().readBit(IsLocal));
-  if (!IsLocal) {
+  if (!IsLocal)
     LOG_INFO(">> NONLOCAL");
-    return Err(ErrorCode::kUnimplemented);
-  }
 
   auto QName = SmallQName::NewURI(URI);
   return Ok(EventUID::NewNS(QName, PfxID, IsLocal));
