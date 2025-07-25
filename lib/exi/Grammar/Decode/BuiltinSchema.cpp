@@ -577,6 +577,7 @@ private:
   ALWAYS_INLINE constexpr void logCurrentEvent() {}
   ALWAYS_INLINE constexpr void logEvent(EventTerm) {}
 #endif
+  void anchor() override;
 };
 
 template <class StrmT>
@@ -890,6 +891,9 @@ EXI_PRESERVE_CALLSITE void DynBuiltinSchema<StrmT>::logEvent(EventTerm Term) {
   );
 }
 #endif // EXI_LOGGING
+
+template<> void DynBuiltinSchema<BitReader>::anchor() {}
+template<> void DynBuiltinSchema<ByteReader>::anchor() {}
 
 Box<BuiltinSchema> BuiltinSchema::New(const ExiOptions& Opts) {
   const AlignKind A = Opts.Alignment;
