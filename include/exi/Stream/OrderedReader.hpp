@@ -112,7 +112,7 @@ protected:
       // Partial read.
       BytesRead = Stream.size() - ByteOffset;
       ByteOffset = 0;
-      Store = 0;
+      // TODO: Revert invariant (Store == 0)?
       for (size_type Ix = 0; Ix != BytesRead; ++Ix)
         Store |= word_t(WordPtr[Ix]) << (Ix * 8);
     }
@@ -123,13 +123,6 @@ protected:
       // This will allow us to introspect on the state later.
       ++ByteOffset;
     return Ok(BytesRead);
-  }
-
-  [[deprecated("Use setProxy(proxy_t)")]]
-  void setProxyBase(proxy_t Proxy) {
-    this->Stream = Proxy.arr();
-    this->ByteOffset = Proxy.bytes();
-    this->Store = 0;
   }
 
 private:
@@ -368,6 +361,7 @@ private:
                   "Bits is zero, an invalid shift will occur.");
     const size_type HeadBits = (Bits - BitsInStore);
     const u64 Out = BitsInStore ? readImpl(BitsInStore) : 0;
+    Store = 0;
 
     // Refill the store and grab the next set of bits.
     exi_try_r(fillStore());
@@ -614,6 +608,7 @@ private:
                   "Bits is zero, an invalid shift will occur.");
     const size_type HeadBytes = (Bytes - BytesInStore);
     const u64 Out = BytesInStore ? readImpl(BytesInStore) : 0;
+    Store = 0;
 
     // Refill the store and grab the next set of bits.
     exi_try_r(fillStore());
