@@ -55,6 +55,8 @@ enum : u64 {
   kInvalidPrefix  = 0xFF,
   /// Invalid Terminal for `EventUID`.
   kInvalidTerm    = u64(EventTerm::Invalid),
+  /// Invalid Terminal for `EventUID`.
+  kSInvalidTerm   = u64(SimpleEventTerm::Invalid),
   /// Invalid Value for `EventUID`.
   kInvalidVID     = 0xFFFFFFFFFFFF,
 };
