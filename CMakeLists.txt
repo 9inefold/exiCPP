@@ -114,7 +114,7 @@ if(EXI_USE_EXIP)
 endif()
 
 message(STATUS "Library name(s)         : exi-exicpp, exi::exicpp, exi::exi")
-message(STATUS "Version                 : ${PROJECT_VERSION}")
+message(STATUS "Version                 : ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}")
 message(STATUS "Build type              : ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ Compiler            : ${CMAKE_CXX_COMPILER}")
 message(STATUS "Compiler flags          : ${EXI_WARNING_FLAGS};${EXI_FLAGS}")
