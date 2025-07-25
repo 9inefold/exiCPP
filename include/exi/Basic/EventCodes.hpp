@@ -1,6 +1,6 @@
 //===- exi/Basic/EventCodes.hpp -------------------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2024-2025 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,39 +25,11 @@
 
 #include <core/Common/Array.hpp>
 #include <core/Common/Fundamental.hpp>
-#include <core/Common/EnumArray.hpp>
 #include <core/Common/STLExtras.hpp>
 #include <core/Common/DenseMapInfo.hpp>
+#include <exi/Basic/EventTerms.hpp>
 
 namespace exi {
-
-/// An enum containing all the terminal symbols used for productions.
-enum class EventTerm : i32 {
-  SD,       // Start Document
-  ED,       // End Document
-  SE,       // Start Element (*)
-  SEUri,    // Start Element (uri:*)
-  SEQName,  // Start Element (qname)
-  EE,       // End Element
-  AT,       // Attribute (*, value)
-  ATUri,    // Attribute (uri:*, value)
-  ATQName,  // Attribute (qname, value)
-  CH,       // Characters (value)
-  CHExtern, // Characters (external-value)
-  NS,       // Namespace Declaration (uri, prefix, local-element-ns)
-  CM,       // Comment text (text)
-  PI,       // Processing Instruction (name, text)
-  DT,       // DOCTYPE (name, public, system, text)
-  ER,       // Entity Reference (name)
-  SC,       // Self Contained
-  Void,
-  Last = SC,
-  Invalid = 0b1111111,
-};
-
-StrRef get_event_name(EventTerm E) noexcept EXI_READNONE;
-StrRef get_event_fullname(EventTerm E) noexcept EXI_READNONE;
-StrRef get_event_signature(EventTerm E) noexcept EXI_READNONE;
 
 /// All the data required to output an event code.
 /// The data is stored in three u32's.

@@ -77,7 +77,7 @@ endif()
 
 include_items(EXICPP_BASIC "lib/exi"
   Basic/ErrorCodes.cpp
-  Basic/EventCodes.cpp
+  Basic/EventTerms.cpp
   Basic/ExiHeader.cpp
   Basic/ExiOptions.cpp
   #Basic/FileEntry.cpp

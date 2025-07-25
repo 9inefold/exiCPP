@@ -1,6 +1,6 @@
 //===- exi/Basic/EventCodes.cpp -------------------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2024-2025 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,12 @@
 
 using namespace exi;
 
-static constexpr i32 kEventTermCount = EnumRange<EventTerm>::size;
+using iterm = EventTermType;
+
+//////////////////////////////////////////////////////////////////////////
+// EventTerm
+
+static constexpr iterm kEventTermCount = EnumRange<EventTerm>::size;
 
 static constexpr StringLiteral EventTermNames[kEventTermCount] {
   "SD", "ED",
@@ -78,23 +83,90 @@ static constexpr StringLiteral EventTermMessages[kEventTermCount] {
   "Self Contained"
 };
 
-StrRef exi::get_event_name(EventTerm E) noexcept {
-  const i32 Ix = static_cast<i32>(E);
+StrRef exi::get_event_name(EventTerm E) {
+  const auto Ix = static_cast<iterm>(E);
   if EXI_LIKELY(Ix < kEventTermCount && Ix >= 0)
-    return EventTermNames[Ix].data();
+    return EventTermNames[Ix];
   return "??"_str;
 }
 
-StrRef exi::get_event_fullname(EventTerm E) noexcept {
-  const i32 Ix = static_cast<i32>(E);
+StrRef exi::get_event_fullname(EventTerm E) {
+  const auto Ix = static_cast<iterm>(E);
   if EXI_LIKELY(Ix < kEventTermCount && Ix >= 0)
-    return EventTermFullNames[Ix].data();
+    return EventTermFullNames[Ix];
   return "??"_str;
 }
 
-StrRef exi::get_event_signature(EventTerm E) noexcept {
-  const i32 Ix = static_cast<i32>(E);
+StrRef exi::get_event_signature(EventTerm E) {
+  const auto Ix = static_cast<iterm>(E);
   if EXI_LIKELY(Ix < kEventTermCount && Ix >= 0)
-    return EventTermMessages[Ix].data();
+    return EventTermMessages[Ix];
+  return "Unknown Event"_str;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// SimpleEventTerm
+
+static constexpr iterm kSEventTermCount = EnumRange<SimpleEventTerm>::size + 1;
+
+static constexpr StringLiteral SEventTermNames[kSEventTermCount] {
+  "SE", "EE",
+  "AT",
+  "CH",
+  "NS",
+  "SD", "ED",
+  "CM",
+  "PI", "DT", "ER",
+  "SC",
+  "HL"
+};
+
+static constexpr StringLiteral SEventTermFullNames[kSEventTermCount] {
+  "SE (any)",
+  "EE",
+  "AT (any)",
+  "CH",
+  "NS",
+  "SD", "ED",
+  "CM",
+  "PI", "DT", "ER",
+  "SC",
+  "HL"
+};
+
+static constexpr StringLiteral SEventTermMessages[kSEventTermCount] {
+  "SE (any)",
+  "EE",
+  "AT (any)",
+  "Characters (any-value)",
+  "Namespace Declaration (uri, prefix, local-element-ns)",
+  "Start Document",
+  "End Document",
+  "Comment text (text)",
+  "Processing Instruction (name, text)",
+  "DOCTYPE (name, public, system, text)",
+  "Entity Reference (name)",
+  "Self Contained",
+  "Halt"
+};
+
+StrRef exi::get_event_name(SimpleEventTerm E) {
+  const auto Ix = static_cast<iterm>(E);
+  if EXI_LIKELY(Ix < kSEventTermCount && Ix >= 0)
+    return SEventTermNames[Ix];
+  return "??"_str;
+}
+
+StrRef exi::get_event_fullname(SimpleEventTerm E) {
+  const auto Ix = static_cast<iterm>(E);
+  if EXI_LIKELY(Ix < kSEventTermCount && Ix >= 0)
+    return SEventTermFullNames[Ix];
+  return "??"_str;
+}
+
+StrRef exi::get_event_signature(SimpleEventTerm E) {
+  const auto Ix = static_cast<iterm>(E);
+  if EXI_LIKELY(Ix < kSEventTermCount && Ix >= 0)
+    return SEventTermMessages[Ix];
   return "Unknown Event"_str;
 }
