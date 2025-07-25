@@ -27,3 +27,4 @@
 using namespace exi;
 
 void Deserializer::anchor() {}
+void XMLDeserializer::anchor() {}

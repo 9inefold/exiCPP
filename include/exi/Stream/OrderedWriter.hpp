@@ -315,8 +315,7 @@ private:
     //return Err(ErrorCode::kInvalidEXIInput);
   }
 
-  // HACK: Only inconsistent override?
-  virtual void anchorX();
+  void anchor() override;
 };
 
 #undef DEBUG_TYPE

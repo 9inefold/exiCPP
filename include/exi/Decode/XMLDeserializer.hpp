@@ -204,6 +204,8 @@ private:
     const char* Out = Doc.allocString(FullName.data(), Size);
     return {Out, Size};
   }
+
+  void anchor() override;
 };
 
 // TODO: Add InFlightXMLSerializer
