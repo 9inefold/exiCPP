@@ -518,8 +518,8 @@ ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
 }
 
 ExiResult<String> ExiDecoder::decodeString() {
-  SmallStr<64> Data;
-  if (auto E = this->decodeString(Data)
+  SmallStr<80> Data;
+  if (auto E = Reader->decodeString(Data)
       .error_or(ExiError::OK)) [[unlikely]] {
     return Err(E);
   }
