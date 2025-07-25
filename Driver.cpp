@@ -162,13 +162,13 @@ static void TestSchemas() {
 static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
   LOG_INFO("Decoding header...");
   if (auto E = Decoder.decodeHeader(MB)) {
-    Decoder.diagnose(E);
+    errs() << E << '\n';
     return 1;
   }
 
   LOG_INFO("Decoding body...");
   if (auto E = Decoder.decodeBody()) {
-    Decoder.diagnose(E);
+    errs() << E << '\n';
     return 1;
   }
 
@@ -180,13 +180,13 @@ static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
 static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB, Deserializer* S) {
   LOG_INFO("Decoding header...");
   if (auto E = Decoder.decodeHeader(MB)) {
-    Decoder.diagnose(E);
+    errs() << E << '\n';
     return 1;
   }
 
   LOG_INFO("Decoding body...");
   if (auto E = Decoder.decodeBody(S)) {
-    Decoder.diagnose(E);
+    errs() << E << '\n';
     return 1;
   }
 
@@ -202,7 +202,7 @@ static int Decode(XMLManager* Mgr, StrRef File, ExiOptions& Opts) {
   auto MB = Exi.getBufferRef();
 
   LOG_INFO("Decoding: \"{}\"", File);
-  ExiDecoder Decoder(Opts, errs());
+  ExiDecoder Decoder(Opts);
   return Decode(Decoder, MB);
 }
 

@@ -139,6 +139,19 @@ struct EXI_TRIVIAL_ABI BIInfo {
 using BIInfoArray = EnumeratedArray<BIInfo, BIGrammar,
   BIGrammar::Last, BIGrammar::DocContent>;
 
+/// Emits diagnostic for an error.
+EXI_ERROR_CC static void Diagnose(const ExiError& E) {
+  if (E != ExiError::OK)
+    errs() << E << '\n';
+}
+/// Emits diagnostic for an error.
+template <typename T>
+EXI_ERROR_CC EXI_MINSIZE static void Diagnose(const ExiResult<T>& Result) {
+  exi_invariant(Result.is_err());
+  if (Result.error() != ExiError::OK)
+    errs() << Result.error() << '\n';
+}
+
 // TODO: Update other functions to use template.
 // It currently shows as slightly slower, but this may be because of split
 // behaviour in the IBP.
@@ -416,7 +429,7 @@ private:
   CC EventUID handleSE(ExiDecoder* D) {
     const auto Event = Get::DecodeQName(D);
     if EXI_UNLIKELY(Event.is_err()) {
-      D->diagnose(Event.error());
+      Diagnose(Event);
       return EventUID::NewNull();
     }
 
@@ -471,7 +484,7 @@ private:
   CC EventUID handleAT(ExiDecoder* D) {
     const auto Event = Get::DecodeQName(D);
     if EXI_UNLIKELY(Event.is_err()) {
-      D->diagnose(Event.error());
+      Diagnose(Event);
       return EventUID::NewNull();
     }
 
@@ -497,7 +510,7 @@ private:
     const auto Event = Get::DecodeValue(D, Name);
 
     if EXI_UNLIKELY(Event.is_err()) {
-      D->diagnose(Event.error());
+      Diagnose(Event);
       return EventUID::NewNull();
     }
 

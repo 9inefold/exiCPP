@@ -104,24 +104,14 @@ class ExiDecoder {
   ExiOptions::PreserveOpts Preserve = {};
 
 public:
-  ExiDecoder(Option<raw_ostream&> OS = std::nullopt) : OS(OS) {}
-  ExiDecoder(MaybeBox<ExiOptions> Opts, Option<raw_ostream&> OS = std::nullopt);
-  ~ExiDecoder() { os().flush(); }
+  ExiDecoder() = default;
+  ExiDecoder(MaybeBox<ExiOptions>&& Opts);
+  ~ExiDecoder() = default;
 
   /// Get the state flags.
   DecoderFlags flags() const { return Flags; }
   /// Returns if the header was successfully decoded.
   bool didHeader() const { return Flags.DidHeader; }
-
-  /// Returns the stream used for diagnostics.
-  raw_ostream& os() const;
-  /// Diagnoses errors in the current context.
-  void diagnose(ExiError E, bool Force = false) const;
-  /// Diagnoses errors in the current context, then returns.
-  ExiError diagnoseme(ExiError E) const {
-    this->diagnose(E);
-    return E;
-  }
 
   ////////////////////////////////////////////////////////////////////////
   // Initialization

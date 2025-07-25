@@ -58,8 +58,7 @@ namespace INTERNAL_NS {
 class INTERNAL_LINKAGE BIDeserializer final : public Deserializer {};
 } // namespace INTERNAL_NS
 
-ExiDecoder::ExiDecoder(MaybeBox<ExiOptions> Opts,
-                       Option<raw_ostream&> OS) : ExiDecoder(OS) {
+ExiDecoder::ExiDecoder(MaybeBox<ExiOptions>&& Opts) {
   Header.Opts = std::move(Opts);
 }
 
@@ -524,23 +523,4 @@ ExiResult<String> ExiDecoder::decodeString() {
     return Err(E);
   }
   return String(Data);
-}
-
-//////////////////////////////////////////////////////////////////////////
-// Miscellaneous
-
-raw_ostream& ExiDecoder::os() const {
-  return OS.value_or(errs());
-}
-
-void ExiDecoder::diagnose(ExiError E, bool Force) const {
-  if (E == ExiError::OK)
-    return;
-  if (!Force && !OS)
-    return;
-  
-  if EXI_LIKELY(!Reader.empty()) {
-    // os() << "At [" << Reader->bitPos() << "]: ";
-  }
-  os() << E << '\n';
 }
