@@ -30,6 +30,7 @@
 #include <core/Support/Format.hpp>
 #include <core/Support/Logging.hpp>
 #include <core/Support/TrailingArray.hpp>
+#include <exi/Basic/D/InternalMacros.hpp>
 #include <exi/Basic/ExiOptions.hpp>
 #include <exi/Grammar/Grammar.hpp>
 #include <exi/Stream/OrderedReader.hpp>
@@ -41,32 +42,18 @@ using namespace exi::decode;
 
 #define DEBUG_TYPE "BuiltinSchema"
 
-#ifdef __GNUC__
-# define GNU_ATTR(...) __attribute__((__VA_ARGS__))
-#else
-# define GNU_ATTR(...)
-#endif
-
-#if EXI_HAS_ATTR(preserve_none)
-/// Preserves none.
-# define CC __attribute__((preserve_none))
-/// Preserves none, inlines the function when unavailable.
-# define CC_INLINE __attribute__((preserve_none))
-#else
-/// Empty attribute.
-# define CC
-/// Inlines the function.
-# define CC_INLINE ALWAYS_INLINE
-#endif
-
-#ifdef __clang__
-/// Keep debug information clean when using clang.
-# define INTERNAL_LINKAGE [[clang::internal_linkage]]
-# define INTERNAL_NS exi::decode
-#else
-# define INTERNAL_LINKAGE
-# define INTERNAL_NS
-#endif
+/// Emits diagnostic for an error.
+EXI_ERROR_CC static void Diagnose(const ExiError& E) {
+  if (E != ExiError::OK)
+    errs() << E << '\n';
+}
+/// Emits diagnostic for an error.
+template <typename T>
+EXI_ERROR_CC EXI_MINSIZE static void Diagnose(const ExiResult<T>& Result) {
+  exi_invariant(Result.is_err());
+  if (Result.error() != ExiError::OK)
+    errs() << Result.error() << '\n';
+}
 
 //===----------------------------------------------------------------===//
 // Built-in Grammar
@@ -109,7 +96,7 @@ using namespace exi::decode;
 ///   PI ElementContent      n.(m+3).1
 ///
 
-namespace INTERNAL_NS {
+namespace INTERNAL_NS(exi) {
 
 /// A small log2 table for deducing bit counts. The maximum value a builtin
 /// schema can have is 7, with `StartTagContent.{CM, PI}` with `SC` enabled.
@@ -138,19 +125,6 @@ struct EXI_TRIVIAL_ABI BIInfo {
 
 using BIInfoArray = EnumeratedArray<BIInfo, BIGrammar,
   BIGrammar::Last, BIGrammar::DocContent>;
-
-/// Emits diagnostic for an error.
-EXI_ERROR_CC static void Diagnose(const ExiError& E) {
-  if (E != ExiError::OK)
-    errs() << E << '\n';
-}
-/// Emits diagnostic for an error.
-template <typename T>
-EXI_ERROR_CC EXI_MINSIZE static void Diagnose(const ExiResult<T>& Result) {
-  exi_invariant(Result.is_err());
-  if (Result.error() != ExiError::OK)
-    errs() << Result.error() << '\n';
-}
 
 // TODO: Update other functions to use template.
 // It currently shows as slightly slower, but this may be because of split

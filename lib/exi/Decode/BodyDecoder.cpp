@@ -28,6 +28,7 @@
 #include <core/Support/Casting.hpp>
 #include <core/Support/Format.hpp>
 #include <core/Support/Logging.hpp>
+#include <exi/Basic/D/InternalMacros.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/Runes.hpp>
 #include <exi/Decode/Deserializer.hpp>
@@ -44,16 +45,7 @@
 using namespace exi;
 using namespace exi::decode;
 
-#ifdef __clang__
-/// Keep debug information clean when using clang.
-# define INTERNAL_LINKAGE [[clang::internal_linkage]]
-# define INTERNAL_NS exi
-#else
-# define INTERNAL_LINKAGE
-# define INTERNAL_NS
-#endif
-
-namespace INTERNAL_NS {
+namespace INTERNAL_NS(exi) {
 /// A class that does nothing. Used for empty deserialization.
 class INTERNAL_LINKAGE BIDeserializer final : public Deserializer {};
 } // namespace INTERNAL_NS
