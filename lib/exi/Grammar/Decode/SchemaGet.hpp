@@ -38,10 +38,19 @@ public:
   static StrmT* Reader(ExiDecoder* D) { return &cast<StrmT>(D->Reader); }
   static OrdReader& Reader(ExiDecoder* D) { return D->Reader; }
 
-  static auto DecodeQName(ExiDecoder* D) { return D->decodeQName(); }
-  static auto DecodeNS(ExiDecoder* D) { return D->decodeNS(); }
-  static auto DecodeValue(ExiDecoder* D, SmallQName Name) {
-    return D->decodeValue(Name);
+  template <class StrmT>
+  ALWAYS_INLINE static auto DecodeQName(ExiDecoder* D) {
+    return D->decodeQName<StrmT>();
+  }
+
+  template <class StrmT>
+  ALWAYS_INLINE static auto DecodeNS(ExiDecoder* D) {
+    return D->decodeNS<StrmT>();
+  }
+
+  template <class StrmT>
+  ALWAYS_INLINE static auto DecodeValue(ExiDecoder* D, SmallQName Name) {
+    return D->decodeValue<StrmT>(Name);
   }
 };
 

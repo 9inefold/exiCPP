@@ -427,37 +427,54 @@ case##CODE:                                                                   \
     (InternString(this->BP, Strs), ...);
   }
 
+  template <typename StrmT = OrderedReader>
+  EXI_INLINE StrmT& reader() {
+    if constexpr (std::same_as<StrmT, OrderedReader>)
+      return *Reader;
+    else
+      return cast<StrmT>(Reader);
+  }
+
   /// Decodes a QName.
+  template <typename StrmT = OrderedReader>
   ExiResult<EventUID> decodeQName();
 
   /// Decodes a Namespace.
+  template <typename StrmT = OrderedReader>
   ExiResult<EventUID> decodeNS();
 
   /// Decodes a QName URI.
+  template <typename StrmT = OrderedReader>
   ExiResult<CompactID> decodeURI();
 
   /// Decodes a QName LocalName.
   /// @param URI The bucket to search in.
+  template <typename StrmT = OrderedReader>
   ExiResult<CompactID> decodeName(CompactID URI);
 
   /// Same as `decodeName`, decodes a QName LocalName.
+  template <typename StrmT = OrderedReader>
   ALWAYS_INLINE auto decodeLocalName(CompactID URI) {
-    return this->decodeName(URI);
+    return this->decodeName<StrmT>(URI);
   }
 
   /// Decodes a QName Prefix, if `Preserve.Prefixes` is enabled.
   /// @param URI The bucket to search in.
+  template <typename StrmT = OrderedReader>
   ExiResult<Option<CompactID>> decodePfxQ(CompactID URI);
 
   /// Decodes a NS Prefix, `Preserve.Prefixes` must be enabled.
   /// @param URI The bucket to search in.
+  template <typename StrmT = OrderedReader>
   ExiResult<CompactID> decodePfx(CompactID URI);
 
   /// Decodes a Value.
+  template <typename StrmT = OrderedReader>
   ExiResult<EventUID> decodeValue(CompactID URI, CompactID Name) {
     return this->decodeValue(SmallQName::NewQName(URI, Name));
   }
   /// Decodes a Value.
+  template <typename StrmT = OrderedReader>
   ExiResult<EventUID> decodeValue(SmallQName Name);
 
   /// @brief Decodes an encoded string with the default character set.
@@ -468,23 +485,34 @@ case##CODE:                                                                   \
   /// @brief Decodes an encoded string with the default character set.
   /// @param Storage Where the string will be stored.
   /// @return An non-owning `StrRef`, or an error.
+  template <typename StrmT = OrderedReader>
   ExiResult<StrRef> decodeString(SmallVecImpl<char>& Storage) {
-    return Reader->decodeString(Storage);
+    return reader<StrmT>().decodeString(Storage);
   }
 
   /// @brief Decodes a string with with the size already decoded.
   /// @param Size The length of the string.
   /// @param Storage Where the string will be stored.
   /// @return An non-owning `StrRef`, or an error.
+  template <typename StrmT = OrderedReader>
   ExiResult<StrRef> readString(u64 Size, SmallVecImpl<char>& Storage) {
     // FIXME: LOG_POSITION(this);
-    return Reader->readString(Size, Storage);
+    return reader<StrmT>().readString(Size, Storage);
   }
 };
 
 /// May be used for simple JIT in the future.
 template <> EXI_USED
 ExiError ExiDecoder::decodeBody<>(Deserializer* S);
+
+#include "D/Decode.mac"
+#define DECLARE_FUNCS(TYPE) EXI_DECODER_FUNCS_IMPL(extern, TYPE)
+
+EXI_INSTANTIATE_DECODER_FUNCS(DECLARE_FUNCS)
+
+#undef DECLARE_FUNCS
+#undef EXI_DECODER_FUNCS_IMPL
+#undef EXI_INSTANTIATE_DECODER_FUNCS
 
 } // namespace exi
 

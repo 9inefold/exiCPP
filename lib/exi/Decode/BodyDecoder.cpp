@@ -327,21 +327,23 @@ Option<StrRef> ExiDecoder::tryGetPfx(CompactID URI, CompactID PfxID) {
 //////////////////////////////////////////////////////////////////////////
 // Values
 
+template <typename StrmT>
 ExiResult<EventUID> ExiDecoder::decodeQName() {
-  const CompactID URI = $unwrap(decodeURI());
-  const CompactID LNI = $unwrap(decodeName(URI));
-  Option Pfx = $unwrap(decodePfxQ(URI));
+  const CompactID URI = $unwrap(decodeURI<StrmT>());
+  const CompactID LNI = $unwrap(decodeName<StrmT>(URI));
+  Option Pfx = $unwrap(decodePfxQ<StrmT>(URI));
 
   auto QName = SmallQName::NewQName(URI, LNI);
   return Ok(EventUID::NewQName(QName, Pfx));
 }
 
+template <typename StrmT>
 ExiResult<EventUID> ExiDecoder::decodeNS() {
-  const CompactID URI = $unwrap(decodeURI());
-  const CompactID PfxID = $unwrap(decodePfx(URI));
+  const CompactID URI = $unwrap(decodeURI<StrmT>());
+  const CompactID PfxID = $unwrap(decodePfx<StrmT>(URI));
 
   bool IsLocal = false;
-  exi_try_r(Reader->readBit(IsLocal));
+  exi_try_r(reader<StrmT>().readBit(IsLocal));
   if (!IsLocal) {
     LOG_INFO(">> NONLOCAL");
     return Err(ErrorCode::kUnimplemented);
@@ -351,12 +353,13 @@ ExiResult<EventUID> ExiDecoder::decodeNS() {
   return Ok(EventUID::NewNS(QName, PfxID, IsLocal));
 }
 
+template <typename StrmT>
 ExiResult<CompactID> ExiDecoder::decodeURI() {
   CompactID URI; {
     const u64 NBits = Strings.getURILog();
     LOG_POSITION(this);
     LOG_EXTRA("Decoding <{}>", NBits);
-    exi_try_r(Reader->readBits64(URI, NBits));
+    exi_try_r(reader<StrmT>().readBits64(URI, NBits));
   }
 
   if (URI == 0) {
@@ -364,7 +367,7 @@ ExiResult<CompactID> ExiDecoder::decodeURI() {
     StrRef URIStr;
     SmallStr<32> Data;
     LOG_POSITION(this);
-    StrRef Str = $unwrap(Reader->decodeString(Data));
+    StrRef Str = $unwrap(reader<StrmT>().decodeString(Data));
     std::tie(URIStr, URI) = Strings.addURI(Str);
     LOG_INFO(">> URI(Miss) @{}: \"{}\"", URI, URIStr);
   } else {
@@ -379,11 +382,12 @@ ExiResult<CompactID> ExiDecoder::decodeURI() {
   return URI;
 }
 
+template <typename StrmT>
 ExiResult<CompactID> ExiDecoder::decodeName(CompactID URI) {
   CompactID LnID; {
     LOG_POSITION(this);
     LOG_EXTRA("Decoding UInt");
-    exi_try_r(Reader->readUInt(LnID));
+    exi_try_r(reader<StrmT>().readUInt(LnID));
     LOG_EXTRA(">>> UInt {}", LnID);
   }
 
@@ -393,7 +397,7 @@ ExiResult<CompactID> ExiDecoder::decodeName(CompactID URI) {
     const u64 NBits = Strings.getLocalNameLog(URI);
     LOG_POSITION(this);
     LOG_EXTRA("Decoding <{}>", NBits);
-    exi_try_r(Reader->readBits64(LnID, NBits));
+    exi_try_r(reader<StrmT>().readBits64(LnID, NBits));
 #if EXI_LOGGING
     LocalName = Strings.getLocalName(URI, LnID);
 #endif
@@ -401,7 +405,7 @@ ExiResult<CompactID> ExiDecoder::decodeName(CompactID URI) {
     // Cache miss
     LnID -= 1;
     SmallStr<32> Data;
-    StrRef Str = $unwrap(Reader->readString(LnID, Data));
+    StrRef Str = $unwrap(reader<StrmT>().readString(LnID, Data));
     std::tie(LocalName, LnID) = Strings.addLocalName(URI, Str);
   }
 
@@ -409,6 +413,7 @@ ExiResult<CompactID> ExiDecoder::decodeName(CompactID URI) {
   return LnID;
 }
 
+template <typename StrmT>
 ExiResult<Option<CompactID>> ExiDecoder::decodePfxQ(CompactID URI) {
   if (!Preserve.Prefixes)
     return Ok(std::nullopt);
@@ -421,7 +426,7 @@ ExiResult<Option<CompactID>> ExiDecoder::decodePfxQ(CompactID URI) {
   if (NBits) {
     LOG_POSITION(this);
     LOG_EXTRA("Decoding <{}>", NBits);
-    exi_try_r(Reader->readBits64(PfxID, NBits));
+    exi_try_r(reader<StrmT>().readBits64(PfxID, NBits));
   }
 
 #if EXI_LOGGING
@@ -432,6 +437,7 @@ ExiResult<Option<CompactID>> ExiDecoder::decodePfxQ(CompactID URI) {
   return Ok(PfxID);
 }
 
+template <typename StrmT>
 ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
   exi_invariant(Preserve.Prefixes, "NS event occurred without prefixes.");
   CompactID PfxID = 0;
@@ -439,7 +445,7 @@ ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
 
   LOG_POSITION(this);
   LOG_EXTRA("Decoding <{}>", NBits);
-  exi_try_r(Reader->readBits64(PfxID, NBits));
+  exi_try_r(reader<StrmT>().readBits64(PfxID, NBits));
 
   StrRef Pfx;
   if (PfxID != 0) {
@@ -453,7 +459,7 @@ ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
   } else {
     // Cache miss
     SmallStr<32> Data;
-    StrRef Str = $unwrap(Reader->decodeString(Data));
+    StrRef Str = $unwrap(reader<StrmT>().decodeString(Data));
     std::tie(Pfx, PfxID) = Strings.addPrefix(URI, Str);
   }
 
@@ -461,12 +467,13 @@ ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
   return Ok(PfxID);
 }
 
+template <typename StrmT>
 ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
   exi_invariant(Name.isQName());
   CompactID ValID; {
     LOG_POSITION(this);
     LOG_EXTRA("Decoding UInt");
-    exi_try_r(Reader->readUInt(ValID));
+    exi_try_r(reader<StrmT>().readUInt(ValID));
     LOG_EXTRA(">>> UInt {}", ValID);
   }
 
@@ -475,7 +482,7 @@ ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
     const u64 NBits = Strings.getLocalValueLog(Name);
     LOG_POSITION(this);
     LOG_EXTRA("Decoding <{}>", NBits);
-    exi_try_r(Reader->readBits64(ValID, NBits));
+    exi_try_r(reader<StrmT>().readBits64(ValID, NBits));
 
 #if EXI_LOGGING
     auto [URI, LocalName] = Strings.getQName(Name);
@@ -490,7 +497,7 @@ ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
     const u64 NBits = Strings.getGlobalValueLog();
     LOG_POSITION(this);
     LOG_EXTRA("Decoding <{}>", NBits);
-    exi_try_r(Reader->readBits64(ValID, NBits));
+    exi_try_r(reader<StrmT>().readBits64(ValID, NBits));
 
 #if EXI_LOGGING
     StrRef GlobalVal = Strings.getGlobalValue(ValID);
@@ -502,7 +509,7 @@ ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
     // Cache miss
     const u64 Size = (ValID - 2);
     SmallStr<80> Data;
-    StrRef Str = $unwrap(readString(Size, Data));
+    StrRef Str = $unwrap(readString<StrmT>(Size, Data));
     auto [Value, GID, LnID] = Strings.addValue(Name, Str);
 
 #if EXI_LOGGING
@@ -524,3 +531,7 @@ ExiResult<String> ExiDecoder::decodeString() {
   }
   return String(Data);
 }
+
+#include <exi/Decode/D/Decode.mac>
+#define DECLARE_FUNCS(TYPE) EXI_DECODER_FUNCS_IMPL(, TYPE)
+EXI_INSTANTIATE_DECODER_FUNCS(DECLARE_FUNCS)

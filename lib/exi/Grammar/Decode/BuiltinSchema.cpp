@@ -427,7 +427,7 @@ private:
 
   template <bool IsRoot = false>
   CC EventUID handleSE(ExiDecoder* D) {
-    const auto Event = Get::DecodeQName(D);
+    const auto Event = Get::DecodeQName<StrmT>(D);
     if EXI_UNLIKELY(Event.is_err()) {
       Diagnose(Event);
       return EventUID::NewNull();
@@ -482,7 +482,7 @@ private:
 
   template <bool Cached = false>
   CC EventUID handleAT(ExiDecoder* D) {
-    const auto Event = Get::DecodeQName(D);
+    const auto Event = Get::DecodeQName<StrmT>(D);
     if EXI_UNLIKELY(Event.is_err()) {
       Diagnose(Event);
       return EventUID::NewNull();
@@ -507,7 +507,7 @@ private:
   CC EventUID handleCH(ExiDecoder* D) {
     exi_invariant(!GStack.empty());
     const SmallQName Name = GStack.back()->getName();
-    const auto Event = Get::DecodeValue(D, Name);
+    const auto Event = Get::DecodeValue<StrmT>(D, Name);
 
     if EXI_UNLIKELY(Event.is_err()) {
       Diagnose(Event);
