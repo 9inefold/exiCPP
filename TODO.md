@@ -31,6 +31,7 @@ This is a TODO list for the C++ version of exiCPP.
 
 - Split out implementation of `ExiDecoder` like with `ExiEncoder`
 - `sys::` implementation on linux
+- Refactor `PagedVec`
 - Add some more major in-source TODOs here...
 - Add doxygen support
 - Fix copying between streams, currently super wonky
