@@ -183,6 +183,11 @@ protected:
   /// Verifies initialization has been completed.
   ExiError prepareForDecoding();
 
+  /// Runs `Schema::decode(this)`.
+  inline EXI_FLATTEN EventUID schemaDecode() {
+    return CurrentSchema.get()->decode(this);
+  }
+
   /// Decodes the body from the current stream with the provided serializer.
   template <typename Ty> ExiError decodeBodySwitchI(Deserializer* S) {
     while (Reader->hasData()) {
@@ -200,7 +205,7 @@ protected:
   /// Decodes events and then dispatches.
   template <typename Ty> EXI_HOT ExiError decodeEventSwitch(Deserializer* S) {
     LOG_POSITION(this);
-    const EventUID Event = CurrentSchema->decode(this);
+    const EventUID Event = schemaDecode();
 
     switch (Event.getTerm()) {
     case EventTerm::SE:       // Start Element (*)
@@ -258,7 +263,7 @@ protected:
       &&caseHalt
     };
 
-    EventUID Event = CurrentSchema->decode(this);
+    EventUID Event = EventUID::NewNull();
     ExiError Out = ExiError::OK;
 
 # define HandleEvent(CODE, ARGS...) do {                                      \
