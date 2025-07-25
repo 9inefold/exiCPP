@@ -182,11 +182,9 @@ EXI_USED ExiError ExiDecoder::decodeBody<>(Deserializer* S) {
     LOG_ERROR("Deserializer cannot be null!");
     return ErrorCode::kInvalidEXIInput;
   }
-
   if (ExiError E = prepareForDecoding())
     return E;
-
-  return decodeBodyImpl<Deserializer>(S);
+  return decodeBodySwitchI<Deserializer>(S);
 }
 
 EXI_COLD ExiError ExiDecoder::dispatchUncommonEvent(Deserializer* S,

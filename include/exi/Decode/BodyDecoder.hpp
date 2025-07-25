@@ -141,22 +141,51 @@ public:
   /// Decodes the body from the current stream.
   ExiError decodeBody();
   /// Decodes the body from the current stream with the provided serializer.
-  template <std::derived_from<Deserializer> SType>
-  ExiError decodeBody(SType* S) {
+  template <std::derived_from<Deserializer> DzType>
+  ExiError decodeBody(DzType* S) {
     if (S == nullptr) {
       // TODO: Allow defaulting in permissive mode?
       LOG_ERROR("Deserializer cannot be null!");
       return ErrorCode::kInvalidEXIInput;
     }
-
     if (ExiError E = prepareForDecoding())
       return E;
 #if EXI_DECODER_COMPUTED_GOTO
     if (Reader->sizeInBytes() < 5000)
-      return decodeBodyLoopImpl<SType>(S);
+      return decodeBodyLoopI<DzType>(S);
 #endif
-    return decodeBodyImpl<SType>(S);
+    return decodeBodySwitchI<DzType>(S);
   }
+
+  /// Decodes the body from the current stream with the provided serializer.
+  /// Forces the use of switch.
+  template <std::derived_from<Deserializer> DzType>
+  ExiError decodeBodySwitch(DzType* S) {
+    if (S == nullptr) {
+      // TODO: Allow defaulting in permissive mode?
+      LOG_ERROR("Deserializer cannot be null!");
+      return ErrorCode::kInvalidEXIInput;
+    }
+    if (ExiError E = prepareForDecoding())
+      return E;
+    return decodeBodySwitchI<DzType>(S);
+  }
+
+#if EXI_DECODER_COMPUTED_GOTO
+  /// Decodes the body from the current stream with the provided serializer.
+  /// Forces the use of computed goto.
+  template <std::derived_from<Deserializer> DzType>
+  ExiError decodeBodyGoto(DzType* S) {
+    if (S == nullptr) {
+      // TODO: Allow defaulting in permissive mode?
+      LOG_ERROR("Deserializer cannot be null!");
+      return ErrorCode::kInvalidEXIInput;
+    }
+    if (ExiError E = prepareForDecoding())
+      return E;
+    return decodeBodyLoopI<DzType>(S);
+  }
+#endif
 
 protected:
   /// Initializes StringTable and Schema.
@@ -165,9 +194,9 @@ protected:
   ExiError prepareForDecoding();
 
   /// Decodes the body from the current stream with the provided serializer.
-  template <typename SType> ExiError decodeBodyImpl(Deserializer* S) {
+  template <typename Ty> ExiError decodeBodySwitchI(Deserializer* S) {
     while (Reader->hasData()) {
-      ExiError E = this->decodeEvent<SType>(S);
+      ExiError E = this->decodeEventSwitch<Ty>(S);
       if EXI_LIKELY(E == ExiError::OK)
         continue;
       else if (E == ExiError::DONE)
@@ -178,18 +207,8 @@ protected:
     return ExiError::OK;
   }
 
-#if EXI_DECODER_COMPUTED_GOTO
-  /// Decodes the body from the current stream with the provided serializer.
-  template <typename SType> ExiError decodeBodyLoopImpl(Deserializer* S) {
-    ExiError E = this->decodeEventLoop<SType>(S);
-    if (E == ExiError::DONE)
-      return ExiError::OK;
-    return E;
-  }
-#endif
-
   /// Decodes events and then dispatches.
-  template <typename SType> EXI_HOT ExiError decodeEvent(Deserializer* S) {
+  template <typename Ty> EXI_HOT ExiError decodeEventSwitch(Deserializer* S) {
     LOG_POSITION(this);
     const EventUID Event = CurrentSchema->decode(this);
 
@@ -197,26 +216,34 @@ protected:
     case EventTerm::SE:       // Start Element (*)
     case EventTerm::SEUri:    // Start Element (uri:*)
     case EventTerm::SEQName:  // Start Element (qname)
-      return this->handleSE<SType>(S, Event);
+      return this->handleSE<Ty>(S, Event);
     case EventTerm::EE:       // End Element
-      return this->handleEE<SType>(S, Event);
+      return this->handleEE<Ty>(S, Event);
     case EventTerm::AT:       // Attribute (*, value)
     case EventTerm::ATUri:    // Attribute (uri:*, value)
     case EventTerm::ATQName:  // Attribute (qname, value)
-      return this->handleAT<SType>(S, Event);
+      return this->handleAT<Ty>(S, Event);
     case EventTerm::NS:       // Namespace Declaration (uri, prefix, local-element-ns)
-      return this->handleNS<SType>(S, Event);
+      return this->handleNS<Ty>(S, Event);
     case EventTerm::CH:       // Characters (value)
     case EventTerm::CHExtern: // Characters (external-value)
-      return this->handleCH<SType>(S, Event);
+      return this->handleCH<Ty>(S, Event);
     default:
       return this->dispatchUncommonEvent(S, Event);
     }
   }
 
 #if EXI_DECODER_COMPUTED_GOTO
+  /// Decodes the body from the current stream with the provided serializer.
+  template <typename Ty> ExiError decodeBodyGotoI(Deserializer* S) {
+    ExiError E = this->decodeEventLoop<Ty>(S);
+    if (E == ExiError::DONE)
+      return ExiError::OK;
+    return E;
+  }
+
   /// Decodes events and dispatches in a loop.
-  template <typename SType> ExiError decodeEventLoop(Deserializer* S) {
+  template <typename Ty> ExiError decodeEventGoto(Deserializer* S) {
     // Add an extra case with `EventTerm::Void` to get an "error handler" case.
     using DispatchTableType = EnumeratedArray<void*, EventTerm, EventTerm::Void>;
     static_assert(DispatchTableType::size() == 18,
@@ -245,7 +272,7 @@ protected:
     ExiError Out = ExiError::OK;
 
 # define HandleEvent(CODE, ARGS...) do {                                      \
-  Out = this->handle##CODE<SType>(ARGS);                                      \
+  Out = this->handle##CODE<Ty>(ARGS);                                      \
   goto caseNext;                                                              \
 } while (false)
 # define GotoNextEvent() do {                                                 \
@@ -314,13 +341,13 @@ case##CODE:                                                                   \
   // Start Element (*)
   // Start Element (uri:*)
   // Start Element (qname)
-  template <typename SType> ExiError handleSE(Deserializer* S, EventUID Event) {
+  template <typename Ty> ExiError handleSE(Deserializer* S, EventUID Event) {
     const QName Name = this->getQName(Event);
     LOG_EXTRA("Decoded SE");
-    return static_cast<SType*>(S)->SE(Name);
+    return static_cast<Ty*>(S)->SE(Name);
   }
 
-  template <typename SType> ExiError handleEE(Deserializer* S, EventUID Event) {
+  template <typename Ty> ExiError handleEE(Deserializer* S, EventUID Event) {
     if (!Event.hasQName()) {
 #if EXI_LOGGING
       LOG_EXTRA("Decoded EE");
@@ -332,13 +359,13 @@ case##CODE:                                                                   \
 
     const QName Name = this->getQName(Event);
     LOG_INFO(">> EE[{}:{}]\n", Name.pfx(), Name.name());
-    return static_cast<SType*>(S)->EE(Name);
+    return static_cast<Ty*>(S)->EE(Name);
   }
 
   // Attribute (*, value)
   // Attribute (uri:*, value)
   // Attribute (qname, value)
-  template <typename SType> ExiError handleAT(Deserializer* S, EventUID Event) {
+  template <typename Ty> ExiError handleAT(Deserializer* S, EventUID Event) {
     exi_invariant(Event.hasQName());
     Result R = decodeValue(Event.Name);
     if EXI_UNLIKELY(R.is_err())
@@ -349,11 +376,11 @@ case##CODE:                                                                   \
     StrRef Value = Strings.getValue(ValueID);
 
     LOG_EXTRA("Decoded AT");
-    return static_cast<SType*>(S)->AT(Name, Value);
+    return static_cast<Ty*>(S)->AT(Name, Value);
   }
 
   // Namespace Declaration (uri, prefix, local-element-ns)
-  template <typename SType> ExiError handleNS(Deserializer* S, EventUID) {
+  template <typename Ty> ExiError handleNS(Deserializer* S, EventUID) {
     Result R = decodeNS();
     if EXI_UNLIKELY(R.is_err())
       return R.error();
@@ -365,16 +392,16 @@ case##CODE:                                                                   \
 
     LOG_EXTRA("Decoded NS");
     if EXI_LIKELY(!Event.isLocal())
-      return static_cast<SType*>(S)->NS(URI, Pfx);
+      return static_cast<Ty*>(S)->NS(URI, Pfx);
     else
-      return static_cast<SType*>(S)->NS_Local(URI, Pfx, Name.URI);
+      return static_cast<Ty*>(S)->NS_Local(URI, Pfx, Name.URI);
   }
 
   // Characters (value)
-  template <typename SType> ExiError handleCH(Deserializer* S, EventUID Event) {
+  template <typename Ty> ExiError handleCH(Deserializer* S, EventUID Event) {
     StrRef Value = Strings.getValue(Event);
     LOG_EXTRA("Decoded CH");
-    return static_cast<SType*>(S)->CH(Value);
+    return static_cast<Ty*>(S)->CH(Value);
   }
 
   ExiError handleCM(Deserializer* S);
