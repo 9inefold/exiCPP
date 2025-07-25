@@ -107,14 +107,15 @@ protected:
       BytesRead = sizeof(word_t);
       // TODO: Change this on arm?
       // std::memcpy(&Store, WordPtr, sizeof(word_t));
-      Store = support::endian::read<word_t, endianness::little>(WordPtr);
+      Store = support::endian::read<word_t, endianness::big>(WordPtr);
     } else {
       // Partial read.
       BytesRead = Stream.size() - ByteOffset;
       ByteOffset = 0;
-      // TODO: Revert invariant (Store == 0)?
+      exi_invariant(Store == 0);
       for (size_type Ix = 0; Ix != BytesRead; ++Ix)
         Store |= word_t(WordPtr[Ix]) << (Ix * 8);
+      Store = support::endian::byte_swap<word_t, endianness::big>(Store);
     }
 
     ByteOffset += BytesRead;
@@ -227,14 +228,9 @@ public:
     const auto R = BaseT::fillStoreImpl();
     if EXI_UNLIKELY(R.is_err())
       return R.error();
-    
-    // Switch to "big endian".
-    // TODO: Update this for big endian systems.
-    Store = exi::byteswap(Store);
-
+  
     const size_type BytesRead = *R;
     BitsInStore = (BytesRead * 8);
-  
     return ExiError::OK;
   }
 
@@ -487,10 +483,6 @@ public:
     if EXI_UNLIKELY(R.is_err())
       return R.error();
     
-    // Switch to "big endian".
-    // TODO: Update this for big endian systems.
-    Store = exi::byteswap(Store);
-
     BytesInStore = *R;
     return ExiError::OK;
   }
