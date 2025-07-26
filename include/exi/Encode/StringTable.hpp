@@ -26,9 +26,13 @@
 #pragma once
 
 #include <core/Common/ArrayRef.hpp>
+#include <core/Common/Box.hpp>
 #include <core/Common/CachedHashString.hpp>
 #include <core/Common/DenseMap.hpp>
 #include <core/Common/Naked.hpp>
+#include <core/Common/SmallVec.hpp>
+#include <core/Common/StringMap.hpp>
+#include <core/Common/StrRef.hpp>
 #include <core/Support/Allocator.hpp>
 #include <core/Support/ErrorHandle.hpp>
 #include <core/Support/MathExtras.hpp>
