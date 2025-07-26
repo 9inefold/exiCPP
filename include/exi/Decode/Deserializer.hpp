@@ -91,12 +91,6 @@ public:
     return ExiError::OK;
   }
 
-  /// Self-Contained
-  virtual ExiError SC() {
-    LOG_EXTRA("Decoded SC");
-    return ExiError::TODO;
-  }
-
   /// Attribute
   virtual ExiError AT(QName Name, StrRef Value) {
     return ExiError::OK;
@@ -142,6 +136,12 @@ public:
   virtual ExiError ER(StrRef Name) {
     LOG_EXTRA("Decoded ER");
     return ExiError::OK;
+  }
+
+  /// Self-Contained
+  virtual ExiError SC() {
+    LOG_EXTRA("Decoded SC");
+    return ExiError::TODO;
   }
 
   /// Customization point for enabling or disabling persistence for uncommon
