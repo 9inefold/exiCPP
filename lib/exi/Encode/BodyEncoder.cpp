@@ -78,9 +78,49 @@ ExiError ExiEncoder::setOptions(MaybeBox<ExiOptions>&& Opts) {
   return ExiError::OK;
 }
 
+#undef DEBUG_TYPE
+
 //////////////////////////////////////////////////////////////////////////
 // BodyEncoder
 
+#define DEBUG_TYPE "BodyEncoder"
+
 BodyEncoder::BodyEncoder(ExiOptions& Opts) : Opts(Opts) {}
+
+ExiError BodyEncoder::SD() {
+  LOG_EXTRA("Beginning encoding...");
+  return ExiError::OK;
+}
+
+ExiError BodyEncoder::ED() {
+  LOG_EXTRA("Completed encoding!");
+  return ExiError::DONE;
+}
+
+ExiError BodyEncoder::CM(StrRef Comment) {
+  LOG_EXTRA("Encoded CM");
+  return ExiError::OK;
+}
+
+ExiError BodyEncoder::PI(StrRef Target, StrRef Text) {
+  LOG_EXTRA("Encoded PI");
+  return ExiError::OK;
+}
+
+ExiError BodyEncoder::DT(StrRef Name, StrRef PublicID,
+                    StrRef SystemID, StrRef Text) {
+  LOG_EXTRA("Encoded DT");
+  return ExiError::OK;
+}
+
+ExiError BodyEncoder::ER(StrRef Name) {
+  LOG_EXTRA("Encoded ER");
+  return ExiError::OK;
+}
+
+ExiError BodyEncoder::SC() {
+  LOG_ERROR("Cannot encode SC yet!");
+  return ExiError::TODO;
+}
 
 void BodyEncoder::anchor() {}
