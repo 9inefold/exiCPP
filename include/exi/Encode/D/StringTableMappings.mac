@@ -1,0 +1,46 @@
+//===- exi/Encode/D/StringTableMappings.mac -------------------------===//
+//
+// Copyright (C) 2025 Eightfold
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+//     limitations under the License.
+//
+//===----------------------------------------------------------------===//
+
+#define DECL_MAPPING_X(TO, FROM)                                              \
+  ALWAYS_INLINE static TO* X(FROM* Ptr) {                                     \
+    return reinterpret_cast<TO*>(Ptr);                                        \
+  }                                                                           \
+  ALWAYS_INLINE static TO& X(FROM& Ref) {                                     \
+    return *reinterpret_cast<TO*>(&Ref);                                      \
+  }
+#define DECL_UNMAPPING(TYPE)                                                  \
+  ALWAYS_INLINE static TYPE* Unmap(TYPE::ValueType* Ptr) {                    \
+    return stringmap_detail::mapValueToEntry(Ptr);                            \
+  }                                                                           \
+  ALWAYS_INLINE static const TYPE* Unmap(const TYPE::ValueType* Ptr) {        \
+    return stringmap_detail::mapValueToEntry(Ptr);                            \
+  }
+
+#define DECL_MAPPINGS_X(REAL, FAKE)                                           \
+  DECL_MAPPING_X(REAL, FAKE)                                                  \
+  DECL_MAPPING_X(FAKE, REAL)                                                  \
+  DECL_MAPPING_X(const REAL, const FAKE)                                      \
+  DECL_MAPPING_X(const FAKE, const REAL)
+#define DECL_MAPPINGS(REAL, FAKE)                                             \
+  DECL_MAPPINGS_X(REAL, FAKE)                                                 \
+  DECL_UNMAPPING(REAL)
+
+/// Get a reference/pointer to the "Value Of" a map entry.
+#define DECL_VOF(CV, QUAL, ...)                                               \
+  template <typename T> ALWAYS_INLINE static                                  \
+  CV T QUAL VOf(CV StringMapEntry<T> QUAL Entry) { return __VA_ARGS__; }
