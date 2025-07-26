@@ -211,11 +211,14 @@ public:
   /// New element is always added to preserve `end()` invariants.
   NSContextStack() : Head(addHeadImpl(0)) {}
 
+  /// Adds to the current scope.
+  inline void inc(encode::StringTable&) { this->incDepth(); }
+
   /// If empty, adds to the depth. Otherwise, pushes the contexts to the
   /// `StringTable` and adds to a new scope.
   /// @return Whether a new scope was added.
   bool push(encode::StringTable& SM, ArrayRef<value_type> Elts) {
-    if EXI_LIKELY(Elts.empty()) {
+    if (Elts.empty()) {
       this->incDepth();
       return false;
     }
@@ -223,11 +226,23 @@ public:
     return true;
   }
 
+  /// If empty, adds element to the current scope. If it is the global scope,
+  /// returns. Throw(...) if depth is >1.
+  void add(encode::StringTable&, value_type Elt) {
+    if EXI_UNLIKELY(Head->isTail())
+      return;
+    if EXI_NEVER(Head->Depth != 1)
+      Throw<runtime_error>("Attempted to add() to a parent scope!");
+    const usize NewNumElts = Head->NumElts + 1;
+    Scopes.pop_back();
+    Scopes.emplace_back(Elt);
+    this->addHeadImpl(NewNumElts);
+  }
+
   /// If scope remains, subs from the depth. Otherwise, pops the contexts from
   /// the `StringTable` and removes the scope.
   void pop(encode::StringTable& SM) {
-    this->decDepth();
-    if EXI_UNLIKELY(Head->Depth == 0)
+    if EXI_UNLIKELY(decDepth() == 0)
       popScope(SM);
   }
 
