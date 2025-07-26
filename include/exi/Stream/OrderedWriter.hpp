@@ -151,11 +151,13 @@ protected:
    FS(std::move(O.FS)), FlushThreshold(O.FlushThreshold),
    BitsInStore(O.BitsInStore), Store(O.Store) {
     exi_invariant(O.OwnBuffer.empty());
-    O.Buffer = O.OwnBuffer;
-    O.FS.emplace(nullptr);
-    O.BitsInStore = 0;
-    O.Store = 0;
+    std::launder(&O)->invalidate();
   }
+
+  struct invalid_state_tag {};
+  OrderedWriter(invalid_state_tag) :
+   Buffer(OwnBuffer), FS(nullptr),
+   FlushThreshold(0) {}
 
 public:
   /// Create a BitstreamWriter over a raw_ostream \p OutStream.
@@ -307,6 +309,13 @@ protected:
       this->writeNBits(Val, MakeByteCount(Bits));
   }
 
+  /// Sets the stream in an invalid state.
+  template <std::derived_from<OrderedWriter> T>
+  static void invalidate(T* self) {
+    self->~T();
+    new (self) T(invalid_state_tag{});
+  }
+
 private:
   template <size_type Bytes = 8>
   EXI_ERROR_CC void failUInt() {
@@ -315,6 +324,7 @@ private:
     //return Err(ErrorCode::kInvalidEXIInput);
   }
 
+  virtual void invalidate() = 0;
   void anchor() override;
 };
 
@@ -352,6 +362,10 @@ public:
   }
 
 private:
+  void invalidate() override {
+    BaseT::invalidate(this);
+  }
+
   void anchor() override;
 };
 
@@ -389,6 +403,10 @@ public:
   }
 
 private:
+  void invalidate() override {
+    BaseT::invalidate(this);
+  }
+
   void anchor() override;
 };
 
