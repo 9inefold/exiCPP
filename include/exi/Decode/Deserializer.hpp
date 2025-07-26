@@ -94,7 +94,7 @@ public:
   /// Self-Contained
   virtual ExiError SC() {
     LOG_EXTRA("Decoded SC");
-    return ExiError::OK;
+    return ExiError::TODO;
   }
 
   /// Attribute
@@ -147,7 +147,6 @@ public:
   /// Customization point for enabling or disabling persistence for uncommon
   /// values. Enable if strings are saved beyond the lifetime of the function.
   virtual bool needsPersistence() const { return false; }
-
   virtual ~Deserializer() = default;
 
 private:
