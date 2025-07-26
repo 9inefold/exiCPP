@@ -202,10 +202,10 @@ private:
   }
 
   /// Pushes the contexts to the `StringTable` and adds to a new scope.
-  EXI_COLD EXI_PRESERVE_MOST void pushScope(encode::StringTable& SM,
+  EXI_PRESERVE_MOST void pushScope(encode::StringTable& SM,
                                             ArrayRef<value_type> Elts);
   /// Pops the contexts from the `StringTable` and removes the scope.
-  EXI_COLD EXI_PRESERVE_MOST void popScope(encode::StringTable& SM);
+  EXI_PRESERVE_MOST void popScope(encode::StringTable& SM);
 
 public:
   /// New element is always added to preserve `end()` invariants.

@@ -33,7 +33,7 @@ using encode::StringTable;
 
 // TODO: Profile PRESERVE_MOST
 
-EXI_COLD EXI_PRESERVE_MOST void NSContextStack::pushScope(
+EXI_PRESERVE_MOST void NSContextStack::pushScope(
  StringTable& SM, ArrayRef<NSContextStack::value_type> Elts) {
   exi_invariant(!Elts.empty());
   const usize N = Elts.size();
@@ -53,7 +53,7 @@ EXI_COLD EXI_PRESERVE_MOST void NSContextStack::pushScope(
   this->Head = addHeadImpl(N);
 }
 
-EXI_COLD EXI_PRESERVE_MOST void NSContextStack::popScope(StringTable& SM) {
+EXI_PRESERVE_MOST void NSContextStack::popScope(StringTable& SM) {
   if EXI_NEVER(Head->isTail())
     Throw<runtime_error>("Attempted to pop() from the tail scope!");
   
