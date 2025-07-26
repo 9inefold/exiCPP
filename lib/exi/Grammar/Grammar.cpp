@@ -31,34 +31,7 @@
 using namespace exi;
 
 void Grammar::anchor() {}
-
-/*
-static u64 ReadBits(OrdReader& Strm, u32 Bits) {
-  auto Out = Strm->readBits64(Bits);
-  if EXI_UNLIKELY(Out.is_err())
-    exi_unreachable("invalid stream read.");
-  return *Out;
-}
-
-GrammarTerm BuiltinGrammar::getTerm(OrdReader& Strm, bool IsStart) {
-  auto& Elts = this->getElts(IsStart);
-  const usize Size = Elts.size();
-  const u32 Bits = this->getLog(IsStart);
-  const u64 Out = ReadBits(Strm, Bits);
-  // Check if this is a valid offset.
-  if (Out < Size) {
-    // Values are always pushed in reverse order, so remap the position.
-    const auto Pos = (Size - 1) - Out;
-    // const auto Pos = Out;
-    LOG_EXTRA("Code[0]*: @{}:{}", Bits, Out);
-    return Ok(Elts[Pos]);
-  }
-
-  LOG_EXTRA("Code[0]: @{}:{}", Bits, Out);
-  // Get the base event code offset.
-  return Err(Out - Size);
-}
-*/
+void BuiltinGrammar::anchor() {}
 
 void BuiltinGrammar::setLog(bool IsStart) {
   if (IsStart) {

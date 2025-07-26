@@ -143,6 +143,8 @@ private:
   usize getElementCount() const {
     return Element.size() + 2;
   }
+
+  void anchor() override;
 };
 
 } // namespace exi
