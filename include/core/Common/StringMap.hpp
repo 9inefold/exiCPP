@@ -255,6 +255,7 @@ public:
   }
 
   iterator find(StrRef Key, u32 FullHashValue) {
+    exi_expensive_invariant(hash(Key) == FullHashValue);
     int Bucket = FindKey(Key, FullHashValue);
     if (Bucket == -1)
       return end();
@@ -268,6 +269,7 @@ public:
   }
 
   const_iterator find(StrRef Key, u32 FullHashValue) const {
+    exi_expensive_invariant(hash(Key) == FullHashValue);
     int Bucket = FindKey(Key, FullHashValue);
     if (Bucket == -1)
       return end();
@@ -299,6 +301,11 @@ public:
   bool contains(StrRef Key) const { return find(Key) != end(); }
   /// contains - Return true if the element is in the map, false otherwise.
   bool contains(CachedHashStrRef Key) const { return find(Key) != end(); }
+  /// contains - Return true if the element is in the map, false otherwise.
+  bool contains(StrRef Key, u32 FullHashValue) const {
+    exi_expensive_invariant(hash(Key) == FullHashValue);
+    return find(Key, FullHashValue) != end();
+  }
 
   /// count - Return 1 if the element is in the map, 0 otherwise.
   size_type count(StrRef Key) const { return contains(Key) ? 1 : 0; }
@@ -362,6 +369,7 @@ public:
 
   std::pair<iterator, bool> insert(std::pair<StrRef, ValueTy> KV,
                                    u32 FullHashValue) {
+    exi_expensive_invariant(hash(KV.first) == FullHashValue);
     return try_emplace_with_hash(KV.first, FullHashValue, std::move(KV.second));
   }
 
@@ -412,6 +420,7 @@ public:
   std::pair<iterator, bool> try_emplace_with_hash(StrRef Key,
                                                   u32 FullHashValue,
                                                   ArgsTy &&...Args) {
+    exi_expensive_invariant(hash(Key) == FullHashValue);
     unsigned BucketNo = LookupBucketFor(Key, FullHashValue);
     StringMapEntryBase *&Bucket = TheTable[BucketNo];
     if (Bucket && Bucket != getTombstoneVal())
