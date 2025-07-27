@@ -63,6 +63,11 @@ private:
       Writer.emplace<ByteWriter>(EXI_FWD(Args)...);
     }
   }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Terms
+public:
+  
 };
 
 } // namespace exi

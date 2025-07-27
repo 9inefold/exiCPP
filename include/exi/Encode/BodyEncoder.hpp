@@ -32,6 +32,72 @@
 
 namespace exi {
 
+/// The top-level interface for encoder implementations.
+class BodyEncoder {
+protected:
+  /// The options for the current encoding
+  const ExiOptions& Opts;
+public:
+  BodyEncoder(ExiOptions& Opts);
+  virtual ~BodyEncoder() = default;
+
+  /// Start Document
+  virtual ExiError SD();
+  /// End Document
+  virtual ExiError ED();
+
+  /// Start Element (with prefix)
+  virtual ExiError SE_Pfx(StrRef Name, StrRef Pfx) {
+    return ExiError::OK;
+  }
+  /// Start Element (with URI) - for local-element-ns
+  virtual ExiError SE_Uri(StrRef Name, StrRef URI) {
+    return ExiError::OK;
+  }
+  /// End Element
+  virtual ExiError EE() {
+    return ExiError::OK;
+  }
+  /// Attribute
+  virtual ExiError AT(StrRef Name, StrRef Pfx, StrRef Value) {
+    return ExiError::OK;
+  }
+
+  // TODO: Make typed AT variants that forward to normal AT by default.
+
+  /// Namespace Declaration
+  virtual ExiError NS(StrRef URI, StrRef Prefix) {
+    return ExiError::OK;
+  }
+  /// Characters
+  virtual ExiError CH(StrRef Value) {
+    return ExiError::OK;
+  }
+
+  /// Comment
+  virtual ExiError CM(StrRef Comment);
+  /// Processing Instruction
+  virtual ExiError PI(StrRef Target, StrRef Text);
+  /// DOCTYPE
+  virtual ExiError DT(StrRef Name, StrRef PublicID,
+                      StrRef SystemID, StrRef Text);
+  /// Entity Reference
+  virtual ExiError ER(StrRef Name);
+  
+  /// Self-Contained
+  virtual ExiError SC();
+
+private:
+  virtual void anchor();
+};
+
+class OrderedEncoder;
+class ChannelEncoder;
+
+//===----------------------------------------------------------------===//
+// ExiEncoder
+//===----------------------------------------------------------------===//
+
 struct EncoderFlags {
   /// If the header options were validated.
   bool ValidHeader : 1 = false;
@@ -41,20 +107,7 @@ struct EncoderFlags {
   bool DidInit : 1 = false;
 };
 
-/// The top-level interface for encoder implementations.
-class BodyEncoder {
-protected:
-  /// The options for the current encoding
-  const ExiOptions& Opts;
-public:
-  BodyEncoder(ExiOptions& Opts);
-  virtual ~BodyEncoder() = default;
-private:
-  virtual void anchor();
-};
-
 /// The EXI encoding processor.
-/// FIXME: Split this up into more implementations.
 class ExiEncoder {
   /// The provided Header.
   // TODO: Check .HasOptions everywhere?
