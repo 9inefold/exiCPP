@@ -27,6 +27,7 @@
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/XML.hpp>
 #include <exi/Encode/Serializer.hpp>
+#include <rapidxml.hpp>
 
 namespace exi {
 
@@ -44,8 +45,8 @@ private:
 class OwningXMLSerializer final : public Serializer {
   XMLDocument Doc;
 public:
-  XMLSerializer() : Doc() {}
-  XMLSerializer(Option<XMLBumpAllocator&> A) : Doc(A) {}
+  OwningXMLSerializer() : Doc() {}
+  OwningXMLSerializer(Option<xml::XMLBumpAllocator&> A) : Doc(A) {}
   ExiError run(BodyEncoder* BE) override;
 private:
   void anchor() override;

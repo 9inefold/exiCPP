@@ -40,7 +40,7 @@ class INTERNAL_LINKAGE GenericEncoderRunner {
 protected:
   XMLDocument& Doc;
 public:
-  EncoderRunner(XMLDocument& Doc) : Doc(Doc) {}
+  GenericEncoderRunner(XMLDocument& Doc) : Doc(Doc) {}
   ExiError run() { return ExiError::TODO; }
 };
 
@@ -86,5 +86,5 @@ ExiError XMLSerializer::run(BodyEncoder* BE) {
 }
 
 ExiError OwningXMLSerializer::run(BodyEncoder* BE) {
-  return Run(*Doc, BE);
+  return Run(Doc, BE);
 }
