@@ -23,22 +23,30 @@
 
 #pragma once
 
-#include <core/Common/ArrayRef.hpp>
-#include <core/Common/StrRef.hpp>
+#include <core/Common/Option.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
-#include <exi/Basic/EventCodes.hpp>
+#include <exi/Basic/XML.hpp>
 #include <exi/Encode/Serializer.hpp>
 
 namespace exi {
 
 class XMLSerializer final : public Serializer {
+  /// The document this serializer is bound to.
+  XMLDocument* Doc = nullptr;
 public:
-  XMLSerializer(...) : Serializer() {
-
-  }
-
+  XMLSerializer(XMLDocument& Doc) : XMLSerializer(&Doc) {}
+  XMLSerializer(XMLDocument* Doc) : Doc(Doc) {}
   ExiError run(BodyEncoder* BE) override;
+private:
+  void anchor() override;
+};
 
+class OwningXMLSerializer final : public Serializer {
+  XMLDocument Doc;
+public:
+  XMLSerializer() : Doc() {}
+  XMLSerializer(Option<XMLBumpAllocator&> A) : Doc(A) {}
+  ExiError run(BodyEncoder* BE) override;
 private:
   void anchor() override;
 };

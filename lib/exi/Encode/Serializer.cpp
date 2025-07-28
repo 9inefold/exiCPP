@@ -28,3 +28,4 @@ using namespace exi;
 
 void Serializer::anchor() {}
 void XMLSerializer::anchor() {}
+void OwningXMLSerializer::anchor() {}
