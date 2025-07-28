@@ -196,6 +196,9 @@ public:
     Store = 0;
   }
 
+  usize size() const { return Buffer.size(); }
+  usize bitsInStore() const { return BitsInStore; }
+
   ////////////////////////////////////////////////////////////////////////
   // Implementation
 
