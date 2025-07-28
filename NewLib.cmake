@@ -104,6 +104,7 @@ include_items(EXICPP_ENCODE "lib/exi"
   Encode/NamespaceContextStack.cpp
   Encode/Serializer.cpp
   Encode/StringTables.cpp
+  Encode/XMLSerializer.cpp
 )
 
 include_items(EXICPP_GRAMMAR "lib/exi"
