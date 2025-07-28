@@ -23,23 +23,19 @@
 
 #pragma once
 
-#include <core/Common/ArrayRef.hpp>
-#include <core/Common/StrRef.hpp>
-#include <core/Support/Logging.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
-#include <exi/Basic/EventCodes.hpp>
-
-#define DEBUG_TYPE "Serializer"
+#include <exi/Encode/BodyEncoder.hpp>
 
 namespace exi {
 
+/// The interface for which you can implement custom serialization.
 class Serializer {
 public:
+  Serializer() = default;
   virtual ~Serializer() = default;
+  virtual ExiError run(BodyEncoder* BE) = 0;
 private:
   virtual void anchor();
 };
 
 } // namespace exi
-
-#undef DEBUG_TYPE
