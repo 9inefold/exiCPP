@@ -23,28 +23,26 @@
 
 #pragma once
 
-#include <Support/Except.hpp>
+#include <core/Support/Except.hpp>
 
 namespace exi {
 
-using std::runtime_error;
-
 /// Thrown for invalid arguments.
-class argument_error : public std::runtime_error {
+class argument_error : public exi::runtime_error {
 public:
-  using std::runtime_error::runtime_error;
+  using exi::runtime_error::runtime_error;
 };
 
 /// Thrown for known uninitialized values.
-class uninit_error : public std::runtime_error {
+class uninit_error : public exi::runtime_error {
 public:
-  using std::runtime_error::runtime_error;
+  using exi::runtime_error::runtime_error;
 };
 
 /// Thrown for values outside their known range.
-class range_error : public std::runtime_error {
+class range_error : public exi::runtime_error {
 public:
-  using std::runtime_error::runtime_error;
+  using exi::runtime_error::runtime_error;
 };
 
 } // namespace exi

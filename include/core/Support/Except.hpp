@@ -36,20 +36,36 @@ template <typename Ex>
 #if EXI_EXCEPTIONS
   throw Ex(Msg);
 #else
-  if constexpr (std::is_base_of_v<std::exception, Ex>) {
-    Ex Val(Msg);
-    exi::report_fatal_error(Val.what());
-  } else {
-    exi::report_fatal_error(Msg);
-  }
+  exi::report_fatal_error(Msg);
+#endif
+}
+
+template <typename Ex>
+[[noreturn]] ALWAYS_INLINE EXI_NODEBUG void ThrowDynImpl(const Twine& Msg) {
+#if EXI_EXCEPTIONS
+  throw Ex(Msg.str());
+#else
+  exi::report_fatal_error(Msg);
 #endif
 }
 } // namespace H
 
+/// Thrown for invalid arguments.
+class runtime_error : public std::runtime_error {
+public:
+  using std::runtime_error::runtime_error;
+};
+
 /// Implements "throwing" in a way that reduces register pressure.
-template <typename Ex = std::runtime_error>
+template <typename Ex = exi::runtime_error>
 [[noreturn]] EXI_ERROR_CC void Throw(StringLiteral Msg = "") {
   except_detail::ThrowImpl<Ex>(Msg.data());
+}
+
+/// Implements "throwing" in a way that reduces register pressure.
+template <typename Ex = exi::runtime_error>
+[[noreturn]] EXI_ERROR_CC void ThrowDyn(const Twine& Msg) {
+  except_detail::ThrowDynImpl<Ex>(Msg);
 }
 
 } // namespace exi
