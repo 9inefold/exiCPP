@@ -32,6 +32,66 @@
 
 namespace exi {
 
+class BodyEncoder;
+class OrderedEncoder;
+class ChannelEncoder;
+
+//===----------------------------------------------------------------===//
+// ExiEncoder
+//===----------------------------------------------------------------===//
+
+struct EncoderFlags {
+  /// If the header options were validated.
+  bool ValidHeader : 1 = false;
+  /// If the header has already been "written".
+  bool DidHeader : 1 = false;
+  /// If init has already been run.
+  bool DidInit : 1 = false;
+};
+
+/// The EXI encoding processor.
+class ExiEncoder {
+  /// The provided Header.
+  // TODO: Check .HasOptions everywhere?
+  ExiHeader Header = {};
+  /// The schema for the current encoder.
+  Box<encode::Schema> CurrentSchema;
+  /// The encoder, the type of which is determined by the header.
+  Box<BodyEncoder> TheEncoder;
+  /// State of the decoder in terms of progression.
+  EncoderFlags Flags = {};
+
+private:
+  struct assumed_valid_tag {};
+  ExiEncoder(assumed_valid_tag, MaybeBox<ExiOptions>&& Opts) {
+    Header.Opts = std::move(Opts);
+    Flags.ValidHeader = true;
+  }
+
+public:
+  ExiEncoder(MaybeBox<ExiOptions>&& Opts);
+  ExiEncoder(ExiEncoder&&) = default;
+  ~ExiEncoder();
+
+  /// Get the state flags.
+  EncoderFlags flags() const { return Flags; }
+  /// Returns if the header was successfully decoded.
+  bool didHeader() const { return Flags.DidHeader && Flags.ValidHeader; }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Initialization
+
+  /// Creates a new `ExiEncoder` if options are valid.
+  static ExiResult<ExiEncoder> New(MaybeBox<ExiOptions>&& Opts);
+
+  /// Sets options for encoding.
+  ExiError setOptions(MaybeBox<ExiOptions>&& Opts);
+};
+
+//===----------------------------------------------------------------===//
+// BodyEncoder
+//===----------------------------------------------------------------===//
+
 /// The top-level interface for encoder implementations.
 class BodyEncoder {
 protected:
@@ -89,61 +149,6 @@ public:
 
 private:
   virtual void anchor();
-};
-
-class OrderedEncoder;
-class ChannelEncoder;
-
-//===----------------------------------------------------------------===//
-// ExiEncoder
-//===----------------------------------------------------------------===//
-
-struct EncoderFlags {
-  /// If the header options were validated.
-  bool ValidHeader : 1 = false;
-  /// If the header has already been "written".
-  bool DidHeader : 1 = false;
-  /// If init has already been run.
-  bool DidInit : 1 = false;
-};
-
-/// The EXI encoding processor.
-class ExiEncoder {
-  /// The provided Header.
-  // TODO: Check .HasOptions everywhere?
-  ExiHeader Header = {};
-  /// The schema for the current encoder.
-  Box<encode::Schema> CurrentSchema;
-  /// The encoder, the type of which is determined by the header.
-  Box<BodyEncoder> TheEncoder;
-  /// State of the decoder in terms of progression.
-  EncoderFlags Flags = {};
-
-private:
-  struct assumed_valid_tag {};
-  ExiEncoder(assumed_valid_tag, MaybeBox<ExiOptions>&& Opts) {
-    Header.Opts = std::move(Opts);
-    Flags.ValidHeader = true;
-  }
-
-public:
-  ExiEncoder(MaybeBox<ExiOptions>&& Opts);
-  ExiEncoder(ExiEncoder&&) = default;
-  ~ExiEncoder();
-
-  /// Get the state flags.
-  EncoderFlags flags() const { return Flags; }
-  /// Returns if the header was successfully decoded.
-  bool didHeader() const { return Flags.DidHeader && Flags.ValidHeader; }
-
-  ////////////////////////////////////////////////////////////////////////
-  // Initialization
-
-  /// Creates a new `ExiEncoder` if options are valid.
-  static ExiResult<ExiEncoder> New(MaybeBox<ExiOptions>&& Opts);
-
-  /// Sets options for encoding.
-  ExiError setOptions(MaybeBox<ExiOptions>&& Opts);
 };
 
 } // namespace exi
