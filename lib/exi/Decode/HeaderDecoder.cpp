@@ -195,7 +195,7 @@ ExiError exi::decodeHeader(ExiHeader& Header, OrdReader& In) {
 ExiError ExiDecoder::decodeHeader(UnifiedBuffer Buffer) {
   if (Flags.DidHeader) {
     exi_assert(!Reader.empty(), "Invalid processor state");
-    return this->assumeReaderIsUninitialized();
+    return this->assumeReaderIsUntouched();
   }
 
   BitReader Strm(Buffer.arr());

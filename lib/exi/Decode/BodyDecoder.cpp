@@ -57,7 +57,7 @@ ExiDecoder::ExiDecoder(MaybeBox<ExiOptions>&& Opts) {
 //////////////////////////////////////////////////////////////////////////
 // Initialization
 
-ExiError ExiDecoder::assumeReaderIsUninitialized() const {
+ExiError ExiDecoder::assumeReaderIsUntouched() const {
   if (isReaderInitialized()) {
     LOG_ERROR("Invalid processor state!");
     return ErrorCode::kInvalidConfig;
@@ -69,7 +69,7 @@ ExiError ExiDecoder::setOptions(MaybeBox<ExiOptions> Opts) {
   if (Flags.DidHeader) {
     // FIXME: Why am I even checking this
     exi_invariant(Header.Opts, "Options not initialized!");
-    return assumeReaderIsUninitialized();
+    return assumeReaderIsUntouched();
   }
   Header.Opts = std::move(Opts);
   if (isReaderInitialized())
@@ -104,7 +104,7 @@ ExiError ExiDecoder::setReader(UnifiedBuffer Buffer) {
 ExiError ExiDecoder::init() {
   if (Flags.DidInit) {
     exi_assert(Header.Opts);
-    return this->assumeReaderIsUninitialized();
+    return assumeReaderIsUntouched();
   }
 
   if (!Header.Opts || Reader.empty()) {
