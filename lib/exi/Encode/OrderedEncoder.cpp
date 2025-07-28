@@ -47,7 +47,7 @@ EXI_INLINE static void AssertIsOrdered(const ExiOptions& Opts) {
 }
 
 OrderedEncoder::OrderedEncoder(ExiOptions& Opts, encode::Schema* S)
- : BodyEncoder(Opts), CurrentSchema(S) {
+ : BodyEncoder(Opts, EncoderKind::EK_Ordered), CurrentSchema(S) {
   AssertIsOrdered(Opts);
 }
 

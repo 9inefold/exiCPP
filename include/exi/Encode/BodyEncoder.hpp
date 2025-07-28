@@ -94,12 +94,28 @@ public:
 
 /// The top-level interface for encoder implementations.
 class BodyEncoder {
+public:
+  enum class EncoderKind {
+    EK_Generic,
+    EK_Ordered,
+    EK_Channel,
+  };
+
 protected:
+  EncoderKind Kind;
   /// The options for the current encoding
   const ExiOptions& Opts;
+
 public:
-  BodyEncoder(ExiOptions& Opts);
+  BodyEncoder(ExiOptions& Opts,
+              EncoderKind K = EncoderKind::EK_Generic)
+      : Kind(K), Opts(Opts) {}
   virtual ~BodyEncoder() = default;
+
+  EncoderKind get_kind() const { return Kind; }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Terms
 
   /// Start Document
   virtual ExiError SD();

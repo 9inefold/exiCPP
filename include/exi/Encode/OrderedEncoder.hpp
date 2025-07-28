@@ -50,6 +50,10 @@ public:
   OrderedEncoder(ExiOptions& Opts, encode::Schema* CS, InitT& I)
    : OrderedEncoder(Opts, CS) { this->init(I); }
 
+  static bool classof(const BodyEncoder* BE) {
+    return BE->get_kind() == EncoderKind::EK_Ordered;
+  }
+
   /// Generic interface for initializing the OrderedWriter.
   ExiError init(raw_ostream& Strm);
   /// Generic interface for initializing the OrderedWriter.
@@ -67,7 +71,7 @@ private:
   ////////////////////////////////////////////////////////////////////////
   // Terms
 public:
-  
+
 };
 
 } // namespace exi

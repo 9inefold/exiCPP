@@ -94,8 +94,6 @@ ExiError ExiEncoder::setOptions(MaybeBox<ExiOptions>&& Opts) {
 
 #define DEBUG_TYPE "BodyEncoder"
 
-BodyEncoder::BodyEncoder(ExiOptions& Opts) : Opts(Opts) {}
-
 ExiError BodyEncoder::SD() {
   LOG_EXTRA("Beginning encoding...");
   return ExiError::OK;
