@@ -59,6 +59,9 @@ public:
   /// Generic interface for initializing the OrderedWriter.
   ExiError init(SmallVecImpl<char>& Buf);
 
+  /// Writes the header to the provided stream.
+  ExiError encodeHeader(BitBuffer Data) override;
+
 private:
   void initWriter(auto&&...Args) {
     if (Opts.Alignment == AlignKind::BitPacked) {

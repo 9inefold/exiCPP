@@ -35,6 +35,17 @@
 using namespace exi;
 using namespace exi::encode;
 
+static ExiError ValidateBoxedOptions(MaybeBox<ExiOptions>& Opts) {
+  if (!Opts) {
+    LOG_ERROR("Passed null options.");
+    return ExiError::kNullptrRef;
+  }
+  if (Opts.owned())
+    return FixupAndValidateOptions(*Opts);
+  else
+    return ValidateOptions(*Opts);
+}
+
 //===----------------------------------------------------------------===//
 // ExiEncoder
 //===----------------------------------------------------------------===//
@@ -48,21 +59,10 @@ ExiEncoder::ExiEncoder(MaybeBox<ExiOptions>&& Opts, ExiError* Err) {
   }
 }
 
-ExiEncoder::~ExiEncoder() {}
+ExiEncoder::~ExiEncoder() = default;
 
 //////////////////////////////////////////////////////////////////////////
 // Initialization
-
-static ExiError ValidateBoxedOptions(MaybeBox<ExiOptions>& Opts) {
-  if (!Opts) {
-    LOG_ERROR("Passed null options.");
-    return ExiError::kNullptrRef;
-  }
-  if (Opts.owned())
-    return FixupAndValidateOptions(*Opts);
-  else
-    return ValidateOptions(*Opts);
-}
 
 ExiResult<ExiEncoder> ExiEncoder::New(MaybeBox<ExiOptions>&& Opts) {
   if (auto E = ValidateBoxedOptions(Opts)) {

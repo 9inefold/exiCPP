@@ -26,6 +26,7 @@
 #include <core/Common/ArrayRef.hpp>
 #include <core/Common/Option.hpp>
 #include <core/Support/raw_ostream.hpp>
+#include <exi/Basic/BitBuffer.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/ExiHeader.hpp>
 #include <exi/Grammar/EncoderSchema.hpp>
@@ -55,9 +56,11 @@ class ExiEncoder {
   // TODO: Check .HasOptions everywhere?
   ExiHeader Header = {};
   /// The schema for the current encoder.
-  Box<encode::Schema> CurrentSchema;
+  Box<encode::Schema> CurrentSchema = nullptr;
   /// The encoder, the type of which is determined by the header.
-  Box<BodyEncoder> TheEncoder;
+  Box<BodyEncoder> TheEncoder = nullptr;
+  /// A buffer containing the precompiled options.
+  Option<OwningBitBuffer> PCH = std::nullopt;
   /// State of the decoder in terms of progression.
   EncoderFlags Flags = {};
 
@@ -83,9 +86,12 @@ public:
 
   /// Creates a new `ExiEncoder` if options are valid.
   static ExiResult<ExiEncoder> New(MaybeBox<ExiOptions>&& Opts);
-
   /// Sets options for encoding.
   ExiError setOptions(MaybeBox<ExiOptions>&& Opts);
+  /// Precompiles header to a `BitBuffer`.
+  /// Defined in `HeaderEncoder.cpp`.
+  /// @param IncludeOptions If options should be encoded as well.
+  ExiError compileHeader(bool IncludeOptions);
 };
 
 //===----------------------------------------------------------------===//
@@ -112,6 +118,10 @@ public:
       : Kind(K), Opts(Opts) {}
   virtual ~BodyEncoder() = default;
 
+  /// Writes the header to the provided stream.
+  virtual ExiError encodeHeader(BitBuffer Data) = 0;
+
+  /// Gets the type of the encoder.
   EncoderKind get_kind() const { return Kind; }
 
   ////////////////////////////////////////////////////////////////////////
