@@ -115,6 +115,9 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Initialization
 
+  /// Creates a new `ExiDecoder` if options are valid.
+  //static ExiResult<ExiDecoder> New(MaybeBox<ExiOptions>&& Opts);
+
   /// Returns an error if the reader is empty.
   bool isReaderInitialized() const { return !Reader.empty(); }
   /// Returns an error if the reader is empty.

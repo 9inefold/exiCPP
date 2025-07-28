@@ -59,8 +59,26 @@ ExiDecoder::ExiDecoder(MaybeBox<ExiOptions>&& Opts, ExiError* Err) {
   }
 }
 
+//ExiDecoder::ExiDecoder(ExiDecoder&& O) :
+// Header(std::move(O.Header)), Reader(std::move(O.Reader)),
+// BP(std::move(O.BP)), Strings(std::move(O.Strings)),
+// CurrentSchema(std::move(O.CurrentSchema)),
+// Flags(O.Flags), Preserve(O.Preserve) {
+//  O.Flags.SetReader = false;
+//  O.Flags.DidHeader = false;
+//  O.Flags.DidInit   = false;
+//}
+
 //////////////////////////////////////////////////////////////////////////
 // Initialization
+
+//ExiResult<ExiDecoder> ExiDecoder::New(MaybeBox<ExiOptions>&& Opts) {
+//  ExiError E = ExiError::OK;
+//  ExiDecoder Out(std::move(Opts), &E);
+//  if (E != ExiError::OK)
+//    return Err(E);
+//  return std::move(Out);
+//}
 
 ExiError ExiDecoder::assumeReaderIsUntouched() const {
   if (isReaderInitialized()) {
