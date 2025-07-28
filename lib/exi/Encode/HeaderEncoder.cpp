@@ -27,7 +27,8 @@
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/ExiHeader.hpp>
 #include <exi/Basic/NBitInt.hpp>
-//#include <exi/Decode/BodyEncoder.hpp>
+#include <exi/Decode/UnifyBuffer.hpp>
+#include <exi/Encode/BodyEncoder.hpp>
 
 #define DEBUG_TYPE "HeaderEncoder"
 
@@ -104,4 +105,33 @@ ExiError exi::encodeHeader(const ExiHeader& Header, OrdWriter& Strm) {
   ExiError Out = encodeHeaderImpl(Header, Bits);
   Strm.emplace<ByteWriter>(std::move(Bits));
   return Out;
+}
+
+static ArrayRef<u8> GetU8BufferFromSVec(const SmallVecImpl<char>& V) {
+  return ArrayRef(
+    reinterpret_cast<const u8*>(V.begin()),
+    reinterpret_cast<const u8*>(V.end()));
+}
+
+ExiError ExiEncoder::compileHeader(bool IncludeOptions) {
+  if EXI_UNLIKELY(PCH.has_value()) {
+    LOG_WARN("Header has already been compiled!");
+    return ExiError::OK;
+  }
+
+  SmallVec<char, 256> Buffer;
+  BitWriter Strm(Buffer);
+  if (auto E = encodeHeaderImpl(Header, Strm)) {
+    LOG_ERROR("Failed to compile header!");
+    return E;
+  }
+
+  // Record offsets for BitBuffer.
+  const usize Bytes = Strm.size();
+  const usize Bits = Strm.bitsInStore();
+  Strm.flushToWord();
+  
+  OwningArrayRef Arr(GetU8BufferFromSVec(Buffer));
+  PCH = OwningBitBuffer::FromBytesAndBits(std::move(Arr), Bytes, Bits);
+  return ExiError::OK;
 }
