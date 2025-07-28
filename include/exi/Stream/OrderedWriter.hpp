@@ -238,6 +238,11 @@ public:
     this->writeNBits<u64>(Val, Bits);
   }
 
+  /// Writes a `BitBuffer`.
+  void writeBitBuffer(BitBuffer Val) {
+    exi_todo("implement writeBitBuffer");
+  }
+
 protected:
   /// Writes a variable number of bits (max of 64).
   template <typename IntT = u64>

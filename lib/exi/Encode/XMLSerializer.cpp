@@ -86,5 +86,6 @@ ExiError XMLSerializer::run(BodyEncoder* BE) {
 }
 
 ExiError OwningXMLSerializer::run(BodyEncoder* BE) {
+  exi_todo("add parsing interface");
   return Run(Doc, BE);
 }

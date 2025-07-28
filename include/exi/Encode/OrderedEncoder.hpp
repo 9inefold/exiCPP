@@ -60,7 +60,10 @@ public:
   ExiError init(SmallVecImpl<char>& Buf);
 
   /// Writes the header to the provided stream.
-  ExiError encodeHeader(BitBuffer Data) override;
+  ExiError encodeHeader(BitBuffer Data) override {
+    Writer->writeBitBuffer(Data);
+    return ExiError::OK;
+  }
 
 private:
   void initWriter(auto&&...Args) {
