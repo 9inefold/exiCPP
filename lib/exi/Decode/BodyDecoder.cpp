@@ -89,11 +89,18 @@ ExiError ExiDecoder::assumeReaderIsUntouched() const {
 }
 
 ExiError ExiDecoder::setOptions(MaybeBox<ExiOptions>&& Opts) {
-  if (Flags.DidHeader) {
+  if (!Opts) {
+    LOG_WARN("Options are null, leave unset if not required.");
+    // TODO: If permissive return OK.
+    return ErrorCode::kNullptrRef;
+  } else if (Flags.DidHeader) {
     // FIXME: Why am I even checking this
     exi_invariant(Header.Opts, "Options not initialized!");
     return assumeReaderIsUntouched();
+  } else if (auto E = ValidateOptions(*Opts)) {
+    return E;
   }
+
   Header.Opts = std::move(Opts);
   if (isReaderInitialized())
     // HACK: The assumption is the header doesn't need to be read.
