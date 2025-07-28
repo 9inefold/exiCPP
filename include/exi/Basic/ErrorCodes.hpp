@@ -238,7 +238,7 @@ public:
   AsOutParam& operator=(auto&& Val) {
     ExiError E(EXI_FWD(Val));
     if (Strict && !Data)
-      Throw<runtime_error>(E.msg());
+      ThrowDyn<runtime_error>(E.msg());
     else if (Data)
       *Data = std::move(E);
     return *this;

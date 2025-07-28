@@ -25,6 +25,7 @@
 
 #include <Common/Features.hpp>
 #include <Common/StrRef.hpp>
+#include <Common/Twine.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <type_traits>
 #include <stdexcept>
