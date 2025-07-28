@@ -26,6 +26,7 @@
 #include <core/Common/Fundamental.hpp>
 #include <core/Common/StrRef.hpp>
 #include <core/Common/Result.hpp>
+#include <exi/Basic/Except.hpp>
 #include <system_error>
 
 namespace exi {
@@ -136,12 +137,15 @@ public:
   static constexpr u32 Inval = u32(-1);
   static constexpr u32 Unset = u32(-1);
 
-  static const ExiError OK;
-  static const ExiError STOP;
-  static const ExiError DONE;
-  static const ExiError FULL;
-  static const ExiError TODO;
-  static const ExiError OOB;
+  static const ExiError OK;   // `ErrorCode::(kOk|kSuccess)`
+  static const ExiError STOP; // `ErrorCode::kStop`
+  static const ExiError DONE; // `ErrorCode::kParsingComplete`
+  static const ExiError FULL; // `ErrorCode::kBufferEndReached + Default`
+  static const ExiError TODO; // `ErrorCode::kUnimplemented`
+  static const ExiError OOB;  // `ErrorCode::kOutOfBounds`
+
+  template <bool Strict = false> class AsOutParam;
+  using AsStrictOutParam = AsOutParam<true>;
 
   ////////////////////////////////////////////////////////////////////////
   // Ctors
@@ -214,6 +218,41 @@ public:
   }
 };
 
+EXI_CONST ExiError ExiError::OK   = ExiError::kOk;
+EXI_CONST ExiError ExiError::STOP = ExiError::kStop;
+EXI_CONST ExiError ExiError::DONE = ExiError::kParsingComplete;
+EXI_CONST ExiError ExiError::FULL = ExiError::Full();
+EXI_CONST ExiError ExiError::TODO = ExiError::kUnimplemented;
+EXI_CONST ExiError ExiError::OOB  = ExiError::kOutOfBounds;
+
+/// Acts as a proxy object for a (potentially optional) output error value.
+/// Values can be assigned to the proxy instead of the actual input.
+/// @tparam Strict If `Throw(...)` should be called on errors for invalid inputs.
+template <bool Strict>
+class ExiError::AsOutParam {
+  ExiError* Data = nullptr;
+public:
+  explicit AsOutParam(ExiError* E) : Data(E) {}
+  explicit AsOutParam(ExiError& E) : Data(&E) {}
+
+  AsOutParam& operator=(auto&& Val) {
+    ExiError E(EXI_FWD(Val));
+    if (Strict && !Data)
+      Throw<runtime_error>(E.msg());
+    else if (Data)
+      *Data = std::move(E);
+    return *this;
+  }
+
+  ~AsOutParam() {
+    if (Data && !*Data)
+      *Data = ExiError::OK;
+  }
+};
+
+//////////////////////////////////////////////////////////////////////////
+// Miscellaneous
+
 inline bool operator==(const ExiError& LHS, ErrorCode RHS) {
   return LHS.ec() == RHS;
 }
@@ -224,13 +263,6 @@ inline bool operator==(ErrorCode LHS, const ExiError& RHS) {
 
 raw_ostream& operator<<(raw_ostream& OS, ErrorCode Err);
 raw_ostream& operator<<(raw_ostream& OS, const ExiError& Err);
-
-EXI_CONST ExiError ExiError::OK   = ExiError::kOk;
-EXI_CONST ExiError ExiError::STOP = ExiError::kStop;
-EXI_CONST ExiError ExiError::DONE = ExiError::kParsingComplete;
-EXI_CONST ExiError ExiError::FULL = ExiError::Full();
-EXI_CONST ExiError ExiError::TODO = ExiError::kUnimplemented;
-EXI_CONST ExiError ExiError::OOB  = ExiError::kOutOfBounds;
 
 static_assert(sizeof(ExiError) == 16);
 
