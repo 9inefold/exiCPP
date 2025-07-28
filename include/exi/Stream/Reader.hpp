@@ -38,7 +38,7 @@ class EXI_EMPTY_BASES ReaderBase : public StreamBase {
 public:
   using buffer_t = ArrayRef<u8>;
   using BufferT  = buffer_t;
-  using proxy_t  = BitReadBuffer;
+  using proxy_t  = BitBuffer;
   using ProxyT   = proxy_t;
 
 public:

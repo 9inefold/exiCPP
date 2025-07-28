@@ -476,7 +476,7 @@ public:
 
   OwningArrayRef(ArrayRef<T> Data)
       : MutArrayRef<T>(new T[Data.size()], Data.size()) {
-    std::copy(Data.begin(), Data.end(), this->begin());
+    FastUninitCopy(this->begin(), Data.begin(), Data.size());
   }
 
   OwningArrayRef(OwningArrayRef &&Other) { *this = std::move(Other); }

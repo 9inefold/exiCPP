@@ -17,8 +17,8 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file implements the BitBuffer class. It is used for copying data across
-/// stream types.
+/// This file implements BitReadBuffer and BitWriteBuffer. They will be used for
+/// copying data across stream types.
 ///
 //===----------------------------------------------------------------===//
 
@@ -39,9 +39,6 @@ using bit_word_t = u64;
 
 class BitBufferBase {
 protected:
-  u32 Offset = 0;
-  u32 BitOffset = 0;
-
   /// Check N can fit in a `u32`.
   static constexpr usize Check(usize N) {
     AssertIntCast<u32>(N);
@@ -67,9 +64,19 @@ protected:
   EXI_INLINE static constexpr usize GetBits64(usize Bits) {
     return Bits & usize(0b111'111);
   }
+};
 
-  constexpr BitBufferBase() = default;
-  constexpr BitBufferBase(usize Bytes, usize Bits) :
+//===----------------------------------------------------------------===//
+// BitReadBuffer
+//===----------------------------------------------------------------===//
+
+class EXI_EMPTY_BASES BitReadBufferBase : public BitBufferBase {
+protected:
+  u32 Offset = 0;
+  u32 BitOffset = 0;
+
+  constexpr BitReadBufferBase() = default;
+  constexpr BitReadBufferBase(usize Bytes, usize Bits) :
    Offset(Cast(Bytes)), BitOffset(u32(Bits)) {
     if EXI_NEVER(Bits >= 8)
       Throw<argument_error>("Bit offset >= 8!");
@@ -86,16 +93,16 @@ public:
 };
 
 template <class Derived, typename BufferT>
-class BitBufferTemplate : public BitBufferBase {
+class BitReadBufferTemplate : public BitReadBufferBase {
 protected:
   BufferT Data;
 
-  constexpr BitBufferTemplate(BufferT Data, usize Bytes, usize Bits) :
-   BitBufferBase(Bytes, Bits), Data(std::move(Data)) {}
+  constexpr BitReadBufferTemplate(BufferT Data, usize Bytes, usize Bits) :
+   BitReadBufferBase(Bytes, Bits), Data(std::move(Data)) {}
 
 public:
-  explicit constexpr BitBufferTemplate(BufferT Data) : 
-   BitBufferBase(), Data(std::move(Data)) {}
+  explicit constexpr BitReadBufferTemplate(BufferT Data) : 
+   BitReadBufferBase(), Data(std::move(Data)) {}
 
   static Derived FromBits(BufferT Data, usize Bits) {
     return Derived(std::move(Data), GetBytes(Bits), GetBits(Bits));
@@ -111,31 +118,74 @@ public:
   }
 };
 
-class OwningBitBuffer;
+class OwningBitReadBuffer;
 
 /// A readable buffer with bit-level positioning.
-class BitBuffer : public BitBufferTemplate<BitBuffer, ArrayRef<u8>> {
-  friend class BitBufferTemplate;
+class BitReadBuffer
+    : public BitReadBufferTemplate<BitReadBuffer, ArrayRef<u8>> {
+  friend class BitReadBufferTemplate;
   using buffer_t = ArrayRef<u8>;
 public:
-  using BitBufferTemplate::BitBufferTemplate;
-  inline BitBuffer(const OwningBitBuffer& Buf);
-  buffer_t arr() const { return BitBufferTemplate::Data; }
+  using BitReadBufferTemplate::BitReadBufferTemplate;
+  inline BitReadBuffer(const OwningBitReadBuffer& Buf);
+  buffer_t arr() const { return BitReadBufferTemplate::Data; }
 };
 
 /// A readable owning buffer with bit-level positioning.
-class OwningBitBuffer
-    : public BitBufferTemplate<OwningBitBuffer, OwningArrayRef<u8>> {
-  friend class BitBufferTemplate;
-  friend class BitBuffer;
+class OwningBitReadBuffer
+    : public BitReadBufferTemplate<OwningBitReadBuffer, OwningArrayRef<u8>> {
+  friend class BitReadBufferTemplate;
+  friend class BitReadBuffer;
   using buffer_t = OwningArrayRef<u8>;
 public:
-  using BitBufferTemplate::BitBufferTemplate;
-  ArrayRef<u8> arr() const { return BitBufferTemplate::Data; }
+  using BitReadBufferTemplate::BitReadBufferTemplate;
+  ArrayRef<u8> arr() const { return BitReadBufferTemplate::Data; }
 };
 
-BitBuffer::BitBuffer(const OwningBitBuffer& Buf) : 
- BitBuffer(Buf.Data, Buf.Offset, Buf.BitOffset) {
+BitReadBuffer::BitReadBuffer(const OwningBitReadBuffer& Buf) : 
+ BitReadBuffer(Buf.Data, Buf.Offset, Buf.BitOffset) {
 }
+
+//===----------------------------------------------------------------===//
+// BitWriteBuffer
+//===----------------------------------------------------------------===//
+
+/// A writable buffer with bit-level positioning.
+class EXI_EMPTY_BASES BitWriteBuffer : public BitBufferBase {
+  using buffer_t = SmallVecImpl<u8>;
+
+  buffer_t* Data;
+  u32 Offset = 0;
+  u32 BitOffset = 0;
+
+  BitWriteBuffer(buffer_t* Data, usize Bytes, usize Bits) :
+   Data(Data), Offset(Cast(Bytes)), BitOffset(u32(Bits)) {
+    if EXI_NEVER(Bits >= 64)
+      Throw<argument_error>("Bit offset >= 64!");
+  }
+
+public:
+  explicit BitWriteBuffer(buffer_t& Data) : Data(&Data) {}
+
+  static BitWriteBuffer FromBits(buffer_t& Data, usize Bits) {
+    return BitWriteBuffer(&Data, GetBytes64(Bits), GetBits64(Bits));
+  }
+  static BitWriteBuffer FromBytes(buffer_t& Data, usize Bytes) {
+    return BitWriteBuffer(&Data, Bytes, 0);
+  }
+  static BitWriteBuffer FromBytesAndBits(
+   buffer_t& Data, usize Bytes, usize Bits) {
+    return BitWriteBuffer(&Data, Bytes, Bits);
+  }
+
+  buffer_t& arr() const { return *Data; }
+  usize bytes() const { return Offset; }
+  usize bits() const { return BitOffset; }
+
+  bool aligned() const { return bits() == 0; }
+  usize aligned_bytes() const {
+    return aligned() ? Offset : Offset + 8;
+  }
+};
 
 } // namespace exi
