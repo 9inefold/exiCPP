@@ -50,8 +50,13 @@ namespace INTERNAL_NS(exi) {
 class INTERNAL_LINKAGE BIDeserializer final : public Deserializer {};
 } // namespace INTERNAL_NS
 
-ExiDecoder::ExiDecoder(MaybeBox<ExiOptions>&& Opts) {
-  Header.Opts = std::move(Opts);
+ExiDecoder::ExiDecoder(MaybeBox<ExiOptions>&& Opts, ExiError* Err) {
+  ExiError::AsOutParam EAO(Err);
+  if (auto E = setOptions(std::move(Opts))) {
+    if EXI_UNLIKELY(!Err)
+      Throw<argument_error>("Invalid options configuration.");
+    EAO = std::move(E);
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -65,7 +70,7 @@ ExiError ExiDecoder::assumeReaderIsUntouched() const {
   return ExiError::OK;
 }
 
-ExiError ExiDecoder::setOptions(MaybeBox<ExiOptions> Opts) {
+ExiError ExiDecoder::setOptions(MaybeBox<ExiOptions>&& Opts) {
   if (Flags.DidHeader) {
     // FIXME: Why am I even checking this
     exi_invariant(Header.Opts, "Options not initialized!");

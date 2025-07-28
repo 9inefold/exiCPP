@@ -96,8 +96,6 @@ class ExiDecoder {
   Box<decode::Schema> CurrentSchema;
   // The grammar stack is now stored in the schema.
 
-  /// The stream used for diagnostics.
-  Option<raw_ostream&> OS;
   /// State of the decoder in terms of progression.
   DecoderFlags Flags = {};
   /// Preserve options.
@@ -105,7 +103,8 @@ class ExiDecoder {
 
 public:
   ExiDecoder() = default;
-  ExiDecoder(MaybeBox<ExiOptions>&& Opts);
+  ExiDecoder(MaybeBox<ExiOptions>&& Opts, ExiError* Err = nullptr);
+  //ExiDecoder(ExiDecoder&& O);
   ~ExiDecoder() = default;
 
   /// Get the state flags.
@@ -121,7 +120,7 @@ public:
   /// Returns an error if the reader is empty.
   ExiError assumeReaderIsUntouched() const;
   /// Sets options out-of-band.
-  ExiError setOptions(MaybeBox<ExiOptions> Opts);
+  ExiError setOptions(MaybeBox<ExiOptions>&& Opts);
   /// Sets reader out-of-band. Options must be provided.
   ExiError setReader(UnifiedBuffer Buffer);
 

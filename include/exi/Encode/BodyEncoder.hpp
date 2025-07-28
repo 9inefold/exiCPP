@@ -69,7 +69,7 @@ private:
   }
 
 public:
-  ExiEncoder(MaybeBox<ExiOptions>&& Opts);
+  ExiEncoder(MaybeBox<ExiOptions>&& Opts, ExiError* Err = nullptr);
   ExiEncoder(ExiEncoder&&) = default;
   ~ExiEncoder();
 

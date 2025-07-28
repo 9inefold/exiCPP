@@ -35,9 +35,17 @@
 using namespace exi;
 using namespace exi::encode;
 
-ExiEncoder::ExiEncoder(MaybeBox<ExiOptions>&& Opts) {
-  if (auto E = setOptions(std::move(Opts)))
-    Throw<argument_error>("Invalid options configuration.");
+//===----------------------------------------------------------------===//
+// ExiEncoder
+//===----------------------------------------------------------------===//
+
+ExiEncoder::ExiEncoder(MaybeBox<ExiOptions>&& Opts, ExiError* Err) {
+  ExiError::AsOutParam EAO(Err);
+  if (auto E = setOptions(std::move(Opts))) {
+    if EXI_UNLIKELY(!Err)
+      Throw<argument_error>("Invalid options configuration.");
+    EAO = std::move(E);
+  }
 }
 
 ExiEncoder::~ExiEncoder() {}
@@ -80,8 +88,9 @@ ExiError ExiEncoder::setOptions(MaybeBox<ExiOptions>&& Opts) {
 
 #undef DEBUG_TYPE
 
-//////////////////////////////////////////////////////////////////////////
+//===----------------------------------------------------------------===//
 // BodyEncoder
+//===----------------------------------------------------------------===//
 
 #define DEBUG_TYPE "BodyEncoder"
 
