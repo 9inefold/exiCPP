@@ -85,11 +85,14 @@ public:
   // Initialization
 
   class EncoderFactory {
+    friend class ExiEncoder;
+    /// The bound instance.
     ExiEncoder* This;
     /// The encoder, the type of which is determined by the header.
     Box<BodyEncoder> TheEncoder = nullptr;
-  public:
+    /// Only ExiEncoder can create an instance.
     EncoderFactory(ExiEncoder* This) : This(This) {}
+  public:
     /// Generates the encoder and runs.
     ExiError encode(Serializer* S, raw_ostream& Strm) EXI_NONNULL(2);
     /// Generates the encoder and runs.
