@@ -52,7 +52,11 @@
 #define EXI_ANSI 1
 
 #ifndef EXI_MIN_LOG_LEVEL
-# define EXI_MIN_LOG_LEVEL VERBOSE
+# if EXI_DEBUG
+#  define EXI_MIN_LOG_LEVEL VERBOSE
+# else
+#  define EXI_MIN_LOG_LEVEL INFO
+# endif
 #endif
 
 #if EXI_ENABLE_EXPENSIVE_CHECKS

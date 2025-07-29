@@ -44,8 +44,10 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/Debug.hpp>
+#include <Support/Logging.hpp>
 #include <Common/StrRef.hpp>
 #include <Common/SmallVec.hpp>
+#include <Support/Except.hpp>
 #include <Support/ManagedStatic.hpp>
 #include <Support/Signals.hpp>
 #include <Support/circular_raw_ostream.hpp>
@@ -55,10 +57,11 @@
 #undef isCurrentDebugType
 #undef setCurrentDebugType
 #undef setCurrentDebugTypes
+#undef logColoredInDbgWithLevelAndType
 
 using namespace exi;
 
-using DbgTVec = exi::SmallVec<exi::String, 1>;
+using DbgTVec = exi::SmallVec<exi::String, 0>;
 
 // Even though exicpp might be built with NDEBUG, define symbols that the code
 // built without NDEBUG can depend on via the llvm/Support/Debug.h header.
@@ -108,6 +111,23 @@ void setCurrentDebugTypes(const char **Types, unsigned Count) {
       continue;
     CurrentDebugType->emplace_back(Type);
   }
+}
+
+static constexpr raw_ostream::Colors LogLevelMapping[] {
+  /*NONE=*/  raw_ostream::Colors::BRIGHT_MAGENTA,
+  /*ERROR=*/ raw_ostream::Colors::BRIGHT_RED,
+  /*WARN=*/  raw_ostream::Colors::BRIGHT_YELLOW,
+  /*INFO=*/  raw_ostream::Colors::BRIGHT_WHITE,
+  /*EXTRA=*/ raw_ostream::Colors::BRIGHT_BLUE
+};
+
+void logColoredInDbgWithLevelAndType(unsigned Level,
+  const IFormatObject& Fmt, const char* FileAndLine)
+ EXI_ENABLE_IF(Level <= unsigned(LogLevel::EXTRA), "Invalid logging level!") {
+  if EXI_NEVER(Level > unsigned(LogLevel::EXTRA))
+    Throw<runtime_error>("Log level out of range!");
+  const raw_ostream::Colors OldColor = dbgs().getColor();
+  dbgs() << LogLevelMapping[Level] << Level << Fmt << '\n' << OldColor;
 }
 
 } // namespace exi

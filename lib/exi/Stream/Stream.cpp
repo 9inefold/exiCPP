@@ -29,6 +29,9 @@
 #include <exi/Stream/OrderedWriter.hpp>
 // #include <exi/Stream/ChannelWriter.hpp>
 
+#include <core/Support/raw_ostream.hpp>
+#include <exi/Basic/Except.hpp>
+
 namespace exi {
 
 void ReaderBase::anchor() {}
@@ -47,5 +50,14 @@ void ChannelReader::anchor() {}
 void BlockReader::anchor() {}
 void DeflateReader::anchor() {}
 #endif
+
+//////////////////////////////////////////////////////////////////////////
+// Miscellaneous
+
+[[noreturn]] EXI_SLOW_PATH void
+ OrderedReader::WriteError(const ExiError& E, const char* Msg) {
+  dbgs() << E << '\n';
+  ThrowDyn<runtime_error>(Msg);
+}
 
 } // namespace exi

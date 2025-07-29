@@ -25,50 +25,58 @@
 
 #include <Support/Debug.hpp>
 #include <Support/Format.hpp>
-#include <Support/raw_ostream.hpp>
+
+#ifdef EXI_LOG_LINES
+# error EXI_LOG_LINES should be defined AFTER including Logging.hpp!
+#endif
+static constexpr bool EXI_LOG_LINES = false;
+
+namespace exi {
 
 #if EXI_LOGGING
 
-static constexpr bool EXI_LOG_LINES = false;
+/// Defined in `Debug.cpp`.
+void logColoredInDbgWithLevelAndType(
+  unsigned Level, const IFormatObject& Fmt, const char* FileAndLine = "")
+    EXI_ENABLE_IF(Level <= unsigned(LogLevel::EXTRA), "Invalid logging level!")
+    EXI_NONNULL(3);
 
 /// Format with a specified debug type.
 /// TODO: Check EXI_PRESERVE_MOST
 /// TODO: Add source_location?
-# define LOG_FORMAT_WITH(LEVEL, TYPE, COLOR, ...)                             \
+# define LOG_FORMAT_WITH(LEVEL, TYPE, ...)                                    \
 LOG_WITH_LEVEL_AND_TYPE(LEVEL, TYPE, [&]() EXI_PRESERVE_MOST {                \
-  const auto _u_OldCol = dbgs().getColor();                                   \
-  dbgs().changeColor(::exi::raw_ostream::COLOR)                               \
-    << (EXI_LOG_LINES ? __FILE__ ":" STRINGIFY(__LINE__) ": " : "")           \
-    << ::exi::format(__VA_ARGS__) << '\n' << _u_OldCol;                       \
+  return logColoredInDbgWithLevelAndType(                                     \
+    ::exi::LogLevel::LEVEL, ::exi::format(__VA_ARGS__),                       \
+    EXI_LOG_LINES ? __FILE__ ":" STRINGIFY(__LINE__) ": " : "");              \
 }())
 
 /// Format with the default debug type.
-# define LOG_FORMAT(LEVEL, COLOR, ...)                                        \
- LOG_FORMAT_WITH(LEVEL, DEBUG_TYPE, COLOR, __VA_ARGS__)
+# define LOG_FORMAT(LEVEL, ...)                                               \
+ LOG_FORMAT_WITH(LEVEL, DEBUG_TYPE, __VA_ARGS__)
 
 #else
-# define LOG_FORMAT_WITH(LEVEL, TYPE, COLOR, ...) do { } while(false)
-# define LOG_FORMAT(LEVEL, COLOR, ...) do { } while(false)
+# define logColoredInDbgWithLevelAndType(...) ((void)(0))
+# define LOG_FORMAT_WITH(LEVEL, TYPE, ...) do { } while(false)
+# define LOG_FORMAT(LEVEL, ...) do { } while(false)
 #endif
 
 /// Formats to `dbgs()` if the log level is at least `ERROR`.
-#define LOG_ERROR(...) LOG_FORMAT(ERROR, BRIGHT_RED,     __VA_ARGS__)
+#define LOG_ERROR(...) LOG_FORMAT_WITH(ERROR, DEBUG_TYPE, __VA_ARGS__)
 /// Formats to `dbgs()` if the log level is at least `WARN`.
-#define LOG_WARN(...)  LOG_FORMAT(WARN,  BRIGHT_YELLOW,  __VA_ARGS__)
+#define LOG_WARN(...)  LOG_FORMAT_WITH(WARN,  DEBUG_TYPE, __VA_ARGS__)
 /// Formats to `dbgs()` if the log level is at least `INFO`.
-#define LOG_INFO(...)  LOG_FORMAT(INFO,  BRIGHT_WHITE,   __VA_ARGS__)
+#define LOG_INFO(...)  LOG_FORMAT_WITH(INFO,  DEBUG_TYPE, __VA_ARGS__)
 /// Formats to `dbgs()` if the log level is `EXTRA` (on `-verbose`).
-#define LOG_EXTRA(...) LOG_FORMAT(EXTRA, BRIGHT_BLUE,   __VA_ARGS__)
+#define LOG_EXTRA(...) LOG_FORMAT_WITH(EXTRA, DEBUG_TYPE, __VA_ARGS__)
 
 /// Formats to `dbgs()` if the log level is at least `ERROR`.
-#define LOG_ERROR_WITH(TYPE, ...)                                             \
- LOG_FORMAT_WITH(ERROR, TYPE, BRIGHT_RED, __VA_ARGS__)
+#define LOG_ERROR_WITH(TYPE, ...) LOG_FORMAT_WITH(ERROR, TYPE, __VA_ARGS__)
 /// Formats to `dbgs()` if the log level is at least `WARN`.
-#define LOG_WARN_WITH(TYPE, ...)                                              \
- LOG_FORMAT_WITH(WARN,  TYPE, BRIGHT_YELLOW, __VA_ARGS__)
+#define LOG_WARN_WITH(TYPE, ...)  LOG_FORMAT_WITH(WARN,  TYPE, __VA_ARGS__)
 /// Formats to `dbgs()` if the log level is at least `INFO`.
-#define LOG_INFO_WITH(TYPE, ...)                                              \
- LOG_FORMAT_WITH(INFO,  TYPE, BRIGHT_WHITE, __VA_ARGS__)
+#define LOG_INFO_WITH(TYPE, ...)  LOG_FORMAT_WITH(INFO,  TYPE, __VA_ARGS__)
 /// Formats to `dbgs()` if the log level is `EXTRA` (on `-verbose`).
-#define LOG_EXTRA_WITH(TYPE, ...)                                             \
- LOG_FORMAT_WITH(EXTRA, TYPE, BRIGHT_BLUE, __VA_ARGS__)
+#define LOG_EXTRA_WITH(TYPE, ...) LOG_FORMAT_WITH(EXTRA, TYPE, __VA_ARGS__)
+
+} // namespace exi

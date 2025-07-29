@@ -126,6 +126,13 @@ protected:
     return Ok(BytesRead);
   }
 
+  ////////////////////////////////////////////////////////////////////////
+  // Failure
+
+  /// Writes an `ExiError` to `dbgs()` then `Throw(...)`s.
+  [[noreturn]] EXI_SLOW_PATH static void
+   WriteError(const ExiError& E, const char* Msg);
+
 private:
   virtual void anchor();
 };
@@ -243,13 +250,10 @@ public:
     BaseT::Stream = Proxy.arr();
     BaseT::ByteOffset = Proxy.bytes();
     BaseT::Store = 0;
-
     // Load data into store.
-    if (auto E = fillStore()) {
-      dbgs() << E << '\n';
-      exi_unreachable("unable to load store");
-    }
-
+    if (auto E = fillStore())
+      OrderedReader::WriteError(E, "unable to load store");
+    // Set correct offsets
     Store <<= Proxy.bits();
     BitsInStore -= Proxy.bits();
   }
@@ -499,12 +503,9 @@ public:
     BaseT::Stream = Proxy.arr();
     BaseT::ByteOffset = Proxy.aligned_bytes();
     BaseT::Store = 0;
-
     // Load data into store.
-    if (auto E = fillStore()) {
-      dbgs() << E << '\n';
-      exi_unreachable("unable to load store");
-    }
+    if (auto E = fillStore())
+      OrderedReader::WriteError(E, "unable to load store");
   }
 
   StreamKind getStreamKind() const override {
