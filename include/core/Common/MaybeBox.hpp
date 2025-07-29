@@ -26,18 +26,74 @@
 #include <Common/Box.hpp>
 #include <Common/Naked.hpp>
 #include <Common/Option.hpp>
+#include <Common/Ref.hpp>
 #include <Common/PointerIntPair.hpp>
 #include <type_traits>
+
+// TODO: Add custom deleters?
 
 namespace exi {
 template <typename From> struct simplify_type;
 
-/// This class is used when a pointer may or may not be owned.
-/// If the input type is a `nullptr, `T&`, `Naked<T>`, or `Option<T&>`, it will
-/// be marked as unowned. If the input is a `Box<T>`, it will be owned.
-/// Otherwise ownedness is explicitly provided by the user with `(Ptr, Owned)`.
-template <typename T> class MaybeBox {
-  static_assert(PointerLikeTypeTraits<T*>::NumLowBitsAvailable > 0);
+namespace H {
+template <typename T, bool IsPacked>
+concept should_use_packed_repr
+  = IsPacked && PointerLikeTypeTraits<T*>::NumLowBitsAvailable > 0;
+
+template <bool ExpectedPacked, bool IsReallyPacked = false>
+constexpr bool check_box_packing()
+  EXI_WARNING_IF(ExpectedPacked && !IsReallyPacked,
+    "No bits were available for packing! Try adjusting object alignment.") {
+  return IsReallyPacked;
+}
+} // namespace H
+
+/// `MaybeBoxBase` for unpacked data.
+template <typename T, bool IsPacked>
+class MaybeBoxBase {
+protected:
+  /// Returns if the `MaybeBox` is packed.
+  static constexpr bool is_packed
+    = H::check_box_packing<IsPacked, false>();
+  /// Pointer and int as two values.
+  std::pair<T*, bool> Data;
+
+  ALWAYS_INLINE void setData(T* Ptr, bool Owned) {
+    Data.first = Ptr;
+    Data.second = Owned;
+  }
+  ALWAYS_INLINE void clearData() {
+    this->setData(nullptr, false);
+  }
+  ALWAYS_INLINE void deleteData() {
+    if (owned())
+      delete this->get();
+  }
+
+public:
+  constexpr MaybeBoxBase() = default;
+  constexpr MaybeBoxBase(T* Ptr, bool Owned) : Data(Ptr, Ptr ? Owned : false) {}
+  constexpr MaybeBoxBase(std::nullptr_t) : MaybeBoxBase() {}
+  ~MaybeBoxBase() { this->deleteData(); }
+  /// Get the stored pointer.
+  T* get() const { return Data.first; }
+  /// Get the stored pointer.
+  T* data() const { return Data.first; }
+  /// Return if the pointer is owned or not.
+  bool owned() const { return Data.second; }
+  /// Return the pointer and owned status at the same time.
+  std::pair<T*, bool> dataAndOwned() const { return Data; }
+};
+
+/// `MaybeBoxBase` for packed data.
+template <typename T, bool IsPacked>
+requires H::should_use_packed_repr<T, IsPacked>
+class MaybeBoxBase<T, IsPacked> {
+protected:
+  /// Returns if the `MaybeBox` is packed.
+  static constexpr bool is_packed
+    = H::check_box_packing<IsPacked, true>();
+  /// Pointer and int packed into one.
   PointerIntPair<T*, 1, bool> Data;
 
   ALWAYS_INLINE void setData(T* Ptr, bool Owned) {
@@ -52,29 +108,59 @@ template <typename T> class MaybeBox {
   }
 
 public:
-  constexpr MaybeBox() = default;
+  constexpr MaybeBoxBase() = default;
+  constexpr MaybeBoxBase(T* Ptr, bool Owned) : Data(Ptr, Ptr ? Owned : false) {}
+  constexpr MaybeBoxBase(std::nullptr_t) : MaybeBoxBase() {}
+  ~MaybeBoxBase() { this->deleteData(); }
+
+  /// Get the stored pointer.
+  T* get() const { return Data.getPointer(); }
+  /// Get the stored pointer.
+  T* data() const { return Data.getPointer(); }
+  /// Return if the pointer is owned or not.
+  bool owned() const { return Data.getInt(); }
+  /// Return the pointer and owned status at the same time.
+  std::pair<T*, bool> dataAndOwned() const {
+    auto [Ptr, Owned] = Data;
+    return {Ptr, Owned};
+  }
+};
+
+/// This class is used when a pointer may or may not be owned.
+/// If the input type is a `nullptr, `T&`, `Naked<T>`, or `Option<T&>`, it will
+/// be marked as unowned. If the input is a `Box<T>`, it will be owned.
+/// Otherwise ownedness is explicitly provided by the user with `(Ptr, Owned)`.
+/// @tparam Packed If the pointer/int pair should be packed. Default is `false`.
+template <typename T, bool Packed = false>
+class MaybeBox : public MaybeBoxBase<T, Packed> {
+  template <typename, bool> friend class MaybeBox;
+  using BaseT = MaybeBoxBase<T, Packed>;
+  using BaseT::setData;
+  using BaseT::clearData;
+  using BaseT::deleteData;
+public:
+  using BaseT::is_packed;
+  using BaseT::BaseT;
+  ~MaybeBox() = default;
   MaybeBox(const MaybeBox&) = delete;
 
-  template <class U>
+  template <class U, bool UPacked>
   requires std::convertible_to<U*, T*>
-  MaybeBox(MaybeBox<U>&& O) : Data(O.get(), O.owned()) {
+  MaybeBox(MaybeBox<U, UPacked>&& O) : BaseT(O.get(), O.owned()) {
     O.clearData();
   }
 
-  constexpr MaybeBox(std::nullptr_t) : MaybeBox() {}
-  MaybeBox(T* Ptr, bool Owned) : Data(Ptr, Ptr ? Owned : false) {}
-  MaybeBox(Naked<T> Ptr) : Data(Ptr.get(), false) {}
-  MaybeBox(T& Ref EXI_LIFETIMEBOUND) : Data(&Ref, false) {}
-  MaybeBox(Box<T>&& Ptr) : Data(Ptr.release(), true) {}
-  MaybeBox(Option<T&> Opt) : Data(Opt ? &*Opt : nullptr, false) {}
-
-  ~MaybeBox() { this->deleteData(); }
+  MaybeBox(Naked<T> Ptr) : BaseT(Ptr.get(), false) {}
+  MaybeBox(T& Val EXI_LIFETIMEBOUND) : BaseT(&Val, false) {}
+  MaybeBox(Ref<T> Val) : BaseT(&*Val, false) {}
+  MaybeBox(Box<T>&& Ptr) : BaseT(Ptr.release(), true) {}
+  MaybeBox(Option<T&> Opt) : BaseT(Opt ? &*Opt : nullptr, false) {}
 
   MaybeBox& operator=(const MaybeBox&) = delete;
   MaybeBox& operator=(MaybeBox&& O) {
-    this->deleteData();
-    this->Data = std::move(O.Data);
-    O.clearData();
+    BaseT::deleteData();
+    BaseT::Data = std::move(O.Data);
+    O.BaseT::clearData();
     return *this;
   }
 
@@ -84,59 +170,48 @@ public:
   }
 
   MaybeBox& operator=(Naked<T> Ptr) {
-    this->deleteData();
-    this->setData(Ptr.get(), false);
+    BaseT::deleteData();
+    BaseT::setData(Ptr.get(), false);
     return *this;
   }
 
   MaybeBox& operator=(T& Ref EXI_LIFETIMEBOUND) {
-    this->deleteData();
-    this->setData(&Ref, false);
+    BaseT::deleteData();
+    BaseT::setData(&Ref, false);
     return *this;
   }
 
   MaybeBox& operator=(Box<T>&& Ptr) {
-    this->deleteData();
-    this->setData(Ptr.release(), true);
+    BaseT::deleteData();
+    BaseT::setData(Ptr.release(), true);
     return *this;
   }
 
   MaybeBox& operator=(Option<T&> Opt) {
-    this->deleteData();
-    this->setData(Opt.data(), false);
+    BaseT::deleteData();
+    BaseT::setData(Opt.data(), false);
     return *this;
   }
 
   /// Set pointer with potentially owned data.
   void set(T* Ptr, bool Owned) {
-    this->deleteData();
+    BaseT::deleteData();
     setData(Ptr, Ptr ? Owned : false);
   }
 
   /// Set pointer with unowned data.
   void set(T* Ptr) {
-    this->deleteData();
+    BaseT::deleteData();
     setData(Ptr, false);
   }
 
   /// Reset container, null and unowned.
   void reset() {
-    this->deleteData();
-    this->clearData();
+    BaseT::deleteData();
+    BaseT::clearData();
   }
 
-  /// Get the stored pointer.
-  T* get() const { return Data.getPointer(); }
-  /// Get the stored pointer.
-  T* data() const { return Data.getPointer(); }
-  /// Return if the pointer is owned or not.
-  bool owned() const { return Data.getInt(); }
-
-  /// Return the pointer and owned status at the same time.
-  std::pair<T*, bool> dataAndOwned() {
-    auto [Ptr, Owned] = Data;
-    return {Ptr, Owned};
-  }
+  using BaseT::data;
 
   T* operator->() const {
     exi_assert(data(), "value is inactive!");
@@ -151,6 +226,10 @@ public:
     return !!data();
   }
 };
+
+/// A `MaybeBox` which is packed by default.
+template <typename T>
+using PackedMaybeBox = MaybeBox<T, /*Packed=*/true>;
 
 /// Deduction guide for a `MaybeBox` from a reference.
 template <typename T> MaybeBox(T&) -> MaybeBox<std::remove_const_t<T>>;
@@ -171,8 +250,9 @@ template <typename T> MaybeBox(Box<T>&&) -> MaybeBox<T>;
 // TODO: Cast Traits
 
 /// Provide a simplify_type specialized for MaybeBox.
-template <typename T> struct simplify_type<MaybeBox<T>> {
-  using From = MaybeBox<T>;
+template <typename T, bool IsPacked>
+struct simplify_type<MaybeBox<T, IsPacked>> {
+  using From = MaybeBox<T, IsPacked>;
   using SimpleType = T;
   static SimpleType& getSimplifiedValue(From& Val) { return *Val; }
 };

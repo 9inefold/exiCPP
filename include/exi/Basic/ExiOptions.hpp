@@ -119,8 +119,10 @@ struct ExiOptions {
   /// then an error has occurred. It should be explicitly nulled via `xsi:nil`
   /// or communicated out of band.
   /// Default: none
-  Option<MaybeBox<String>> SchemaID = std::nullopt;
+  Option<PackedMaybeBox<String>> SchemaID = std::nullopt;
 
+  /// The name of a user type.
+  using UserDefinedType = String;
   /// Specify alternate datatype representations for typed values in the body.
   /// When there are no elements in the Options document, no
   /// Datatype Representation Map is used for processing the body. This option
@@ -129,7 +131,7 @@ struct ExiOptions {
   /// Default: none
   ///
   /// FIXME: Use a better type for mapping once necessary?
-  MaybeBox<StringMap</*User Defined Type*/String>> DatatypeRepresentationMap;
+  PackedMaybeBox<StringMap<UserDefinedType>> DatatypeRepresentationMap;
 
   /// Specifies the block size used for EXI compression
   u64 BlockSize = 1'000'000;

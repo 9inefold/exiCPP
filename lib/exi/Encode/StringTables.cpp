@@ -57,7 +57,7 @@ constexpr NameMapping XSD_InitialValues[] { EXI_XSD_IV(GEN_IV, SEP) };
 
 } // namespace `anonymous`
 
-static const Option<String&> PullSchemaID(const Option<MaybeBox<String>>& ID) {
+static const Option<String&> PullSchemaID(const Option<PackedMaybeBox<String>>& ID) {
   return ID.expect("schema should resolve to value or nil").get();
 }
 

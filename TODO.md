@@ -22,7 +22,7 @@ This is a TODO list for the C++ version of exiCPP.
 - Produce event codes - set up `ExiEncoder`
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense
 - Prepare for doxygen support
-- Update rapidxml
+- Update rapidxml: change allocator?
 - `ErrorCode` customization
 - Implement `Throw<Ex>(...)`, handle some exceptional cases...
 - Add more info to rapidxml nodes?
