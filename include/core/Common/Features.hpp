@@ -422,6 +422,16 @@
 # define EXI_REQUIRES_IF(EXPR, MSG) requires(EXPR)
 #endif
 
+#if EXI_HAS_ATTR(diagnose_if)
+# define EXI_WARNING_IF(CONDITION, MSG)                                       \
+  __attribute__((diagnose_if(CONDITION, MSG, "warning")))
+# define EXI_ERROR_IF(CONDITION, MSG)                                         \
+  __attribute__((diagnose_if(CONDITION, MSG, "error")))
+#else
+# define EXI_WARNING_IF(CONDITION, MSG)
+# define EXI_ERROR_IF(CONDITION, MSG)
+#endif
+
 // FIXME: Only enable for supported platforms. Does not work on x32 & arm win
 #if EXI_HAS_ATTR(preserve_most) && EXI_SUPPORTS_PRESERVE_CC
 # define EXI_PRESERVE_MOST __attribute__((preserve_most))
