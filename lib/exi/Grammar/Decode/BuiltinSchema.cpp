@@ -136,6 +136,7 @@ class INTERNAL_LINKAGE DynBuiltinSchema final
   using enum BIGrammar;
   class Builder;
 
+  using Get = Schema::Get<StrmT>;
   using BaseT = TrailingArray<DynBuiltinSchema, EventTerm>;
   using MatchT = MMatch<EventTerm, EventTerm>;
   using GrammarT = PointerIntPair<BuiltinGrammar*, 1, bool>;
@@ -209,7 +210,7 @@ private:
   }
 
   ALWAYS_INLINE MatchT decodeTerm(ExiDecoder* D) {
-    auto* Strm = Get::Reader<StrmT>(D);
+    auto* Strm = Get::Reader(D);
     return this->decodeTerm(Strm);
   }  
 
@@ -217,7 +218,7 @@ private:
     exi_invariant(!GStack.empty());
     GrammarT G = GStack.back();
 
-    auto& Strm = Get::Reader(D); // TODO: Update reader.
+    auto& Strm = Get::RReader(D);
     return G->getTerm<StrmT>(Strm, G.getInt());
   }
 
@@ -228,9 +229,8 @@ private:
       this->Event = *Ret;
       return *Ret;
     }
-    
-    // LOG_EXTRA("Grammar miss: {}", Ret.error());
-    auto* Strm = Get::Reader<StrmT>(D);
+
+    auto* Strm = Get::Reader(D);
     const MatchT M = this->decodeTerm(Strm, 1, Ret.error());
     return this->Event;
   }
@@ -401,7 +401,7 @@ private:
 
   template <bool IsRoot = false>
   CC EventUID handleSE(ExiDecoder* D) {
-    const auto Event = Get::DecodeQName<StrmT>(D);
+    const auto Event = Get::DecodeQName(D);
     if EXI_UNLIKELY(Event.is_err()) {
       Diagnose(Event);
       return EventUID::NewNull();
@@ -456,7 +456,7 @@ private:
 
   template <bool Cached = false>
   CC EventUID handleAT(ExiDecoder* D) {
-    const auto Event = Get::DecodeQName<StrmT>(D);
+    const auto Event = Get::DecodeQName(D);
     if EXI_UNLIKELY(Event.is_err()) {
       Diagnose(Event);
       return EventUID::NewNull();
@@ -481,7 +481,7 @@ private:
   CC EventUID handleCH(ExiDecoder* D) {
     exi_invariant(!GStack.empty());
     const SmallQName Name = GStack.back()->getName();
-    const auto Event = Get::DecodeValue<StrmT>(D, Name);
+    const auto Event = Get::DecodeValue(D, Name);
 
     if EXI_UNLIKELY(Event.is_err()) {
       Diagnose(Event);

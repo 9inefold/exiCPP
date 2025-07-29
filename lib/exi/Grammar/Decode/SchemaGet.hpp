@@ -29,26 +29,19 @@
 
 namespace exi::decode {
 
-class Schema::Get {
+template <typename StrmT> class Schema::Get {
 public:
   static BumpPtrAllocator& BP(ExiDecoder* D) { return D->BP; }
   static decode::StringTable& Strings(ExiDecoder* D) { return D->Strings; }
-
-  template <class StrmT>
+  static OrdReader& RReader(ExiDecoder* D) { return D->Reader; }
   static StrmT* Reader(ExiDecoder* D) { return &cast<StrmT>(D->Reader); }
-  static OrdReader& Reader(ExiDecoder* D) { return D->Reader; }
 
-  template <class StrmT>
   ALWAYS_INLINE static auto DecodeQName(ExiDecoder* D) {
     return D->decodeQName<StrmT>();
   }
-
-  template <class StrmT>
   ALWAYS_INLINE static auto DecodeNS(ExiDecoder* D) {
     return D->decodeNS<StrmT>();
   }
-
-  template <class StrmT>
   ALWAYS_INLINE static auto DecodeValue(ExiDecoder* D, SmallQName Name) {
     return D->decodeValue<StrmT>(Name);
   }

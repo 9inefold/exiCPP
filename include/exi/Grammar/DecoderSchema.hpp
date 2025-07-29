@@ -44,7 +44,7 @@ public:
   [[nodiscard]] virtual EventUID decode(ExiDecoder* D) = 0;
   virtual void dump() const {}
 protected:
-  class Get;
+  template <typename> class Get;
 private:
   EXI_RTTI_EXTENDS(Schema, RTTIRoot);
   virtual void anchor();

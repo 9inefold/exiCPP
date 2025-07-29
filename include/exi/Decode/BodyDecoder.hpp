@@ -82,6 +82,7 @@ struct DecoderFlags {
 /// The EXI decoding processor.
 /// FIXME: Split this up into more implementations.
 class ExiDecoder {
+  template <typename StrmT>
   friend class decode::Schema::Get;
   /// The provided Header.
   ExiHeader Header = {};
