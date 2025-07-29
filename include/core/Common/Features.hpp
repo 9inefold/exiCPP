@@ -374,6 +374,12 @@
 # define EXI_READONLY
 #endif
 
+#if EXI_HAS_ATTR(nonnull)
+# define EXI_NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
+#else
+# define EXI_NONNULL(...)
+#endif
+
 #if EXI_HAS_ATTR(returns_nonnull)
 # define EXI_RETURNS_NONNULL __attribute__((returns_nonnull))
 #elif defined(_MSC_VER)
