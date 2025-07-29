@@ -32,6 +32,7 @@
 #include <core/Support/TrailingArray.hpp>
 #include <exi/Basic/D/InternalMacros.hpp>
 #include <exi/Basic/ExiOptions.hpp>
+#include <exi/Grammar/D/BIBuilder.hpp>
 #include <exi/Grammar/Grammar.hpp>
 #include <exi/Stream/OrderedReader.hpp>
 #include <fmt/ranges.h>
@@ -98,10 +99,6 @@ EXI_ERROR_CC EXI_MINSIZE static void Diagnose(const ExiResult<T>& Result) {
 
 namespace INTERNAL_NS(exi) {
 
-/// A small log2 table for deducing bit counts. The maximum value a builtin
-/// schema can have is 7, with `StartTagContent.{CM, PI}` with `SC` enabled.
-alignas(16) static constexpr u8 SmallLog2[10] {0, 0, 1, 2, 2, 3, 3, 3, 3, 4};
-
 static constexpr StringLiteral BIGrammarNames[] {
   "Document",
   "DocContent",
@@ -111,21 +108,6 @@ static constexpr StringLiteral BIGrammarNames[] {
   "Fragment"
 };
 
-/// Small EventCode for use in `BIInfo`.
-struct EXI_TRIVIAL_ABI SEventCode {
-  Array<u8, 3> Data = {};  // [x.y.z]
-  Array<u8, 3> Bits = {};  // [[x].[y].[z]]
-  i8 Length = 0;           // Number of pieces.
-};
-
-struct EXI_TRIVIAL_ABI BIInfo {
-  u8 Offset = 0;
-  SEventCode Code = {};
-};
-
-using BIInfoArray = EnumeratedArray<BIInfo, BIGrammar,
-  BIGrammar::Last, BIGrammar::DocContent>;
-
 // TODO: Update other functions to use template.
 // It currently shows as slightly slower, but this may be because of split
 // behaviour in the IBP.
@@ -134,8 +116,6 @@ class INTERNAL_LINKAGE DynBuiltinSchema final
     : public BuiltinSchema,
       public TrailingArray<DynBuiltinSchema<StrmT>, EventTerm> {
   using enum BIGrammar;
-  class Builder;
-
   using Get = Schema::Get<StrmT>;
   using BaseT = TrailingArray<DynBuiltinSchema, EventTerm>;
   using MatchT = MMatch<EventTerm, EventTerm>;
@@ -153,7 +133,7 @@ class INTERNAL_LINKAGE DynBuiltinSchema final
   /// The generated grammars.
   DenseMap<SmallQName, BuiltinGrammar*> Grammars;
 
-  DynBuiltinSchema(const SmallVecImpl<EventTerm>& Terms) : 
+  DynBuiltinSchema(ArrayRef<EventTerm> Terms) : 
    BaseT(Terms.size(), Terms.begin(), Terms.end()) {
   }
 
@@ -580,191 +560,14 @@ private:
   void anchor() override;
 };
 
-template <class StrmT>
-class DynBuiltinSchema<StrmT>::Builder {
-public:
-  SmallVec<EventTerm, 8> Terms;
-  SmallVec<BIInfo, BIInfoArray::size()> Info;
-
-private:
-  ExiOptions::PreserveOpts Preserve;
-  bool SelfContained;
-
-  class EventCodeRTTI {
-    SEventCode* C;
-  public:
-    EventCodeRTTI(SEventCode* EC) : C(EC) {}
-    ~EventCodeRTTI() { Builder::CalculateLog(C); }
-    SEventCode& operator*() { return *C; }
-    SEventCode* operator->() { return C; }
-  };
-
-  static void CalculateLog(SEventCode* EC);
-
-  EventCodeRTTI createBIInfo() {
-    const u8 Offset = IntCast<u8>(Terms.size());
-    Info.push_back({
-      .Offset = Offset,
-      .Code { .Length = 1 }
-    });
-    return &Info.back().Code;
-  }
-
-public:
-  Builder(const ExiOptions& Opts) :
-   Preserve(Opts.Preserve),
-   SelfContained(Opts.SelfContained) {
-  }
-
-  static Builder New(const ExiOptions& Opts) {
-    Builder B(Opts);
-    B.init();
-    return B;
-  }
-
-  static void Inc(SEventCode& C, i8 I = 1) {
-    if EXI_LIKELY(C.Length)
-      C.Data[C.Length - 1] += I;
-    else
-      LOG_WARN("'Inc' ran on empty EventCode.");
-  }
-  static void Next(SEventCode& C) {
-    if EXI_LIKELY(C.Length < 3)
-      ++C.Length;
-    else
-      LOG_WARN("'Next' ran on full EventCode.");
-  }
-  static void IncNext(SEventCode& C, i8 I = 1) {
-    Builder::Inc(C, I);
-    Builder::Next(C);
-  }
-
-  void init() {
-    /*DocContent:*/ {
-      LOG_EXTRA("DocContent:");
-      auto C = createBIInfo();
-      Terms.push_back(EventTerm::SE);
-      Builder::Inc(*C);
-
-      if (Preserve.DTDs) {
-        Terms.push_back(EventTerm::DT);
-        Builder::IncNext(*C);
-        Builder::Inc(*C);
-      }
-
-      this->addCMPI(*C);
-    }
-
-    /*DocEnd:*/ {
-      LOG_EXTRA("DocEnd:");
-      auto C = createBIInfo();
-      Terms.push_back(EventTerm::ED);
-      Builder::Inc(*C);
-      this->addCMPI(*C);
-    }
-
-    /*StartTagContent:*/ {
-      LOG_EXTRA("StartTagContent:");
-      auto C = createBIInfo();
-      Terms.push_back(EventTerm::EE);
-      Terms.push_back(EventTerm::AT);
-      Builder::Next(*C);
-      Builder::Inc(*C, 2);
-
-      if (Preserve.Prefixes) {
-        Terms.push_back(EventTerm::NS);
-        Builder::Inc(*C);
-      }
-
-      if (SelfContained) {
-        Terms.push_back(EventTerm::SC);
-        Builder::Inc(*C);
-      }
-
-      this->addCCItems(*C);
-    }
-
-    /*ElementContent:*/ {
-      LOG_EXTRA("ElementContent:");
-      auto C = createBIInfo();
-      Terms.push_back(EventTerm::EE);
-      Builder::Inc(*C, 2);
-      this->addCCItems(*C);
-    }
-  }
-
-private:
-  /// Adds CM/PI to the end of a grammar, if possible.
-  void addCMPI(SEventCode& C) {
-    if (!Preserve.Comments && !Preserve.PIs)
-      return;
-    Builder::IncNext(C);
-    if (Preserve.Comments) {
-      Terms.push_back(EventTerm::CM);
-      Builder::Inc(C);
-    }
-    if (Preserve.PIs) {
-      Terms.push_back(EventTerm::PI);
-      Builder::Inc(C);
-    }
-  }
-
-  /// Adds ChildContentItems.
-  void addCCItems(SEventCode& C) {
-    exi_assert(C.Length <= 2);
-    C.Length = 2;
-
-    Terms.push_back(EventTerm::SE);
-    Terms.push_back(EventTerm::CH);
-    Builder::Inc(C, 2);
-
-    if (Preserve.DTDs) {
-      Terms.push_back(EventTerm::ER);
-      Builder::Inc(C);
-    }
-
-    this->addCMPI(C);
-  }
-};
-
 } // namespace INTERNAL_NS
-
-template <class StrmT>
-void DynBuiltinSchema<StrmT>::Builder::CalculateLog(SEventCode* EC) {
-  exi_invariant(EC);
-  exi_assert(EC->Length <= 3 && EC->Length >= 0);
-
-  auto& Length = EC->Length;
-  if (Length == 0)
-    return;
-  
-  auto& Data = EC->Data;
-  // If we have `[x.y.0]`, make it `[x.y].0`.
-  if (Length == 3 && !Data[2]) {
-    Length -= 1;
-  }
-
-  // If we have `[x.0.z]`, make it `[x.z].0`.
-  if (Length >= 2 && !Data[1]) {
-    Data[1] = Data[2];
-    Data[2] = 0;
-    Length -= 1;
-  }
-
-  // We can't remove the first level event code, as it's possible grammars will
-  // extend the base values. This would lead to inaccuracies.
-
-  // Calculate log for all elements.
-  for (int Ix = 0; Ix < 3; ++Ix)
-    EC->Bits[Ix] = SmallLog2[Data[Ix]];
-}
 
 // TODO: Add SchemaFactory...
 template <class StrmT>
 Box<DynBuiltinSchema<StrmT>>
     DynBuiltinSchema<StrmT>::New(const ExiOptions& Opts) {
   using Trailing = DynBuiltinSchema::BaseT;
-  auto B = Builder::New(Opts);
+  auto B = BIBuilder::New(Opts);
   void* Raw = Trailing::New(B.Terms.size());
   auto* Schema = new (Raw) DynBuiltinSchema(B.Terms);
 
