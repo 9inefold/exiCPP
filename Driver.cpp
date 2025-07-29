@@ -43,16 +43,21 @@
 #include <exi/Basic/StringTables.hpp>
 #include <exi/Basic/XMLManager.hpp>
 #include <exi/Basic/XMLContainer.hpp>
+#include <exi/Stream/OrderedReader.hpp>
+
+#include <exi/Encode/BodyEncoder.hpp>
 #include <exi/Encode/NamespaceContextStack.hpp>
+#include <exi/Encode/XMLSerializer.hpp>
+
 #include <exi/Decode/BodyDecoder.hpp>
 #include <exi/Decode/XMLDeserializer.hpp>
-#include <exi/Stream/OrderedReader.hpp>
 
 #include <algorithm>
 #include <rapidxml.hpp>
 
 #define DEBUG_TYPE "__DRIVER__"
 #define TEST_LARGE_EXAMPLES 1
+#define STRESS_TEST_DECODING 0
 
 using namespace exi;
 
@@ -172,8 +177,7 @@ static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
     return 1;
   }
 
-  if (hasDbgLogLevel(INFO))
-    dbgs() << '\n';
+  INFO_ONLY(dbgs() << '\n');
   return 0;
 }
 
@@ -190,8 +194,7 @@ static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB, Deserializer* S) {
     return 1;
   }
 
-  if (hasDbgLogLevel(INFO))
-    dbgs() << '\n';
+  INFO_ONLY(dbgs() << '\n');
   return 0;
 }
 
@@ -252,12 +255,17 @@ int main(int Argc, char* Argv[]) {
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
 
-#if 1
+#if STRESS_TEST_DECODING
+
   if (int Ret = TestSchemalessDecoding(Mgr)) {
     WithColor OS(outs(), BRIGHT_RED);
     OS << "Decoding failed.\n";
     return Ret;
   }
+
+  WithColor OS(outs(), BRIGHT_GREEN);
+  OS << "Decoding successful!\n";
+
 #else
 
   // Add https://www.w3.org/TR/xmlschema-0/#ipo.xsd
@@ -270,33 +278,73 @@ int main(int Argc, char* Argv[]) {
     .SchemaID = Some(nullptr)
   };
   root::DumpOptions DO {.Conforming = true};
-  root::FullXMLDump(*Mgr, "examples/Namespace.xml", DO);
-  {
+
+  MemoryBufferRef DecodeBuf;
+  SmallVec<char, 0> EncodeBuf;
+
+  /*Decoding*/ {
     const StrRef File = "examples/NamespaceNooptB.exi";
+    LOG_INFO("Decoding: \"{}\"", File);
 
     XMLContainerRef Exi
       = Mgr->getOptXMLRef(File, errs())
         .expect("could not locate file!");
     auto MB = Exi.getBufferRef();
+    DecodeBuf = MB;
 
-    LOG_INFO("Decoding: \"{}\"", File);
-    ExiDecoder Decoder(Opts, errs());
+    ExiDecoder Decoder(Opts);
     XMLDeserializer S;
 
     if (int Ret = Decode(Decoder, MB, &S)) {
-      WithColor OS(outs(), BRIGHT_RED);
-      OS << "Decoding failed.\n";
+      WithColor(errs(), BRIGHT_RED)
+        << "Decoding failed.\n";
       return Ret;
     }
 
-    outs() << "'" << File << "':\n";
-    root::FullXMLDump(S.document(), DO);
+    WithColor(errs(), BRIGHT_GREEN)
+      << "Decoding successful!\n\n";
+  } /*Encoding*/ {
+    const StrRef File = "examples/Namespace.xml";
+    LOG_INFO("Encoding: \"{}\"", File);
+
+    auto& Xml
+      = Mgr->getOptXMLDocument(File, errs())
+        .expect("could not locate file!");
+    
+    Result EncoderOrErr = ExiEncoder::New(Opts);
+    if (!EncoderOrErr) {
+      errs() << EncoderOrErr.error() << '\n';
+      WithColor(errs(), BRIGHT_RED)
+        << "Encoding failed.\n";
+      return 1;
+    }
+
+    ExiEncoder Encoder = std::move(*EncoderOrErr);
+    XMLSerializer S(&Xml);
+
+    LOG_INFO("Compiling header...");
+    Result Factory = Encoder.setup(false);
+    if (!Factory) {
+      errs() << Factory.error() << '\n';
+      WithColor(errs(), BRIGHT_RED)
+        << "Encoding failed.\n";
+      return 1;
+    }
+
+    LOG_INFO("Encoding body...");
+    if (auto E = Factory->encode(&S, EncodeBuf)) {
+      errs() << E << '\n';
+      WithColor(errs(), BRIGHT_RED)
+        << "Encoding failed.\n";
+      return 1;
+    }
+
+    INFO_ONLY(dbgs() << '\n');
+    WithColor(errs(), BRIGHT_GREEN)
+      << "Encoding successful!\n\n";
   }
 
 #endif
-  
-  WithColor OS(outs(), BRIGHT_GREEN);
-  OS << "Decoding successful!\n";
 }
 
 #define DECODE_GENERIC(FUNCTION, FILE, ...) do {                              \
