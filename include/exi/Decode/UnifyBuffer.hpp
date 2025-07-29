@@ -33,30 +33,38 @@ namespace exi {
 /// for buffer-like types (ArrayRef, StrRef, MemoryBufferRef, etc.), you can
 /// accept this, and it will unify them.
 class UnifiedBuffer {
-	ArrayRef<u8> Data;
-	StrRef Name = "Unknown buffer";
+  ArrayRef<u8> Data;
+  StrRef Name = "Unknown buffer";
 
 public:
-	UnifiedBuffer() = default;
+  UnifiedBuffer() = default;
   UnifiedBuffer(ArrayRef<u8> Buffer) : Data(Buffer) {}
   UnifiedBuffer(StrRef Buffer) : Data(arrayRefFromStringRef(Buffer)) {}
   UnifiedBuffer(MemoryBufferRef MB) :
-	 Data(arrayRefFromStringRef(MB.getBuffer())),
-	 Name(MB.getBufferIdentifier()) {
-	}
+   Data(arrayRefFromStringRef(MB.getBuffer())),
+   Name(MB.getBufferIdentifier()) {
+  }
+  template <H::is_char_kind Ch>
+  UnifiedBuffer(SmallVecTemplateCommon<Ch>& Vec)
+   : Data(reinterpret_cast<u8*>(Vec.data()), Vec.size()) {
+  }
+  template <H::is_char_kind Ch>
+  UnifiedBuffer(const SmallVecTemplateCommon<Ch>& Vec)
+   : Data(reinterpret_cast<const u8*>(Vec.data()), Vec.size()) {
+  }
 
-	/// Gets buffer as an `ArrayRef`.
-	ArrayRef<u8> arr() const { return Data; }
-	/// Gets buffer as a `StrRef`.
-	StrRef str() const { return toStringRef(Data); }
-	/// Gets buffer as a `MemoryBufferRef`.
-	MemoryBufferRef buf() const {
-		return MemoryBufferRef(toStringRef(Data), Name);
-	}
+  /// Gets buffer as an `ArrayRef`.
+  ArrayRef<u8> arr() const { return Data; }
+  /// Gets buffer as a `StrRef`.
+  StrRef str() const { return toStringRef(Data); }
+  /// Gets buffer as a `MemoryBufferRef`.
+  MemoryBufferRef buf() const {
+    return MemoryBufferRef(toStringRef(Data), Name);
+  }
 
-	operator ArrayRef<u8>() const { return this->arr(); }
-	explicit operator StrRef() const { return this->str(); }
-	explicit operator MemoryBufferRef() const { return this->buf(); }
+  operator ArrayRef<u8>() const { return this->arr(); }
+  explicit operator StrRef() const { return this->str(); }
+  explicit operator MemoryBufferRef() const { return this->buf(); }
 };
 
 } // namespace exi
