@@ -21,6 +21,7 @@ This is a TODO list for the C++ version of exiCPP.
 - `encode::StringTable`
 - Produce event codes - set up `ExiEncoder`
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense
+- Update `ABIBreak.*` for next version
 - Prepare for doxygen support
 - Update rapidxml: change allocator?
 - Fix copying between streams, currently super wonky

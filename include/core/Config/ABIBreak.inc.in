@@ -31,6 +31,7 @@
 # pragma detect_mismatch("EXI_INVARIANTS", EXI_STR(EXI_INVARIANTS))
 # pragma detect_mismatch("EXI_USE_MIMALLOC", EXI_STR(EXI_USE_MIMALLOC))
 # pragma detect_mismatch("EXI_USE_THREADS", EXI_STR(EXI_USE_THREADS))
+# pragma detect_mismatch("EXI_ENABLE_UNSTABLE_FEATURES", EXI_STR(EXI_ENABLE_UNSTABLE_FEATURES))
 # undef EXI_STR
 # undef EXI_STR_
 #else
@@ -75,6 +76,16 @@ extern char threadingDisabled;
 EXI_HIDDEN EXI_WEAK
   char* VerifyThreadingOnLink = &threadingDisabled;
 # endif // EXI_USE_THREADS
+// Check if unstable features enabled
+#if EXI_ENABLE_UNSTABLE_FEATURES
+extern char unstableFeaturesEnabled;
+EXI_HIDDEN EXI_WEAK
+  char* VerifyUnstableFeaturesOnLink = &unstableFeaturesEnabled;
+#else
+extern char unstableFeaturesDisabled;
+EXI_HIDDEN EXI_WEAK
+  char* VerifyUnstableFeaturesOnLink = &unstableFeaturesDisabled;
+#endif // EXI_ENABLE_UNSTABLE_FEATURES
 } // namespace exi::abi_detail
 # undef EXI_WEAK
 # undef EXI_HIDDEN

@@ -136,9 +136,6 @@
 # define EXI_STATIC_ASSERT_FALSE 0
 #endif
 
-// TODO: Move into config, add to schema handler for next release
-#define EXI_ENABLE_UNSTABLE_FEATURES 1
-
 // Checks adapted from v8config.h
 #if (defined(_M_X64) || defined(__x86_64__)                                   \
      || ((defined(__AARCH64EL__) || defined(_M_ARM64))                        \

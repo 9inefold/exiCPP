@@ -38,4 +38,10 @@ char threadingEnabled;
 #else
 char threadingDisabled;
 #endif // EXI_USE_MIMALLOC
+
+#if EXI_ENABLE_UNSTABLE_FEATURES
+char unstableFeaturesEnabled;
+#else
+char unstableFeaturesDisabled;
+#endif // EXI_ENABLE_UNSTABLE_FEATURES
 } // namespace exi::abi_detail
