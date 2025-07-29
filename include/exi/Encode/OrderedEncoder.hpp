@@ -54,6 +54,8 @@ public:
     return BE->get_kind() == EncoderKind::EK_Ordered;
   }
 
+  /// Returns an error if the writer isn't empty.
+  ExiError assumeWriterIsEmpty() const;
   /// Generic interface for initializing the OrderedWriter.
   ExiError init(raw_ostream& Strm);
   /// Generic interface for initializing the OrderedWriter.
@@ -61,6 +63,8 @@ public:
 
   /// Writes the header to the provided stream.
   ExiError encodeHeader(BitBuffer Data) override {
+    if (auto E = this->assumeWriterIsEmpty())
+      return E;
     Writer->writeBitBuffer(Data);
     return ExiError::OK;
   }

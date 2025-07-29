@@ -37,6 +37,7 @@
 #include <core/Common/Ref.hpp>
 #include <core/Support/Casting.hpp>
 #include <core/Support/Logging.hpp>
+#include <exi/Basic/BitBuffer.hpp>
 #include <exi/Basic/Runes.hpp>
 #include <exi/Stream/Writer.hpp>
 #if EXI_LOGGING
@@ -240,7 +241,12 @@ public:
 
   /// Writes a `BitBuffer`.
   void writeBitBuffer(BitBuffer Val) {
-    exi_todo("implement writeBitBuffer");
+    if EXI_NEVER(size() != 0 || BitsInStore != 0)
+      exi_todo("writeBitBuffer for non-empty writers");
+    auto Full = Val.full();
+    Buffer.append(Full.begin(), Full.end());
+    if (!Val.aligned())
+      writeNBits(Val.partial(), Val.bits());
   }
 
 protected:

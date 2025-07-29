@@ -120,7 +120,12 @@ class BitBuffer : public BitBufferTemplate<BitBuffer, ArrayRef<u8>> {
 public:
   using BitBufferTemplate::BitBufferTemplate;
   inline BitBuffer(const OwningBitBuffer& Buf);
+  /// Returns the entire buffer.
   buffer_t arr() const { return BitBufferTemplate::Data; }
+  /// Returns the slice of the buffer with fully written bytes. 
+  buffer_t full() const { return arr().take_front(Offset); }
+  /// Returns the partially written byte (or zero).
+  u8 partial() const { return this->aligned() ? 0 : arr()[Offset]; }
 };
 
 /// A readable owning buffer with bit-level positioning.
@@ -131,7 +136,12 @@ class OwningBitBuffer
   using buffer_t = OwningArrayRef<u8>;
 public:
   using BitBufferTemplate::BitBufferTemplate;
+  /// Returns the entire buffer.
   ArrayRef<u8> arr() const { return BitBufferTemplate::Data; }
+  /// Returns the slice of the buffer with fully written bytes.
+  ArrayRef<u8> full() const { return arr().take_front(Offset); }
+  /// Returns the partially written byte (or zero).
+  u8 partial() const { return this->aligned() ? 0 : arr()[Offset]; }
 };
 
 BitBuffer::BitBuffer(const OwningBitBuffer& Buf) : 

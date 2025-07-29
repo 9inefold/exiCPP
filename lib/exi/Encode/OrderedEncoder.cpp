@@ -51,6 +51,14 @@ OrderedEncoder::OrderedEncoder(ExiOptions& Opts, encode::Schema* S)
   AssertIsOrdered(Opts);
 }
 
+ExiError OrderedEncoder::assumeWriterIsEmpty() const {
+  if (Writer->size() != 0 || Writer->bitsInStore() != 0) {
+    LOG_ERROR("Invalid processor state!");
+    return ErrorCode::kInvalidConfig;
+  }
+  return ExiError::OK;
+}
+
 #if 0
 ExiError OrderedEncoder::init(raw_ostream& Strm, u32 FlushThreshold) {
   if (Writer.has_value()) {
