@@ -41,7 +41,7 @@ class Schema : public RTTIExtends<Schema, RTTIRoot> {
 public:
   /// Gets the terminal symbol at the current position.
   // FIXME: Add the actual functions.
-  [[nodiscard]] virtual EventUID encode(ExiEncoder* D) = 0;
+  virtual void encode(ExiEncoder* D, EventUID Event) = 0;
   virtual void dump() const {}
 private:
   EXI_RTTI_EXTENDS(Schema, RTTIRoot);
@@ -56,20 +56,20 @@ public:
   [[nodiscard]] static Box<BuiltinSchema> New(const ExiOptions& Opts);
 private:
   EXI_RTTI_EXTENDS(BuiltinSchema, Schema);
-  virtual void anchor();
+  void anchor() override;
 };
 
 /// A schema which was compiled at runtime.
 class DynamicSchema : public RTTIExtends<DynamicSchema, Schema> {
   EXI_RTTI_EXTENDS(DynamicSchema, Schema);
   // TODO: Add Grammar.
-  virtual void anchor();
+  void anchor() override;
 };
 
 /// A precompiled schema.
 class CompiledSchema : public RTTIExtends<CompiledSchema, Schema> {
   EXI_RTTI_EXTENDS(CompiledSchema, Schema);
-  virtual void anchor();
+  void anchor() override;
 };
 
 } // namespace encode

@@ -58,20 +58,20 @@ public:
   [[nodiscard]] static Box<BuiltinSchema> New(const ExiOptions& Opts);
 private:
   EXI_RTTI_EXTENDS(BuiltinSchema, Schema);
-  virtual void anchor();
+  void anchor() override;
 };
 
 /// A schema which was compiled at runtime.
 class DynamicSchema : public RTTIExtends<DynamicSchema, Schema> {
   EXI_RTTI_EXTENDS(DynamicSchema, Schema);
   // TODO: Add Grammar.
-  virtual void anchor();
+  void anchor() override;
 };
 
 /// A precompiled schema.
 class CompiledSchema : public RTTIExtends<CompiledSchema, Schema> {
   EXI_RTTI_EXTENDS(CompiledSchema, Schema);
-  virtual void anchor();
+  void anchor() override;
 };
 
 } // namespace decode
