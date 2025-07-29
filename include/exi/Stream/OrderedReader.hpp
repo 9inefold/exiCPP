@@ -331,7 +331,7 @@ private:
 
     // Put this out of line to maybe prevent some spills?
     // TODO: Check codegen for spills!!
-    return this->failUInt<Bytes>();
+    tail_return this->failUInt<Bytes>();
   }
 
   ////////////////////////////////////////////////////////////////////////
@@ -378,7 +378,7 @@ private:
   // Failure
 
   template <size_type Bytes = 8>
-  EXI_SLOW_PATH ExiResult<u64> failUInt() {
+  EXI_COLD ExiResult<u64> failUInt() {
     // TODO: Add NO_INLINE?
     LOG_WARN("uint exceeded {} octets.\n", Bytes);
     return Err(ErrorCode::kInvalidEXIInput);
