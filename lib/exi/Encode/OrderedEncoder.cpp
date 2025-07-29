@@ -46,9 +46,10 @@ EXI_INLINE static void AssertIsOrdered(const ExiOptions& Opts) {
 #endif
 }
 
-OrderedEncoder::OrderedEncoder(ExiOptions& Opts, encode::Schema* S)
+OrderedEncoder::OrderedEncoder(ExiOptions& Opts, encode::Schema* S, ExiError*)
  : BodyEncoder(Opts, EncoderKind::EK_Ordered), CurrentSchema(S) {
   AssertIsOrdered(Opts);
+  Strings.setup(Opts);
 }
 
 ExiError OrderedEncoder::assumeWriterIsEmpty() const {

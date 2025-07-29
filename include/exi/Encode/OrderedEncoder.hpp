@@ -39,19 +39,18 @@ class OrderedEncoder final : public BodyEncoder {
   /// A BumpPtrAllocator for processor internals.
   exi::BumpPtrAllocator BP;
   /// The table holding decoded string values (QNames, LocalNames, etc.)
-  encode::StringTable Idents;
+  encode::StringTable Strings;
   /// The schema for the current document.
   encode::Schema* CurrentSchema = nullptr;
 
 public:
-  OrderedEncoder(ExiOptions& Opts, encode::Schema* CS);
+  OrderedEncoder(ExiOptions& Opts, encode::Schema* CS, ExiError* E = nullptr);
   /// Initializes the writer with a stream/buffer.
   template <typename InitT>
-  OrderedEncoder(ExiOptions& Opts, encode::Schema* CS, InitT& I)
-   : OrderedEncoder(Opts, CS) { this->init(I); }
-
-  static bool classof(const BodyEncoder* BE) {
-    return BE->get_kind() == EncoderKind::EK_Ordered;
+  OrderedEncoder(ExiOptions& Opts, encode::Schema* CS,
+    InitT& I, ExiError* E = nullptr)
+   : OrderedEncoder(Opts, CS, E) {
+    this->init(I); // FIXME: Propagate ctor error.
   }
 
   /// Returns an error if the writer isn't empty.
@@ -67,6 +66,10 @@ public:
       return E;
     Writer->writeBitBuffer(Data);
     return ExiError::OK;
+  }
+
+  static bool classof(const BodyEncoder* BE) {
+    return BE->get_kind() == EncoderKind::EK_Ordered;
   }
 
 private:
