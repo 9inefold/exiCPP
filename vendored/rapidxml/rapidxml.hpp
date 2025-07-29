@@ -1,3 +1,29 @@
+//===- rapidxml.hpp -------------------------------------------------===//
+//
+// MODIFIED FOR THE PURPOSES OF THE EXICPP LIBRARY.
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------===//
+//
+// Copyright (C) 2024-2025 Eightfold
+//
+// Relicensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+//     limitations under the License.
+//
+//===----------------------------------------------------------------===//
+
 #pragma once
 
 #ifndef RAPIDXML_HPP_INCLUDED
@@ -9,9 +35,9 @@
 //! \file rapidxml.hpp This file contains xml parser and DOM implementation
 
 #include <Common/Fundamental.hpp>
+#include <Common/MaybeBox.hpp>
 #include <Common/Option.hpp>
 #include <Common/StrRef.hpp>
-#include <Common/PointerIntPair.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <atomic>
 #include <string>
@@ -486,26 +512,28 @@ ALWAYS_INLINE IdentifierKind fast_string_check(const Ch* S, unsigned N) {
 template <class Ch = char> class MemoryPool {
   RAPIDXML_ALIASES(Ch)
   using TraitsT = std::char_traits<Ch>;
-  // TODO: Make this less sucky
-  exi::PointerIntPair<XMLBumpAllocator*, 1, bool> AllocBase;
+  using AllocT  = exi::MaybeBox<XMLBumpAllocator>;
+  
+  /// The bump allocator for the current document.
+  AllocT AllocBase;
+  /// Either makes a new allocator, or returns the input.
+  static AllocT GetAllocatorForCtor(exi::Option<XMLBumpAllocator&> A) {
+    if (A.has_value())
+      return AllocT(&*A, false);
+    return AllocT(new XMLBumpAllocator, true);
+  }
+
 public:
   //! Constructs empty pool.
   MemoryPool() : AllocBase(new XMLBumpAllocator, true) {}
   //! Constructs pool from input allocator.
-  explicit MemoryPool(exi::Option<XMLBumpAllocator&> A) : AllocBase() {
-    const bool ShouldOwn = !A.has_value();
-    XMLBumpAllocator* Ptr = ShouldOwn ? new XMLBumpAllocator : &*A;
-    AllocBase.setPointerAndInt(Ptr, ShouldOwn);
-  }
+  explicit MemoryPool(exi::Option<XMLBumpAllocator&> A)
+      : AllocBase(GetAllocatorForCtor(A)) {}
 
   //! Destroys pool and frees all the memory.
   //! This causes memory occupied by nodes allocated by the pool to be freed.
   //! Nodes allocated from the pool are no longer valid.
-  ~MemoryPool() {
-    this->clear();
-    if (owns_allocator())
-      delete AllocBase.getPointer();
-  }
+  ~MemoryPool() { this->clear(); }
 
   //! Allocates a new attribute from the pool, and optionally assigns name and
   //! value to it. If the allocation request cannot be accomodated, this
@@ -634,7 +662,7 @@ public:
 
   //! Checks if the pool owns the data.
   bool owns_allocator() const {
-    return AllocBase.getInt();
+    return AllocBase.owned();
   }
 
   //! Clears the pool.
@@ -654,9 +682,7 @@ private:
   }
 
   XMLBumpAllocator& Alloc() {
-    auto* const AllocPtr = AllocBase.getPointer();
-    exi_invariant(AllocPtr != nullptr);
-    return *AllocPtr;
+    return *AllocBase;
   }
 
   char* allocRaw(usize Size) {

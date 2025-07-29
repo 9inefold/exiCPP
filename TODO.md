@@ -15,6 +15,8 @@ This is a TODO list for the C++ version of exiCPP.
 - Refactor reader streams
 - Fully tested `ByteStream*` implementation
 - `DenseMap` and friends
+- Add more info to rapidxml nodes
+- Update rapidxml allocator
 
 ## In Progress
 
@@ -23,11 +25,10 @@ This is a TODO list for the C++ version of exiCPP.
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense
 - Update `ABIBreak.*` for next version
 - Prepare for doxygen support
-- Update rapidxml: change allocator?
+- Update rapidxml
 - Fix copying between streams, currently super wonky
 - `ErrorCode` customization
 - Implement `Throw<Ex>(...)`, handle some exceptional cases...
-- Add more info to rapidxml nodes?
 - Remove tabs added with broken vscode
 - Remove EXIP, merge `NewLib`
 
