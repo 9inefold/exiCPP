@@ -29,6 +29,9 @@
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/Except.hpp>
+//#include <exi/Encode/ChannelEncoder.hpp>
+#include <exi/Encode/OrderedEncoder.hpp>
+#include <exi/Encode/Serializer.hpp>
 
 #define DEBUG_TYPE "ExiEncoder"
 
@@ -84,6 +87,98 @@ ExiError ExiEncoder::setOptions(MaybeBox<ExiOptions>&& Opts) {
   Header.Opts = std::move(Opts);
   Flags.ValidHeader = true;
   return ExiError::OK;
+}
+
+ExiResult<ExiEncoder::EncoderFactory>
+ ExiEncoder::setup(Option<bool> IncludeOptions) {
+  if (!PCH) {
+    if (!IncludeOptions) {
+      LOG_ERROR("Header was uncompiled but no options were provided!");
+      return Err(ErrorCode::kInvalidConfig);
+    }
+    // Try compiling the header.
+    if (auto E = compileHeader(*IncludeOptions))
+      return Err(E);
+  }
+  // Set up schema.
+  if (auto E = this->init())
+    return Err(E);
+  return EncoderFactory(this);
+}
+
+ExiError ExiEncoder::init() {
+  if (Flags.DidInit)
+    return ExiError::OK;
+
+  auto& Opts = *Header.Opts;
+  if (!Opts.SchemaID.expect("schema is required"))
+    CurrentSchema = BuiltinSchema::New(Opts);
+  else
+    exi_todo("schemas are currently unsupported");
+  
+  if (!CurrentSchema) {
+    LOG_ERROR("Schema could not be allocated.");
+    return ErrorCode::kInvalidMemoryAlloc;
+  }
+
+  if (hasDbgLogLevel(INFO))
+    CurrentSchema->dump();
+
+  LOG_EXTRA("Initialized!");
+  return ExiError::OK;
+}
+
+template <class Encoder>
+static ExiResult<Box<BodyEncoder>>
+ MakeEncoder(ExiOptions& Opts, encode::Schema* CS, auto& I) {
+  ExiError E = ExiError::OK;
+  Box<Encoder> BE = std::make_unique<Encoder>(Opts, CS, &E);
+  if (E)
+    return Err(E);
+  if (!BE)
+    return Err(ErrorCode::kInvalidMemoryAlloc);
+  if (auto E = BE->init(I))
+    return Err(E);
+  return BE;
+}
+
+ExiError ExiEncoder::EncoderFactory::encode(Serializer* S, raw_ostream& Strm) {
+  auto& Opts = *This->Header.Opts;
+  if (MMatch(Opts.Alignment).isnt(AlignKind::BitPacked,
+                                  AlignKind::BytePacked)) {
+    LOG_ERROR("channel streams are unsupported.");
+    return ExiError::TODO;
+  }
+  ExiResult<Box<BodyEncoder>> BEOrErr
+    = MakeEncoder<OrderedEncoder>(
+      Opts, &*This->CurrentSchema, Strm);
+  if (BEOrErr.is_err())
+    return BEOrErr.error();
+  TheEncoder = std::move(*BEOrErr);
+  return this->go(S);
+}
+
+ExiError ExiEncoder::EncoderFactory::encode(Serializer* S,
+                                            SmallVecImpl<char>& Buf) {
+  auto& Opts = *This->Header.Opts;
+  if (MMatch(Opts.Alignment).isnt(AlignKind::BitPacked,
+                                  AlignKind::BytePacked)) {
+    LOG_ERROR("channel streams are unsupported.");
+    return ExiError::TODO;
+  }
+  ExiResult<Box<BodyEncoder>> BEOrErr
+    = MakeEncoder<OrderedEncoder>(
+      Opts, &*This->CurrentSchema, Buf);
+  if (BEOrErr.is_err())
+    return BEOrErr.error();
+  TheEncoder = std::move(*BEOrErr);
+  return this->go(S);
+}
+
+ExiError ExiEncoder::EncoderFactory::go(Serializer* S) const {
+  if (!TheEncoder)
+    return ErrorCode::kInvalidConfig;
+  return S->run(&*TheEncoder);
 }
 
 #undef DEBUG_TYPE

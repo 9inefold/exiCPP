@@ -41,6 +41,8 @@ class ChannelEncoder;
 // ExiEncoder
 //===----------------------------------------------------------------===//
 
+class Serializer;
+
 struct EncoderFlags {
   /// If the header options were validated.
   bool ValidHeader : 1 = false;
@@ -57,8 +59,6 @@ class ExiEncoder {
   ExiHeader Header = {};
   /// The schema for the current encoder.
   Box<encode::Schema> CurrentSchema = nullptr;
-  /// The encoder, the type of which is determined by the header.
-  Box<BodyEncoder> TheEncoder = nullptr;
   /// A buffer containing the precompiled options.
   Option<OwningBitBuffer> PCH = std::nullopt;
   /// State of the decoder in terms of progression.
@@ -84,6 +84,20 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Initialization
 
+  class EncoderFactory {
+    ExiEncoder* This;
+    /// The encoder, the type of which is determined by the header.
+    Box<BodyEncoder> TheEncoder = nullptr;
+  public:
+    EncoderFactory(ExiEncoder* This) : This(This) {}
+    /// Generates the encoder and runs.
+    ExiError encode(Serializer* S, raw_ostream& Strm) EXI_NONNULL(2);
+    /// Generates the encoder and runs.
+    ExiError encode(Serializer* S, SmallVecImpl<char>& Buf) EXI_NONNULL(2);
+  private:
+    ExiError go(Serializer* S) const;
+  };
+
   /// Creates a new `ExiEncoder` if options are valid.
   static ExiResult<ExiEncoder> New(MaybeBox<ExiOptions>&& Opts);
   /// Sets options for encoding.
@@ -92,6 +106,13 @@ public:
   /// Defined in `HeaderEncoder.cpp`.
   /// @param IncludeOptions If options should be encoded as well.
   ExiError compileHeader(bool IncludeOptions);
+  /// Creates the `EncoderFactory` for the current setup.
+  ExiResult<EncoderFactory> setup(
+    Option<bool> IncludeOptions = std::nullopt);
+
+private:
+  /// Initializes Schema.
+  ExiError init();
 };
 
 //===----------------------------------------------------------------===//
