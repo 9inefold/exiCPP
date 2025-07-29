@@ -43,10 +43,10 @@ template <typename T> class ArrayRef;
 #if 0
 template <typename T, usize N>
 struct Array {
-	static constexpr usize Length = N; 
-	T Data[Length];
+  static constexpr usize Length = N; 
+  T Data[Length];
 public:
-	using value_type = T;
+  using value_type = T;
   using pointer = value_type*;
   using const_pointer = const value_type*;
   using reference = value_type&;
@@ -58,69 +58,69 @@ public:
   using size_type = usize;
   using difference_type = ptrdiff_t;
 
-	/// size - Get the array size.
+  /// size - Get the array size.
   static constexpr usize size() { return Length; }
-	/// size - Get the array size.
+  /// size - Get the array size.
   static constexpr bool empty() { return false; }
 
-	constexpr bool operator==(const Array&) const = default;
+  constexpr bool operator==(const Array&) const = default;
 
-	template <usize N>
-	constexpr bool operator==(const Array<T, N>&) const {
-		return false;
-	}
+  template <usize N>
+  constexpr bool operator==(const Array<T, N>&) const {
+    return false;
+  }
 
-	/// equals - Check for element-wise equality.
-	constexpr bool equals(const Array& RHS) const {
-		return this->operator==(RHS);
-	}
+  /// equals - Check for element-wise equality.
+  constexpr bool equals(const Array& RHS) const {
+    return this->operator==(RHS);
+  }
 
-	/// equals - Check for element-wise equality.
-	template <usize N>
-	constexpr bool equals(const Array<T, N>& RHS) const {
-		return false;
-	}
+  /// equals - Check for element-wise equality.
+  template <usize N>
+  constexpr bool equals(const Array<T, N>& RHS) const {
+    return false;
+  }
 
-	////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////
 
-	constexpr T* data() { return Data; }
-	constexpr const T* data() const { return Data; }
+  constexpr T* data() { return Data; }
+  constexpr const T* data() const { return Data; }
 
-	/// front - Get the first element.
+  /// front - Get the first element.
   constexpr T& front() { return Data[0]; }
   /// front - Get the first element.
   constexpr const T& front() const { return Data[0]; }
 
-	/// back - Get the last element.
+  /// back - Get the last element.
   constexpr T& back() { return Data[Length - 1]; }
   /// back - Get the last element.
   constexpr const T& back() const { return Data[Length - 1]; }
 
-	////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////
 
-	constexpr iterator begin() { return Data; }
+  constexpr iterator begin() { return Data; }
   constexpr iterator end() { return Data + N; }
 
-	constexpr const_iterator begin() const { return Data; }
+  constexpr const_iterator begin() const { return Data; }
   constexpr const_iterator end() const { return Data + N; }
 
-	reverse_iterator rbegin() { return reverse_iterator(end()); }
+  reverse_iterator rbegin() { return reverse_iterator(end()); }
   reverse_iterator rend() { return reverse_iterator(begin()); }
 
   const_reverse_iterator rbegin() const {
-		return const_reverse_iterator(end());
-	}
+    return const_reverse_iterator(end());
+  }
   const_reverse_iterator rend() const {
-		return const_reverse_iterator(begin());
-	}
+    return const_reverse_iterator(begin());
+  }
 
-	////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////
 
-	constexpr T& operator[](usize Ix) {
+  constexpr T& operator[](usize Ix) {
     exi_assert(Ix < Length, "Invalid index!");
     return Data[Ix];
   }
-	constexpr const T& operator[](usize Ix) const {
+  constexpr const T& operator[](usize Ix) const {
     exi_assert(Ix < Length, "Invalid index!");
     return Data[Ix];
   }

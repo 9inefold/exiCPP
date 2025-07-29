@@ -46,19 +46,19 @@ namespace any_detail {
 
 template <typename T>
 concept enable_impl
-	= !std::same_as<T, Any>
-	// We also disable this overload when an `Any` object can be
-	// converted to the parameter type because in that case,
-	// this constructor may combine with that conversion during
-	// overload resolution for determining copy
-	// constructibility, and then when we try to determine copy
-	// constructibility below we may infinitely recurse. This is
-	// being evaluated by the standards committee as a potential
-	// DR in `std::any` as well, but we're going ahead and
-	// adopting it to work-around usage of `Any` with types that
-	// need to be implicitly convertible from an `Any`.
-	&& !std::is_convertible_v<Any, T>
-	&& std::is_copy_constructible_v<T>;
+  = !std::same_as<T, Any>
+  // We also disable this overload when an `Any` object can be
+  // converted to the parameter type because in that case,
+  // this constructor may combine with that conversion during
+  // overload resolution for determining copy
+  // constructibility, and then when we try to determine copy
+  // constructibility below we may infinitely recurse. This is
+  // being evaluated by the standards committee as a potential
+  // DR in `std::any` as well, but we're going ahead and
+  // adopting it to work-around usage of `Any` with types that
+  // need to be implicitly convertible from an `Any`.
+  && !std::is_convertible_v<Any, T>
+  && std::is_copy_constructible_v<T>;
 
 template <typename MaybeRef>
 concept enable = enable_impl<std::decay_t<MaybeRef>>;
@@ -108,9 +108,9 @@ public:
   // the forwarding constructor so that the copy constructor gets selected
   // instead.
   template <typename T>
-	requires any_detail::enable<T>
+  requires any_detail::enable<T>
   Any(T&& Value) {
-		using BoxedT = StorageImpl<std::decay_t<T>>;
+    using BoxedT = StorageImpl<std::decay_t<T>>;
     Storage = std::make_unique<BoxedT>(EXI_FWD(Value));
   }
 
@@ -133,7 +133,7 @@ public:
 private:
   // Only used for the internal exi::Any implementation
   template <typename T> bool isa() const {
-		using U = std::remove_cvref_t<T>;
+    using U = std::remove_cvref_t<T>;
     if (!Storage)
       return false;
     return Storage->id() == &Any::TypeId<U>::Id;
@@ -161,24 +161,24 @@ private:
 template <typename T> char Any::TypeId<T>::Id = 1;
 
 template <typename T> EXI_INLINE bool any_isa(const Any& Value) {
-	using BaseT = std::remove_cvref_t<T>;
-	return Value.isa<BaseT>();
+  using BaseT = std::remove_cvref_t<T>;
+  return Value.isa<BaseT>();
 }
 
 template <class T> T any_cast(const Any& Value) {
-	using U = std::remove_cvref_t<T>;
+  using U = std::remove_cvref_t<T>;
   exi_assert(any_isa<T>(Value) && "Bad any cast!");
   return static_cast<T>(*any_cast<U>(&Value));
 }
 
 template <class T> T any_cast(Any& Value) {
-	using U = std::remove_cvref_t<T>;
+  using U = std::remove_cvref_t<T>;
   exi_assert(any_isa<T>(Value), "Bad any cast!");
   return static_cast<T>(*any_cast<U>(&Value));
 }
 
 template <class T> T any_cast(Any&& Value) {
-	using U = std::remove_cvref_t<T>;
+  using U = std::remove_cvref_t<T>;
   exi_assert(any_isa<T>(Value), "Bad any cast!");
   return static_cast<T>(std::move(*any_cast<U>(&Value)));
 }

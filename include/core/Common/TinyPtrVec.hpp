@@ -239,7 +239,7 @@ public:
     }
 
     exi_invariant(Ix < cast<VecT*>(Data)->size(),
-									"tinyvector index out of range");
+                  "tinyvector index out of range");
     return (*cast<VecT*>(Data))[Ix];
   }
 

@@ -35,52 +35,52 @@ namespace exi {
 /// A pointer wrapper, useful when you want to assert a pointer is be valid
 /// on use. In release it works the same as a normal pointer.
 template <typename T> class Naked {
-	using StrongOrd = std::strong_ordering;
+  using StrongOrd = std::strong_ordering;
   // using WeakOrd = std::weak_ordering;
-	T* Data = nullptr;
+  T* Data = nullptr;
 public:
   ALWAYS_INLINE constexpr Naked() = default;
   ALWAYS_INLINE constexpr Naked(T* Ptr) : Data(Ptr) { }
 
   ALWAYS_INLINE constexpr Naked(const Naked&) = default;
   template <typename U>
-	constexpr Naked(const Naked<U>& O) : Data(O.data()) { }
+  constexpr Naked(const Naked<U>& O) : Data(O.data()) { }
 
   ALWAYS_INLINE constexpr Naked(Naked&&) = default;
   template <typename U>
-	constexpr Naked(Naked<U>&& O) : Data(O.data()) { }
+  constexpr Naked(Naked<U>&& O) : Data(O.data()) { }
 
-	constexpr Naked& operator=(T* Ptr) {
-		Data = Ptr;
-		return *this;
-	}
+  constexpr Naked& operator=(T* Ptr) {
+    Data = Ptr;
+    return *this;
+  }
 
-	constexpr Naked& operator=(const Naked&) = default;
+  constexpr Naked& operator=(const Naked&) = default;
   template <typename U>
-	constexpr Naked& operator=(const Naked<U>& O) {
-		Data = O.data();
-		return *this;
-	}
+  constexpr Naked& operator=(const Naked<U>& O) {
+    Data = O.data();
+    return *this;
+  }
 
   constexpr Naked& operator=(Naked&&) = default;
   template <typename U>
-	constexpr Naked& operator=(Naked<U>&& O) {
-		Data = O.data();
-		return *this;
-	}
+  constexpr Naked& operator=(Naked<U>&& O) {
+    Data = O.data();
+    return *this;
+  }
 
   ALWAYS_INLINE constexpr T* get() const { return Data; }
   ALWAYS_INLINE constexpr T* data() const { return Data; }
   ALWAYS_INLINE constexpr void clear() { Data = nullptr; }
 
   EXI_INLINE constexpr T& operator*() const {
-		exi_assert(Data);
-		return *Data;
-	}
+    exi_assert(Data);
+    return *Data;
+  }
   EXI_INLINE constexpr T* operator->() const {
-		exi_assert(Data);
-		return Data;
-	}
+    exi_assert(Data);
+    return Data;
+  }
 
   EXI_INLINE constexpr operator T*() { return Data; }
 
@@ -88,20 +88,20 @@ public:
   EXI_INLINE constexpr explicit operator bool() const { return !!Data; }
 
   constexpr void swap(Naked& O) {
-		std::swap(Data, O.Data);
-	}
+    std::swap(Data, O.Data);
+  }
 
-	constexpr bool operator==(const Naked&) const = default;
+  constexpr bool operator==(const Naked&) const = default;
   constexpr StrongOrd operator<=>(const Naked&) const = default;
 
-	template <typename U>
-	constexpr bool operator==(const Naked<U>& O) const {
-		return this->Data == O.data();
-	}
-	template <typename U>
+  template <typename U>
+  constexpr bool operator==(const Naked<U>& O) const {
+    return this->Data == O.data();
+  }
+  template <typename U>
   constexpr StrongOrd operator<=>(const Naked<U>& O) const {
-		return this->Data <=> O.data();
-	}
+    return this->Data <=> O.data();
+  }
 
   constexpr bool operator==(T* Ptr) const {
     return this->Data == Ptr;
@@ -114,7 +114,7 @@ public:
 template <typename T> Naked(T*) -> Naked<T>;
 
 template <typename T> struct PointerLikeTypeTraits<Naked<T>> {
-	using TraitsT = PointerLikeTypeTraits<T*>;
+  using TraitsT = PointerLikeTypeTraits<T*>;
 
   static inline void* getAsVoidPointer(const Naked<T>& Ptr) {
     return TraitsT::getAsVoidPointer(Ptr.data());
@@ -129,8 +129,8 @@ template <typename T> struct PointerLikeTypeTraits<Naked<T>> {
 
 template <typename T> struct DenseMapInfo<Naked<T>> {
   static inline Naked<T> getEmptyKey() {
-		return DenseMapInfo<T*>::getEmptyKey();
-	}
+    return DenseMapInfo<T*>::getEmptyKey();
+  }
 
   static inline Naked<T> getTombstoneKey() {
     return DenseMapInfo<T*>::getTombstoneKey();

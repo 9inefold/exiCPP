@@ -28,6 +28,7 @@ This is a TODO list for the C++ version of exiCPP.
 - `ErrorCode` customization
 - Implement `Throw<Ex>(...)`, handle some exceptional cases...
 - Add more info to rapidxml nodes?
+- Remove tabs added with broken vscode
 - Remove EXIP, merge `NewLib`
 
 ## Unfinished

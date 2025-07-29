@@ -107,19 +107,19 @@ using copy_cvref_t = copy_quals_t<To, From>;
 
 namespace H {
 template <typename T> struct SwapSign {
-	using type = T;
+  using type = T;
 };
 
 template <typename T>
 requires std::signed_integral<T>
 struct SwapSign<T> {
-	using type = std::make_unsigned_t<T>;
+  using type = std::make_unsigned_t<T>;
 };
 
 template <typename T>
 requires std::unsigned_integral<T>
 struct SwapSign<T> {
-	using type = std::make_signed_t<T>;
+  using type = std::make_signed_t<T>;
 };
 } // namespace H
 
