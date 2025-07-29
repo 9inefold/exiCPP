@@ -23,7 +23,7 @@ and a lack of support for essential options (like compression).
 And while I *could* go through the whole codebase and fix all these issues,
 I wanted to write a safer and more efficient version from the start.
 
-You can find the new TODO list [here](TODO.md).
+[You can find the new TODO list here](TODO.md).
 
 ## Improvements (Old)
 

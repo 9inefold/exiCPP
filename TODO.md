@@ -28,6 +28,7 @@ This is a TODO list for the C++ version of exiCPP.
 - `ErrorCode` customization
 - Implement `Throw<Ex>(...)`, handle some exceptional cases...
 - Add more info to rapidxml nodes?
+- Remove EXIP, merge `NewLib`
 
 ## Unfinished
 
@@ -44,6 +45,7 @@ This is a TODO list for the C++ version of exiCPP.
 - Real tests for `core`
 - `exi` example test suite
 - `Option<Unchecked<T>>` + `UncheckedOption`
+- Implement PrintOptions
 - Better `Chrono` and add `Duration`??
 
 ## Considerations
