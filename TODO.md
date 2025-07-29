@@ -23,6 +23,7 @@ This is a TODO list for the C++ version of exiCPP.
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense
 - Prepare for doxygen support
 - Update rapidxml: change allocator?
+- Fix copying between streams, currently super wonky
 - `ErrorCode` customization
 - Implement `Throw<Ex>(...)`, handle some exceptional cases...
 - Add more info to rapidxml nodes?
@@ -34,15 +35,14 @@ This is a TODO list for the C++ version of exiCPP.
 - Refactor `PagedVec`
 - Add some more major in-source TODOs here...
 - Add doxygen support
-- Fix copying between streams, currently super wonky
 - Implement storage/lookup of typed values
-- `source_location` with Clang support
-- Add permissive mode for things like relaxed versioning and validation order?
-- `Option<Unchecked<T>>` + `UncheckedOption`
 - `CrashRecoveryContext` and `cpptrace`
+- Add permissive mode for things like relaxed versioning and validation order?
+- `source_location` with Clang support
 - Schema parser
 - Real tests for `core`
 - `exi` example test suite
+- `Option<Unchecked<T>>` + `UncheckedOption`
 - Better `Chrono` and add `Duration`??
 
 ## Considerations
