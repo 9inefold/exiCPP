@@ -262,23 +262,22 @@ int main(int Argc, char* Argv[]) {
 
   // Add https://www.w3.org/TR/xmlschema-0/#ipo.xsd
 
+  using enum exi::PreserveKind;
+  const auto Preserve = exi::make_preserve_opts(All & ~LexicalValues);
+  ExiOptions Opts {
+    .Alignment = AlignKind::BytePacked,
+    .Preserve = Preserve,
+    .SchemaID = Some(nullptr)
+  };
   root::DumpOptions DO {.Conforming = true};
   root::FullXMLDump(*Mgr, "examples/Namespace.xml", DO);
   {
-    using enum exi::PreserveKind;
     const StrRef File = "examples/NamespaceNooptB.exi";
 
     XMLContainerRef Exi
       = Mgr->getOptXMLRef(File, errs())
         .expect("could not locate file!");
     auto MB = Exi.getBufferRef();
-
-    const auto Preserve = exi::make_preserve_opts(All & ~LexicalValues);
-    ExiOptions Opts {
-      .Alignment = AlignKind::BytePacked,
-      .Preserve = Preserve
-    };
-    Opts.SchemaID.emplace(nullptr);
 
     LOG_INFO("Decoding: \"{}\"", File);
     ExiDecoder Decoder(Opts, errs());
@@ -327,7 +326,8 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
    (StrRef HiddenFile, ExiOptions::PreserveOpts Preserve = {}) {
     return DecodeFile(HiddenFile, {
       .Alignment = AlignKind::BitPacked,
-      .Preserve = Preserve
+      .Preserve = Preserve,
+      .SchemaID = Some(nullptr)
     });
   };
 
@@ -335,7 +335,8 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
    (StrRef HiddenFile, ExiOptions::PreserveOpts Preserve = {}) {
     return DecodeFile(HiddenFile, {
       .Alignment = AlignKind::BytePacked,
-      .Preserve = Preserve
+      .Preserve = Preserve,
+      .SchemaID = Some(nullptr)
     });
   };
 

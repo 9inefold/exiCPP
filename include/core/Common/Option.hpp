@@ -231,6 +231,7 @@ public:
 
   constexpr Option() = default;
   constexpr Option(std::nullopt_t) {}
+  constexpr Option(Unexpect<void>) {}
 
   constexpr Option(const T& V) : Storage(std::in_place, V) {}
   constexpr Option(const Option& O) = default;
@@ -241,6 +242,18 @@ public:
 
   constexpr Option(Option<T&> O)
       : Option(O ? *O : Option()) {}
+
+  constexpr Option(Expect<void>)
+   requires std::is_default_constructible_v<T>
+      : Storage(std::in_place) {}
+
+  template <typename ArgT>
+  constexpr Option(const Expect<ArgT>& V)
+      : Storage(std::in_place, V.Data) {}
+    
+  template <typename ArgT>
+  constexpr Option(Expect<ArgT>&& V)
+      : Storage(std::in_place, std::move(V.Data)) {}
 
   constexpr Option(std::in_place_t, auto&&...Args)
       : Storage(std::in_place, EXI_FWD(Args)...) {}
@@ -501,6 +514,7 @@ public:
   using value_type = BaseT::value_type;
 
   using BaseT::BaseT;
+  constexpr Option(Unexpect<void>) {}
   constexpr Option(const Option/*T&*/& O) : BaseT(O.Storage) {}
   constexpr Option(Option&& O) : BaseT(O.Storage) {}
 

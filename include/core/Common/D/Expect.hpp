@@ -30,6 +30,7 @@
 
 namespace exi {
 
+template <typename T> class Option;
 template <typename T, typename E> class Result;
 
 /// Recreation of `std::unexpect_t`.
@@ -43,6 +44,7 @@ inline constexpr unexpect_t unexpect;
 template <typename T> class Expect {
   static_assert(!std::same_as<T, std::in_place_t>);
   static_assert(!std::same_as<T, unexpect_t>);
+  template <typename U> friend class Option;
   template <typename U, typename E> friend class Result;
   T Data;
 public:
@@ -68,6 +70,7 @@ public:
 template <typename T> class Expect<T&> {
   static_assert(!std::same_as<T, std::in_place_t>);
   static_assert(!std::same_as<T, unexpect_t>);
+  template <typename U> friend class Option;
   template <typename U, typename E> friend class Result;
   T* Data = nullptr;
 public:
@@ -86,6 +89,17 @@ public:
   constexpr T& value() const noexcept { return *Data; }
 };
 
+/// Empty expected value.
+template <> class Expect<void> {
+public:
+  constexpr Expect() = default;
+  constexpr Expect(const Expect&) = default;
+  constexpr Expect(Expect&&) = default;
+  constexpr Expect& operator=(const Expect&) = default;
+  constexpr Expect& operator=(Expect&&) = default;
+  constexpr void value() const noexcept {}
+};
+
 template <typename T> Expect(T&) -> Expect<T&>;
 template <typename T> Expect(const T&) -> Expect<const T&>;
 template <typename T> Expect(T&&) -> Expect<T>;
@@ -93,6 +107,16 @@ template <typename T> Expect(T&&) -> Expect<T>;
 template <typename T> Expect(Expect<T&>) -> Expect<T&>;
 template <typename T> Expect(Expect<const T&>) -> Expect<const T&>;
 template <typename T> Expect(Expect<T>) -> Expect<T>;
+
+template <typename T>
+EXI_INLINE constexpr decltype(auto) Some(T&& Val) noexcept {
+  return Expect(EXI_FWD(Val));
+}
+
+template <typename T>
+EXI_INLINE constexpr decltype(auto) Some() noexcept {
+  return Expect<void>{};
+}
 
 template <typename T>
 EXI_INLINE constexpr decltype(auto) Ok(T&& Val) noexcept {
@@ -168,6 +192,8 @@ public:
   constexpr Unexpect& operator=(const Unexpect&) = default;
   constexpr Unexpect& operator=(Unexpect&&) = default;
   constexpr void error() const noexcept {}
+  constexpr Unexpect& operator()() { return *this; }
+  constexpr const Unexpect& operator()() const { return *this; }
 };
 
 Unexpect() -> Unexpect<void>;
@@ -179,6 +205,8 @@ template <typename E> Unexpect(E&&) -> Unexpect<E>;
 template <typename E> Unexpect(Unexpect<E&>) -> Unexpect<E&>;
 template <typename E> Unexpect(Unexpect<const E&>) -> Unexpect<const E&>;
 template <typename E> Unexpect(Unexpect<E>) -> Unexpect<E>;
+
+inline constexpr Unexpect<void> None;
 
 template <typename E>
 EXI_INLINE constexpr decltype(auto) Err(E&& Val) noexcept {
