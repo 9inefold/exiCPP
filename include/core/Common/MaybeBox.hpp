@@ -39,13 +39,6 @@ namespace H {
 template <typename T, bool IsPacked>
 concept should_use_packed_repr
   = IsPacked && PointerLikeTypeTraits<T*>::NumLowBitsAvailable > 0;
-
-template <bool ExpectedPacked, bool IsReallyPacked = false>
-constexpr bool check_box_packing()
-  EXI_WARNING_IF(ExpectedPacked && !IsReallyPacked,
-    "No bits were available for packing! Try adjusting object alignment.") {
-  return IsReallyPacked;
-}
 } // namespace H
 
 /// `MaybeBoxBase` for unpacked data.
@@ -53,8 +46,7 @@ template <typename T, bool IsPacked>
 class MaybeBoxBase {
 protected:
   /// Returns if the `MaybeBox` is packed.
-  static constexpr bool is_packed
-    = H::check_box_packing<IsPacked, false>();
+  static constexpr bool is_packed = false;
   /// Pointer and int as two values.
   std::pair<T*, bool> Data;
 
@@ -75,6 +67,7 @@ public:
   constexpr MaybeBoxBase(T* Ptr, bool Owned) : Data(Ptr, Ptr ? Owned : false) {}
   constexpr MaybeBoxBase(std::nullptr_t) : MaybeBoxBase() {}
   ~MaybeBoxBase() { this->deleteData(); }
+
   /// Get the stored pointer.
   T* get() const { return Data.first; }
   /// Get the stored pointer.
@@ -91,8 +84,7 @@ requires H::should_use_packed_repr<T, IsPacked>
 class MaybeBoxBase<T, IsPacked> {
 protected:
   /// Returns if the `MaybeBox` is packed.
-  static constexpr bool is_packed
-    = H::check_box_packing<IsPacked, true>();
+  static constexpr bool is_packed = true;
   /// Pointer and int packed into one.
   PointerIntPair<T*, 1, bool> Data;
 
@@ -141,8 +133,11 @@ class MaybeBox : public MaybeBoxBase<T, Packed> {
 public:
   using BaseT::is_packed;
   using BaseT::BaseT;
-  ~MaybeBox() = default;
   MaybeBox(const MaybeBox&) = delete;
+  ~MaybeBox()
+    EXI_WARNING_IF(Packed && !is_packed,
+      "No bits were available for packing! "
+      "Try adjusting object alignment.") = default;
 
   template <class U, bool UPacked>
   requires std::convertible_to<U*, T*>
