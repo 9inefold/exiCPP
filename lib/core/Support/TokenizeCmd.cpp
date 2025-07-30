@@ -25,11 +25,11 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/TokenizeCmd.hpp>
-#include <Common/FunctionRef.hpp>
 #include <Common/SmallStr.hpp>
 #include <Common/SmallVec.hpp>
 #include <Common/StrRef.hpp>
 #include <Common/StringExtras.hpp>
+#include <Common/function_ref.hpp>
 #include <Support/StringSaver.hpp>
 
 using namespace exi;

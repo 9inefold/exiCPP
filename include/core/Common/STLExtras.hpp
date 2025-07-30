@@ -37,7 +37,7 @@
 #include <Common/Hashing.hpp>
 #include <Common/EnumTraits.hpp>
 #include <Common/FunctionTraits.hpp>
-#include <Common/FunctionRef.hpp>
+#include <Common/function_ref.hpp>
 #include <Common/iterator.hpp>
 #include <Common/iterator_range.hpp>
 #include <Config/ABIBreak.inc>

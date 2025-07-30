@@ -174,15 +174,15 @@ template <typename FuncT>
 using function_traits = FunctionTraits<remove_noexcept_t<FuncT>>;
 
 //======================================================================//
-// FunctionRef Traits
+// function_ref Traits
 //======================================================================//
 
-template <typename Fn> class FunctionRef;
+template <typename Fn> class function_ref;
 
 namespace H {
 
 template <class CallbackT, typename Ret, typename...Args>
-concept is_functionref = std::same_as<CallbackT, FunctionRef<Ret(Args...)>>;
+concept is_functionref = std::same_as<CallbackT, function_ref<Ret(Args...)>>;
 
 template <class CallbackT, typename Ret, typename...Args>
 concept callback_matches_signature

@@ -25,9 +25,9 @@
 
 #include <Common/Array.hpp>
 #include <Common/CompressedPair.hpp>
-#include <Common/FunctionRef.hpp>
 // #include <Common/ManualDrop.hpp>
 #include <Common/Option.hpp>
+#include <Common/function_ref.hpp>
 
 namespace exi {
 

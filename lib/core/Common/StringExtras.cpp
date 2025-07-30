@@ -25,9 +25,9 @@
 //===----------------------------------------------------------------===//
 
 
-#include <Common/FunctionRef.hpp>
 #include <Common/StringExtras.hpp>
 #include <Common/SmallVec.hpp>
+#include <Common/function_ref.hpp>
 #include <Support/raw_ostream.hpp>
 #include <cctype>
 

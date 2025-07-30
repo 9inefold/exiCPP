@@ -32,13 +32,13 @@
 #pragma once
 
 #include <Common/Box.hpp>
-#include <Common/FunctionRef.hpp>
 #include <Common/IntrusiveRefCntPtr.hpp>
 #include <Common/Option.hpp>
 #include <Common/SmallVec.hpp>
 #include <Common/String.hpp>
 #include <Common/StrRef.hpp>
 #include <Common/Vec.hpp>
+#include <Common/function_ref.hpp>
 #include <Support/Chrono.hpp>
 #include <Support/Errc.hpp>
 #include <Support/Error.hpp>

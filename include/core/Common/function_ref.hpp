@@ -1,4 +1,4 @@
-//===- Common/FunctionRef.hpp ---------------------------------------===//
+//===- Common/function_ref.hpp --------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -17,7 +17,7 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines the FunctionRef class.
+/// This file defines the function_ref class.
 ///
 //===----------------------------------------------------------------===//
 
@@ -35,9 +35,9 @@ namespace exi {
 /// after the function in question returns.
 ///
 /// This class does not own the callable, so it is not in general safe to store
-/// a FunctionRef.
+/// a function_ref.
 template <typename Ret, typename...Params>
-class FunctionRef<Ret(Params...)> {
+class function_ref<Ret(Params...)> {
   using CallbackT = Ret(*)(uptr callable, Params...params);
   CallbackT Callback = nullptr;
   uptr Callable;
@@ -50,11 +50,11 @@ class FunctionRef<Ret(Params...)> {
   }
 
 public:
-  FunctionRef() = default;
-  FunctionRef(std::nullptr_t) {}
+  function_ref() = default;
+  function_ref(std::nullptr_t) {}
 
   template <H::is_valid_functionref<Ret, Params...> CB>
-  FunctionRef(CB &&callable EXI_LIFETIMEBOUND) :
+  function_ref(CB &&callable EXI_LIFETIMEBOUND) :
    Callback(&CallbackFn<std::remove_reference_t<CB>>),
    Callable(callback_traits<CB>::ToStorage(callable)) {
   }
@@ -65,13 +65,13 @@ public:
 
   explicit operator bool() const { return Callback; }
 
-  bool operator==(const FunctionRef<Ret(Params...)> &Other) const {
+  bool operator==(const function_ref<Ret(Params...)> &Other) const {
     return this->Callable == Other.Callable;
   }
 };
 
 /// Alias for `FunctionRef`.
-template <class Fn>
-using function_ref = FunctionRef<Fn>;
+//template <class Fn>
+//using function_ref = function_ref<Fn>;
 
 } // namespace exi

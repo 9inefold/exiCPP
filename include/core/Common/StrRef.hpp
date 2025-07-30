@@ -28,8 +28,8 @@
 
 #include <Common/D/Str.hpp>
 #include <Common/DenseMapInfo.hpp>
-#include <Common/FunctionRef.hpp>
 #include <Common/Fundamental.hpp>
+#include <Common/function_ref.hpp>
 #include <Common/iterator_range.hpp>
 #include <Config/FeatureFlags.hpp>
 #include <Support/ErrorHandle.hpp>
