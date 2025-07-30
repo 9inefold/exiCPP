@@ -32,12 +32,18 @@
 namespace exi {
 
 struct ExiOptions;
-class ExiEncoder;
+class BodyEncoder;
+class ChannelEncoder;
+class OrderedEncoder;
 
 namespace encode {
 
 /// The base for all schemas.
 class Schema : public RTTIExtends<Schema, RTTIRoot> {
+protected:
+  friend class exi::ChannelEncoder;
+  friend class exi::OrderedEncoder;
+  template <class Self, typename> struct Get;
 public:
   /// Gets the terminal symbol at the current position.
   // FIXME: Add the actual functions.

@@ -40,7 +40,7 @@ namespace decode {
 class Schema : public RTTIExtends<Schema, RTTIRoot> {
 protected:
   friend class exi::ExiDecoder;
-  template <typename> class Get;
+  template <class Self, typename> struct Get;
 public:
   /// Gets the terminal symbol at the current position.
   [[nodiscard]] virtual EventUID decode(ExiDecoder* D) = 0;

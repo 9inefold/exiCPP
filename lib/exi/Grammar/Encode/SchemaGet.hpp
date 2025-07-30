@@ -1,6 +1,6 @@
-//===- exi/Grammar/SchemaGet.cpp ------------------------------------===//
+//===- exi/Grammar/Encode/SchemaGet.cpp -----------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2025 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,5 +23,14 @@
 
 #pragma once
 
-#include "Decode/SchemaGet.hpp"
-#include "Encode/SchemaGet.hpp"
+#include <core/Support/Casting.hpp>
+#include <exi/Grammar/EncoderSchema.hpp>
+#include <exi/Encode/BodyEncoder.hpp>
+
+namespace exi::encode {
+
+template <class Self, typename StrmT> struct Schema::Get {
+
+};
+
+} // namespace exi::encode

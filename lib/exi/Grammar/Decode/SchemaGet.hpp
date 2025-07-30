@@ -1,6 +1,6 @@
 //===- exi/Grammar/Decode/SchemaGet.cpp -----------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2024-2025 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,13 +24,12 @@
 #pragma once
 
 #include <core/Support/Casting.hpp>
-#include <exi/Grammar/Schema.hpp>
+#include <exi/Grammar/DecoderSchema.hpp>
 #include <exi/Decode/BodyDecoder.hpp>
 
 namespace exi::decode {
 
-template <typename StrmT> class Schema::Get {
-public:
+template <typename StrmT> struct Schema::Get<ExiDecoder, StrmT> {
   static BumpPtrAllocator& BP(ExiDecoder* D) { return D->BP; }
   static decode::StringTable& Strings(ExiDecoder* D) { return D->Strings; }
   static OrdReader& RReader(ExiDecoder* D) { return D->Reader; }

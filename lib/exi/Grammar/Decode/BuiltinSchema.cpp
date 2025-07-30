@@ -114,7 +114,7 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final
       public TrailingArray<OrderedBuiltinSchema<StrmT>, EventTerm> {
   using enum BIGrammarState;
   using BuiltinSchema::State;
-  using Get = Schema::Get<StrmT>;
+  using Get = Schema::Get<ExiDecoder, StrmT>;
   using BaseT = TrailingArray<OrderedBuiltinSchema, EventTerm>;
   using MatchT = MMatch<EventTerm, EventTerm>;
   using GrammarT = PointerIntPair<BuiltinGrammar*, 1, bool>;
