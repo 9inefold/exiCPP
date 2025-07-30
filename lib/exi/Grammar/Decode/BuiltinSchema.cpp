@@ -95,15 +95,6 @@ EXI_ERROR_CC EXI_MINSIZE static void Diagnose(const ExiResult<T>& Result) {
 
 namespace INTERNAL_NS(exi) {
 
-static constexpr StringLiteral BIGrammarNames[] {
-  "Document",
-  "DocContent",
-  "DocEnd",
-  "StartTag",
-  "Element",
-  "Fragment"
-};
-
 //===----------------------------------------------------------------===//
 // Ordered Encoding
 //===----------------------------------------------------------------===//
