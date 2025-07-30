@@ -699,6 +699,9 @@ Box<BuiltinSchema> BuiltinSchema::New(const ExiOptions& Opts) {
     return OrderedBuiltinSchema<ByteReader>::New(Opts);
   case AlignKind::PreCompression:
     return NewChanneled(Opts);
+  case AlignKind::None:
+    LOG_ERROR("AlignKind cannot be None!");
+    return nullptr;
   }
   exi_unreachable("invalid alignment!");
 }
