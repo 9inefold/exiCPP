@@ -47,7 +47,7 @@ protected:
 public:
   /// Gets the terminal symbol at the current position.
   // FIXME: Add the actual functions.
-  virtual void encode(ExiEncoder* D, EventUID Event) = 0;
+  virtual void encode(BodyEncoder* E, EventUID Event) = 0;
   virtual void dump() const {}
 private:
   EXI_RTTI_EXTENDS(Schema, RTTIRoot);

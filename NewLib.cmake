@@ -111,7 +111,7 @@ include_items(EXICPP_GRAMMAR "lib/exi"
   Grammar/BIState.cpp
   Grammar/Grammar.cpp
   Grammar/Encode/Schema.cpp
-  #Grammar/Encode/BuiltinSchema.cpp
+  Grammar/Encode/BuiltinSchema.cpp
   Grammar/Decode/Schema.cpp
   Grammar/Decode/BuiltinSchema.cpp
 )
