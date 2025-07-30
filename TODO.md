@@ -32,7 +32,7 @@ This is a TODO list for the C++ version of exiCPP.
 - Remove tabs added with broken vscode
 - Remove EXIP, merge `NewLib`
 
-## Unfinished
+## Not Started
 
 - Split out implementation of `ExiDecoder` like with `ExiEncoder`
 - `sys::` implementation on linux
@@ -42,10 +42,11 @@ This is a TODO list for the C++ version of exiCPP.
 - Implement storage/lookup of typed values
 - `CrashRecoveryContext` and `cpptrace`
 - Add permissive mode for things like relaxed versioning and validation order?
-- `source_location` with Clang support
-- Schema parser
+- Merge the concepts/traits I have lying around everywhere
 - Real tests for `core`
 - `exi` example test suite
+- Schema parser
+- `source_location` with Clang support
 - `Option<Unchecked<T>>` + `UncheckedOption`
 - Implement PrintOptions
 - Better `Chrono` and add `Duration`??

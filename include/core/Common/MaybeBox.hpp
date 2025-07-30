@@ -36,10 +36,10 @@ namespace exi {
 template <typename From> struct simplify_type;
 
 namespace H {
+
 template <typename T, bool IsPacked>
 concept should_use_packed_repr
   = IsPacked && PointerLikeTypeTraits<T*>::NumLowBitsAvailable > 0;
-} // namespace H
 
 /// `MaybeBoxBase` for unpacked data.
 template <typename T, bool IsPacked>
@@ -118,15 +118,17 @@ public:
   }
 };
 
+} // namespace H
+
 /// This class is used when a pointer may or may not be owned.
 /// If the input type is a `nullptr, `T&`, `Naked<T>`, or `Option<T&>`, it will
 /// be marked as unowned. If the input is a `Box<T>`, it will be owned.
 /// Otherwise ownedness is explicitly provided by the user with `(Ptr, Owned)`.
 /// @tparam Packed If the pointer/int pair should be packed. Default is `false`.
 template <typename T, bool Packed = false>
-class MaybeBox : public MaybeBoxBase<T, Packed> {
+class MaybeBox : public H::MaybeBoxBase<T, Packed> {
   template <typename, bool> friend class MaybeBox;
-  using BaseT = MaybeBoxBase<T, Packed>;
+  using BaseT = H::MaybeBoxBase<T, Packed>;
   using BaseT::setData;
   using BaseT::clearData;
   using BaseT::deleteData;
