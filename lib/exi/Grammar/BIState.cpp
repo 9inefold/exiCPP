@@ -1,6 +1,6 @@
-//===- exi/Grammar/D/BITypes.hpp ------------------------------------===//
+//===- exi/Grammar/BIState.cpp --------------------------------------===//
 //
-// Copyright (C) 2024-2025 Eightfold
+// Copyright (C) 2025 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,31 +17,30 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines types for builtin schemas.
+/// This file defines the grammar states.
 ///
 //===----------------------------------------------------------------===//
 
-#pragma once
-
-#include <core/Common/Array.hpp>
-#include <core/Common/EnumArray.hpp>
 #include <exi/Grammar/BIState.hpp>
+#include <core/Common/EnumTraits.hpp>
+#include <core/Common/StrRef.hpp>
 
-namespace exi {
+using namespace exi;
 
-/// Small EventCode for use in `BIInfo`.
-struct EXI_TRIVIAL_ABI SEventCode {
-  Array<u8, 3> Data = {};  // [x.y.z]
-  Array<u8, 3> Bits = {};  // [[x].[y].[z]]
-  i8 Length = 0;           // Number of pieces.
+static constexpr int kGrammarStateCount = EnumRange<BIGrammarState>::size + 1;
+
+static constexpr StringLiteral GrammarStateNames[kGrammarStateCount] {
+  "Document",
+  "DocContent",
+  "DocEnd",
+  "StartTagContent",
+  "ElementContent",
+  "Fragment"
 };
 
-struct EXI_TRIVIAL_ABI BIInfo {
-  u8 Offset = 0;
-  SEventCode Code = {};
-};
-
-using BIInfoArray = EnumeratedArray<BIInfo, BIGrammarState,
-  BIGrammarState::Last, BIGrammarState::DocContent>;
-
-} // namespace exi
+StrRef exi::get_state_name(BIGrammarState G) {
+  const int Ix = exi::to_underlying(G);
+  if EXI_LIKELY(Ix < kGrammarStateCount && Ix >= 0)
+    return GrammarStateNames[Ix];
+  return "??"_str;
+}

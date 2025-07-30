@@ -1,4 +1,4 @@
-//===- exi/Grammar/State.hpp ----------------------------------------===//
+//===- exi/Grammar/BIState.hpp --------------------------------------===//
 //
 // Copyright (C) 2025 Eightfold
 //
@@ -27,8 +27,10 @@
 
 namespace exi {
 
+class StrRef;
+
 /// Possible Grammar states for schemaless.
-enum class BIGrammar {
+enum class BIGrammarState {
   Document,
   DocContent,
   DocEnd,
@@ -37,5 +39,7 @@ enum class BIGrammar {
   Fragment,
   Last = ElementContent
 };
+
+StrRef get_state_name(BIGrammarState G) EXI_READNONE;
 
 } // namespace exi

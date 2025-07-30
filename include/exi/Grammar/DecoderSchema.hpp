@@ -27,7 +27,7 @@
 #include <core/Common/MaybeBox.hpp>
 #include <core/Support/ExtensibleRTTI.hpp>
 #include <exi/Basic/EventCodes.hpp>
-#include <exi/Grammar/State.hpp>
+#include <exi/Grammar/BIState.hpp>
 
 namespace exi {
 
@@ -53,7 +53,7 @@ private:
 /// The builtin (or fallback) schema.
 class BuiltinSchema : public RTTIExtends<BuiltinSchema, Schema> {
 public:
-  using Grammar = BIGrammar;
+  using State = BIGrammarState;
   /// @brief Gets a builtin schema.
   [[nodiscard]] static Box<BuiltinSchema> New(const ExiOptions& Opts);
 private:

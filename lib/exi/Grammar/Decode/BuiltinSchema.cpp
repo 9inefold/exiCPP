@@ -113,6 +113,7 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final
     : public BuiltinSchema,
       public TrailingArray<OrderedBuiltinSchema<StrmT>, EventTerm> {
   using enum BIGrammarState;
+  using BuiltinSchema::State;
   using Get = Schema::Get<StrmT>;
   using BaseT = TrailingArray<OrderedBuiltinSchema, EventTerm>;
   using MatchT = MMatch<EventTerm, EventTerm>;
@@ -123,7 +124,7 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final
   /// The current event ID
   EventUID Event = EventUID::NewNull();
   /// The pseudo grammar stack.
-  BIGrammar Current = Document;
+  BIGrammarState Current = Document;
   /// The grammar stack.
   /// TODO: Profile...
   Vec<GrammarT> GStack;
@@ -224,7 +225,7 @@ private:
     return this->Event;
   }
 
-  ALWAYS_INLINE void pushGrammar(BIGrammar New) {
+  ALWAYS_INLINE void pushGrammar(State New) {
     Current = New;
   }
 
@@ -546,17 +547,9 @@ private:
 
 public:
   void dump() const override;
-  void PrintGrammar(BIGrammar G) const;
+  void PrintGrammar(State G) const;
 
 private:
-  static StrRef GetGrammarName(Grammar G) {
-    constexpr int BIMax = std::size(BIGrammarNames);
-    const auto Ix = exi::to_underlying(G);
-    if (Ix < BIMax && Ix >= 0)
-      return BIGrammarNames[Ix];
-    return "???"_str;
-  }
-
 #if EXI_LOGGING
   EXI_PRESERVE_CALLSITE void logCurrentGrammar(ExiDecoder* D);
   EXI_PRESERVE_CALLSITE void logCurrentEvent();
@@ -585,16 +578,16 @@ template <class StrmT>
 void OrderedBuiltinSchema<StrmT>::dump() const {
   outs() << "Document[1] <@0>:\n"
          << "  SD      0\n\n";
-  PrintGrammar(Grammar::DocContent);
-  PrintGrammar(Grammar::DocEnd);
-  PrintGrammar(Grammar::StartTagContent);
-  PrintGrammar(Grammar::ElementContent);
+  PrintGrammar(State::DocContent);
+  PrintGrammar(State::DocEnd);
+  PrintGrammar(State::StartTagContent);
+  PrintGrammar(State::ElementContent);
   outs().flush();
 }
 
 template <class StrmT>
-void DynBuiltinSchema<StrmT>::PrintGrammar(BIGrammar G) const {
-  const StrRef Name = GetGrammarName(G);
+void OrderedBuiltinSchema<StrmT>::PrintGrammar(State G) const {
+  const StrRef Name = get_state_name(G);
   auto [Off, Code] = Info[G];
   const EventTerm* Base = BaseT::data() + Off;
 
@@ -666,7 +659,7 @@ EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logCurrentGrammar(ExiDec
   const auto OldColor = dbgs().getColor();
   dbgs().changeColor(BRIGHT_WHITE) << '\n';
 
-  dbgs() << "Grammar State: " << GetGrammarName(Current);
+  dbgs() << "State: " << get_state_name(Current);
   const bool IsContent = mmatch(Current).is(StartTagContent, ElementContent);
   if EXI_LIKELY(IsContent && !GStack.empty()) {
     const SmallQName ID = GStack.back()->getName();
