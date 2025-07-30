@@ -145,6 +145,9 @@ public:
   /// Writes the header to the provided stream.
   virtual ExiError encodeHeader(BitBuffer Data) = 0;
 
+  /// Gets the options held by the current encoder.
+  const ExiOptions& getOptions() const { return Opts; }
+
   /// Gets the type of the encoder.
   EncoderKind get_kind() const { return Kind; }
 
