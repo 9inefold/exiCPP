@@ -30,6 +30,7 @@
 #include <Common/SmallStr.hpp>
 #include <Common/SmallVec.hpp>
 #include <Common/StringSwitch.hpp>
+#include <Common/unique_function.hpp>
 #include <Support/Alignment.hpp>
 #include <Support/Allocator.hpp>
 #include <Support/Chrono.hpp>
@@ -1120,6 +1121,47 @@ static void ResultTests(int, char*[]) {
 }
 
 //===----------------------------------------------------------------===//
+// unique_function
+//===----------------------------------------------------------------===//
+
+static void UniqueFunctionTests(int, char*[]) {
+  /*Basic*/ {
+    unique_function<int(int, int)> Sum = [](int A, int B) { return A + B; };
+    exi_assert(Sum(1, 2) == 3);
+
+    unique_function<int(int, int)> Sum2 = std::move(Sum);
+    exi_assert(Sum2(1, 2) == 3);
+
+    unique_function<int(int, int)> Sum3 = [](int A, int B) { return A + B; };
+    Sum2 = std::move(Sum3);
+    exi_assert(Sum2(1, 2) == 3);
+  } /*Captures*/ {
+    long A = 1, B = 2, C = 3, D = 4, E = 5;
+
+    unique_function<long()> Tmp;
+
+    unique_function<long()> C1 = [A]() { return A; };
+    exi_assert(C1() == 1);
+    Tmp = std::move(C1);
+    exi_assert(Tmp() == 1);
+
+    unique_function<long()> C2 = [A, B]() { return A + B; };
+    exi_assert(C2() == 3);
+    Tmp = std::move(C2);
+    exi_assert(Tmp() == 3);
+  } /*Move Only*/ {
+    struct SmallCallable {
+      Box<int> A{new int(1)};
+      int operator()(int B) { return *A + B; }
+    };
+    unique_function<int(int)> Small = SmallCallable();
+    exi_assert(Small(2) == 3);
+    unique_function<int(int)> Small2 = std::move(Small);
+    exi_assert(Small2(2) == 3);
+  }
+}
+
+//===----------------------------------------------------------------===//
 // ...
 //===----------------------------------------------------------------===//
 
@@ -1128,9 +1170,10 @@ void root::tests_main(int Argc, char* Argv[]) {
   // ExiErrorTests(Argc, Argv);
   // BitStreamTests(Argc, Argv);
   // APIntTests(Argc, Argv);
-  RuneTests(Argc, Argv);
+  // RuneTests(Argc, Argv);
   // BoundedTests(Argc, Argv);
   // MaybeBoxTests(Argc, Argv);
   // PolyTests(Argc, Argv);
-  ResultTests(Argc, Argv);
+  // ResultTests(Argc, Argv);
+  UniqueFunctionTests(Argc, Argv);
 }
