@@ -38,13 +38,13 @@ namespace decode {
 
 /// The base for all schemas.
 class Schema : public RTTIExtends<Schema, RTTIRoot> {
+protected:
   friend class exi::ExiDecoder;
+  template <typename> class Get;
 public:
   /// Gets the terminal symbol at the current position.
   [[nodiscard]] virtual EventUID decode(ExiDecoder* D) = 0;
   virtual void dump() const {}
-protected:
-  template <typename> class Get;
 private:
   EXI_RTTI_EXTENDS(Schema, RTTIRoot);
   virtual void anchor();
