@@ -56,10 +56,6 @@ EXI_ERROR_CC EXI_MINSIZE static void Diagnose(const ExiResult<T>& Result) {
     errs() << Result.error() << '\n';
 }
 
-//===----------------------------------------------------------------===//
-// Built-in Grammar
-//===----------------------------------------------------------------===//
-
 /// The transitions for schemaless encodings are defined as the following.
 /// If SC is not enabled, then the ChildContentItems for StartTagContent will
 /// be (0.3) instead.
@@ -108,16 +104,17 @@ static constexpr StringLiteral BIGrammarNames[] {
   "Fragment"
 };
 
-// TODO: Update other functions to use template.
-// It currently shows as slightly slower, but this may be because of split
-// behaviour in the IBP.
+//===----------------------------------------------------------------===//
+// Ordered Encoding
+//===----------------------------------------------------------------===//
+
 template <class StrmT>
-class INTERNAL_LINKAGE DynBuiltinSchema final
+class INTERNAL_LINKAGE OrderedBuiltinSchema final
     : public BuiltinSchema,
-      public TrailingArray<DynBuiltinSchema<StrmT>, EventTerm> {
-  using enum BIGrammar;
+      public TrailingArray<OrderedBuiltinSchema<StrmT>, EventTerm> {
+  using enum BIGrammarState;
   using Get = Schema::Get<StrmT>;
-  using BaseT = TrailingArray<DynBuiltinSchema, EventTerm>;
+  using BaseT = TrailingArray<OrderedBuiltinSchema, EventTerm>;
   using MatchT = MMatch<EventTerm, EventTerm>;
   using GrammarT = PointerIntPair<BuiltinGrammar*, 1, bool>;
 
@@ -133,12 +130,24 @@ class INTERNAL_LINKAGE DynBuiltinSchema final
   /// The generated grammars.
   DenseMap<SmallQName, BuiltinGrammar*> Grammars;
 
-  DynBuiltinSchema(ArrayRef<EventTerm> Terms) : 
+  OrderedBuiltinSchema(ArrayRef<EventTerm> Terms) : 
    BaseT(Terms.size(), Terms.begin(), Terms.end()) {
   }
 
 public:
-  static Box<DynBuiltinSchema> New(const ExiOptions& Opts);
+  static Box<OrderedBuiltinSchema> New(const ExiOptions& Opts) {
+    auto B = BIBuilder::New(Opts);
+    void* Raw = BaseT::New(B.Terms.size());
+    auto* Schema = new (Raw) OrderedBuiltinSchema(B.Terms);
+
+    exi_assert(B.Info.size() == Schema->Info.size());
+    // TODO: Use FastCopy?
+    for (auto [Ix, BuiltinInfo] : exi::enumerate(Schema->Info))
+      // Copy all our generated info.
+      BuiltinInfo = B.Info[Ix];
+
+    return Box<OrderedBuiltinSchema>(Schema);
+  }
 
   ////////////////////////////////////////////////////////////////////////
   // Decoding
@@ -560,28 +569,20 @@ private:
   void anchor() override;
 };
 
+//===----------------------------------------------------------------===//
+// Channel Encoding (soon)
+//===----------------------------------------------------------------===//
+
+// ...
+
 } // namespace INTERNAL_NS
 
-// TODO: Add SchemaFactory...
-template <class StrmT>
-Box<DynBuiltinSchema<StrmT>>
-    DynBuiltinSchema<StrmT>::New(const ExiOptions& Opts) {
-  using Trailing = DynBuiltinSchema::BaseT;
-  auto B = BIBuilder::New(Opts);
-  void* Raw = Trailing::New(B.Terms.size());
-  auto* Schema = new (Raw) DynBuiltinSchema(B.Terms);
-
-  exi_assert(B.Info.size() == Schema->Info.size());
-  // TODO: Use FastCopy?
-  for (auto [Ix, BuiltinInfo] : exi::enumerate(Schema->Info))
-    // Copy all our generated info.
-    BuiltinInfo = B.Info[Ix];
-  
-  return Box<DynBuiltinSchema>(Schema);
-}
+//===----------------------------------------------------------------===//
+// Logging
+//===----------------------------------------------------------------===//
 
 template <class StrmT>
-void DynBuiltinSchema<StrmT>::dump() const {
+void OrderedBuiltinSchema<StrmT>::dump() const {
   outs() << "Document[1] <@0>:\n"
          << "  SD      0\n\n";
   PrintGrammar(Grammar::DocContent);
@@ -656,7 +657,7 @@ void DynBuiltinSchema<StrmT>::PrintGrammar(BIGrammar G) const {
 
 #if EXI_LOGGING
 template <class StrmT>
-EXI_PRESERVE_CALLSITE void DynBuiltinSchema<StrmT>::logCurrentGrammar(ExiDecoder* D) {
+EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logCurrentGrammar(ExiDecoder* D) {
   using enum raw_ostream::Colors;
   if (!hasDbgLogLevel(VERBOSE))
     // Don't do any work if log level is insufficient.
@@ -680,14 +681,14 @@ EXI_PRESERVE_CALLSITE void DynBuiltinSchema<StrmT>::logCurrentGrammar(ExiDecoder
 }
 
 template <class StrmT>
-EXI_PRESERVE_CALLSITE void DynBuiltinSchema<StrmT>::logCurrentEvent() {
+EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logCurrentEvent() {
   if EXI_UNLIKELY(!Event.hasTerm())
     return;
   this->logEvent(Event.getTerm());
 }
 
 template <class StrmT>
-EXI_PRESERVE_CALLSITE void DynBuiltinSchema<StrmT>::logEvent(EventTerm Term) {
+EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEvent(EventTerm Term) {
   LOG_INFO("> With {}: {}",
     get_event_name(Term),
     get_event_signature(Term)
@@ -695,14 +696,25 @@ EXI_PRESERVE_CALLSITE void DynBuiltinSchema<StrmT>::logEvent(EventTerm Term) {
 }
 #endif // EXI_LOGGING
 
-template<> void DynBuiltinSchema<BitReader>::anchor() {}
-template<> void DynBuiltinSchema<ByteReader>::anchor() {}
+//===----------------------------------------------------------------===//
+// Miscellaneous
+//===----------------------------------------------------------------===//
+
+template<> void OrderedBuiltinSchema<BitReader>::anchor() {}
+template<> void OrderedBuiltinSchema<ByteReader>::anchor() {}
+
+static Box<BuiltinSchema> NewChanneled(const ExiOptions& Opts) {
+  exi_todo("channel readers are currently unsupported!");
+}
 
 Box<BuiltinSchema> BuiltinSchema::New(const ExiOptions& Opts) {
-  const AlignKind A = Opts.Alignment;
-  if (A == AlignKind::BitPacked)
-    return DynBuiltinSchema<BitReader>::New(Opts);
-  else if (A == AlignKind::BytePacked)
-    return DynBuiltinSchema<ByteReader>::New(Opts);
-  exi_todo("channel readers are currently unsupported!");
+  switch (Opts.Alignment) {
+  case AlignKind::BitPacked:
+    return OrderedBuiltinSchema<BitReader>::New(Opts);
+  case AlignKind::BytePacked:
+    return OrderedBuiltinSchema<ByteReader>::New(Opts);
+  case AlignKind::PreCompression:
+    return NewChanneled(Opts);
+  }
+  exi_unreachable("invalid alignment!");
 }
