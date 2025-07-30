@@ -71,8 +71,8 @@ class BuiltinGrammar final : public Grammar {
   /// One inline element for StartElement or CHaracters. +2
   SmallVec<EventUID, 1> Element;
 
-  static u64 ReadBits(auto* Strm, u32 Bits) {
-    auto Out = Strm->readBits64(Bits);
+  static u64 ReadBits(auto& Strm, u32 Bits) {
+    auto Out = Strm.readBits64(Bits);
     if EXI_UNLIKELY(Out.is_err())
       exi_unreachable("invalid stream read.");
     return *Out;
@@ -82,11 +82,11 @@ public:
   BuiltinGrammar() = default;
   explicit BuiltinGrammar(SmallQName Name) : Name(Name) {}
 
-  template <class Strm> GrammarTerm getTerm(OrdReader& Reader, bool IsStart) {
+  template <class Strm> GrammarTerm getTerm(Strm* Reader, bool IsStart) {
     auto& Elts = this->getElts(IsStart);
     const usize Size = Elts.size();
     const u32 Bits = this->getLog(IsStart);
-    const u64 Out = ReadBits(cast<Strm>(&Reader), Bits);
+    const u64 Out = ReadBits(*Reader, Bits);
     // Check if this is a valid offset.
     if (Out < Size) {
       // Values are always pushed in reverse order, so remap the position.
@@ -102,7 +102,7 @@ public:
   }
 
   EXI_FLATTEN GrammarTerm getTerm(OrdReader& Reader, bool IsStart) override {
-    return this->getTerm<OrderedReader>(Reader, IsStart);
+    return this->getTerm(Reader.operator->(), IsStart);
   }
 
   void addTerm(EventUID Term, bool IsStart) override {

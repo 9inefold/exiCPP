@@ -32,7 +32,6 @@ namespace exi::decode {
 template <typename StrmT> struct Schema::Get<ExiDecoder, StrmT> {
   static BumpPtrAllocator& BP(ExiDecoder* D) { return D->BP; }
   static decode::StringTable& Strings(ExiDecoder* D) { return D->Strings; }
-  static OrdReader& RReader(ExiDecoder* D) { return D->Reader; }
   static StrmT* Reader(ExiDecoder* D) { return &cast<StrmT>(D->Reader); }
 
   ALWAYS_INLINE static auto DecodeQName(ExiDecoder* D) {

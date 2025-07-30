@@ -198,9 +198,8 @@ private:
   inline GrammarTerm getGrammarTerm(ExiDecoder* D) {
     exi_invariant(!GStack.empty());
     GrammarT G = GStack.back();
-
-    auto& Strm = Get::RReader(D);
-    return G->getTerm<StrmT>(Strm, G.getInt());
+    return G->getTerm<StrmT>(
+      Get::Reader(D), G.getInt());
   }
 
   EventUID decodeTermGrammar(ExiDecoder* D) {
