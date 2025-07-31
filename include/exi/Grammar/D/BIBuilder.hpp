@@ -36,6 +36,42 @@ namespace exi {
 /// schema can have is 7, with `StartTagContent.{CM, PI}` with `SC` enabled.
 alignas(16) inline constexpr u8 BISmallLog2[10] {0, 0, 1, 2, 2, 3, 3, 3, 3, 4};
 
+/// The transitions for schemaless encodings are defined as the following.
+/// If SC is not enabled, then the ChildContentItems for StartTagContent will
+/// be (0.3) instead.
+///
+/// Document:
+///   SD DocContent           0
+/// 
+/// DocContent:
+///   SE (*) DocEnd           0
+///   DT DocContent           1.0
+///   CM DocContent           1.1.0
+///   PI DocContent           1.1.1
+/// 
+/// DocEnd:
+///   ED                      0
+///   CM DocEnd               1.0
+///   PI DocEnd               1.1
+/// 
+/// StartTagContent:
+///   EE                      0.0
+///   AT (*) StartTagContent  0.1
+///   NS StartTagContent      0.2
+///   SC Fragment             0.3
+///   ChildContentItems      (0.4)  
+/// 
+/// ElementContent:
+///   EE                      0
+///   ChildContentItems      (1.0)  
+/// 
+/// ChildContentItems (n.m):
+///   SE (*) ElementContent  n. m
+///   CH ElementContent      n.(m+1)
+///   ER ElementContent      n.(m+2)
+///   CM ElementContent      n.(m+3).0
+///   PI ElementContent      n.(m+3).1
+
 /// Used to build the `TrailingArray`s for encoder/decoder schemas.
 class BIBuilder {
 public:
@@ -46,6 +82,7 @@ private:
   ExiOptions::PreserveOpts Preserve;
   bool SelfContained;
 
+  /// Handles calculations at the end of scope.
   class EventCodeRTTI {
     SEventCode* C;
   public:
@@ -168,7 +205,7 @@ private:
   /// Adds ChildContentItems.
   void addCCItems(SEventCode& C) {
     exi_assert(C.Length <= 2);
-    C.Length = 2;
+    C.Length = 2; // Add to x.[y].~
 
     Terms.push_back(EventTerm::SE);
     Terms.push_back(EventTerm::CH);
