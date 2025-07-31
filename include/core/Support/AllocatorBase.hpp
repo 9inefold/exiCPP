@@ -162,7 +162,8 @@ concept is_exi_allocator_by_type = IsExiAllocator<Alloc>::value;
 
 template <class Alloc>
 concept is_exi_allocator_by_base
-  = requires (Alloc& A) { AllocatorBase_check(A); };
+  =  std::derived_from<Alloc, AllocatorBase<Alloc>>
+  || requires (Alloc& A) { AllocatorBase_check(A); };
 
 template <class Alloc>
 concept is_exi_allocator_by_sig
