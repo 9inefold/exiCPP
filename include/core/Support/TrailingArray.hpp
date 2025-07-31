@@ -33,6 +33,10 @@
 
 namespace exi {
 
+template <typename T>
+inline constexpr usize kMinTrailingArrayAlign
+  = alignof(T) > alignof(unsigned) ? alignof(T) : alignof(unsigned);
+
 /// TrailingArray offers the feature trailing array in the derived class.
 /// Memory is allocated with the following layout:
 ///
@@ -40,7 +44,7 @@ namespace exi {
 ///
 /// This allows for more convenient inline arrays with complex data.
 template <class Derived, typename T>
-class TrailingArray {
+class alignas(kMinTrailingArrayAlign<T>) TrailingArray {
   unsigned Size = 0;
 
   ALWAYS_INLINE const T* getData() const {

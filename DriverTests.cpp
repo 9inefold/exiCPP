@@ -42,6 +42,7 @@
 #include <Support/Format.hpp>
 #include <Support/MemoryBufferRef.hpp>
 #include <Support/Process.hpp>
+#include <Support/TrailingArray.hpp>
 #include <Support/raw_ostream.hpp>
 
 #include <exi/Basic/Bounded.hpp>
@@ -1162,6 +1163,81 @@ static void UniqueFunctionTests(int, char*[]) {
 }
 
 //===----------------------------------------------------------------===//
+// TrailingArray
+//===----------------------------------------------------------------===//
+
+namespace {
+template <class T> class TrailingArrayX final
+    : public TrailingArray<TrailingArrayX<T>, T> {
+  using BaseT = TrailingArray<TrailingArrayX<T>, T>;
+  using InitT = typename BaseT::New;
+
+  TrailingArrayX(ArrayRef<T> Data) : 
+   BaseT(Data.size(), Data.begin(), Data.end()) {
+  }
+
+public:
+  friend BaseT;
+  static Box<TrailingArrayX> New(ArrayRef<T> Data) {
+    auto* Ptr = InitT(Data.size()).init(Data);
+    return Box<TrailingArrayX>(Ptr);
+  }
+  template <is_exi_allocator Alloc>
+  [[nodiscard]] static TrailingArrayX* New(ArrayRef<T> Data, Alloc& A) {
+    return InitT(Data.size(), A).init(Data);
+  }
+
+  void validateAlignment() const {
+    exi_assert(isAddrAligned<TrailingArrayX>(this));
+    exi_assert(isAddrAligned<T>(BaseT::data()));
+  }
+};
+
+template <typename T>
+static auto NewTrailing(ArrayRef<T> Data) {
+  return TrailingArrayX<T>::New(Data);
+}
+template <typename T, is_exi_allocator Alloc>
+[[nodiscard]] static auto* NewTrailing(ArrayRef<T> Data, Alloc& A) {
+  return TrailingArrayX<T>::New(Data, A);
+}
+
+} // namespace `anonymous`
+
+static void TrailingArrayTests(int, char*[]) {
+  /*Trivial*/ {
+    const char Arr[] = "Hello!";
+    ArrayRef Data(Arr);
+    auto X = NewTrailing(Data);
+    exi_assert(X->size() == Data.size());
+    X->validateAlignment();
+  } /*NonTrivial*/ {
+    SmallVec<String> Data{"Hello ", "world!"};
+    auto X = NewTrailing<String>(Data);
+    exi_assert(X->size() == Data.size());
+    X->validateAlignment();
+  } /*Aligned*/ {
+    BumpPtrAllocator Alloc;
+    // Get overaligned type.
+    struct alignas(32) Overaligned { int X = 0; };
+    Overaligned Arr;
+    ArrayRef Data(Arr);
+    // Validate.
+    int UnalignedVals[] {1, 3, 7, 15, 31};
+    for (int N : UnalignedVals) {
+      // Ensure allocator is unaligned.
+      (void) Alloc.Allocate<char>(N);
+      auto* X = NewTrailing(Data, Alloc);
+      exi_assert(X->size() == Data.size());
+      X->validateAlignment();
+      std::destroy_at(X);
+      Alloc.Reset();
+    }
+  }
+}
+
+
+//===----------------------------------------------------------------===//
 // ...
 //===----------------------------------------------------------------===//
 
@@ -1175,5 +1251,6 @@ void root::tests_main(int Argc, char* Argv[]) {
   // MaybeBoxTests(Argc, Argv);
   // PolyTests(Argc, Argv);
   // ResultTests(Argc, Argv);
-  UniqueFunctionTests(Argc, Argv);
+  // UniqueFunctionTests(Argc, Argv);
+  TrailingArrayTests(Argc, Argv);
 }
