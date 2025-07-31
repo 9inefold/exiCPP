@@ -29,7 +29,8 @@
 
 namespace exi::encode {
 
-template <class Self, typename StrmT> struct Schema::Get {
+template <typename StrmT>
+struct Schema::Internals<OrderedEncoder>::Get {
 
 };
 

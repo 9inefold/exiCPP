@@ -26,7 +26,7 @@
 #include <exi/Basic/XML.hpp>
 #include <exi/Encode/BodyEncoder.hpp>
 #include <exi/Encode/StringTable.hpp>
-#include <exi/Stream/OrderedWriter.hpp>
+#include <exi/Encode/NamespaceContextStack.hpp>
 #include <exi/Grammar/EncoderSchema.hpp>
 #include <exi/Stream/OrderedWriter.hpp>
 
@@ -34,14 +34,17 @@ namespace exi {
 
 class OrderedEncoder final : public BodyEncoder {
   friend class ExiEncoder;
-  template <class Self, typename StrmT>
-  friend struct encode::Schema::Get;
-  /// The provided `OrderedWriter`.
-  OrdWriter Writer;
+  template <typename StrmT>
+  friend struct encode::Schema::Internals<OrderedEncoder>::Get;
+
   /// A BumpPtrAllocator for processor internals.
   exi::BumpPtrAllocator BP;
+  /// The provided `OrderedWriter`.
+  OrdWriter Writer;
   /// The table holding decoded string values (QNames, LocalNames, etc.)
   encode::StringTable Strings;
+  /// The stack of namespace contexts.
+  NSContextStack CtxStack;
   /// The schema for the current document.
   encode::Schema* CurrentSchema = nullptr;
 

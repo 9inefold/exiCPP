@@ -43,11 +43,14 @@ class Schema : public RTTIExtends<Schema, RTTIRoot> {
 protected:
   friend class exi::ChannelEncoder;
   friend class exi::OrderedEncoder;
-  template <class Self, typename> struct Get;
+  template <class Self> struct Internals {
+    template <typename> struct Get;
+  };
 public:
   /// Gets the terminal symbol at the current position.
   // FIXME: Add the actual functions.
-  virtual void encode(BodyEncoder* E, EventUID Event) = 0;
+  virtual void encode(EventUID Event) = 0;
+  /// Dumps info about the current schema.
   virtual void dump() const {}
 private:
   EXI_RTTI_EXTENDS(Schema, RTTIRoot);
