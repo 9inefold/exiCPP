@@ -34,6 +34,8 @@ namespace exi {
 
 class OrderedEncoder final : public BodyEncoder {
   friend class ExiEncoder;
+  template <class Self, typename StrmT>
+  friend struct encode::Schema::Get;
   /// The provided `OrderedWriter`.
   OrdWriter Writer;
   /// A BumpPtrAllocator for processor internals.

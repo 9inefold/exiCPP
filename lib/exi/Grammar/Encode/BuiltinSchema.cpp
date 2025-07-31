@@ -101,6 +101,23 @@ namespace INTERNAL_NS(exi) {
 
 } // namespace INTERNAL_NS
 
+static Box<BuiltinSchema> NewChanneled(const ExiOptions& Opts) {
+  exi_todo("channel readers are currently unsupported!");
+}
+
 Box<BuiltinSchema> BuiltinSchema::New(const ExiOptions& Opts) {
-  exi_todo("currently unsupported!");
+  switch (Opts.Alignment) {
+  case AlignKind::BitPacked:
+    //return OrderedBuiltinSchema<BitReader>::New(Opts);
+    report_fatal_error("BitPacked currently unsupported!");
+  case AlignKind::BytePacked:
+    //return OrderedBuiltinSchema<ByteReader>::New(Opts);
+    report_fatal_error("BytePacked currently unsupported!");
+  case AlignKind::PreCompression:
+    return NewChanneled(Opts);
+  case AlignKind::None:
+    LOG_ERROR("AlignKind cannot be None!");
+    return nullptr;
+  }
+  exi_unreachable("invalid alignment!");
 }
