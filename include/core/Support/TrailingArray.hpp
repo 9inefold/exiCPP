@@ -75,33 +75,53 @@ protected:
   TrailingArray(const TrailingArray&) = delete;
   TrailingArray& operator=(const TrailingArray&) = delete;
 
-  static constexpr unsigned ArrayOffset() noexcept {
+  static consteval unsigned ArrayOffset() noexcept {
     constexpr Align A(alignof(T));
     return alignTo(sizeof(Derived), A);
   }
 
-  static constexpr unsigned NewSize(unsigned N) noexcept {
+  static constexpr unsigned new_sizeof(unsigned N) noexcept {
     constexpr unsigned Head = ArrayOffset();
     return Head + (N * sizeof(T));
   }
 
-  [[nodiscard]] static Derived* New(unsigned N) {
+  [[nodiscard]] static Derived* operator_new(unsigned N) {
     static_assert(std::is_final_v<Derived>,
       "Derived is required to be final to avoid array overlap.");
-    void* const Ptr = ::operator new(TrailingArray::NewSize(N));
+    // FIXME: Use aligned operator new?
+    void* const Ptr = ::operator new(TrailingArray::new_sizeof(N));
+    return static_cast<Derived*>(Ptr);
+  }
+
+  template <is_exi_allocator Alloc>
+  [[nodiscard]] static Derived* operator_new(unsigned N, Alloc& A) {
+    static_assert(std::is_final_v<Derived>,
+      "Derived is required to be final to avoid array overlap.");
+    constexpr usize Align = alignof(Derived);
+    void* const Ptr = A.Allocate(TrailingArray::new_sizeof(N), Align);
     // TODO: Check alignment?
     return static_cast<Derived*>(Ptr);
   }
 
-  template <typename Alloc>
-  [[nodiscard]] static Derived* New(unsigned N, AllocatorBase<Alloc>& A) {
-    static_assert(std::is_final_v<Derived>,
-      "Derived is required to be final to avoid array overlap.");
-    constexpr usize Align = alignof(Derived);
-    void* const Ptr = A.Allocate(TrailingArray::NewSize(N), Align);
-    // TODO: Check alignment?
-    return static_cast<Derived*>(Ptr);
-  }
+  class [[nodiscard]] New {
+    Derived* Data = nullptr;
+    New(const New&) = delete;
+    New(New&&) = delete;
+  public:
+    New(unsigned N) : Data(operator_new(N)) {}
+    New(unsigned N, auto& A) : Data(operator_new(N, A)) {}
+    [[nodiscard]] Derived* init(auto&&...Args) && {
+#if EXI_INVARIANTS
+      Derived* Data = this->Data;
+      this->Data = nullptr;
+#endif
+      return new (Data) Derived{EXI_FWD(Args)...};
+    }
+#if EXI_INVARIANTS
+    ~New() { exi_invariant(Data == nullptr,
+      "Pointer was never initialized!"); }
+#endif
+  };
 
   ~TrailingArray() {
     std::destroy_n(this->data(), Size);

@@ -56,43 +56,6 @@ EXI_ERROR_CC EXI_MINSIZE static void Diagnose(const ExiResult<T>& Result) {
     errs() << Result.error() << '\n';
 }
 
-/// The transitions for schemaless encodings are defined as the following.
-/// If SC is not enabled, then the ChildContentItems for StartTagContent will
-/// be (0.3) instead.
-///
-/// Document:
-///   SD DocContent           0
-/// 
-/// DocContent:
-///   SE (*) DocEnd           0
-///   DT DocContent           1.0
-///   CM DocContent           1.1.0
-///   PI DocContent           1.1.1
-/// 
-/// DocEnd:
-///   ED                      0
-///   CM DocEnd               1.0
-///   PI DocEnd               1.1
-/// 
-/// StartTagContent:
-///   EE                      0.0
-///   AT (*) StartTagContent  0.1
-///   NS StartTagContent      0.2
-///   SC Fragment             0.3
-///   ChildContentItems      (0.4)  
-/// 
-/// ElementContent:
-///   EE                      0
-///   ChildContentItems      (1.0)  
-/// 
-/// ChildContentItems (n.m):
-///   SE (*) ElementContent  n. m
-///   CH ElementContent      n.(m+1)
-///   ER ElementContent      n.(m+2)
-///   CM ElementContent      n.(m+3).0
-///   PI ElementContent      n.(m+3).1
-///
-
 namespace INTERNAL_NS(exi) {
 
 //===----------------------------------------------------------------===//
@@ -105,6 +68,7 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final
       public TrailingArray<OrderedBuiltinSchema<StrmT>, EventTerm> {
   using enum BIGrammarState;
   using BuiltinSchema::State;
+
   using Get = Schema::Get<ExiDecoder, StrmT>;
   using BaseT = TrailingArray<OrderedBuiltinSchema, EventTerm>;
   using MatchT = MMatch<EventTerm, EventTerm>;
@@ -122,23 +86,31 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final
   /// The generated grammars.
   DenseMap<SmallQName, BuiltinGrammar*> Grammars;
 
-  OrderedBuiltinSchema(ArrayRef<EventTerm> Terms) : 
-   BaseT(Terms.size(), Terms.begin(), Terms.end()) {
+  OrderedBuiltinSchema(ArrayRef<EventTerm> Terms,
+                       ArrayRef<BIInfo> Info) : 
+   BaseT(Terms.size(), Terms.begin(), Terms.end()),
+   Info(BIInfoArray::New(Info)) {
+  }
+  OrderedBuiltinSchema(const BIBuilder& B) : 
+   OrderedBuiltinSchema(B.Terms, B.Info) {
   }
 
 public:
+  friend class BaseT::New;
+  using InitT = typename BaseT::New;
+
+  static Box<OrderedBuiltinSchema> New(const BIBuilder& B) {
+    const unsigned Size = B.Terms.size();
+    auto* TheSchema = InitT(Size).init(B);
+    return Box<OrderedBuiltinSchema>(TheSchema);
+  }
+  template <is_exi_allocator Alloc>
+  [[nodiscard]] static OrderedBuiltinSchema* New(const BIBuilder& B, Alloc& A) {
+    const unsigned Size = B.Terms.size();
+    return InitT(Size, A).init(B);
+  }
   static Box<OrderedBuiltinSchema> New(const ExiOptions& Opts) {
-    auto B = BIBuilder::New(Opts);
-    void* Raw = BaseT::New(B.Terms.size());
-    auto* Schema = new (Raw) OrderedBuiltinSchema(B.Terms);
-
-    exi_assert(B.Info.size() == Schema->Info.size());
-    // TODO: Use FastCopy?
-    for (auto [Ix, BuiltinInfo] : exi::enumerate(Schema->Info))
-      // Copy all our generated info.
-      BuiltinInfo = B.Info[Ix];
-
-    return Box<OrderedBuiltinSchema>(Schema);
+    return New(BIBuilder::New(Opts));
   }
 
   ////////////////////////////////////////////////////////////////////////
