@@ -45,17 +45,14 @@ using GrammarTerm = Result<EventUID, FirstLevelProd>;
 /// The base for all grammars.
 class Grammar {
 public:
+  virtual ~Grammar() = default;
   /// Gets the terminal symbol at the current position, if it exists.
   /// Otherwise returns the first part of the event code.
   virtual GrammarTerm getTerm(OrdReader& Strm, bool IsStart) = 0;
-
   /// Adds a new StartTag term to the list.
   virtual void addTerm(EventUID Term, bool IsStart) = 0;
-
   /// Dumps the current grammar.
   virtual void dump(ExiDecoder* D) const {}
-  virtual ~Grammar() = default;
-
 private:
   virtual void anchor();
 };
