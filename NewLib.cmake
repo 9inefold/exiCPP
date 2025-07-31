@@ -110,6 +110,8 @@ include_items(EXICPP_ENCODE "lib/exi"
 include_items(EXICPP_GRAMMAR "lib/exi"
   Grammar/BIState.cpp
   Grammar/Grammar.cpp
+  Grammar/SchemaFactory.cpp
+  
   Grammar/Encode/Schema.cpp
   Grammar/Encode/BuiltinSchema.cpp
   Grammar/Decode/Schema.cpp

@@ -30,6 +30,7 @@
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/ExiHeader.hpp>
 #include <exi/Grammar/EncoderSchema.hpp>
+#include <exi/Grammar/SchemaFactory.hpp>
 
 namespace exi {
 
