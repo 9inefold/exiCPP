@@ -143,4 +143,45 @@ public:
 
 } // namespace H
 
+////////////////////////////////////////////////////////////////////////
+// Traits
+
+namespace H {
+
+template <typename>
+struct IsExiAllocator : std::false_type {};
+
+template <class Alloc>
+struct IsExiAllocator<AllocatorBase<Alloc>> : std::true_type {};
+
+template <class Alloc>
+void AllocatorBase_check(AllocatorBase<Alloc>&);
+
+template <class Alloc>
+concept is_exi_allocator_by_type = IsExiAllocator<Alloc>::value;
+
+template <class Alloc>
+concept is_exi_allocator_by_base
+  = requires (Alloc& A) { AllocatorBase_check(A); };
+
+template <class Alloc>
+concept is_exi_allocator_by_sig
+ = requires (Alloc& A, const void* Ptr) {
+  { A.Allocate(1, 1) } -> std::convertible_to<void*>;
+  { A.template Allocate<char>(1) } -> std::same_as<char*>;
+  A.Deallocate(Ptr, 1, 1);
+};
+
+} // namespace H
+
+/// Checks if an object is an `AllocatorBase` instance, or derived from one.
+template <class Alloc>
+concept is_exi_allocator
+  =  H::is_exi_allocator_by_type<Alloc>
+  || H::is_exi_allocator_by_base<Alloc>;
+
+/// Checks if a type matches the `AllocatorBase` interface.
+template <class Alloc>
+concept exi_allocator = H::is_exi_allocator_by_sig<std::remove_const_t<Alloc>>;
+
 } // namespace exi
