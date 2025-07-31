@@ -1,4 +1,4 @@
-//===- exi/Grammar/D/BIBuilder.hpp ----------------------------------===//
+//===- exi/Grammar/BIBuilder.hpp ------------------------------------===//
 //
 // Copyright (C) 2024-2025 Eightfold
 //
@@ -26,7 +26,7 @@
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/EventCodes.hpp>
 #include <exi/Basic/ExiOptions.hpp>
-#include "BITypes.hpp"
+#include <exi/Grammar/BITypes.hpp>
 
 #define DEBUG_TYPE "BuiltinSchema"
 

@@ -32,7 +32,7 @@
 #include <core/Support/TrailingArray.hpp>
 #include <exi/Basic/D/InternalMacros.hpp>
 #include <exi/Basic/ExiOptions.hpp>
-#include <exi/Grammar/D/BIBuilder.hpp>
+#include <exi/Grammar/BIBuilder.hpp>
 #include <exi/Grammar/Grammar.hpp>
 #include <exi/Stream/OrderedReader.hpp>
 #include <fmt/ranges.h>

@@ -1,4 +1,4 @@
-//===- exi/Grammar/D/BITypes.hpp ------------------------------------===//
+//===- exi/Grammar/BITypes.hpp --------------------------------------===//
 //
 // Copyright (C) 2024-2025 Eightfold
 //
