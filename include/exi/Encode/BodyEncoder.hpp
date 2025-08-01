@@ -107,6 +107,8 @@ public:
     /// Generates the encoder and runs.
     ExiError encode(Serializer* S, SmallVecImpl<char>& Buf) EXI_NONNULL(2);
   private:
+    inline ExiError encodeGeneric(Serializer* S, auto& I);
+    /// Runs the encoder.
     ExiError go(Serializer* S) const;
   };
 

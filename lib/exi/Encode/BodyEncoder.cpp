@@ -101,8 +101,7 @@ ExiResult<ExiEncoder::EncoderFactory>
       return Err(E);
   }
   // Set up schema.
-  if (auto E = this->init())
-    return Err(E);
+  exi_try_r(this->init());
   return EncoderFactory(this);
 }
 
@@ -164,40 +163,34 @@ static ExiOptions& UnwrapOptions(Option<const ExiOptions&> Opts) {
     Opts.expect("Options should be initialized!"));
 }
 
-ExiError ExiEncoder::EncoderFactory::encode(Serializer* S, raw_ostream& Strm) {
+ALWAYS_INLINE ExiError ExiEncoder::EncoderFactory::encodeGeneric(Serializer* S, auto& I) {
   // TODO: Add method to skip checks after first initialization.
   auto& Opts = UnwrapOptions(This->getOptions());
-  if (MMatch(Opts.Alignment).isnt(AlignKind::BitPacked,
-                                  AlignKind::BytePacked)) {
+  if (MMatch(Opts.Alignment).is(AlignKind::BitPacked,
+                                AlignKind::BytePacked)) {
+    ExiResult<Box<BodyEncoder>> BEOrErr
+      = MakeEncoder<OrderedEncoder>(
+        Opts, This->ESFactory, I, This->getPCH());
+    if (BEOrErr.is_err())
+      return BEOrErr.error();
+    TheEncoder = std::move(*BEOrErr);
+  } else {
     LOG_ERROR("channel streams are unsupported.");
     return ExiError::TODO;
   }
-  ExiResult<Box<BodyEncoder>> BEOrErr
-    = MakeEncoder<OrderedEncoder>(
-      Opts, This->ESFactory, Strm, This->getPCH());
-  if (BEOrErr.is_err())
-    return BEOrErr.error();
-  TheEncoder = std::move(*BEOrErr);
+  return ExiError::OK;
+}
+
+ExiError ExiEncoder::EncoderFactory::encode(Serializer* S, raw_ostream& Strm) {
+  // FIXME: Should clear buffer first?
+  exi_try(encodeGeneric(S, Strm));
   return this->go(S);
 }
 
 ExiError ExiEncoder::EncoderFactory::encode(Serializer* S,
                                             SmallVecImpl<char>& Buf) {
-  // TODO: Add method to skip checks after first initialization.
-  auto& Opts = UnwrapOptions(This->getOptions());
-  // FIXME: Should clear buffer?
-  if (MMatch(Opts.Alignment).is(AlignKind::BitPacked,
-                                AlignKind::BytePacked)) {
-    ExiResult<Box<BodyEncoder>> BEOrErr
-      = MakeEncoder<OrderedEncoder>(
-        Opts, This->ESFactory, Buf, This->getPCH());
-    if (BEOrErr.is_err())
-      return BEOrErr.error();
-    TheEncoder = std::move(*BEOrErr); 
-  } else {
-    LOG_ERROR("channel streams are unsupported.");
-    return ExiError::TODO;
-  }
+  // FIXME: Should clear buffer first?
+  exi_try(encodeGeneric(S, Buf));
   return this->go(S);
 }
 
