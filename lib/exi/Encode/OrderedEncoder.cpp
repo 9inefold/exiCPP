@@ -23,13 +23,11 @@
 
 #include <exi/Encode/OrderedEncoder.hpp>
 #include <core/Common/MMatch.hpp>
-#include <core/Common/Unwrap.hpp>
 #include <core/Support/Casting.hpp>
-#include <core/Support/Format.hpp>
-#include <core/Support/Logging.hpp>
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/ExiOptions.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
+#include <Encode/OrderedEncoder-inl.hpp>
 
 #define DEBUG_TYPE "OrderedEncoder"
 
@@ -94,4 +92,8 @@ ExiError OrderedEncoder::init(SmallVecImpl<char>& Buf) {
   }
   initWriter(Buf);
   return ExiError::OK;
+}
+
+ExiError OrderedEncoder::encodeHeader(BitBuffer Data) {
+  return this->encodeHeader(Data, false);
 }

@@ -37,6 +37,7 @@ class OrderedEncoder final : public BodyEncoder {
   friend struct encode::Schema::Get<BitWriter>;
   friend struct encode::Schema::Get<ByteWriter>;
 
+  using BodyEncoder::Opts;
   /// A BumpPtrAllocator for processor internals.
   exi::BumpPtrAllocator BP;
   /// The provided `OrderedWriter`.
@@ -76,25 +77,31 @@ public:
   /// Generic interface for initializing the OrderedWriter.
   ExiError init(SmallVecImpl<char>& Buf);
 
+  /// Checks that a `BitBuffer` could contain valid data.
+  inline static bool IsValidHeaderBuffer(BitBuffer Data,
+                                         AlignKind A = AlignKind::BitPacked);
+  /// Checks if the data should be written to the buffer.
+  /// @returns A value if no, otherwise `None`.
+  inline Option<ExiError> shouldEncodeHeader(BitBuffer Data,
+                                             bool KnownValid = false) const;
   /// Writes the header to the provided stream.
-  ExiError encodeHeader(BitBuffer Data) override {
-    if (auto E = this->assumeWriterIsEmpty())
-      return E;
-    Writer->writeBitBuffer(Data);
-    return ExiError::OK;
-  }
+  inline ExiError encodeHeader(BitBuffer Data, bool KnownValid = false);
+  /// Writes the header to the provided stream.
+  ExiError encodeHeader(BitBuffer Data) override;
 
   static bool classof(const BodyEncoder* BE) {
     return BE->get_kind() == EncoderKind::EK_Ordered;
   }
 
 private:
-  void initWriter(auto&&...Args) {
+  /// Initializes the writer with arbitrary data.
+  void initWriter(auto& BufOrStrm, auto...Rest) {
     if (Opts.Alignment == AlignKind::BitPacked) {
-      Writer.emplace<BitWriter>(EXI_FWD(Args)...);
+      Writer.emplace<BitWriter>(BufOrStrm, Rest...);
     } else /*AlignKind::BytePacked*/ {
-      Writer.emplace<ByteWriter>(EXI_FWD(Args)...);
+      Writer.emplace<ByteWriter>(BufOrStrm, Rest...);
     }
+    IsStreamInitialized = true;
   }
 
   ////////////////////////////////////////////////////////////////////////
