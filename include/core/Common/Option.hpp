@@ -249,11 +249,11 @@ public:
 
   template <typename ArgT>
   constexpr Option(const Expect<ArgT>& V)
-      : Storage(std::in_place, V.Data) {}
+      : Storage(std::in_place, V.value()) {}
     
   template <typename ArgT>
   constexpr Option(Expect<ArgT>&& V)
-      : Storage(std::in_place, std::move(V.Data)) {}
+      : Storage(std::in_place, std::move(V).value()) {}
 
   constexpr Option(std::in_place_t, auto&&...Args)
       : Storage(std::in_place, EXI_FWD(Args)...) {}
