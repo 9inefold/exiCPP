@@ -89,6 +89,12 @@ public:
   /// Writes the header to the provided stream.
   ExiError encodeHeader(BitBuffer Data) override;
 
+  bool isReady() const override {
+    return IsConstructed
+        && IsStreamInitialized
+        && DidEncodeHeader;
+  }
+
   static bool classof(const BodyEncoder* BE) {
     return BE->get_kind() == EncoderKind::EK_Ordered;
   }
