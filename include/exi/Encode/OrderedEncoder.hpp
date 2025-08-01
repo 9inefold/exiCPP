@@ -46,15 +46,15 @@ class OrderedEncoder final : public BodyEncoder {
   /// The stack of namespace contexts.
   NSContextStack CtxStack;
   /// The schema for the current document.
-  encode::Schema* CurrentSchema = nullptr;
+  Box<encode::Schema> CurrentSchema;
 
 public:
-  OrderedEncoder(ExiOptions& Opts, encode::Schema* CS, ExiError* E = nullptr);
+  OrderedEncoder(ExiOptions& Opts, encode::factory_t& F, ExiError* E = nullptr);
   /// Initializes the writer with a stream/buffer.
   template <typename InitT>
-  OrderedEncoder(ExiOptions& Opts, encode::Schema* CS,
+  OrderedEncoder(ExiOptions& Opts, encode::factory_t& F,
     InitT& I, ExiError* E = nullptr)
-   : OrderedEncoder(Opts, CS, E) {
+   : OrderedEncoder(Opts, F, E) {
     this->init(I); // FIXME: Propagate ctor error.
   }
 

@@ -112,17 +112,17 @@ ExiError ExiEncoder::init() {
 
   auto& Opts = *Header.Opts;
   if (!Opts.SchemaID.expect("schema is required"))
-    CurrentSchema = BuiltinSchema::Make(Opts, nullptr);
+    ESFactory = BuiltinSchema::New(Opts);
   else
-    exi_todo("schemas are currently unsupported");
+    exi_todo("real schemas are currently unsupported");
   
-  if (!CurrentSchema) {
-    LOG_ERROR("Schema could not be allocated.");
+  if (!ESFactory) {
+    LOG_ERROR("Schema factory could not be allocated.");
     return ErrorCode::kInvalidMemoryAlloc;
   }
 
-  if (hasDbgLogLevel(INFO))
-    CurrentSchema->dump();
+  //if (hasDbgLogLevel(INFO))
+  //  CurrentSchema->dump();
 
   LOG_EXTRA("Initialized!");
   return ExiError::OK;
@@ -130,9 +130,9 @@ ExiError ExiEncoder::init() {
 
 template <class Encoder>
 static ExiResult<Box<BodyEncoder>>
- MakeEncoder(ExiOptions& Opts, encode::Schema* CS, auto& I) {
+ MakeEncoder(ExiOptions& Opts, encode::factory_t& F, auto& I) {
   ExiError E = ExiError::OK;
-  Box<Encoder> BE = std::make_unique<Encoder>(Opts, CS, &E);
+  Box<Encoder> BE = std::make_unique<Encoder>(Opts, F, &E);
   if (E)
     return Err(E);
   if (!BE)
@@ -151,7 +151,7 @@ ExiError ExiEncoder::EncoderFactory::encode(Serializer* S, raw_ostream& Strm) {
   }
   ExiResult<Box<BodyEncoder>> BEOrErr
     = MakeEncoder<OrderedEncoder>(
-      Opts, &*This->CurrentSchema, Strm);
+      Opts, This->ESFactory, Strm);
   if (BEOrErr.is_err())
     return BEOrErr.error();
   TheEncoder = std::move(*BEOrErr);
@@ -168,7 +168,7 @@ ExiError ExiEncoder::EncoderFactory::encode(Serializer* S,
   }
   ExiResult<Box<BodyEncoder>> BEOrErr
     = MakeEncoder<OrderedEncoder>(
-      Opts, &*This->CurrentSchema, Buf);
+      Opts, This->ESFactory, Buf);
   if (BEOrErr.is_err())
     return BEOrErr.error();
   TheEncoder = std::move(*BEOrErr);

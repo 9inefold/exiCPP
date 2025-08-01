@@ -58,8 +58,8 @@ class ExiEncoder {
   /// The provided Header.
   // TODO: Check .HasOptions everywhere?
   ExiHeader Header = {};
-  /// The schema for the current encoder.
-  Box<encode::Schema> CurrentSchema = nullptr;
+  /// The SchemaFactory for the current encoder.
+  encode::factory_t ESFactory = nullptr;
   /// A buffer containing the precompiled options.
   Option<OwningBitBuffer> PCH = std::nullopt;
   /// State of the decoder in terms of progression.
