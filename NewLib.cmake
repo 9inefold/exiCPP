@@ -127,7 +127,7 @@ function(exi_add_library lib src)
   add_library(${LIBNAME} STATIC ${${src}})
   add_library(exi::${lib} ALIAS ${LIBNAME})
 
-  target_include_directories(${LIBNAME} PUBLIC include PRIVATE src/exi)
+  target_include_directories(${LIBNAME} PUBLIC include PRIVATE lib/exi)
   target_link_libraries(${LIBNAME} PUBLIC exi::core rapidxml::rapidxml)
   target_compile_options(${LIBNAME} PRIVATE ${EXI_WARNING_FLAGS})
 endfunction(exi_add_library)
