@@ -43,9 +43,8 @@ class Schema : public RTTIExtends<Schema, RTTIRoot> {
 protected:
   friend class exi::ChannelEncoder;
   friend class exi::OrderedEncoder;
-  template <class Self> struct Internals {
-    template <typename> struct Get;
-  };
+  template <is_writer_stream> struct Get;
+
 public:
   /// Gets the terminal symbol at the current position.
   // FIXME: Add the actual functions.

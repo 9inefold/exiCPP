@@ -34,7 +34,7 @@
 #include <exi/Basic/ExiOptions.hpp>
 #include <exi/Grammar/BIBuilder.hpp>
 #include <exi/Grammar/Grammar.hpp>
-#include <exi/Stream/OrderedReader.hpp>
+#include <exi/Stream/OrderedWriter.hpp>
 #include <fmt/ranges.h>
 #include "SchemaGet.hpp"
 
@@ -98,6 +98,80 @@ EXI_ERROR_CC EXI_MINSIZE static void Diagnose(const ExiResult<T>& Result) {
 ///
 
 namespace INTERNAL_NS(exi) {
+
+//===----------------------------------------------------------------===//
+// Ordered Encoding
+//===----------------------------------------------------------------===//
+
+template <class StrmT>
+requires is_ordwriter_stream<StrmT>
+class INTERNAL_LINKAGE OrderedBuiltinSchema final
+    : public BuiltinSchema,
+      public TrailingArray<OrderedBuiltinSchema<StrmT>, EventTerm> {
+  using enum BIGrammarState;
+  using BuiltinSchema::State;
+
+  using Get = Schema::Get<StrmT>;
+  using BaseT = TrailingArray<OrderedBuiltinSchema, EventTerm>;
+  using MatchT = MMatch<EventTerm, EventTerm>;
+  using GrammarT = PointerIntPair<BuiltinGrammar*, 1, bool>;
+
+  /// Contains info on the compressed grammars.
+  BIInfoArray Info;
+  /// The current event ID
+  EventUID Event = EventUID::NewNull();
+  /// ...
+
+  OrderedBuiltinSchema(ArrayRef<EventTerm> Terms,
+                       ArrayRef<BIInfo> Info) : 
+   BaseT(Terms.size(), Terms.begin(), Terms.end()),
+   Info(BIInfoArray::New(Info)) {
+  }
+  OrderedBuiltinSchema(const BIBuilder& B) : 
+   OrderedBuiltinSchema(B.Terms, B.Info) {
+  }
+
+public:
+  friend class BaseT::New;
+  using InitT = typename BaseT::New;
+
+  static Box<OrderedBuiltinSchema> New(const BIBuilder& B) {
+    const unsigned Size = B.Terms.size();
+    auto* TheSchema = InitT(Size).init(B);
+    return Box<OrderedBuiltinSchema>(TheSchema);
+  }
+  template <is_exi_allocator Alloc>
+  [[nodiscard]] static OrderedBuiltinSchema* New(const BIBuilder& B, Alloc& A) {
+    const unsigned Size = B.Terms.size();
+    return InitT(Size, A).init(B);
+  }
+  static Box<OrderedBuiltinSchema> New(const ExiOptions& Opts) {
+    return New(BIBuilder::New(Opts));
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Encoding
+
+  void encode(EventUID Event) override {}
+
+private:
+
+  ////////////////////////////////////////////////////////////////////////
+  // Printing
+
+public:
+  void dump() const override {}
+
+  // ...
+
+  void anchor() override;
+};
+
+//===----------------------------------------------------------------===//
+// Channel Encoding (soon)
+//===----------------------------------------------------------------===//
+
+// ...
 
 } // namespace INTERNAL_NS
 

@@ -25,12 +25,14 @@
 
 #include <core/Support/Casting.hpp>
 #include <exi/Grammar/EncoderSchema.hpp>
-#include <exi/Encode/BodyEncoder.hpp>
+//#include <exi/Encode/ChannelEncoder.hpp>
+#include <exi/Encode/OrderedEncoder.hpp>
 
 namespace exi::encode {
 
-template <typename StrmT>
-struct Schema::Internals<OrderedEncoder>::Get {
+template <is_writer_stream StrmT>
+requires is_ordwriter_stream<StrmT>
+struct Schema::Get<StrmT> {
 
 };
 
