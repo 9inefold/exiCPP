@@ -29,6 +29,8 @@
 //#include <exi/Encode/ChannelEncoder.hpp>
 #include <exi/Encode/OrderedEncoder.hpp>
 
+#define DEBUG_TYPE "SchemaFactory"
+
 using namespace exi;
 
 SchemaFactory::~SchemaFactory() = default;
@@ -50,10 +52,22 @@ ExiResult<SchemaFactory> SchemaFactory::Builtin(const ExiOptions& Opts) {
   return Err(ExiError::TODO);
 }
 
-Box<encode::Schema> SchemaFactory::Encode(BodyEncoder* ED) {
-  if EXI_UNLIKELY(!DoEncode)
-    return nullptr;
-  if EXI_UNLIKELY(!ED)
-    return nullptr;
-  return DoEncode(ED);
+ExiResult<decode::factory_result_t> SchemaFactory::Decode(BodyDecoder*) {
+  exi_todo("Decoder factories have not been implemented!");
+}
+
+ExiResult<encode::factory_result_t> SchemaFactory::Encode(BodyEncoder* ED) {
+  if EXI_NEVER(!DoEncode) {
+    LOG_ERROR("Encoder was not set up!");
+    return Err(ErrorCode::kInvalidConfig);
+  }
+  if EXI_UNLIKELY(!ED) {
+    LOG_ERROR("BodyEncoder is null!");
+    return Err(ErrorCode::kNullptrRef);
+  }
+
+  encode::factory_result_t S = DoEncode(ED);
+  if EXI_UNLIKELY(!S)
+    return Err(ErrorCode::kInvalidConfig);
+  return S;
 }

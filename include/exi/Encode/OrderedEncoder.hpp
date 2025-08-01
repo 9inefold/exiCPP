@@ -48,6 +48,17 @@ class OrderedEncoder final : public BodyEncoder {
   /// The schema for the current document.
   Box<encode::Schema> CurrentSchema;
 
+  bool IsConstructed : 1 = false;
+  bool IsStreamInitialized : 1 = false;
+  bool DidEncodeHeader : 1 = false;
+
+  /// Creates a new schema instance if initialized.
+  Box<encode::Schema> makeSchemaFromThis(encode::factory_t& F) {
+    if EXI_UNLIKELY(!F)
+      return nullptr;
+    return F(this);
+  }
+
 public:
   OrderedEncoder(ExiOptions& Opts, encode::factory_t& F, ExiError* E = nullptr);
   /// Initializes the writer with a stream/buffer.

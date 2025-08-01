@@ -46,10 +46,17 @@ EXI_INLINE static void AssertIsOrdered(const ExiOptions& Opts) {
 #endif
 }
 
-OrderedEncoder::OrderedEncoder(ExiOptions& Opts, factory_t& F, ExiError*)
- : BodyEncoder(Opts, EncoderKind::EK_Ordered), CurrentSchema(F(this)) {
+OrderedEncoder::OrderedEncoder(ExiOptions& Opts, factory_t& F, ExiError* E)
+ : BodyEncoder(Opts, EncoderKind::EK_Ordered),
+   CurrentSchema(makeSchemaFromThis(F)) {
+  ExiError::AsOutParam EAO(E);
+  if EXI_UNLIKELY(!CurrentSchema) {
+    EAO = ErrorCode::kInvalidConfig;
+    return;
+  }
   AssertIsOrdered(Opts);
   Strings.setup(Opts);
+  IsConstructed = true;
 }
 
 ExiError OrderedEncoder::assumeWriterIsEmpty() const {

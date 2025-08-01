@@ -37,12 +37,14 @@ class BodyEncoder;
 
 namespace decode {
 class Schema;
-using factory_t = unique_function<Box<Schema>(BodyDecoder*) const>;
+using factory_result_t = Box<decode::Schema>;
+using factory_t = unique_function<factory_result_t(BodyDecoder*) const>;
 } // namespace decode
 
 namespace encode {
 class Schema;
-using factory_t = unique_function<Box<Schema>(BodyEncoder*) const>;
+using factory_result_t = Box<encode::Schema>;
+using factory_t = unique_function<factory_result_t(BodyEncoder*) const>;
 } // namespace encode
 
 /// A factory which is specialized for a specific set of options.
@@ -60,9 +62,9 @@ public:
   ExiResult<SchemaFactory> Builtin(const ExiOptions& Opts);
   
   /// Generates a decoder.
-  Box<decode::Schema> Decode(BodyDecoder* BD);
+  ExiResult<decode::factory_result_t> Decode(BodyDecoder* BD);
   /// Generates an encoder.
-  Box<encode::Schema> Encode(BodyEncoder* ED);
+  ExiResult<encode::factory_result_t> Encode(BodyEncoder* ED);
 };
 
 } // namespace exi

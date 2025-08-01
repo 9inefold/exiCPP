@@ -197,6 +197,7 @@ public:
   Box<BuiltinSchema> operator()(BodyEncoder* BE) const {
     if EXI_LIKELY(isa<OrderedEncoder>(BE))
       return OrderedBuiltinSchema<StrmT>::New(Builder);
+    LOG_ERROR("Incorrect BodyEncoder type passed to SchemaFactory!");
     return nullptr;
   }
 };

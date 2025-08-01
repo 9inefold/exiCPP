@@ -65,7 +65,7 @@ public:
   /// @brief Gets a builtin schema factory.
   static factory_t New(const ExiOptions& Opts);
   /// @brief Directly creates a builtin schema.
-  static Box<BuiltinSchema> Make(const ExiOptions& Opts, BodyEncoder*);
+  static Box<BuiltinSchema> Make(const ExiOptions& Opts, BodyEncoder* BE);
 private:
   EXI_RTTI_EXTENDS(BuiltinSchema, Schema);
   void anchor() override;
