@@ -30,7 +30,7 @@
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/Except.hpp>
 //#include <exi/Encode/ChannelEncoder.hpp>
-#include <exi/Encode/OrderedEncoder.hpp>
+#include <Encode/OrderedEncoder-inl.hpp>
 #include <exi/Encode/Serializer.hpp>
 
 #define DEBUG_TYPE "ExiEncoder"
@@ -129,21 +129,44 @@ ExiError ExiEncoder::init() {
 }
 
 template <class Encoder>
-static ExiResult<Box<BodyEncoder>>
- MakeEncoder(ExiOptions& Opts, encode::factory_t& F, auto& I) {
+static ExiError ActuallyMakeEncoder(Box<Encoder>& BE,
+                                    ExiOptions& Opts, encode::factory_t& F) {
   ExiError E = ExiError::OK;
-  Box<Encoder> BE = std::make_unique<Encoder>(Opts, F, &E);
-  if (E)
-    return Err(E);
-  if (!BE)
-    return Err(ErrorCode::kInvalidMemoryAlloc);
-  if (auto E = BE->init(I))
-    return Err(E);
+  BE = std::make_unique<Encoder>(Opts, F, &E);
+  // Basic validity checks.
+  if EXI_NEVER(!BE)
+    return ErrorCode::kInvalidMemoryAlloc;
+  return E;
+}
+
+template <class Encoder>
+static ExiResult<Box<BodyEncoder>>
+ MakeEncoder(ExiOptions& Opts, encode::factory_t& F,
+             auto& I, Option<BitBuffer> PCH) {
+  if EXI_NEVER(!PCH) {
+    LOG_ERROR("Invalid state, header never compiled!");
+    return Err(ErrorCode::kInvalidConfig);
+  }
+  Box<Encoder> BE = nullptr;
+  // Allocate and construct the encoder
+  exi_try_r(ActuallyMakeEncoder<Encoder>(BE, Opts, F));
+  // Initialize the encoder stream
+  exi_try_r(BE->init(I));
+  // Write the EXI header
+  exi_try_r(BE->encodeHeader(*PCH, true));
+  // All good!
   return BE;
 }
 
+/// UNSAFE! Only use options provided with `getOptions`.
+static ExiOptions& UnwrapOptions(Option<const ExiOptions&> Opts) {
+  return const_cast<ExiOptions&>(
+    Opts.expect("Options should be initialized!"));
+}
+
 ExiError ExiEncoder::EncoderFactory::encode(Serializer* S, raw_ostream& Strm) {
-  auto& Opts = *This->Header.Opts;
+  // TODO: Add method to skip checks after first initialization.
+  auto& Opts = UnwrapOptions(This->getOptions());
   if (MMatch(Opts.Alignment).isnt(AlignKind::BitPacked,
                                   AlignKind::BytePacked)) {
     LOG_ERROR("channel streams are unsupported.");
@@ -151,7 +174,7 @@ ExiError ExiEncoder::EncoderFactory::encode(Serializer* S, raw_ostream& Strm) {
   }
   ExiResult<Box<BodyEncoder>> BEOrErr
     = MakeEncoder<OrderedEncoder>(
-      Opts, This->ESFactory, Strm);
+      Opts, This->ESFactory, Strm, This->getPCH());
   if (BEOrErr.is_err())
     return BEOrErr.error();
   TheEncoder = std::move(*BEOrErr);
@@ -160,23 +183,26 @@ ExiError ExiEncoder::EncoderFactory::encode(Serializer* S, raw_ostream& Strm) {
 
 ExiError ExiEncoder::EncoderFactory::encode(Serializer* S,
                                             SmallVecImpl<char>& Buf) {
-  auto& Opts = *This->Header.Opts;
-  if (MMatch(Opts.Alignment).isnt(AlignKind::BitPacked,
-                                  AlignKind::BytePacked)) {
+  // TODO: Add method to skip checks after first initialization.
+  auto& Opts = UnwrapOptions(This->getOptions());
+  // FIXME: Should clear buffer?
+  if (MMatch(Opts.Alignment).is(AlignKind::BitPacked,
+                                AlignKind::BytePacked)) {
+    ExiResult<Box<BodyEncoder>> BEOrErr
+      = MakeEncoder<OrderedEncoder>(
+        Opts, This->ESFactory, Buf, This->getPCH());
+    if (BEOrErr.is_err())
+      return BEOrErr.error();
+    TheEncoder = std::move(*BEOrErr); 
+  } else {
     LOG_ERROR("channel streams are unsupported.");
     return ExiError::TODO;
   }
-  ExiResult<Box<BodyEncoder>> BEOrErr
-    = MakeEncoder<OrderedEncoder>(
-      Opts, This->ESFactory, Buf);
-  if (BEOrErr.is_err())
-    return BEOrErr.error();
-  TheEncoder = std::move(*BEOrErr);
   return this->go(S);
 }
 
 ExiError ExiEncoder::EncoderFactory::go(Serializer* S) const {
-  if (!TheEncoder)
+  if EXI_UNLIKELY(!TheEncoder)
     return ErrorCode::kInvalidConfig;
   return S->run(&*TheEncoder);
 }

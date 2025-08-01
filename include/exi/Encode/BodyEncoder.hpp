@@ -77,6 +77,14 @@ public:
   ExiEncoder(ExiEncoder&&) = default;
   ~ExiEncoder();
 
+  /// Gets options, if they exist.
+  Option<const ExiOptions&> getOptions() const {
+    if (!Header.Opts)
+      return std::nullopt;
+    return *Header.Opts;
+  }
+  /// Gets the precompiled header, if it exists.
+  Option<BitBuffer> getPCH() const { return PCH; }
   /// Get the state flags.
   EncoderFlags flags() const { return Flags; }
   /// Returns if the header was successfully decoded.

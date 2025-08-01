@@ -83,7 +83,7 @@ class Twine;
 
 #define exi_try_r(...) do {                                                   \
   auto&& _u_Err = (__VA_ARGS__);                                              \
-  if EXI_UNLIKELY(_u_Err) {                                                   \
+  if (_u_Err) {                                                               \
     return ::exi::Err(_u_Err);                                                \
   }                                                                           \
 } while(0)
