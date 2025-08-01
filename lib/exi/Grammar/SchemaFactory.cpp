@@ -50,6 +50,10 @@ ExiResult<SchemaFactory> SchemaFactory::Builtin(const ExiOptions& Opts) {
   return Err(ExiError::TODO);
 }
 
-SchemaFactory::encode_t SchemaFactory::Encode(BodyEncoder* ED) {
-  return nullptr;
+Box<encode::Schema> SchemaFactory::Encode(BodyEncoder* ED) {
+  if EXI_UNLIKELY(!DoEncode)
+    return nullptr;
+  if EXI_UNLIKELY(!ED)
+    return nullptr;
+  return DoEncode(ED);
 }

@@ -35,17 +35,22 @@ class ExiEncoder;
 class BodyDecoder;
 class BodyEncoder;
 
-namespace decode { class Schema; }
-namespace encode { class Schema; }
+namespace decode {
+class Schema;
+using factory_t = unique_function<Box<Schema>(BodyDecoder*) const>;
+} // namespace decode
+
+namespace encode {
+class Schema;
+using factory_t = unique_function<Box<Schema>(BodyEncoder*) const>;
+} // namespace encode
 
 /// A factory which is specialized for a specific set of options.
-class SchemaFactory {
-  using decode_t = Box<decode::Schema>;
-  using encode_t = Box<encode::Schema>;
+class [[nodiscard]] SchemaFactory {
   /// Generates a decoder schema for the given input.
-  unique_function<decode_t(BodyDecoder*) const> DoDecode;
+  decode::factory_t DoDecode;
   /// Generates an encoder schema for the given input.
-  unique_function<encode_t(BodyEncoder*) const> DoEncode;
+  encode::factory_t DoEncode;
   /// Internal default ctor.
   SchemaFactory() = default;
 
@@ -55,9 +60,9 @@ public:
   ExiResult<SchemaFactory> Builtin(const ExiOptions& Opts);
   
   /// Generates a decoder.
-  decode_t Decode(BodyDecoder* BD) EXI_NONNULL(2);
+  Box<decode::Schema> Decode(BodyDecoder* BD);
   /// Generates an encoder.
-  encode_t Encode(BodyEncoder* ED) EXI_NONNULL(2);
+  Box<encode::Schema> Encode(BodyEncoder* ED);
 };
 
 } // namespace exi

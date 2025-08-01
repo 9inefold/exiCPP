@@ -175,11 +175,58 @@ public:
 
 } // namespace INTERNAL_NS
 
-static Box<BuiltinSchema> NewChanneled(const ExiOptions& Opts) {
+template<> void OrderedBuiltinSchema<BitWriter>::anchor() {}
+template<> void OrderedBuiltinSchema<ByteWriter>::anchor() {}
+
+//===----------------------------------------------------------------===//
+// Logging
+//===----------------------------------------------------------------===//
+
+
+//===----------------------------------------------------------------===//
+// Getters
+//===----------------------------------------------------------------===//
+
+namespace INTERNAL_NS(exi) {
+
+template <is_ordwriter_stream StrmT>
+class OrderedBISchemaFactory {
+  BIBuilder Builder;
+public:
+  OrderedBISchemaFactory(const ExiOptions& Opts) : Builder(Opts) {}
+  Box<BuiltinSchema> operator()(BodyEncoder* BE) const {
+    if EXI_LIKELY(isa<OrderedEncoder>(BE))
+      return OrderedBuiltinSchema<StrmT>::New(Builder);
+    return nullptr;
+  }
+};
+
+} // namespace INTERNAL_NS
+
+static factory_t NewChanneled(const ExiOptions& Opts) {
   exi_todo("channel readers are currently unsupported!");
 }
 
-Box<BuiltinSchema> BuiltinSchema::New(const ExiOptions& Opts) {
+factory_t BuiltinSchema::New(const ExiOptions& Opts) {
+  switch (Opts.Alignment) {
+  case AlignKind::BitPacked:
+    return OrderedBISchemaFactory<BitWriter>(Opts);
+  case AlignKind::BytePacked:
+    return OrderedBISchemaFactory<ByteWriter>(Opts);
+  case AlignKind::PreCompression:
+    return NewChanneled(Opts);
+  case AlignKind::None:
+    LOG_ERROR("AlignKind cannot be None!");
+    return nullptr;
+  }
+  exi_unreachable("invalid alignment!");
+}
+
+static Box<BuiltinSchema> MakeChanneled(const ExiOptions& Opts) {
+  exi_todo("channel readers are currently unsupported!");
+}
+
+Box<BuiltinSchema> BuiltinSchema::Make(const ExiOptions& Opts, BodyEncoder*) {
   switch (Opts.Alignment) {
   case AlignKind::BitPacked:
     //return OrderedBuiltinSchema<BitReader>::New(Opts);
@@ -188,7 +235,7 @@ Box<BuiltinSchema> BuiltinSchema::New(const ExiOptions& Opts) {
     //return OrderedBuiltinSchema<ByteReader>::New(Opts);
     report_fatal_error("BytePacked currently unsupported!");
   case AlignKind::PreCompression:
-    return NewChanneled(Opts);
+    return MakeChanneled(Opts);
   case AlignKind::None:
     LOG_ERROR("AlignKind cannot be None!");
     return nullptr;

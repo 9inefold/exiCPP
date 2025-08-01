@@ -28,6 +28,8 @@
 #include <core/Support/ExtensibleRTTI.hpp>
 #include <exi/Basic/EventCodes.hpp>
 #include <exi/Grammar/BIState.hpp>
+#include <exi/Grammar/SchemaFactory.hpp>
+#include <exi/Stream/Writer.hpp>
 
 namespace exi {
 
@@ -60,8 +62,10 @@ private:
 class BuiltinSchema : public RTTIExtends<BuiltinSchema, Schema> {
 public:
   using State = BIGrammarState;
-  /// @brief Gets a builtin schema.
-  [[nodiscard]] static Box<BuiltinSchema> New(const ExiOptions& Opts);
+  /// @brief Gets a builtin schema factory.
+  static factory_t New(const ExiOptions& Opts);
+  /// @brief Directly creates a builtin schema.
+  static Box<BuiltinSchema> Make(const ExiOptions& Opts, BodyEncoder*);
 private:
   EXI_RTTI_EXTENDS(BuiltinSchema, Schema);
   void anchor() override;

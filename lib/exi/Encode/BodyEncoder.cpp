@@ -112,7 +112,7 @@ ExiError ExiEncoder::init() {
 
   auto& Opts = *Header.Opts;
   if (!Opts.SchemaID.expect("schema is required"))
-    CurrentSchema = BuiltinSchema::New(Opts);
+    CurrentSchema = BuiltinSchema::Make(Opts, nullptr);
   else
     exi_todo("schemas are currently unsupported");
   
