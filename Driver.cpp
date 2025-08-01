@@ -284,7 +284,8 @@ int main(int Argc, char* Argv[]) {
 
   /*Decoding*/ {
     const StrRef File = "examples/NamespaceNooptB.exi";
-    LOG_INFO("Decoding: \"{}\"", File);
+    WithColor(errs(), BRIGHT_CYAN)
+      << format("Decoding: \"{}\"", File) << '\n';
 
     XMLContainerRef Exi
       = Mgr->getOptXMLRef(File, errs())
@@ -305,7 +306,8 @@ int main(int Argc, char* Argv[]) {
       << "Decoding successful!\n\n";
   } /*Encoding*/ {
     const StrRef File = "examples/Namespace.xml";
-    LOG_INFO("Encoding: \"{}\"", File);
+    WithColor(errs(), BRIGHT_CYAN)
+      << format("Encoding: \"{}\"", File) << '\n';
 
     auto& Xml
       = Mgr->getOptXMLDocument(File, errs())
