@@ -37,6 +37,8 @@ template <typename T> class SmallVecImpl;
 
 using bit_word_t = u64;
 
+namespace H {
+
 class BitBufferBase {
 protected:
   u32 Offset = 0;
@@ -78,6 +80,7 @@ protected:
 public:
   usize bytes() const { return Offset; }
   usize bits() const { return BitOffset; }
+  usize total_bits() const { return Offset * 8 + BitOffset; }
 
   bool aligned() const { return bits() == 0; }
   usize aligned_bytes() const {
@@ -111,10 +114,12 @@ public:
   }
 };
 
+} // namespace H
+
 class OwningBitBuffer;
 
 /// A readable buffer with bit-level positioning.
-class BitBuffer : public BitBufferTemplate<BitBuffer, ArrayRef<u8>> {
+class BitBuffer : public H::BitBufferTemplate<BitBuffer, ArrayRef<u8>> {
   friend class BitBufferTemplate;
   using buffer_t = ArrayRef<u8>;
 public:
@@ -130,7 +135,7 @@ public:
 
 /// A readable owning buffer with bit-level positioning.
 class OwningBitBuffer
-    : public BitBufferTemplate<OwningBitBuffer, OwningArrayRef<u8>> {
+    : public H::BitBufferTemplate<OwningBitBuffer, OwningArrayRef<u8>> {
   friend class BitBufferTemplate;
   friend class BitBuffer;
   using buffer_t = OwningArrayRef<u8>;
