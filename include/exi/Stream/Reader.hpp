@@ -68,6 +68,9 @@ private:
   virtual void anchor();
 };
 
+template <typename StrmT>
+concept is_reader_stream = std::derived_from<StrmT, ReaderBase>;
+
 // TODO: Implement ChannelReader
 
 } // namespace exi

@@ -629,6 +629,9 @@ private:
 
 #undef DEBUG_TYPE
 
+template <typename StrmT>
+concept is_ordreader_stream = std::derived_from<StrmT, OrderedReader>;
+
 /// @brief Inline virtual for ordered readers.
 using OrdReader = Poly<OrderedReader, BitReader, ByteReader>;
 

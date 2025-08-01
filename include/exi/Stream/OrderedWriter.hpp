@@ -426,6 +426,9 @@ private:
 
 #undef DEBUG_TYPE
 
+template <typename StrmT>
+concept is_ordwriter_stream = std::derived_from<StrmT, OrderedWriter>;
+
 /// @brief Inline virtual for ordered writers.
 using OrdWriter = Poly<OrderedWriter, BitWriter, ByteWriter>;
 

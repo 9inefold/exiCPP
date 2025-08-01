@@ -65,4 +65,7 @@ private:
   virtual void anchor();
 };
 
+template <typename StrmT>
+concept is_writer_stream = std::derived_from<StrmT, WriterBase>;
+
 } // namespace exi
