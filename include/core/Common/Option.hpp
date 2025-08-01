@@ -225,6 +225,13 @@ template <typename T> class Option {
     Active.reset();
   }
 
+  static constexpr Option ForwardFrom(auto&& O) {
+    if (O)
+      return Option(std::in_place, *EXI_FWD(O));
+    else
+      return std::nullopt;  
+  }
+
 public:
   using type = T;
   using value_type = T;
@@ -242,6 +249,12 @@ public:
 
   constexpr Option(Option<T&> O)
       : Option(O ? *O : Option()) {}
+  
+  template <typename U> requires(!std::same_as<T, U>)
+  constexpr Option(const Option<U>& O) : Option(ForwardFrom(O)) {}
+  
+  template <typename U> requires(!std::same_as<T, U>)
+  constexpr Option(Option<U>&& O) : Option(ForwardFrom(std::move(O))) {}
 
   constexpr Option(Expect<void>)
    requires std::is_default_constructible_v<T>
