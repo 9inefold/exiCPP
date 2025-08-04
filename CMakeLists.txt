@@ -44,6 +44,8 @@ option(EXI_ENABLE_UNSTABLE_FEATURES "Enable features which may not have a stable
 option(EXI_OPTIMIZE_UNREACHABLE "If exi_unreachable should be undefined behaviour in release builds." ON)
 option(EXI_NATIVE_CODEGEN  "If code should be optimized for the native architecture." OFF)
 
+option(EXI_ENABLE_STACKTRACES "If cpptrace should be used." OFF)
+
 # TODO: Remove when complete?
 option(EXI_USE_EXIP "[DEPRECATED] Enables the old version of exicpp." OFF)
 option(EXI_ANSI     "[DEPRECATED] If ANSI should be enabled." ON)
@@ -128,6 +130,7 @@ if(EXI_USE_MIMALLOC)
 else()
   message(STATUS "[exicpp] Allocator        : classic")
 endif()
+message(STATUS "[exicpp] Stacktraces      : ${EXI_ENABLE_STACKTRACES}")
 if(EXI_DEBUG_BUILD)
   message(STATUS "[exicpp] Fast debug       : ${EXI_FAST_DEBUG}")
 endif()
@@ -135,6 +138,10 @@ message(STATUS "[exicpp] Unstable features: ${EXI_ENABLE_UNSTABLE_FEATURES}")
 message(STATUS "[exicpp] Native codegen   : ${EXI_NATIVE_CODEGEN}")
 if(DEFINED EXI_CODEGEN_TESTS)
   message(STATUS "[exicpp] Codegen tests    : ${EXI_CODEGEN_TESTS}")
+endif()
+
+if(EXI_ENABLE_STACKTRACES)
+  include(scripts/CPM.cmake)
 endif()
 
 set(EXI_BASE_FOLDER ${CMAKE_CURRENT_SOURCE_DIR} CACHE FILEPATH "The root exi directory.")
