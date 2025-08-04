@@ -1,5 +1,9 @@
 # Temporary file, when I remove exip I'll move this into the main file.
 
+##########################################################################
+## Core
+##########################################################################
+
 include_items(EXICPP_CORE "lib/core"
   Common/APInt.cpp
   Common/APSInt.cpp
@@ -38,6 +42,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/RTTI.cpp
   Support/SafeAlloc.cpp
   Support/Signals.cpp
+  Support/Stacktrace.cpp
   Support/StringSaver.cpp
   Support/TokenizeCmd.cpp
   Support/VersionTuple.cpp
@@ -53,7 +58,7 @@ add_library(exi-core STATIC ${EXICPP_CORE})
 add_library(exi::core ALIAS exi-core)
 
 target_include_directories(exi-core PUBLIC include include/core)
-target_link_libraries(exi-core PUBLIC fmt::fmt)
+target_link_libraries(exi-core PUBLIC fmt::fmt exi-cpptrace)
 target_compile_features(exi-core PUBLIC cxx_std_20)
 target_compile_options(exi-core
   PUBLIC ${EXI_FLAGS}
@@ -73,6 +78,8 @@ if(NOT EXI_EXCEPTIONS)
   )
 endif()
 
+##########################################################################
+## Exicpp
 ##########################################################################
 
 include_items(EXICPP_BASIC "lib/exi"

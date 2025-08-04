@@ -40,11 +40,10 @@ option(EXI_ENABLE_DUMP  "If dump methods shouldn't be stripped." OFF)
 
 option(EXI_FAST_DEBUG   "If parts of debug builds should be optimized." OFF)
 option(EXI_ENABLE_EXPENSIVE_CHECKS "If additional expensive checks should be enabled." OFF)
+option(EXI_ENABLE_STACKTRACES "If cpptrace should be used." OFF)
 option(EXI_ENABLE_UNSTABLE_FEATURES "Enable features which may not have a stable ABI." ON)
 option(EXI_OPTIMIZE_UNREACHABLE "If exi_unreachable should be undefined behaviour in release builds." ON)
 option(EXI_NATIVE_CODEGEN  "If code should be optimized for the native architecture." OFF)
-
-option(EXI_ENABLE_STACKTRACES "If cpptrace should be used." OFF)
 
 # TODO: Remove when complete?
 option(EXI_USE_EXIP "[DEPRECATED] Enables the old version of exicpp." OFF)
@@ -188,6 +187,15 @@ endif()
 
 add_subdirectory(vendored/fmt)
 add_subdirectory(vendored/rapidxml)
+
+add_library(exi-cpptrace INTERFACE)
+if(EXI_ENABLE_STACKTRACES)
+  # TODO: Add check for debug symbols
+  CPMAddPackage(
+    URI "gh:jeremy-rifkin/cpptrace@1.0.4"
+    OPTIONS "CPPTRACE_DISABLE_CXX_20_MODULES ON")
+  target_link_libraries(exi-cpptrace INTERFACE cpptrace::cpptrace)
+endif()
 
 if(EXI_USE_EXIP)
   message(STATUS "[exicpp] Using exip.")

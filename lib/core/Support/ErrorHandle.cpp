@@ -27,6 +27,7 @@
 #include <Support/FmtBuffer.hpp>
 #include <Support/Process.hpp>
 #include <Support/Signals.hpp>
+#include <Support/Stacktrace.hpp>
 #include <Support/WindowsError.hpp>
 #include <Support/raw_ostream.hpp>
 #include <cstring>
@@ -81,6 +82,7 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
   }
   (void)::write(2, FullMsg.data(), FullMsg.size());
 
+  errs() << trace::GetTrace(1) << '\n';
   // If we reached here, we are failing ungracefully. Run the interrupt handlers
   // to make sure any special cleanups get done, in particular that we remove
   // files registered with RemoveFileOnSignal.
@@ -146,6 +148,11 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
     fmt::print(stderr, "{}", Pre);
   }
   fmt::println(stderr, ".");
+#if EXI_ENABLE_STACKTRACES
+  fmt::println(stderr, "{}",
+    trace::GetTrace()
+      .to_string(true));
+#endif
   sys::Process::TrapIfDebugging();
   std::abort();
 
