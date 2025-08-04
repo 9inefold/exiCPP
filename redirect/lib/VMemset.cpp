@@ -216,3 +216,13 @@ void* re::VBzero(void* Dst, usize Len) {
   Memset_dispatch((u8*)Dst, u8(0U), Len);
   return Dst;
 }
+
+#ifdef __clang__
+extern "C" void* memset(void* Dst, int Val, usize Len) {
+  if UNLIKELY(Len == 0)
+    return Dst;
+  u8 uVal = unsigned(Val) & 0xFF;
+  Memset_dispatch((u8*)Dst, uVal, Len);
+  return Dst;
+} 
+#endif

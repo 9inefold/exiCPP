@@ -24,7 +24,7 @@
 #include "Interception.hpp"
 
 #define GET_RVA(name) reinterpret_cast<FUNC_TYPE(name)>(name##_RVA)
-#define PATCH(name) {{ .FDOrIAT = STUB_PTR(name) }}
+#define PATCH(name) {{ .FDOrIAT = VOID_CAST(STUB_PTR(name)) }}
 
 using namespace re;
 
@@ -306,6 +306,14 @@ DECLARE_FUNC(void* volatile, _aligned_offset_recalloc_dbg,
 //======================================================================//
 // Patch Table
 //======================================================================//
+
+#undef FUNC_PTR
+#undef TERM_PTR
+#undef STUB_PTR
+
+#define FUNC_PTR(name) VFUNC_PTR(name)
+#define TERM_PTR(name) VTERM_PTR(name)
+#define STUB_PTR(name) VSTUB_PTR(name)
 
 PerFuncPatchData re::rawPatches[kPatchCount + 1] {
   {

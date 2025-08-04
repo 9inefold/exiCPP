@@ -55,7 +55,7 @@ if(MSVC)
   target_link_options(exi-redirect PRIVATE /NODEFAULTLIB)
 else()
   target_compile_options(exi-redirect PRIVATE
-    -shared
+    #-shared
     -fno-threadsafe-statics
     -fno-asynchronous-unwind-tables
     -fno-exceptions -fno-rtti
@@ -137,6 +137,6 @@ function(exi_minject tgt)
   # message(STATUS "Postfix: ${var_POSTFIX}")
   add_custom_command(TARGET ${tgt} POST_BUILD
     COMMAND ${EXI_MI_FOLDER}/bin/${MINJECT_FILE}
-    --inplace --force
-    --postfix=${var_POSTFIX} $<TARGET_FILE:${tgt}>)
+      --inplace --force
+      --postfix=${var_POSTFIX} $<TARGET_FILE:${tgt}>)
 endfunction(exi_minject)

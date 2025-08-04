@@ -40,18 +40,30 @@
 # define STUB_ATTRS
 #endif
 
+#ifndef __clang__
+# define VOID_CAST(...) __VA_ARGS__
+#else
+# define FORCE_ILLEGAL(...)                                     \
+  (__builtin_constant_p(__VA_ARGS__)                            \
+    ? (__VA_ARGS__) : (__VA_ARGS__))
+# define VOID_CAST(...) FORCE_ILLEGAL((void*)(__VA_ARGS__))
+#endif
+
 #define FUNC(name) _mi_##name
 #define FUNC_NAME(name) FUNC(name)
 #define FUNC_TYPE(name) name##_t
 #define FUNC_PTR(name) name##_ptr
+#define VFUNC_PTR(name) VOID_CAST(name##_ptr)
 
 #define TERM(name) _mi_##name##_term
 #define TERM_NAME(name) TERM(name)
 #define TERM_TYPE(name) name##_term_t
 #define TERM_PTR(name) name##_term_ptr
+#define VTERM_PTR(name) VOID_CAST(name##_term_ptr)
 
 #define STUB(name) _mi_##name##_STUB
 #define STUB_PTR(name) name##_STUB_ptr
+#define VSTUB_PTR(name) VOID_CAST(name##_STUB_ptr)
 
 /// Declares a function.
 #define FUNC_DECL(cc, ret, name, ...)                           \
@@ -92,7 +104,7 @@ DECLARE_FUNC(ret, name##_STUB, __VA_ARGS__)                     \
 namespace re {
 
 STUB_ATTRS static void*
- Identity(volatile void* Ptr) noexcept {
+ Identity(void* volatile Ptr) noexcept {
   return Ptr;
 }
 

@@ -91,10 +91,10 @@
 #endif
 
 #if EXI_DEBUG
-# define re_assert(...) [] RE_ALWAYS_INLINE               \
- (auto&& Expr, const char* Msg = "") {                    \
-  LIKELY(static_cast<bool>(FWD(Expr))) ? (void(0))        \
-    : (void(::re::re_assert_failed(Msg, #__VA_ARGS__)));  \
+# define re_assert(...) [] (auto&& Expr, const char* Msg = "")  \
+ RE_ALWAYS_INLINE {                                             \
+  LIKELY(static_cast<bool>(FWD(Expr))) ? (void(0))              \
+    : (void(::re::re_assert_failed(Msg, #__VA_ARGS__)));        \
 } (__VA_ARGS__)
 #else
 # define re_assert(...) (void(0))

@@ -120,3 +120,11 @@ void* re::VMemcpy(void* Dst, const void* Src, usize Len) {
     Memcpy_dispatch((u8*)Dst, (const u8*)Src, Len);
   return Dst;
 }
+
+#ifdef __clang__
+extern "C" void* memcpy(void* Dst, const void* Src, usize Len) {
+  if LIKELY(Len != 0)
+    Memcpy_dispatch((u8*)Dst, (const u8*)Src, Len);
+  return Dst;
+} 
+#endif
