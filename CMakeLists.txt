@@ -189,12 +189,14 @@ add_subdirectory(vendored/fmt)
 add_subdirectory(vendored/rapidxml)
 
 add_library(exi-cpptrace INTERFACE)
-if(EXI_ENABLE_STACKTRACES)
+if(EXI_ENABLE_STACKTRACES AND NOT EXI_USE_MIMALLOC)
   # TODO: Add check for debug symbols
   CPMAddPackage(
     URI "gh:jeremy-rifkin/cpptrace@1.0.4"
     OPTIONS "CPPTRACE_DISABLE_CXX_20_MODULES ON")
   target_link_libraries(exi-cpptrace INTERFACE cpptrace::cpptrace)
+elseif(EXI_ENABLE_STACKTRACES)
+  message(WARNING "cpptrace does not work with mimalloc!")
 endif()
 
 if(EXI_USE_EXIP)

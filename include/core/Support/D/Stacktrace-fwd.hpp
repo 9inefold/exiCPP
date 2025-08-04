@@ -48,7 +48,6 @@ inline void JITRegisterObject(const char*, usize);
 inline void JITUnregisterObject(const char*);
 inline void JITClearAllObjects();
 #else
-struct stacktrace {};
 ALWAYS_INLINE void JITRegisterObject(const char*, usize) {}
 ALWAYS_INLINE void JITUnregisterObject(const char*) {}
 ALWAYS_INLINE void JITClearAllObjects() {}
