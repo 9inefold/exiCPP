@@ -33,7 +33,9 @@ namespace exi::encode {
 template <is_writer_stream StrmT>
 requires is_ordwriter_stream<StrmT>
 struct Schema::Get<StrmT> {
-
+  static BumpPtrAllocator& BP(OrderedEncoder* E) { return E->BP; }
+  static encode::StringTable& Strings(OrderedEncoder* E) { return E->Strings; }
+  static StrmT& Writer(OrderedEncoder* E) { return cast<StrmT>(E->Writer); }
 };
 
 } // namespace exi::encode

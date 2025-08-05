@@ -127,34 +127,47 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final
    BaseT(Terms.size(), Terms.begin(), Terms.end()),
    Info(BIInfoArray::New(Info)) {
   }
-  OrderedBuiltinSchema(const BIBuilder& B) : 
-   OrderedBuiltinSchema(B.Terms, B.Info) {
+  OrderedBuiltinSchema(OrderedEncoder&, const BIBuilder& BIB) : 
+   OrderedBuiltinSchema(BIB.Terms, BIB.Info) {
   }
 
 public:
   friend class BaseT::New;
   using InitT = typename BaseT::New;
 
-  static Box<OrderedBuiltinSchema> New(const BIBuilder& B) {
-    const unsigned Size = B.Terms.size();
-    auto* TheSchema = InitT(Size).init(B);
+  static Box<OrderedBuiltinSchema> New(OrderedEncoder* OE,
+                                       const BIBuilder& BIB) {
+    const unsigned Size = BIB.Terms.size();
+    auto* TheSchema = InitT(Size).init(*OE, BIB);
     return Box<OrderedBuiltinSchema>(TheSchema);
   }
   template <is_exi_allocator Alloc>
-  [[nodiscard]] static OrderedBuiltinSchema* New(const BIBuilder& B, Alloc& A) {
-    const unsigned Size = B.Terms.size();
-    return InitT(Size, A).init(B);
+  [[nodiscard]] static OrderedBuiltinSchema*
+   New(OrderedEncoder* OE, const BIBuilder& BIB, Alloc& A) {
+    const unsigned Size = BIB.Terms.size();
+    return InitT(Size, A).init(*OE, BIB);
   }
-  static Box<OrderedBuiltinSchema> New(const ExiOptions& Opts) {
-    return New(BIBuilder::New(Opts));
+  static Box<OrderedBuiltinSchema> New(BodyEncoder* BE,
+                                       const ExiOptions& Opts) {
+    if (auto* OE = dyn_cast_if_present<OrderedEncoder>(BE))
+      return New(OE, BIBuilder::New(Opts));
+    LOG_ERROR("Input was null or not an ordered encoder!");
+    return nullptr;
   }
 
   ////////////////////////////////////////////////////////////////////////
   // Encoding
 
-  void encode(EventUID Event) override {}
+  void encode(BodyEncoder* BE, EventUID Event) override {
+    exi_expensive_invariant(isa<OrderedEncoder>(BE));
+    return encodeImpl(static_cast<OrderedEncoder*>(BE), Event);
+  }
 
 private:
+
+  ALWAYS_INLINE void encodeImpl(OrderedEncoder* OE, EventUID Event) {
+    exi_todo("implement encodeDispatch");
+  }
 
   ////////////////////////////////////////////////////////////////////////
   // Printing
@@ -195,8 +208,8 @@ class OrderedBISchemaFactory {
 public:
   OrderedBISchemaFactory(const ExiOptions& Opts) : Builder(Opts) {}
   Box<BuiltinSchema> operator()(BodyEncoder* BE) const {
-    if EXI_LIKELY(isa<OrderedEncoder>(BE))
-      return OrderedBuiltinSchema<StrmT>::New(Builder);
+    if (auto* OE = dyn_cast<OrderedEncoder>(BE)) [[likely]]
+      return OrderedBuiltinSchema<StrmT>::New(OE, Builder);
     LOG_ERROR("Incorrect BodyEncoder type passed to SchemaFactory!");
     return nullptr;
   }
@@ -227,14 +240,12 @@ static Box<BuiltinSchema> MakeChanneled(const ExiOptions& Opts) {
   exi_todo("channel readers are currently unsupported!");
 }
 
-Box<BuiltinSchema> BuiltinSchema::Make(const ExiOptions& Opts, BodyEncoder*) {
+Box<BuiltinSchema> BuiltinSchema::Make(const ExiOptions& Opts, BodyEncoder* BE) {
   switch (Opts.Alignment) {
   case AlignKind::BitPacked:
-    //return OrderedBuiltinSchema<BitReader>::New(Opts);
-    report_fatal_error("BitPacked currently unsupported!");
+    return OrderedBuiltinSchema<BitWriter>::New(BE, Opts);
   case AlignKind::BytePacked:
-    //return OrderedBuiltinSchema<ByteReader>::New(Opts);
-    report_fatal_error("BytePacked currently unsupported!");
+    return OrderedBuiltinSchema<ByteWriter>::New(BE, Opts);
   case AlignKind::PreCompression:
     return MakeChanneled(Opts);
   case AlignKind::None:

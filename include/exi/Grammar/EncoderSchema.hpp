@@ -50,7 +50,7 @@ protected:
 public:
   /// Gets the terminal symbol at the current position.
   // FIXME: Add the actual functions.
-  virtual void encode(EventUID Event) = 0;
+  virtual void encode(BodyEncoder* BE, EventUID Event) = 0;
   /// Dumps info about the current schema.
   virtual void dump() const {}
 private:
