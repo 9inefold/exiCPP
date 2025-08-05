@@ -139,11 +139,11 @@ protected:
   }
 
   raw_fd_stream* fdStream() {
-    return dyn_cast_or_null<raw_fd_stream>(&*FS);
+    return dyn_cast_if_present<raw_fd_stream>(FS.data());
   }
 
   const raw_fd_stream* fdStream() const {
-    return dyn_cast_or_null<raw_fd_stream>(&*FS);
+    return dyn_cast_if_present<raw_fd_stream>(FS.data());
   }
 
   OrderedWriter(OrderedWriter&& O) :
