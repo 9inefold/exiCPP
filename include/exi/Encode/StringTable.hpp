@@ -521,25 +521,26 @@ public:
   /// The signature will have to change when schemas are introduced.
   void setup(const ExiOptions& Opts);
 
+  ALWAYS_INLINE static CachedHashStrRef Hash(StrRef S) {
+    const u32 Hash = StringMapImpl::hash(S);
+    return CachedHashStrRef(S, Hash);
+  }
+
   static CachedHashStrRef prehash(StrRef S) {
     // TODO: Profile
     if (S.empty())
       return GetEmptyHashString();
-    const u32 Hash = StringMapImpl::hash(S);
-    return CachedHashStrRef(S, Hash);
+    return Hash(S);
   }
   ALWAYS_INLINE static CachedHashStrRef
    prehash(CachedHashStrRef S) { return S; }
 
   static CachedHashStrRef GetEmptyHashString() {
-    static CachedHashStrRef S = [](){
-      const u32 Hash = StringMapImpl::hash(""_str);
-      return CachedHashStrRef(""_str, Hash);
-    }();
+    static CachedHashStrRef S = Hash(""_str);
     return S;
   }
   static CachedHashStrRef GetXMLNSHashString() {
-    static CachedHashStrRef S = prehash("xmlns"_str);
+    static CachedHashStrRef S = Hash("xmlns"_str);
     return S;
   }
 
