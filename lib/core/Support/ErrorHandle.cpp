@@ -45,6 +45,25 @@
 
 using namespace exi;
 
+static const char* getAssertionMacro(H::AssertionKind Kind) {
+  using enum H::AssertionKind;
+  switch (Kind) {
+   case ASK_Assert:
+    return "exi_assert";
+   case ASK_Assume:
+    return "exi_assume";
+   case ASK_Invariant:
+    return "exi_invariant";
+   case ASK_Unreachable:
+    return "exi_unreachable";
+   case ASK_Unimplemented:
+    return "exi_unimplemented";
+   case ASK_Todo:
+    return "exi_todo";
+  }
+  return "???";
+}
+
 static const char* getAssertionMessage(H::AssertionKind Kind) {
   using enum H::AssertionKind;
   switch (Kind) {
@@ -137,7 +156,7 @@ static consteval StrRef GetFileRelStart() {
 
 static constexpr StrRef kFilePfx = GetFileRelStart();
 
-static void AssertWithDetails(const char* File, const char* Func, unsigned Line) {
+static void AssertWithLocation(const char* File, const char* Func, unsigned Line) {
   SmallStr<256> Buf;
   raw_svector_ostream OS(Buf);
 
@@ -146,7 +165,7 @@ static void AssertWithDetails(const char* File, const char* Func, unsigned Line)
   OS << RESET;
 
   if (Func && Func[0])
-    OS << BRIGHT_GREEN << "In "
+    OS << "In " << BRIGHT_GREEN
       << Func << ' ' << RESET;
   if (File && File[0]) {
     StrRef S(File);
@@ -155,11 +174,28 @@ static void AssertWithDetails(const char* File, const char* Func, unsigned Line)
       OS << '@';
     OS << S << RESET;
     if (Line)
-      OS << BLUE << ':' << Line << RESET;
+      OS << ':' << BLUE << Line << RESET;
   }
   
   if (!Buf.empty())
     fmt::print(stderr, "{}:\n  ", Buf.str());
+}
+
+static void AssertWithDetails(H::AssertionKind Kind, const char* Msg) {
+  SmallStr<256> Buf;
+  raw_svector_ostream OS(Buf);
+
+  using enum raw_ostream::Colors;
+  OS.enable_colors(errs().colors_enabled());
+  OS << BRIGHT_RED
+     << getAssertionMacro(Kind) << " - "
+     << getAssertionMessage(Kind) << RESET;
+
+  if (Msg && Msg[0])
+    OS << ": " << YELLOW
+      << '"' << Msg << '"' << RESET;
+  
+  fmt::println(stderr, "{}.", Buf.str());
 }
 
 [[noreturn]] EXI_ERROR_CC void exi::exi_assert_impl(
@@ -168,17 +204,9 @@ static void AssertWithDetails(const char* File, const char* Func, unsigned Line)
 ) {
   fmt::print(stderr, "\n");
 #if !EXI_ENABLE_STACKTRACES
-  AssertWithDetails(File, Func, Line);
+  AssertWithLocation(File, Func, Line);
 #endif
-  constexpr auto kErr = fmt::terminal_color::bright_red;
-  auto* const Pre = getAssertionMessage(Kind);
-  if (Msg && Msg[0]) {
-    fmt::print(stderr, "{}: {}",
-      Pre, fmt::styled(Msg, fmt::fg(kErr)));
-  } else {
-    fmt::print(stderr, "{}", Pre);
-  }
-  fmt::println(stderr, ".");
+  AssertWithDetails(Kind, Msg);
 #if EXI_ENABLE_STACKTRACES
   errs() << trace::GetTrace() << '\n';
 #endif
