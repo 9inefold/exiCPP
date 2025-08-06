@@ -232,12 +232,12 @@ NSContext StringTable::createURIForInit(StrRef URI, StrRef Pfx) {
   XEntry<URIEntry> UEntry = createURIOnly(Hash(URI));
   NSContext Ctx(UEntry);
 
-  auto [PI, IsNewPfx] = createPfxOnly(Hash(Pfx));
-  if (!IsNewPfx) {
-    LOG_ERROR("Duplicate init prefix '{}'", Pfx);
-    Throw<argument_error>("Duplicate prefix during initialization.");
-  }
+  auto [It, IsNewPfx] = PrefixMap.try_emplace(Pfx);
+  if (!IsNewPfx)
+    ThrowDyn<argument_error>(
+      "Duplicate prefix '"_twine + Pfx + "' during initialization.");
 
+  PrefixEntry* PI = &*It;
   Ctx.Prefix(PI, true).Anonymous(Pfx.empty());
   BindPrefixToNewURI(&PI->second, UEntry.data());
   return Ctx;
