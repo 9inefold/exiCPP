@@ -112,6 +112,7 @@ static void HandleEscapeCodeSetup() {
 }
 
 static void HandleDebugSetup() {
+#if EXI_DEBUG
   using sys::Process;
   Option<String> TrappingEnv
     = Process::GetEnv("EXICPP_TRAP_ERRORS");
@@ -120,6 +121,7 @@ static void HandleDebugSetup() {
     LOG_EXTRA("Debugging enabled.");
   } else
     LOG_EXTRA("Debugging disabled.");
+#endif
 }
 
 static void RunDumps(XMLManager& Mgr, bool Conforming = false) {
