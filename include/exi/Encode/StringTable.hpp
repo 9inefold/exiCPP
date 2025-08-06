@@ -532,7 +532,10 @@ public:
    prehash(CachedHashStrRef S) { return S; }
 
   static CachedHashStrRef GetEmptyHashString() {
-    static CachedHashStrRef S = prehash(""_str);
+    static CachedHashStrRef S = [](){
+      const u32 Hash = StringMapImpl::hash(""_str);
+      return CachedHashStrRef(""_str, Hash);
+    }();
     return S;
   }
   static CachedHashStrRef GetXMLNSHashString() {
@@ -640,6 +643,7 @@ public:
   NSContext declareURI(CachedHashStrRef URI) {
     return createURI(URI, std::nullopt);
   }
+  
   /// When encountering a `xmlns:[Pfx]=[URI]`.
   NSContext enterNamespace(ImplicitHashStrRef Pfx, ImplicitHashStrRef URI) {
     return createURI(URI, Pfx);

@@ -63,6 +63,9 @@ else()
   elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     # Clang only flags
     list(APPEND EXI_FLAGS -fdiagnostics-show-template-tree)
+    if(NOT EXI_USE_THREADS)
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-threadsafe-statics")
+    endif()
   endif()
   if(EXI_NATIVE_CODEGEN)
     # TODO: Add a less narrowing version for production builds.
