@@ -78,13 +78,11 @@ static Option<bool> EnvAsBoolean(StrRef Env) {
 static bool CheckEnvTruthiness(StrRef Env, bool EmptyResult = false) {
   if (Env.empty())
     return false;
-  
   // Handle integral values.
   i64 Int = 0;
-  if (Env.consumeInteger(10, Int)) {
+  if (!Env.consumeInteger(10, Int))
     return (Int != 0);
-  }
-
+  // Parse string.
   return EnvAsBoolean(Env)
     .value_or(EmptyResult);
 }
@@ -111,6 +109,17 @@ static void HandleEscapeCodeSetup() {
   LOG_EXTRA("ANSI escape codes enabled.");
   Process::UseANSIEscapeCodes(true);
   Process::UseUTF8Codepage(true);
+}
+
+static void HandleDebugSetup() {
+  using sys::Process;
+  Option<String> TrappingEnv
+    = Process::GetEnv("EXICPP_TRAP_ERRORS");
+  if (CheckEnvTruthiness(TrappingEnv)) {
+    exi::IsDebuggingFlag = true;
+    LOG_EXTRA("Debugging enabled.");
+  } else
+    LOG_EXTRA("Debugging disabled.");
 }
 
 static void RunDumps(XMLManager& Mgr, bool Conforming = false) {
@@ -247,6 +256,7 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr);
 int main(int Argc, char* Argv[]) {
   using enum raw_ostream::Colors;
   SetLogLevel(LogLevel::WARN);
+  HandleDebugSetup();
   HandleEscapeCodeSetup();
 
   outs().enable_colors(true);

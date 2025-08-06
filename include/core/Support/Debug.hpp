@@ -148,6 +148,10 @@ do {                                                                          \
 /// is specified.  This should probably not be referenced directly, instead, use
 /// the `DEBUG_ONLY` macro below.
 ///
+extern bool IsDebuggingFlag;
+
+/// This value is set if the `-debug` command line option is specified.
+///
 extern LogLevelType DebugFlag;
 
 /// `EnableDebugBuffering` - This defaults to false.  If true, the debug

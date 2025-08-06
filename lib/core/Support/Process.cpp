@@ -171,7 +171,7 @@ static bool coreFilesPrevented = !EXI_ENABLE_CRASH_DUMPS;
 bool Process::AreCoreFilesPrevented() { return coreFilesPrevented; }
 
 bool Process::IsDebugging() {
-  return exi::DebugFlag && Process::IsReallyDebugging();
+  return exi::IsDebuggingFlag && Process::IsReallyDebugging();
 }
 
 [[noreturn]] void Process::Exit(int RetCode, bool NoCleanup) {

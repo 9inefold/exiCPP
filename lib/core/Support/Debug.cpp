@@ -67,6 +67,8 @@ using DbgTVec = exi::SmallVec<exi::String, 0>;
 // built without NDEBUG can depend on via the llvm/Support/Debug.h header.
 namespace exi {
 /// Exported flag set by the -debug option.
+bool IsDebuggingFlag = false;
+/// Exported flag set by the -debug option.
 LogLevelType DebugFlag = LogLevel::NONE;
 
 static ManagedStatic<DbgTVec> CurrentDebugType;

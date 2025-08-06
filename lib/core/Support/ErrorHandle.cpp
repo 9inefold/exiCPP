@@ -210,7 +210,12 @@ static void AssertWithDetails(H::AssertionKind Kind, const char* Msg) {
 #if EXI_ENABLE_STACKTRACES
   errs() << trace::GetTrace() << '\n';
 #endif
-  sys::Process::TrapIfDebugging();
+#if EXI_DEBUG
+  if (!sys::Process::IsDebugging())
+    // This avoids annoying signal handling.
+    std::exit(1);
+#endif // EXI_DEBUG
+  // Always abort in release.
   std::abort();
 }
 
