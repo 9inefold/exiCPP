@@ -192,8 +192,7 @@ static void AssertWithDetails(H::AssertionKind Kind, const char* Msg) {
      << getAssertionMessage(Kind) << RESET;
 
   if (Msg && Msg[0])
-    OS << ": " << YELLOW
-      << '"' << Msg << '"' << RESET;
+    OS << ": " << YELLOW << Msg << RESET;
   
   fmt::println(stderr, "{}.", Buf.str());
 }

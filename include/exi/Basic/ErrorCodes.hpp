@@ -198,6 +198,12 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Observers
 
+  /// Aborts if not successful
+  inline void expect(const char* Msg) const {
+    if EXI_NEVER(EC != ErrorCode::kSuccess)
+      exi::report_fatal_error(Msg);
+  }
+
   ErrorCode ec() const { return EC; }
   const char* what() const EXI_READONLY;
   StrRef msg() const EXI_READONLY;
