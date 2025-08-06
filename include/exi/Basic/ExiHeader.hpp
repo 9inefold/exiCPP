@@ -43,7 +43,6 @@ struct ExiHeader {
   /// If the version is a preview.
   u32 IsPreviewVersion : 1 = false;
 
-  EXI_PREFER_TYPE(bool)
   /// If the version is a preview
   u32 ExiVersion : 30 = kCurrentExiVersion;
 
