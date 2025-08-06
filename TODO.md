@@ -31,6 +31,7 @@ This is a TODO list for the C++ version of exiCPP.
 - Implement `Throw<Ex>(...)`, handle some exceptional cases...
 - Remove tabs added with broken vscode
 - Remove EXIP, merge `NewLib`
+- Fix weird `__FILE__` normalization on windows.
 
 ## Not Started
 

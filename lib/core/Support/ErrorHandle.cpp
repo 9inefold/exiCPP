@@ -146,15 +146,28 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
 #endif
 }
 
-static consteval StrRef GetFileRelStart() {
+// Used for clang.
+#include "GetFileRelStart.hpp"
+
+static consteval StrRef GetFileRelStartSrc() {
+#if EXI_HAS_BUILTIN(__builtin_FILE)
+  std::string_view File = __builtin_FILE();
+#else
   std::string_view File = __FILE__;
+#endif
   const usize Pos = File.find("exiCPP");
   if (Pos == File.npos)
     return ""_str;
   return StrRef(File.data(), Pos);
 }
 
-static constexpr StrRef kFilePfx = GetFileRelStart();
+/// FIXME: Update separators on windows.
+static bool ConsumeFileRelPfx(StrRef& S) {
+  if (S.ends_with(".cpp"))
+    return S.consume_front(GetFileRelStartSrc());
+  else
+    return S.consume_front(kHdrFilePfx);
+}
 
 static void AssertWithLocation(const char* File, const char* Func, unsigned Line) {
   SmallStr<256> Buf;
@@ -168,9 +181,9 @@ static void AssertWithLocation(const char* File, const char* Func, unsigned Line
     OS << "In " << BRIGHT_GREEN
       << Func << ' ' << RESET;
   if (File && File[0]) {
-    StrRef S(File);
     OS << "at " << BRIGHT_YELLOW;
-    if (S.consume_front(kFilePfx))
+    StrRef S(File);
+    if (ConsumeFileRelPfx(S))
       OS << '@';
     OS << S << RESET;
     if (Line)
