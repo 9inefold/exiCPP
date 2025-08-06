@@ -228,15 +228,30 @@ NSContext StringTable::createURI(CachedHashStrRef URI,
   }
 }
 
+NSContext StringTable::createURIForInit(StrRef URI, StrRef Pfx) {
+  XEntry<URIEntry> UEntry = createURIOnly(Hash(URI));
+  NSContext Ctx(UEntry);
+
+  auto [PI, IsNewPfx] = createPfxOnly(Hash(Pfx));
+  if (!IsNewPfx) {
+    LOG_ERROR("Duplicate init prefix '{}'", Pfx);
+    Throw<argument_error>("Duplicate prefix during initialization.");
+  }
+
+  Ctx.Prefix(PI, true).Anonymous(Pfx.empty());
+  BindPrefixToNewURI(&PI->second, UEntry.data());
+  return Ctx;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Batch Initialization
 
 void StringTable::createInitialEntries(bool UsesSchema) {
   // D.1 & D.2 - Initial Entries in Uri & Prefix Partition
   // FIXME: Move these to the constructor?
-  auto Nil = createURI(""_str,  ""_str);
-  auto Xml = createURI(XML_URI, "xml"_str);
-  auto Xsi = createURI(XSI_URI, "xsi"_str);
+  auto Nil = createURIForInit(""_str,  ""_str);
+  auto Xml = createURIForInit(XML_URI, "xml"_str);
+  auto Xsi = createURIForInit(XSI_URI, "xsi"_str);
 
   this->Pfx_NIL = Nil.Pfx;
   this->Pfx_xml = Xml.Pfx;

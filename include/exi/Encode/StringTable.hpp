@@ -787,6 +787,10 @@ private:
       return StringTable::prehash(S);
     }));
   }
+  /// Gets a new (URI*, Pfx*?) pair from a URI and Prefix.
+  /// Used during initialization to avoid usage of potentially uninitialized data.
+  /// Simpler than createURI, as it assumes all inputs are simple and valid.
+  NSContext createURIForInit(StrRef URI, StrRef Pfx);
 
   std::pair<PrefixEntry*, bool> createPfxOnly(CachedHashStrRef Pfx) {
     CheckIsValidPrefix(Pfx);
