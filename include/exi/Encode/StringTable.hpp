@@ -580,7 +580,7 @@ public:
     }
     bool isAnonymousForAssert(bool Val) const {
       if (auto Chk = isSelfAnonymous())
-        return *Chk = Val;
+        return *Chk == Val;
       return true;
     }
 
