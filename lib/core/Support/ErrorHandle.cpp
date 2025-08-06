@@ -127,19 +127,50 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
 #endif
 }
 
+static consteval StrRef GetFileRelStart() {
+  std::string_view File = __FILE__;
+  const usize Pos = File.find("exiCPP");
+  if (Pos == File.npos)
+    return ""_str;
+  return StrRef(File.data(), Pos);
+}
+
+static constexpr StrRef kFilePfx = GetFileRelStart();
+
+static void AssertWithDetails(const char* File, const char* Func, unsigned Line) {
+  SmallStr<256> Buf;
+  raw_svector_ostream OS(Buf);
+
+  using enum raw_ostream::Colors;
+  OS.enable_colors(errs().colors_enabled());
+  OS << RESET;
+
+  if (Func && Func[0])
+    OS << BRIGHT_GREEN << "In "
+      << Func << ' ' << RESET;
+  if (File && File[0]) {
+    StrRef S(File);
+    OS << "at " << BRIGHT_YELLOW;
+    if (S.consume_front(kFilePfx))
+      OS << '@';
+    OS << S << RESET;
+    if (Line)
+      OS << BLUE << ':' << Line << RESET;
+  }
+  
+  if (!Buf.empty())
+    fmt::print(stderr, "{}:\n  ", Buf.str());
+}
+
 [[noreturn]] EXI_ERROR_CC void exi::exi_assert_impl(
  H::AssertionKind Kind, const char* Msg,
- const char* File, unsigned Line
+ const char* File, const char* Func, unsigned Line
 ) {
-  constexpr auto kLoc = fmt::terminal_color::bright_yellow;
+  fmt::print(stderr, "\n");
+#if !EXI_ENABLE_STACKTRACES
+  AssertWithDetails(File, Func, Line);
+#endif
   constexpr auto kErr = fmt::terminal_color::bright_red;
-  if (File) {
-    SmallStr<256> Buf;
-    wrap_stream(Buf) << format("\nAt \"{}:{}\"", File, Line);
-    fmt::print(stderr, "{}:\n  ",
-      fmt::styled(Buf.str(), fmt::fg(kLoc)));
-  }
-
   auto* const Pre = getAssertionMessage(Kind);
   if (Msg && Msg[0]) {
     fmt::print(stderr, "{}: {}",
@@ -149,16 +180,10 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
   }
   fmt::println(stderr, ".");
 #if EXI_ENABLE_STACKTRACES
-  fmt::println(stderr, "{}",
-    trace::GetTrace()
-      .to_string(true));
+  errs() << trace::GetTrace() << '\n';
 #endif
   sys::Process::TrapIfDebugging();
   std::abort();
-
-#ifdef EXI_UNREACHABLE
-  EXI_UNREACHABLE;
-#endif
 }
 
 //======================================================================//

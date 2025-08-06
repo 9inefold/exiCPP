@@ -62,8 +62,7 @@ class Twine;
 
 [[noreturn]] EXI_ERROR_CC void exi_assert_impl(
  H::AssertionKind Kind, const char* Msg = nullptr,
- const char* File = nullptr, unsigned Line = 0
-);
+ const char* File = nullptr, const char* Func = nullptr, unsigned Line = 0);
 
 [[noreturn]] inline void exi_unreachable_impl() {
 #ifdef EXI_UNREACHABLE
@@ -90,7 +89,7 @@ class Twine;
 
 /// Simplified assertion handler, provides required arguments for you.
 #define exi_fail(KIND, MSG) ::exi::exi_assert_impl(                           \
-  ::exi::H::KIND, MSG, EXI_FUNCTION, __LINE__)
+  ::exi::H::KIND, MSG, __FILE__, EXI_FUNCTION, __LINE__)
 
 /// Simplified assertion handler, provides required arguments for you.
 #define exi_fail_stringify(KIND, ...) exi_fail(KIND, "`" #__VA_ARGS__ "`")
