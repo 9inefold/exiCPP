@@ -116,10 +116,19 @@ public:
   static ExiResult<ExiEncoder> New(MaybeBox<ExiOptions>&& Opts);
   /// Sets options for encoding.
   ExiError setOptions(MaybeBox<ExiOptions>&& Opts);
+  /// Sets whether the $EXI cookie will be encoded.
+  ExiError hdrHasCookie(bool HasCookie);
+  /// Sets whether options will be encoded or out-of-band.
+  ExiError hdrHasOptions(bool IncludeOptions);
+  /// Sets whether the $EXI cookie will be encoded.
+  ExiError hdrVersion(u32 Version = kCurrentExiVersion)
+   EXI_ERROR_IF(Version > kCurrentExiVersion, "Invalid EXI version!");
+
   /// Precompiles header to a `BitBuffer`.
   /// Defined in `HeaderEncoder.cpp`.
   /// @param IncludeOptions If options should be encoded as well.
-  ExiError compileHeader(bool IncludeOptions);
+  ExiError compileHeader(
+    Option<bool> IncludeOptions = std::nullopt);
   /// Creates the `EncoderFactory` for the current setup.
   ExiResult<EncoderFactory> setup(
     Option<bool> IncludeOptions = std::nullopt);

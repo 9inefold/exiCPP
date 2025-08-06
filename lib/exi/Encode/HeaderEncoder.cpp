@@ -113,11 +113,14 @@ static ArrayRef<u8> GetU8BufferFromSVec(const SmallVecImpl<char>& V) {
     reinterpret_cast<const u8*>(V.end()));
 }
 
-ExiError ExiEncoder::compileHeader(bool IncludeOptions) {
+ExiError ExiEncoder::compileHeader(Option<bool> IncludeOptions) {
   if EXI_UNLIKELY(PCH.has_value()) {
     LOG_WARN("Header has already been compiled!");
     return ExiError::OK;
   }
+
+  if (IncludeOptions)
+    Header.HasOptions = *IncludeOptions;
 
   SmallVec<char, 256> Buffer;
   BitWriter Strm(Buffer);

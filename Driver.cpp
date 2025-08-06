@@ -335,9 +335,11 @@ int main(int Argc, char* Argv[]) {
 
     ExiEncoder Encoder = std::move(*EncoderOrErr);
     XMLSerializer S(&Xml);
+    Encoder.hdrHasOptions(false)
+      .expect("Options already compiled??");
 
     LOG_INFO("Compiling header...");
-    Result Factory = Encoder.setup(false);
+    Result Factory = Encoder.setup();
     if (!Factory) {
       errs() << Factory.error() << '\n';
       WithColor(errs(), BRIGHT_RED)

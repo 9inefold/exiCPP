@@ -89,15 +89,44 @@ ExiError ExiEncoder::setOptions(MaybeBox<ExiOptions>&& Opts) {
   return ExiError::OK;
 }
 
+ExiError ExiEncoder::hdrHasCookie(bool HasCookie) {
+  if (Flags.DidHeader || Flags.DidInit) {
+    LOG_ERROR("Header has already been written.");
+    return ExiError::kInvalidConfig;
+  }
+
+  Header.HasCookie = HasCookie;
+  return ExiError::OK;
+}
+
+ExiError ExiEncoder::hdrHasOptions(bool IncludeOptions) {
+  if (Flags.DidHeader || Flags.DidInit) {
+    LOG_ERROR("Header has already been written.");
+    return ExiError::kInvalidConfig;
+  }
+
+  Header.HasOptions = IncludeOptions;
+  return ExiError::OK;
+}
+
+ExiError ExiEncoder::hdrVersion(u32 Version) {
+  if (Flags.DidHeader || Flags.DidInit) {
+    LOG_ERROR("Header has already been written.");
+    return ExiError::kInvalidConfig;
+  } else if EXI_NEVER(Version > kCurrentExiVersion) {
+    LOG_ERROR("Invalid EXI version: {}.", Version);
+    return ExiError::kInvalidConfig;
+  }
+
+  Header.ExiVersion = Version;
+  return ExiError::OK;
+}
+
 ExiResult<ExiEncoder::EncoderFactory>
  ExiEncoder::setup(Option<bool> IncludeOptions) {
   if (!PCH) {
-    if (!IncludeOptions) {
-      LOG_ERROR("Header was uncompiled but no options were provided!");
-      return Err(ErrorCode::kInvalidConfig);
-    }
     // Try compiling the header.
-    if (auto E = compileHeader(*IncludeOptions))
+    if (auto E = compileHeader(IncludeOptions))
       return Err(E);
   }
   // Set up schema.
