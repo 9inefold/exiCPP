@@ -39,6 +39,7 @@ This is a TODO list for the C++ version of exiCPP.
 - Refactor `PagedVec`
 - Add some more major in-source TODOs here...
 - Add doxygen support
+- Improve name simplification in errors.
 - Implement storage/lookup of typed values
 - `CrashRecoveryContext` and `cpptrace`
 - Add permissive mode for things like relaxed versioning and validation order?

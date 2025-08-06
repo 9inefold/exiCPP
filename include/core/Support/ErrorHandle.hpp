@@ -29,6 +29,12 @@
 # undef EXI_ASSERTS
 #endif
 
+#ifdef EXI_SMALL_FUNCNAME
+# error EXI_SMALL_FUNCNAME should be defined AFTER including ErrorHandle.hpp!
+#endif
+/// Can be overridden to force the use of `__func__`.
+inline constexpr bool EXI_SMALL_FUNCNAME = false;
+
 namespace exi {
 namespace H {
 
@@ -87,9 +93,10 @@ class Twine;
   }                                                                           \
 } while(0)
 
+#define EXI__FUNCTION__ (EXI_SMALL_FUNCNAME ? __func__ : EXI_FUNCTION)
 /// Simplified assertion handler, provides required arguments for you.
 #define exi_fail(KIND, MSG) ::exi::exi_assert_impl(                           \
-  ::exi::H::KIND, MSG, __FILE__, EXI_FUNCTION, __LINE__)
+  ::exi::H::KIND, MSG, __FILE__, EXI__FUNCTION__, __LINE__)
 
 /// Simplified assertion handler, provides required arguments for you.
 #define exi_fail_stringify(KIND, ...) exi_fail(KIND, "`" #__VA_ARGS__ "`")

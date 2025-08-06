@@ -31,6 +31,8 @@
 #include <iterator>
 #include <memory>
 
+#define EXI_SMALL_FUNCNAME true
+
 namespace exi {
 
 /// Default type for EnumeratedArray.
@@ -150,3 +152,5 @@ using EnumArray = EnumeratedArray<ValueT, Enum,
           IdxT, static_cast<IdxT>(RangeT::size)>;
 
 } // namespace exi
+
+#undef EXI_SMALL_FUNCNAME
