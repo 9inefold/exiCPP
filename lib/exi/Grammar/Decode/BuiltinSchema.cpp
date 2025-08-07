@@ -56,6 +56,38 @@ EXI_ERROR_CC EXI_MINSIZE static void Diagnose(const ExiResult<T>& Result) {
     errs() << Result.error() << '\n';
 }
 
+/// Builtin event decoding works like so:
+/// 1. Dispatch to the current transition function
+///   - Handle the most common transition types, or
+///   - Fallthrough to the uncommon states (Docstart/end/content)
+/// 2. Decode the TERM, either directly or through a grammar
+///   a. If through a grammar:
+///     - If it is specialized TERM code, RETURN it, otherwise
+///     - Save the specialized first-level code and GOTO b
+///   b. If direct:
+///     - Load the code generated for the current transition
+///     - If the code is equal to the max, load the next code, otherwise repeat
+///     - Add the codes together to get the TERM offset and RETURN it
+/// 3. Handle the TERM for the specific grammar
+///   a. If simple/stateless:
+///     - Determine the next transition
+///     - RETURN the TERM
+///   b. If stateful:
+///     - Jump to the TERM specific handler
+///     - If uncached, decode the TERM data, then add to grammar
+///     - If element, create or load the next grammar
+///     - Construct the compound TERM and RETURN it
+///
+/// Builtin schemas are structured like:
+/// [Transition LUT][State][Dynamic Data...][TERMS...]
+///
+/// The LUT and terms are constructed dynamically based on current options using
+/// the BIBuilder. The terms are in a dynamically sized array following the class.
+///
+/// Grammars are stored in a densely packed map, indexed with numeric QNames.
+/// The Grammar stack stores a compressed pair of [Grammar, Start-Or-Element].
+/// Start-Or-Element is used to modify the behaviour of grammar lookups.
+
 namespace INTERNAL_NS(exi) {
 
 //===----------------------------------------------------------------===//
@@ -121,6 +153,8 @@ public:
   }
 
 private:
+  /// TODO: Array indexing is faster with hardcoded offsets.
+  /// Add a template parameter to do this efficiently.
   MatchT createDecodedTerm(unsigned At) {
     const unsigned Offset = Info[Current].Offset;
     const auto Term = BaseT::at(Offset + At);
