@@ -41,7 +41,7 @@ protected:
   XMLDocument& Doc;
 public:
   GenericEncoderRunner(XMLDocument& Doc) : Doc(Doc) {}
-  ExiError run() { return ExiError::TODO; }
+  ExiError run() { exi_todo("Implement run!"); }
 };
 
 template <class Encoder>

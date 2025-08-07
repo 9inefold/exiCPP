@@ -204,7 +204,7 @@ ALWAYS_INLINE ExiError ExiEncoder::EncoderFactory::encodeGeneric(Serializer* S, 
       return BEOrErr.error();
     TheEncoder = std::move(*BEOrErr);
   } else {
-    LOG_ERROR("channel streams are unsupported.");
+    exi_todo("channel streams are unsupported.");
     return ExiError::TODO;
   }
   return ExiError::OK;
