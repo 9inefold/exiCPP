@@ -131,15 +131,17 @@ public:
   friend class BaseT::New;
   using InitT = typename BaseT::New;
 
-  static Box<OrderedBuiltinSchema> New(const BIBuilder& B) {
-    const unsigned Size = B.Terms.size();
-    auto* TheSchema = InitT(Size).init(B);
+  static Box<OrderedBuiltinSchema> New(const BIBuilder& BIB) {
+    exi_invariant(BIB, "Builder must be initialized!");
+    const unsigned Size = BIB.Terms.size();
+    auto* TheSchema = InitT(Size).init(BIB);
     return Box<OrderedBuiltinSchema>(TheSchema);
   }
   template <is_exi_allocator Alloc>
-  [[nodiscard]] static OrderedBuiltinSchema* New(const BIBuilder& B, Alloc& A) {
-    const unsigned Size = B.Terms.size();
-    return InitT(Size, A).init(B);
+  [[nodiscard]] static OrderedBuiltinSchema* New(const BIBuilder& BIB, Alloc& A) {
+    exi_invariant(BIB, "Builder must be initialized!");
+    const unsigned Size = BIB.Terms.size();
+    return InitT(Size, A).init(BIB);
   }
   static Box<OrderedBuiltinSchema> New(const ExiOptions& Opts) {
     return New(BIBuilder::New(Opts));

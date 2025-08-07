@@ -186,6 +186,10 @@ public:
     }
   }
 
+  inline explicit operator bool() const {
+    return !Terms.empty() && !Info.empty();
+  }
+
 private:
   /// Adds CM/PI to the end of a grammar, if possible.
   void addCMPI(SEventCode& C) {

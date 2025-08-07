@@ -137,6 +137,7 @@ public:
 
   static Box<OrderedBuiltinSchema> New(OrderedEncoder* OE,
                                        const BIBuilder& BIB) {
+    exi_invariant(BIB, "Builder must be initialized!");
     const unsigned Size = BIB.Terms.size();
     auto* TheSchema = InitT(Size).init(*OE, BIB);
     return Box<OrderedBuiltinSchema>(TheSchema);
@@ -144,6 +145,7 @@ public:
   template <is_exi_allocator Alloc>
   [[nodiscard]] static OrderedBuiltinSchema*
    New(OrderedEncoder* OE, const BIBuilder& BIB, Alloc& A) {
+    exi_invariant(BIB, "Builder must be initialized!");
     const unsigned Size = BIB.Terms.size();
     return InitT(Size, A).init(*OE, BIB);
   }
