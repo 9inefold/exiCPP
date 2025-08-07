@@ -35,6 +35,8 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## Not Started
 
+- Add `EXI_GUARDRAILS` to handle invalid assumptions in release
+- Implement `StackExhaustionHandler`
 - Split out implementation of `ExiDecoder` like with `ExiEncoder`
 - `sys::` implementation on linux
 - Refactor `PagedVec`
