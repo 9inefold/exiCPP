@@ -67,7 +67,9 @@ public:
   OrderedEncoder(ExiOptions& Opts, encode::factory_t& F,
     InitT& I, ExiError* E = nullptr)
    : OrderedEncoder(Opts, F, E) {
-    this->init(I); // FIXME: Propagate ctor error.
+    if (auto Err = init(I)) [[unlikely]]
+      if (E != nullptr)
+        *E = std::move(Err);
   }
 
   /// Returns an error if the writer isn't empty.

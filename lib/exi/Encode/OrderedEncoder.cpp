@@ -67,7 +67,7 @@ ExiError OrderedEncoder::assumeWriterIsEmpty() const {
 
 #if 0
 ExiError OrderedEncoder::init(raw_ostream& Strm, u32 FlushThreshold) {
-  if (Writer.has_value()) {
+  if (IsStreamInitialized) {
     LOG_ERROR("Writer has already been initialized.");
     return ErrorCode::kUnexpectedError;
   }
@@ -77,7 +77,7 @@ ExiError OrderedEncoder::init(raw_ostream& Strm, u32 FlushThreshold) {
 #endif
 
 ExiError OrderedEncoder::init(raw_ostream& Strm) {
-  if (Writer.has_value()) {
+  if (IsStreamInitialized) {
     LOG_ERROR("Writer has already been initialized.");
     return ErrorCode::kUnexpectedError;
   }
@@ -86,7 +86,7 @@ ExiError OrderedEncoder::init(raw_ostream& Strm) {
 }
 
 ExiError OrderedEncoder::init(SmallVecImpl<char>& Buf) {
-  if (Writer.has_value()) {
+  if (IsStreamInitialized) {
     LOG_ERROR("Writer has already been initialized.");
     return ErrorCode::kUnexpectedError;
   }
