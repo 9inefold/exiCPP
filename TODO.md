@@ -31,11 +31,11 @@ This is a TODO list for the C++ version of exiCPP.
 - Implement `Throw<Ex>(...)`, handle some exceptional cases...
 - Remove tabs added with broken vscode
 - Remove EXIP, merge `NewLib`
+- Add `EXI_GUARDRAILS` to handle invalid assumptions in release
 - Fix weird `__FILE__` normalization on windows.
 
 ## Not Started
 
-- Add `EXI_GUARDRAILS` to handle invalid assumptions in release
 - Implement `StackExhaustionHandler`
 - Split out implementation of `ExiDecoder` like with `ExiEncoder`
 - `sys::` implementation on linux
