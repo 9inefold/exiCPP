@@ -48,7 +48,7 @@ void logColoredInDbgWithLevelAndType(
 LOG_WITH_LEVEL_AND_TYPE(LEVEL, TYPE, [&]() EXI_PRESERVE_MOST {                \
   return logColoredInDbgWithLevelAndType(                                     \
     ::exi::LogLevel::LEVEL, ::exi::format(__VA_ARGS__),                       \
-    EXI_LOG_LINES ? __FILE__ ":" STRINGIFY(__LINE__) ": " : "");              \
+    (EXI_LOG_LINES ? __FILE__ ":" STRINGIFY(__LINE__) ": " : ""));            \
 }())
 
 /// Format with the default debug type.

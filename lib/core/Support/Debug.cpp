@@ -129,7 +129,9 @@ void logColoredInDbgWithLevelAndType(unsigned Level,
   if EXI_NEVER(Level > unsigned(LogLevel::EXTRA))
     Throw<runtime_error>("Log level out of range!");
   const raw_ostream::Colors OldColor = dbgs().getColor();
-  dbgs() << LogLevelMapping[Level] << Fmt << '\n' << OldColor;
+  if (FileAndLine[0])
+    dbgs() << raw_ostream::RESET << FileAndLine << ": ";
+  dbgs() << LogLevelMapping[Level] << Fmt << OldColor << '\n';
 }
 
 } // namespace exi
