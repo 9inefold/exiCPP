@@ -57,7 +57,9 @@ include_items(EXICPP_CORE "lib/core"
 add_library(exi-core STATIC ${EXICPP_CORE})
 add_library(exi::core ALIAS exi-core)
 
-target_include_directories(exi-core PUBLIC include include/core)
+target_include_directories(exi-core
+  PUBLIC include include/core
+  PRIVATE lib/core)
 target_link_libraries(exi-core PUBLIC fmt::fmt exi-cpptrace)
 target_compile_features(exi-core PUBLIC cxx_std_20)
 target_compile_options(exi-core
@@ -134,7 +136,9 @@ function(exi_add_library lib src)
   add_library(${LIBNAME} STATIC ${${src}})
   add_library(exi::${lib} ALIAS ${LIBNAME})
 
-  target_include_directories(${LIBNAME} PUBLIC include PRIVATE lib/exi)
+  target_include_directories(${LIBNAME}
+    PUBLIC include
+    PRIVATE lib/core lib/exi)
   target_link_libraries(${LIBNAME} PUBLIC exi::core rapidxml::rapidxml)
   target_compile_options(${LIBNAME} PRIVATE ${EXI_WARNING_FLAGS})
 endfunction(exi_add_library)
