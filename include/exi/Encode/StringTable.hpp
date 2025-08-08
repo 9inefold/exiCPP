@@ -115,7 +115,7 @@ class StringTable {
   exi::UniqueStringSaver NameCache;
 
   /// These function are before everything else, as they cause an ICE on Clang.
-  /// ^ For "good" reason, it's used before auto can be deduced.
+  /// For "good" reason, they're used before auto can be deduced.
 
   /// Equivalent to invoking `(VOf ∘ X)(Val)`.
   ALWAYS_INLINE static decltype(auto) VOfX(auto&& Val) {
@@ -432,6 +432,7 @@ private:
     }
   };
   /// Maps a QName to LocalName data: `"URI$ln" -> [LNID, [LV...]]`.
+  /// FIXME: Replace with `FoldingSet` once implemented?
   DenseMap<const QualName*, LocalNameInfo> LVMap;
   
   /// The value stored for each entry in the Value map.
