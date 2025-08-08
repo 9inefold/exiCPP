@@ -174,11 +174,11 @@ public:
 
   ////////////////////////////////////////////////////////////////////////
   // Terms
-
+#if 0
   /// Start Document
-  virtual ExiError SD();
+  ExiError SD();
   /// End Document
-  virtual ExiError ED();
+  ExiError ED();
 
   /// Start Element (with prefix)
   virtual ExiError SE_Pfx(StrRef Name, StrRef Pfx) {
@@ -220,7 +220,7 @@ public:
   
   /// Self-Contained
   virtual ExiError SC();
-
+#endif
 private:
   virtual void anchor();
 };

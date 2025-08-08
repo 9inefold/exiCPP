@@ -237,6 +237,7 @@ ExiError ExiEncoder::EncoderFactory::go(Serializer* S) const {
 
 #define DEBUG_TYPE "BodyEncoder"
 
+#if 0
 ExiError BodyEncoder::SD() {
   LOG_EXTRA("Beginning encoding...");
   return ExiError::OK;
@@ -272,5 +273,6 @@ ExiError BodyEncoder::SC() {
   LOG_ERROR("Cannot encode SC yet!");
   return ExiError::TODO;
 }
+#endif
 
 void BodyEncoder::anchor() {}
