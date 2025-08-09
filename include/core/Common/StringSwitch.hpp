@@ -43,11 +43,11 @@ namespace exi {
 ///
 /// The StringSwitch class is a simple form of a switch() statement that
 /// determines whether the given string matches one of the given string
-/// literals. The template type parameter \p T is the type of the value that
+/// literals. The template type parameter `T` is the type of the value that
 /// will be returned from the string-switch expression. For example,
-/// the following code switches on the name of a color in \c argv[i]:
+/// the following code switches on the name of a color in `argv[i]`:
 ///
-/// \code{.cpp}
+/// ```cpp
 /// Color color = StringSwitch<Color>(argv[i])
 ///   .Case("red", Red)
 ///   .Case("orange", Orange)
@@ -57,7 +57,7 @@ namespace exi {
 ///   .Case("indigo", Indigo)
 ///   .Cases("violet", "purple", Violet)
 ///   .Default(UnknownColor);
-/// \endcode
+/// ```
 template <typename T, typename Ret = T>
 class StringSwitch {
   /// The string we are matching.
@@ -200,6 +200,11 @@ public:
     if (Result)
       return std::move(*Result);
     return Value;
+  }
+
+  [[nodiscard]] Ret Assert() {
+    return std::move(Result)
+      .expect("Fell off the end of a string-switch");
   }
 
   [[nodiscard]] operator Ret() {
