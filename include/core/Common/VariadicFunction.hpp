@@ -121,15 +121,19 @@ inline constexpr size_t kVArgsExpandLimit = 32;
 ///
 /// Suppose we need a variadic function like this:
 ///
-///   ResultT Foo(const ArgT& A_0, const ArgT& A_1, ..., const ArgT& A_N);
+/// ```cpp
+/// ResultT Foo(const ArgT& A_0, const ArgT& A_1, ..., const ArgT& A_N);
+/// ```
 ///
 /// Instead of many overloads of Foo(), we only need to define a helper
 /// function that takes an array of arguments:
 ///
-///   ResultT FooImpl(ArrayRef<const ArgT*> Args) {
-///     // 'Args[i]' is a pointer to the i-th argument passed to Foo().
-///     ...
-///   }
+/// ```cpp
+/// ResultT FooImpl(ArrayRef<const ArgT*> Args) {
+///   'Args[i]' is a pointer to the i-th argument passed to Foo().
+///   ...
+/// }
+/// ```
 ///
 /// and then define Foo() like this:
 ///
@@ -144,16 +148,20 @@ inline constexpr size_t kVArgsExpandLimit = 32;
 ///
 /// It can also handle cases with fixed leading arguments. For example:
 ///
-///   bool FullMatchImpl(const StringRef& S, const RE& Regex,
-///                      ArrayRef<const ArgT*> Args);
+/// ```cpp
+/// bool FullMatchImpl(const StringRef& S, const RE& Regex,
+///                    ArrayRef<const ArgT*> Args);
 ///
-///   constexpr variadic_function<&FullMatchImpl> FullMatch;
+/// constexpr variadic_function<&FullMatchImpl> FullMatch;
+/// ```
 ///
 /// By default, `variadic_function` will generate overloads for up to
 /// `kVArgsExpandLimit` arguments, but you can specify an amount with the second
 /// argument:
 ///
-///   constexpr variadic_function<&FullMatchImpl, 8> FullMatch;
+/// ```cpp
+/// constexpr variadic_function<&FullMatchImpl, 8> FullMatch;
+/// ```
 ///
 template <auto* Fn, size_t ExpandLimit = kVArgsExpandLimit>
 struct variadic_function;
