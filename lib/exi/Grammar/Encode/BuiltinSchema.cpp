@@ -32,6 +32,7 @@
 #include <core/Support/TrailingArray.hpp>
 #include <exi/Basic/D/InternalMacros.hpp>
 #include <exi/Basic/ExiOptions.hpp>
+#include <exi/Encode/D/EventMappings.mac>
 #include <exi/Grammar/BIBuilder.hpp>
 #include <exi/Grammar/Grammar.hpp>
 #include <exi/Stream/OrderedWriter.hpp>
@@ -56,33 +57,21 @@ EXI_ERROR_CC EXI_MINSIZE static void Diagnose(const ExiResult<T>& Result) {
     errs() << Result.error() << '\n';
 }
 
-#define CASE(KIND)                                                            \
-case SimpleEventTerm::KIND:                                                   \
-  Fn(event_cast<SimpleEventTerm::KIND>(Event));                               \
+#define VISIT_CASE(FROM, TO)                                                  \
+case SimpleEventTerm::FROM:                                                   \
+  Fn(static_cast<const TO&>(Event));                                          \
   return;
 
 template <typename F>
-static void VisitEvent(const BaseEvent& Event, SimpleEventTerm K, F&& Fn) {
+EXI_MINSIZE static void VisitEvent(const BaseEvent& Event,
+                                   SimpleEventTerm K, F&& Fn) {
   switch (K) {
-  CASE(SE)
-  CASE(EE)
-  CASE(AT)
-  CASE(CH)
-  CASE(NS)
-  CASE(SD)
-  CASE(ED)
-  CASE(CM)
-  CASE(PI)
-  CASE(DT)
-  CASE(ER)
-  CASE(SC)
+    EXI_ENCODE_EVENT_MAPPINGS(VISIT_CASE)
   default:
     LOG_WARN("Invalid EventTerm: {}!", get_event_name(K));
     return;
   }
 }
-
-#undef CASE
 
 //===----------------------------------------------------------------===//
 // Built-in Grammar
@@ -131,8 +120,7 @@ namespace INTERNAL_NS(exi) {
 // Ordered Encoding
 //===----------------------------------------------------------------===//
 
-template <class StrmT>
-requires is_ordwriter_stream<StrmT>
+template <is_ordwriter_stream StrmT>
 class INTERNAL_LINKAGE OrderedBuiltinSchema final
     : public BuiltinSchema,
       public TrailingArray<OrderedBuiltinSchema<StrmT>, EventTerm> {
@@ -198,20 +186,9 @@ public:
 
 private:
 
-  ALWAYS_INLINE void encodeImpl(OrderedEncoder* OE, const BaseEvent& Event,
-                                                    SimpleEventTerm K) {
-    VisitEvent(Event, K, [] <typename T> (T& Event) {
-      if (!hasDbgLogLevel(VERBOSE))
-        return;
-      SmallStr<64> Str;
-      raw_svector_ostream OS(Str);
-      OS << get_event_name(Event);
-      if (!is_empty_event<T>)
-        OS << ": " << Event;
-      LOG_EXTRA("{}", Str.str());
-    });
   ALWAYS_INLINE ExiError encodeImpl(OrderedEncoder* OE, const BaseEvent& Event,
                                                         SimpleEventTerm K) {
+    this->logEvent(Event, K);
     //exi_todo("implement encodeImpl");
     return ExiError::OK;
   }
@@ -223,7 +200,16 @@ public:
   void dump() const override {}
 
   // ...
-
+private:
+#if EXI_LOGGING
+  //EXI_PRESERVE_CALLSITE void logCurrentGrammar(ExiDecoder* D);
+  //EXI_PRESERVE_CALLSITE void logCurrentEvent();
+  EXI_PRESERVE_CALLSITE void logEvent(const BaseEvent& Event, SimpleEventTerm K);
+#else
+  //ALWAYS_INLINE constexpr void logCurrentGrammar(ExiDecoder*) {}
+  //ALWAYS_INLINE constexpr void logCurrentEvent() {}
+  ALWAYS_INLINE constexpr void logEvent(const BaseEvent&, SimpleEventTerm) {}
+#endif
   void anchor() override;
 };
 
@@ -242,6 +228,20 @@ template<> void OrderedBuiltinSchema<ByteWriter>::anchor() {}
 // Logging
 //===----------------------------------------------------------------===//
 
+template <is_ordwriter_stream StrmT>
+EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEvent(
+ const BaseEvent& Event, SimpleEventTerm K) {
+  if (!hasDbgLogLevel(VERBOSE))
+    return;
+  VisitEvent(Event, K, [] <typename T> (T& Event) EXI_MINSIZE {
+    SmallStr<64> Str;
+    raw_svector_ostream OS(Str);
+    OS << get_event_name(Event);
+    if (!is_empty_event<T>)
+      OS << ": " << Event;
+    LOG_EXTRA("{}", Str.str());
+  });
+}
 
 //===----------------------------------------------------------------===//
 // Getters
