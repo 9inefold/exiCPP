@@ -568,6 +568,9 @@ private:
 
 } // namespace INTERNAL_NS
 
+template<> void OrderedBuiltinSchema<BitReader>::anchor() {}
+template<> void OrderedBuiltinSchema<ByteReader>::anchor() {}
+
 //===----------------------------------------------------------------===//
 // Logging
 //===----------------------------------------------------------------===//
@@ -688,11 +691,8 @@ EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEvent(EventTerm Term)
 #endif // EXI_LOGGING
 
 //===----------------------------------------------------------------===//
-// Miscellaneous
+// Getters
 //===----------------------------------------------------------------===//
-
-template<> void OrderedBuiltinSchema<BitReader>::anchor() {}
-template<> void OrderedBuiltinSchema<ByteReader>::anchor() {}
 
 static Box<BuiltinSchema> NewChanneled(const ExiOptions& Opts) {
   exi_todo("channel readers are currently unsupported!");
