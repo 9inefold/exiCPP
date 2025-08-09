@@ -325,6 +325,7 @@ int main(int Argc, char* Argv[]) {
       = Mgr->getOptXMLDocument(File, errs())
         .expect("could not locate file!");
     
+    SetLogLevel(LogLevel::INFO);
     Result EncoderOrErr = ExiEncoder::New(Opts);
     if (!EncoderOrErr) {
       errs() << EncoderOrErr.error() << '\n';
@@ -347,6 +348,7 @@ int main(int Argc, char* Argv[]) {
       return 1;
     }
 
+    SetLogLevel(LogLevel::VERBOSE);
     LOG_INFO("Encoding body...");
     if (auto E = Factory->encode(&S, EncodeBuf)) {
       errs() << E << '\n';

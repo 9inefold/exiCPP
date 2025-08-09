@@ -56,6 +56,34 @@ EXI_ERROR_CC EXI_MINSIZE static void Diagnose(const ExiResult<T>& Result) {
     errs() << Result.error() << '\n';
 }
 
+#define CASE(KIND)                                                            \
+case SimpleEventTerm::KIND:                                                   \
+  Fn(event_cast<SimpleEventTerm::KIND>(Event));                               \
+  return;
+
+template <typename F>
+static void VisitEvent(const BaseEvent& Event, SimpleEventTerm K, F&& Fn) {
+  switch (K) {
+  CASE(SE)
+  CASE(EE)
+  CASE(AT)
+  CASE(CH)
+  CASE(NS)
+  CASE(SD)
+  CASE(ED)
+  CASE(CM)
+  CASE(PI)
+  CASE(DT)
+  CASE(ER)
+  CASE(SC)
+  default:
+    LOG_WARN("Invalid EventTerm: {}!", get_event_name(K));
+    return;
+  }
+}
+
+#undef CASE
+
 //===----------------------------------------------------------------===//
 // Built-in Grammar
 //===----------------------------------------------------------------===//
@@ -120,6 +148,8 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final
   BIInfoArray Info;
   /// The current event ID
   EventUID Event = EventUID::NewNull();
+  /// The pseudo grammar stack.
+  BIGrammarState Current = Document;
   /// ...
 
   OrderedBuiltinSchema(ArrayRef<EventTerm> Terms,
@@ -160,15 +190,27 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Encoding
 
-  void encode(BodyEncoder* BE, EventUID Event) override {
+  void encode(BodyEncoder* BE, const BaseEvent& Event,
+                               SimpleEventTerm Term) override {
     exi_expensive_invariant(isa<OrderedEncoder>(BE));
-    return encodeImpl(static_cast<OrderedEncoder*>(BE), Event);
+    return encodeImpl(static_cast<OrderedEncoder*>(BE), Event, Term);
   }
 
 private:
 
-  ALWAYS_INLINE void encodeImpl(OrderedEncoder* OE, EventUID Event) {
-    exi_todo("implement encodeDispatch");
+  ALWAYS_INLINE void encodeImpl(OrderedEncoder* OE, const BaseEvent& Event,
+                                                    SimpleEventTerm K) {
+    VisitEvent(Event, K, [] <typename T> (T& Event) {
+      if (!hasDbgLogLevel(VERBOSE))
+        return;
+      SmallStr<64> Str;
+      raw_svector_ostream OS(Str);
+      OS << get_event_name(Event);
+      if (!is_empty_event<T>)
+        OS << ": " << Event;
+      LOG_EXTRA("{}", Str.str());
+    });
+    //exi_todo("implement encodeImpl");
   }
 
   ////////////////////////////////////////////////////////////////////////

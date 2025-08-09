@@ -37,6 +37,7 @@ This is a TODO list for the C++ version of exiCPP.
 ## Not Started
 
 - Implement `StackExhaustionHandler`
+- Fix `CDATA` parsing
 - Split out implementation of `ExiDecoder` like with `ExiEncoder`
 - `sys::` implementation on linux
 - Refactor `PagedVec`

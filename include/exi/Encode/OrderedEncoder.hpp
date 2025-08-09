@@ -72,6 +72,10 @@ public:
         *E = std::move(Err);
   }
 
+  EXI_INLINE EXI_FLATTEN encode::Schema* getSchema() const {
+    return CurrentSchema.operator->();
+  }
+
   /// Returns an error if the writer isn't empty.
   ExiError assumeWriterIsEmpty() const;
   /// Generic interface for initializing the OrderedWriter.
@@ -99,6 +103,30 @@ public:
 
   static bool classof(const BodyEncoder* BE) {
     return BE->get_kind() == EncoderKind::EK_Ordered;
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Terms
+
+  inline void StartDocument() {
+    return getSchema()->encode(this,
+      make_event<SimpleEventTerm::SD>());
+  }
+  inline void EndDocument() {
+    return getSchema()->encode(this,
+      make_event<SimpleEventTerm::ED>());
+  }
+
+  inline void Comment(StrRef Data) {
+    return getSchema()->encode(this,
+      make_event<SimpleEventTerm::CM>(Data));
+  }
+  inline void ProcessingInstruction(StrRef Name, StrRef Data) {
+    return getSchema()->encode(this,
+      make_event<SimpleEventTerm::PI>(Name, Data));
+  }
+  inline void Doctype(const DoctypeEvent& DocType) {
+    return getSchema()->encode(this, DocType);
   }
 
 private:

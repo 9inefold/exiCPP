@@ -27,6 +27,7 @@
 #include <core/Common/MaybeBox.hpp>
 #include <core/Support/ExtensibleRTTI.hpp>
 #include <exi/Basic/EventCodes.hpp>
+#include <exi/Encode/Event.hpp>
 #include <exi/Grammar/BIState.hpp>
 #include <exi/Grammar/SchemaFactory.hpp>
 #include <exi/Stream/Writer.hpp>
@@ -47,10 +48,16 @@ protected:
   friend class exi::OrderedEncoder;
   template <is_writer_stream> struct Get;
 
+  /// Sets the terminal symbol at the current position.
+  virtual void encode(BodyEncoder* BE,
+    const BaseEvent& Event, SimpleEventTerm Term) = 0;
+
 public:
-  /// Gets the terminal symbol at the current position.
-  // FIXME: Add the actual functions.
-  virtual void encode(BodyEncoder* BE, EventUID Event) = 0;
+  template <is_encode_event EventT>
+  ALWAYS_INLINE void encode(BodyEncoder* BE, const EventT& Event) {
+    return this->encode(BE, Event, unmap_event_v<EventT>);
+  }
+
   /// Dumps info about the current schema.
   virtual void dump() const {}
 private:
