@@ -69,8 +69,9 @@ DoctypeEvent exi::H::MakeDTEventImpl(DoctypeKind K,
   return Out;
 }
 
-void exi::H::EncodeDTWithImpl(encode::Schema* S, BodyEncoder* BE,
-                              DoctypeKind Kind, ArrayRef<const StrRef*> Args) {
+ExiError exi::H::EncodeDTWithImpl(encode::Schema* S,
+                                  BodyEncoder* BE, DoctypeKind Kind,
+                                  ArrayRef<const StrRef*> Args) {
   DoctypeEvent DT = H::MakeDTEventImpl(Kind, Args);
   return S->encode(BE, DT);
 }

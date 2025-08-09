@@ -108,24 +108,24 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Terms
 
-  inline void StartDocument() {
+  ExiError StartDocument() {
     return getSchema()->encode(this,
       make_event<SimpleEventTerm::SD>());
   }
-  inline void EndDocument() {
+  ExiError EndDocument() {
     return getSchema()->encode(this,
       make_event<SimpleEventTerm::ED>());
   }
 
-  inline void Comment(StrRef Data) {
+  ExiError Comment(StrRef Data) {
     return getSchema()->encode(this,
       make_event<SimpleEventTerm::CM>(Data));
   }
-  inline void ProcessingInstruction(StrRef Name, StrRef Data) {
+  ExiError ProcessingInstruction(StrRef Name, StrRef Data) {
     return getSchema()->encode(this,
       make_event<SimpleEventTerm::PI>(Name, Data));
   }
-  inline void Doctype(const DoctypeEvent& DocType) {
+  ExiError Doctype(const DoctypeEvent& DocType) {
     return getSchema()->encode(this, DocType);
   }
 

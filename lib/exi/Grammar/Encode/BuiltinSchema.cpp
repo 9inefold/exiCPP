@@ -190,8 +190,8 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Encoding
 
-  void encode(BodyEncoder* BE, const BaseEvent& Event,
-                               SimpleEventTerm Term) override {
+  ExiError encode(BodyEncoder* BE, const BaseEvent& Event,
+                                   SimpleEventTerm Term) override {
     exi_expensive_invariant(isa<OrderedEncoder>(BE));
     return encodeImpl(static_cast<OrderedEncoder*>(BE), Event, Term);
   }
@@ -210,7 +210,10 @@ private:
         OS << ": " << Event;
       LOG_EXTRA("{}", Str.str());
     });
+  ALWAYS_INLINE ExiError encodeImpl(OrderedEncoder* OE, const BaseEvent& Event,
+                                                        SimpleEventTerm K) {
     //exi_todo("implement encodeImpl");
+    return ExiError::OK;
   }
 
   ////////////////////////////////////////////////////////////////////////

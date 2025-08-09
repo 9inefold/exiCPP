@@ -101,12 +101,11 @@ public:
       return ErrorCode::kUnexpectedError;
     }
   Document:
-    BE.StartDocument();
+    exi_try(BE.StartDocument());
   DocContent:
     this->andKinds(kNKBitsetDocContent);
     while (N->type() != NodeKind::node_element) {
-      if (auto E = handleDocContent(*N)) [[unlikely]]
-        return E;
+      exi_try(handleDocContent(*N));
       N = N->next_sibling();
       if EXI_UNLIKELY(!N) {
         LOG_ERROR("DocContent: Expected SE before ED.");
@@ -121,12 +120,10 @@ public:
     this->andKinds(kNKBitsetDocEnd);
     N = N->next_sibling();
     if (needsDocEndLoop()) while(N) {
-      if (auto E = handleDocEnd(*N)) [[unlikely]]
-        return E;
+      exi_try(handleDocEnd(*N));
       N = N->next_sibling();
     }
-    BE.EndDocument();
-    return ExiError::OK;
+    return BE.EndDocument();
   }
 
 protected:
@@ -154,8 +151,7 @@ protected:
   }
 
   ExiError handleCM(XMLNode& N) const {
-    BE.Comment(N.value());
-    return ExiError::OK;
+    return BE.Comment(N.value());
   }
 
   ExiError handlePI(XMLNode& N) const {
@@ -163,13 +159,7 @@ protected:
       LOG_ERROR("Invalid processing instruction! Expected name.");
       return ErrorCode::kInvalidEXIInput;
     }
-    BE.ProcessingInstruction(N.name(), N.value());
-    return ExiError::OK;
-  }
-
-  ALWAYS_INLINE ExiError invokeDT(DoctypeEvent Event) const {
-    BE.Doctype(Event);
-    return ExiError::OK;
+    return BE.ProcessingInstruction(N.name(), N.value());
   }
 
   ExiError handleDT(XMLNode& N) const {
@@ -181,9 +171,9 @@ protected:
         LOG_ERROR("Invalid DOCTYPE! Expected Name.");
         return ErrorCode::kInvalidEXIInput;
       }
-      return invokeDT(make_event<DT>(DTK_None, Name));
+      return BE.Doctype(make_event<DT>(DTK_None, Name));
     } else if (Data.starts_with('['))
-      return invokeDT(make_event<DT>(DTK_None, Name, Data));
+      return BE.Doctype(make_event<DT>(DTK_None, Name, Data));
 
     StrRef Kind = TakeToken(Data);
     auto K = StringSwitch<DoctypeKind>(Kind)
@@ -200,14 +190,14 @@ protected:
     if (K == DTK_System) {
       if (!Data.empty())
         exi_try(StripDTText(Data));
-      return invokeDT(make_event<DT>(
+      return BE.Doctype(make_event<DT>(
         DTK_System, Name, PrimID, Data));
     }
     // PUBLIC
     StrRef SysID = TakeToken(Data);
     if (!Data.empty())
       exi_try(StripDTText(Data));
-    return invokeDT(make_event<DT>(
+    return BE.Doctype(make_event<DT>(
       DTK_Public, Name, PrimID, SysID, Data));
   }
 

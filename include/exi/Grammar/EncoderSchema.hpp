@@ -49,12 +49,12 @@ protected:
   template <is_writer_stream> struct Get;
 
   /// Sets the terminal symbol at the current position.
-  virtual void encode(BodyEncoder* BE,
+  virtual ExiError encode(BodyEncoder* BE,
     const BaseEvent& Event, SimpleEventTerm Term) = 0;
 
 public:
   template <is_encode_event EventT>
-  ALWAYS_INLINE void encode(BodyEncoder* BE, const EventT& Event) {
+  ALWAYS_INLINE ExiError encode(BodyEncoder* BE, const EventT& Event) {
     return this->encode(BE, Event, unmap_event_v<EventT>);
   }
 

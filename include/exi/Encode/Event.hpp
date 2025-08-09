@@ -147,8 +147,8 @@ EXI_ENCODE_EVENT_MAPPINGS(MAP_TERM)
 
 DoctypeEvent MakeDTEventImpl(DoctypeKind Kind,
                              ArrayRef<const StrRef*> Args);
-void EncodeDTWithImpl(encode::Schema* S, BodyEncoder* BE,
-                      DoctypeKind Kind, ArrayRef<const StrRef*> Args);
+ExiError EncodeDTWithImpl(encode::Schema* S, BodyEncoder* BE,
+                          DoctypeKind Kind, ArrayRef<const StrRef*> Args);
 
 } // namespace H
 
