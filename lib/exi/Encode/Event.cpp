@@ -95,7 +95,7 @@ raw_ostream& exi::operator<<(raw_ostream& OS, const StringEventData& Event) {
 }
 
 raw_ostream& exi::operator<<(raw_ostream& OS, const PairEventData& Event) {
-  return OS << format("'{}' '{}'", Event[0], Event[1]);
+  return OS << format("'{}' -> {}", Event[0], Event[1]);
 }
 
 raw_ostream& exi::operator<<(raw_ostream& OS, const NamespaceEvent& NS) {
