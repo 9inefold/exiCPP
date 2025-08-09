@@ -159,7 +159,7 @@ using map_event_t = typename H::MapTermToEvent<Term>::type;
 /// Unmaps a `*Event` to the corresponding `SimpleEventTerm`.
 template <is_encode_event Term>
 inline constexpr SimpleEventTerm unmap_event_v
-  = H::UnmapTermToEvent<Term>::value;
+  = H::UnmapTermToEvent<std::remove_cvref_t<Term>>::value;
 
 //////////////////////////////////////////////////////////////////////////
 // make/cast
@@ -230,7 +230,8 @@ ALWAYS_INLINE constexpr const Event& event_cast(const BaseEvent& BE) {
 }
 
 template <SimpleEventTerm Term, class Event = map_event_t<Term>>
-EXI_INLINE constexpr Event& event_cast(auto& BE, SimpleEventTerm K) {
+EXI_INLINE constexpr Event& event_cast(
+ auto& BE, [[maybe_unused]] SimpleEventTerm K) {
   exi_invariant(K == Term, "Invalid term_cast!");
   return event_cast<Term, Event>(BE);
 }
