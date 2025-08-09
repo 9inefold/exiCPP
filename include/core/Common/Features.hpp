@@ -146,7 +146,9 @@
 #endif
 
 // TODO: Move to Config.inc
+#define EXI_PERMISSIVE 0
 #define EXI_ENABLE_GUARDRAILS 0
+
 #if EXI_DEBUG || EXI_ENABLE_GUARDRAILS
 /// Guardrails enabled.
 # define EXI_GUARDRAILS 1
