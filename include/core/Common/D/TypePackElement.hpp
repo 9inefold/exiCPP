@@ -30,11 +30,16 @@
 namespace exi {
 
 #if EXI_HAS_BUILTIN(__type_pack_element)
+# define EXI_TYPEPACKELEMENT __type_pack_element
 template <usize I, typename...TT>
 using TypePackElement = __type_pack_element<I, TT...>;
 #else
+# define EXI_TYPEPACKELEMENT ::exi::TypePackElement
 template <usize I, typename...TT>
 using TypePackElement = std::tuple_element_t<I, std::tuple<TT...>>;
 #endif
+
+template <typename...TT>
+using TypePackLast = EXI_TYPEPACKELEMENT<sizeof...(TT) - 1, TT...>;
 
 } // namespace exi

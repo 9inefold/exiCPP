@@ -30,6 +30,7 @@
 #include <Common/SmallStr.hpp>
 #include <Common/SmallVec.hpp>
 #include <Common/StringSwitch.hpp>
+#include <Common/VariadicFunction.hpp>
 #include <Common/unique_function.hpp>
 #include <Support/Alignment.hpp>
 #include <Support/Allocator.hpp>
@@ -1236,6 +1237,37 @@ static void TrailingArrayTests(int, char*[]) {
   }
 }
 
+//===----------------------------------------------------------------===//
+// VariadicFunction
+//===----------------------------------------------------------------===//
+
+namespace vfunc_tests {
+
+/// Defines a (type, name) pair.
+using Member = std::pair<std::string, std::string>;
+
+static void printArgs(std::string_view Name,
+                      ArrayRef<const Member*> Args) {
+  std::printf("struct %*s {\n",
+    int(Name.size()), Name.data());
+  for (const auto* Mem : Args) {
+    auto&& [Type, Name] = *Mem;
+    std::printf("  %s: %s;\n",
+      Name.c_str(), Type.c_str());
+  }
+  std::printf("};\n");
+}
+
+constexpr variadic_function<&printArgs, 16> PrintArgs;
+
+} // namespace vfunc_tests
+
+static void VariadicFunctionTests(int, char*[]) {
+  using namespace vfunc_tests;
+  PrintArgs("X", {"int", "I"});
+  PrintArgs("Y", {"int", "I"}, {"float", "F"});
+  PrintArgs("Z", {"int", "I"}, {"float", "F"}, {"void*", "V"});
+}
 
 //===----------------------------------------------------------------===//
 // ...

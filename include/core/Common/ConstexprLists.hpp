@@ -85,7 +85,7 @@ template <typename...TT> struct typeseq {
   static constexpr usize size() { return kSize; }
 
   template <usize I>
-  using At = TypePackElement<I, TT...>;
+  using At = EXI_TYPEPACKELEMENT<I, TT...>;
 };
 
 } // namespace exi
