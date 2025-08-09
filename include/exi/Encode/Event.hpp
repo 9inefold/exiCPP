@@ -27,12 +27,14 @@
 #include <core/Common/StrRef.hpp>
 #include <core/Common/VariadicFunction.hpp>
 #include <exi/Basic/EventTerms.hpp>
+#include <exi/Encode/D/EventMappings.mac>
 #include <concepts>
 
 namespace exi {
 
-class raw_ostream;
 class BodyEncoder;
+class ExiError;
+class raw_ostream;
 
 namespace encode {
 class Schema;
@@ -139,18 +141,7 @@ template <> struct MapTermToEvent<SimpleEventTerm::FROM>                      \
 template <> struct UnmapTermToEvent<TO>                                       \
 { static constexpr SimpleEventTerm value = SimpleEventTerm::FROM; };
 
-MAP_TERM(SE, StartElemEvent)
-MAP_TERM(EE, EndElemEvent)
-MAP_TERM(AT, AttrEvent)
-MAP_TERM(CH, CharEvent)
-MAP_TERM(NS, NamespaceEvent)
-MAP_TERM(SD, StartDocEvent)
-MAP_TERM(ED, EndDocEvent)
-MAP_TERM(CM, CommentEvent)
-MAP_TERM(PI, ProcInstrEvent)
-MAP_TERM(DT, DoctypeEvent)
-MAP_TERM(ER, EntityRefEvent)
-MAP_TERM(SC, SelfContEvent)
+EXI_ENCODE_EVENT_MAPPINGS(MAP_TERM)
 
 #undef MAP_TERM
 
