@@ -44,4 +44,10 @@ struct EXI_TRIVIAL_ABI BIInfo {
 using BIInfoArray = EnumeratedArray<BIInfo, BIGrammarState,
   BIGrammarState::Last, BIGrammarState::DocContent>;
 
+/// EventCode which represents a `([x.y.z], Size)`.
+struct EXI_TRIVIAL_ABI DirectEventCode {
+  u32 Data : 24 = 0;
+  u32 Bits : 8  = 0;
+};
+
 } // namespace exi
