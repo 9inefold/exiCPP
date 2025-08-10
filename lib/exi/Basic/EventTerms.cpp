@@ -114,9 +114,9 @@ static constexpr StringLiteral SEventTermNames[kSEventTermCount] {
   "AT",
   "CH",
   "NS",
-  "SD", "ED",
   "CM",
   "PI", "DT", "ER",
+  "SD", "ED",
   "SC",
   "HL"
 };
@@ -127,9 +127,9 @@ static constexpr StringLiteral SEventTermFullNames[kSEventTermCount] {
   "AT (any)",
   "CH",
   "NS",
-  "SD", "ED",
   "CM",
   "PI", "DT", "ER",
+  "SD", "ED",
   "SC",
   "HL"
 };
@@ -140,12 +140,12 @@ static constexpr StringLiteral SEventTermMessages[kSEventTermCount] {
   "AT (any)",
   "Characters (any-value)",
   "Namespace Declaration (uri, prefix, local-element-ns)",
-  "Start Document",
-  "End Document",
   "Comment text (text)",
   "Processing Instruction (name, text)",
   "DOCTYPE (name, public, system, text)",
   "Entity Reference (name)",
+  "Start Document",
+  "End Document",
   "Self Contained",
   "Halt"
 };

@@ -63,12 +63,12 @@ enum class SimpleEventTerm : EventTermType {
   AT,       // Attribute (any, value)
   CH,       // Characters (any-value)
   NS,       // Namespace Declaration (uri, prefix, local-element-ns)
-  SD,       // Start Document
-  ED,       // End Document
   CM,       // Comment text (text)
   PI,       // Processing Instruction (name, text)
   DT,       // DOCTYPE (name, public, system, text)
   ER,       // Entity Reference (name)
+  SD,       // Start Document
+  ED,       // End Document
   SC,       // Self Contained
   HL,       // Halt - internal use only
   Last = SC,
