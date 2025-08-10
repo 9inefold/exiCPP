@@ -109,12 +109,14 @@ public:
   // Terms
 
   ExiError StartDocument() {
-    return getSchema()->encode(this,
-      make_event<SimpleEventTerm::SD>());
+    static constexpr StartDocEvent SD
+      = make_event<SimpleEventTerm::SD>();
+    return getSchema()->encode(this, SD);
   }
   ExiError EndDocument() {
-    return getSchema()->encode(this,
-      make_event<SimpleEventTerm::ED>());
+    static constexpr EndDocEvent ED
+      = make_event<SimpleEventTerm::ED>();
+    return getSchema()->encode(this, ED);
   }
 
   ExiError Comment(StrRef Data) {
