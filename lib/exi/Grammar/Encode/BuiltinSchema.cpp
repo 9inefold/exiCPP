@@ -34,6 +34,7 @@
 #include <exi/Basic/ExiOptions.hpp>
 #include <exi/Encode/D/EventMappings.mac>
 #include <exi/Grammar/BIBuilder.hpp>
+#include <exi/Grammar/BIEventMap.hpp>
 #include <exi/Grammar/Grammar.hpp>
 #include <exi/Stream/OrderedWriter.hpp>
 #include <fmt/ranges.h>
@@ -130,7 +131,7 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final
   using enum BIGrammarState;
   using BuiltinSchema::State;
 
-  using Get = Schema::Get<StrmT>;
+  using Get = encode::Schema::Get<StrmT>;
   using BaseT = TrailingArray<OrderedBuiltinSchema, EventTerm>;
   using MatchT = MMatch<EventTerm, EventTerm>;
   using GrammarT = PointerIntPair<BuiltinGrammar*, 1, bool>;
@@ -142,6 +143,9 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final
   /// The pseudo grammar stack.
   BIGrammarState Current = Document;
   /// ...
+
+  /// Maps `SimpleEventTerm`s to event codes.
+  BIEventMap TMap;
 
   OrderedBuiltinSchema(ArrayRef<EventTerm> Terms,
                        ArrayRef<BIInfo> Info) : 
@@ -188,21 +192,49 @@ public:
   }
 
 private:
-  /// Encodes a simple event - one where grammar context isn't required.
-  template <State S, typename EventT>
-  ALWAYS_INLINE ExiError encodeEventS(OrderedEncoder* OE, const EventT& Event) {
-    // ...
+  ALWAYS_INLINE CC void encodePrecomputedCode(OrderedEncoder* OE,
+                                              FullEventCode EC) {
+    Get::Writer(OE).writeBits64(EC.Data, EC.Bits);
+  }
+
+  /// Encodes a simple event - can be {SD, ED}.
+  ALWAYS_INLINE CC ExiError encodeEventS(OrderedEncoder*, const NoEventData&) {
     return ExiError::OK;
   }
+  /// Encodes a simple event - can be {CM, ER}.
+  ALWAYS_INLINE CC ExiError encodeEventS(OrderedEncoder* OE,
+                                         const StringEventData& Event) {
+    Get::Writer(OE).encodeString(
+      StrRef(Event.Data, Event.Size));
+    return ExiError::OK;
+  }
+  /// Encodes a simple event - can be {PI}.
+  ALWAYS_INLINE CC ExiError encodeEventS(OrderedEncoder* OE,
+                                         const ProcInstrEvent& Event) {
+    StrmT& Strm = Get::Writer(OE);
+    Strm.encodeString(Event[0]);
+    Strm.encodeString(Event[1]);
+    return ExiError::OK;
+  }
+  /// Encodes a simple event - can be {DT}.
+  inline CC ExiError encodeEventS(OrderedEncoder* OE,
+                                  const DoctypeEvent& Event);
   
-  /// Encodes a simple event - one where grammar context isn't required.
-  template <State S, SimpleEventTerm Term>
-  CC ExiError encodeEventS(ORDERED_ARGS) {
-    return this->encodeEventS<S>(
+  template <SimpleEventTerm Term>
+  CC ExiError encodeDocContent(ORDERED_ARGS) {
+    encodePrecomputedCode(OE, TMap.mapDocContent<Term>());
+    // TODO: Handle top-level SE
+    return this->encodeEventS(
+      OE, event_cast<Term>(Event, K));
+  }
+  template <SimpleEventTerm Term>
+  CC ExiError encodeDocEnd(ORDERED_ARGS) {
+    encodePrecomputedCode(OE, TMap.mapDocEnd<Term>());
+    return this->encodeEventS(
       OE, event_cast<Term>(Event, K));
   }
 
-  ALWAYS_INLINE void pushGrammar(State New) { Current = New; }
+  ALWAYS_INLINE CC void pushGrammar(State New) { Current = New; }
 
   /// ENTRY POINT - Dispatches common events.
   CC_INLINE ExiError setEventImpl(ORDERED_ARGS) {
@@ -248,18 +280,19 @@ private:
   CC ExiError handleDocContent(ORDERED_ARGS) {
     using enum SimpleEventTerm;
     static constexpr State S = DocContent;
-    switch (K) {
-    case SimpleEventTerm::SE:
+    switch (BIEventMap::IdxDocContent(K)) {
+    case map_doccontent_v<SE>:
       // This should only be called once, at the start of processing.
       //exi_assert(GStack.empty() && Grammars.empty());
       exi_todo("DocContent: Implement SE");
+      //tail_return encodeDocContent<SE>(ORDERED_NEXT);
       return ExiError::OK;
-    case SimpleEventTerm::CM:
-      tail_return encodeEventS<S, CM>(ORDERED_NEXT);
-    case SimpleEventTerm::PI:
-      tail_return encodeEventS<S, PI>(ORDERED_NEXT);
-    case SimpleEventTerm::DT:
-      tail_return encodeEventS<S, DT>(ORDERED_NEXT);
+    case map_doccontent_v<CM>:
+      tail_return encodeDocContent<CM>(ORDERED_NEXT);
+    case map_doccontent_v<PI>:
+      tail_return encodeDocContent<PI>(ORDERED_NEXT);
+    case map_doccontent_v<DT>:
+      tail_return encodeDocContent<DT>(ORDERED_NEXT);
     default:
       exi_unreachable("invalid DocContent");
     }
@@ -267,17 +300,14 @@ private:
 
   CC ExiError handleDocEnd(ORDERED_ARGS) {
     using enum SimpleEventTerm;
-    static constexpr State S = DocContent;
-    switch (K) {
-    case SimpleEventTerm::SE:
-      // This should only be called once, at the start of processing.
-      //exi_assert(GStack.empty() && Grammars.empty());
-      exi_todo("DocContent: Implement SE");
-      return ExiError::OK;
-    case SimpleEventTerm::CM:
-      tail_return encodeEventS<S, CM>(ORDERED_NEXT);
-    case SimpleEventTerm::PI:
-      tail_return encodeEventS<S, PI>(ORDERED_NEXT);
+    static constexpr State S = DocEnd;
+    switch (BIEventMap::IdxDocEnd(K)) {
+    case map_docend_v<ED>:
+      tail_return encodeDocEnd<ED>(ORDERED_NEXT);
+    case map_docend_v<CM>:
+      tail_return encodeDocEnd<CM>(ORDERED_NEXT);
+    case map_docend_v<PI>:
+      tail_return encodeDocEnd<PI>(ORDERED_NEXT);
     default:
       exi_unreachable("invalid DocEnd");
     }
@@ -308,6 +338,33 @@ private:
 #endif
   void anchor() override;
 };
+
+template <is_ordwriter_stream StrmT>
+CC ExiError OrderedBuiltinSchema<StrmT>::encodeEventS(
+ OrderedEncoder* OE, const DoctypeEvent& Event) {
+  StrmT& Strm = Get::Writer(OE);
+  switch (Event.Kind) {
+  case DTK_None:
+  case DTK_Text:
+    Strm.encodeString(Event[0]); // Name
+    Strm.writeBits(ubit<16>(0)); // Padding[2]
+    Strm.encodeString(Event[1]); // Text?
+    break;
+  case DTK_System:
+    Strm.encodeString(Event[0]); // Name
+    Strm.writeByte(0);           // Padding[1]
+    Strm.encodeString(Event[1]); // "sysid"
+    Strm.encodeString(Event[2]); // Text?
+    break;
+  case DTK_Public:
+    Strm.encodeString(Event[0]); // Name
+    Strm.encodeString(Event[1]); // "pubid"
+    Strm.encodeString(Event[2]); // "sysid"
+    Strm.encodeString(Event[3]); // Text?
+    break;
+  }
+  return ExiError::OK;
+}
 
 //===----------------------------------------------------------------===//
 // Channel Encoding (soon)
