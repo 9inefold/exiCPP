@@ -356,9 +356,7 @@ template <is_ordwriter_stream StrmT>
 class OrderedBISchemaFactory {
   BIBuilder Builder;
 public:
-  OrderedBISchemaFactory(const ExiOptions& Opts) : Builder(Opts) {
-    Builder.init();
-  }
+  OrderedBISchemaFactory(const ExiOptions& Opts) : Builder(Opts) {}
   Box<BuiltinSchema> operator()(BodyEncoder* BE) const {
     if (auto* OE = dyn_cast<OrderedEncoder>(BE)) [[likely]]
       return OrderedBuiltinSchema<StrmT>::New(OE, Builder);

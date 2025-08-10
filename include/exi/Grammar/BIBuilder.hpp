@@ -107,11 +107,11 @@ public:
   BIBuilder(const ExiOptions& Opts) :
    Preserve(Opts.Preserve),
    SelfContained(Opts.SelfContained) {
+    this->init();
   }
 
   static BIBuilder New(const ExiOptions& Opts) {
     BIBuilder B(Opts);
-    B.init();
     return B;
   }
 
@@ -132,6 +132,11 @@ public:
     BIBuilder::Next(C);
   }
 
+  inline explicit operator bool() const {
+    return !Terms.empty() && !Info.empty();
+  }
+
+private:
   void init() {
     /*DocContent:*/ {
       LOG_EXTRA("DocContent:");
@@ -186,11 +191,6 @@ public:
     }
   }
 
-  inline explicit operator bool() const {
-    return !Terms.empty() && !Info.empty();
-  }
-
-private:
   /// Adds CM/PI to the end of a grammar, if possible.
   void addCMPI(SEventCode& C) {
     if (!Preserve.Comments && !Preserve.PIs)
