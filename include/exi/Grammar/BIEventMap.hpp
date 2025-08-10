@@ -47,15 +47,19 @@ namespace exi {
 /// Used for mapping events to values.
 /// Works via "perfect hashing" over the domain.
 /// Given:
+/// ```
 ///   SE: 0b0000
-///   CM: 0b0111
-///   PI: 0b1000
-///   DT: 0b1001
-/// `DocContent` can take `0b[X]xx[X]`.
-/// `DocEnd` can take `0b[XX]xx`.
+///   CM: 0b0101
+///   PI: 0b0110
+///   DT: 0b0111
+///   ED: 0b1010
+/// ```
+/// `DocContent` can take `0bxx[XX]`.
+/// `DocEnd` can take `0bx[XX]x - 1`.
 class BIEventMap {
-  using enum SimpleEventTerm;
+  /// Accessed with [SE, CM, PI, DT]
   Array<FullEventCode, 4> DocContent {};
+  /// Accessed with [ED, CM, PI]
   Array<FullEventCode, 3> DocEnd {};
 
   static unsigned GetShift(const ExiOptions& Opts) {
@@ -63,29 +67,52 @@ class BIEventMap {
   }
 
   BIEventMap(ExiOptions::PreserveOpts Preserve, unsigned Shift) {
-    
+    // TODO: Implement
   }
 
 public:
+  BIEventMap() = default; // FIXME: Remove
   BIEventMap(const ExiOptions& Opts)
    : BIEventMap(Opts.Preserve, GetShift(Opts)) {
   }
 
-  ALWAYS_INLINE static FullEventCode
-   mapDocument([[maybe_unused]] SimpleEventTerm K) {
-    exi_invariant(K == SD);
-    return {0, 0};
-  }
-  EXI_FLATTEN FullEventCode mapDocContent(SimpleEventTerm K) const {
+  static constexpr unsigned IdxDocContent(SimpleEventTerm K) {
+    using enum SimpleEventTerm;
     exi_invariant(MMatch(K).is(SE, CM, PI, DT));
-    return DocContent[(unsigned(K) >> 3)
-                    | (unsigned(K) & 0b1)];
+    return unsigned(K) & 0b0011;
   }
-  EXI_FLATTEN FullEventCode mapDocEnd(SimpleEventTerm K) const {
-    exi_invariant(MMatch(K).is(SE, CM, PI));
-    return DocContent[unsigned(K) >> 2];
+  static constexpr unsigned IdxDocEnd(SimpleEventTerm K) {
+    using enum SimpleEventTerm;
+    exi_invariant(MMatch(K).is(ED, CM, PI));
+    return ((unsigned(K) & 0b0110) >> 1) - 1u;
+  }
+
+  constexpr EXI_FLATTEN FullEventCode
+   mapDocContent(SimpleEventTerm K) const {
+    return DocContent[IdxDocContent(K)];
+  }
+  constexpr EXI_FLATTEN FullEventCode
+   mapDocEnd(SimpleEventTerm K) const {
+    return DocContent[IdxDocEnd(K)];
+  }
+
+  template <SimpleEventTerm K> 
+  constexpr EXI_FLATTEN FullEventCode mapDocContent() const {
+    constexpr_static unsigned Off = IdxDocContent(K);
+    return DocContent[Off];
+  }
+  template <SimpleEventTerm K> 
+  constexpr EXI_FLATTEN FullEventCode mapDocEnd() const {
+    constexpr_static unsigned Off = IdxDocEnd(K);
+    return DocContent[Off];
   }
 };
+
+template <SimpleEventTerm K>
+inline constexpr unsigned map_doccontent_v = BIEventMap::IdxDocContent(K);
+
+template <SimpleEventTerm K>
+inline constexpr unsigned map_docend_v = BIEventMap::IdxDocEnd(K);
 
 } // namespace exi
 
