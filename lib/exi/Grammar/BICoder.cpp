@@ -21,8 +21,6 @@
 ///
 //===----------------------------------------------------------------===//
 
-#pragma once
-
 #include <exi/Grammar/BICoder.hpp>
 
 using namespace exi;
