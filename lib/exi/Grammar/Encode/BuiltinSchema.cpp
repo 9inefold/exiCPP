@@ -120,6 +120,9 @@ namespace INTERNAL_NS(exi) {
 // Ordered Encoding
 //===----------------------------------------------------------------===//
 
+#define ORDERED_ARGS OrderedEncoder* OE, const BaseEvent& Event, SimpleEventTerm K
+#define ORDERED_NEXT OE, Event, K
+
 template <is_ordwriter_stream StrmT>
 class INTERNAL_LINKAGE OrderedBuiltinSchema final
     : public BuiltinSchema,
@@ -181,25 +184,118 @@ public:
   ExiError encode(BodyEncoder* BE, const BaseEvent& Event,
                                    SimpleEventTerm Term) override {
     exi_expensive_invariant(isa<OrderedEncoder>(BE));
-    return encodeImpl(static_cast<OrderedEncoder*>(BE), Event, Term);
+    return this->setEventImpl(static_cast<OrderedEncoder*>(BE), Event, Term);
   }
 
 private:
-
-  ALWAYS_INLINE ExiError encodeImpl(OrderedEncoder* OE, const BaseEvent& Event,
-                                                        SimpleEventTerm K) {
-    this->logEvent(Event, K);
-    //exi_todo("implement encodeImpl");
+  /// Encodes a simple event - one where grammar context isn't required.
+  template <State S, typename EventT>
+  ALWAYS_INLINE ExiError encodeEventS(OrderedEncoder* OE, const EventT& Event) {
+    // ...
     return ExiError::OK;
   }
+  
+  /// Encodes a simple event - one where grammar context isn't required.
+  template <State S, SimpleEventTerm Term>
+  CC ExiError encodeEventS(ORDERED_ARGS) {
+    return this->encodeEventS<S>(
+      OE, event_cast<Term>(Event, K));
+  }
+
+  ALWAYS_INLINE void pushGrammar(State New) { Current = New; }
+
+  /// ENTRY POINT - Dispatches common events.
+  CC_INLINE ExiError setEventImpl(ORDERED_ARGS) {
+    this->logEvent(Event, K);
+
+    switch (Current) {
+    case StartTagContent:
+      //tail_return this->handleStartTag(ORDERED_NEXT);
+      exi_todo("Implement StartTagContent");
+    case ElementContent:
+      //tail_return this->handleElement(ORDERED_NEXT);
+      exi_todo("Implement ElementContent");
+    case Fragment:
+      exi_unimplemented("SC elements are currently unsupported");
+    default:
+      tail_return this->setDocTerm(ORDERED_NEXT);
+    }
+  }
+
+  CC_INLINE GNU_ATTR(cold) ExiError setDocTerm(ORDERED_ARGS) {
+    switch (Current) {
+    case Document:
+      // Very rarely set. It only happens once at the start.
+      tail_return this->handleDocument(ORDERED_NEXT);
+    case DocContent:
+      tail_return this->handleDocContent(ORDERED_NEXT);
+    case DocEnd:
+      tail_return this->handleDocEnd(ORDERED_NEXT);
+    default:
+      exi_unreachable("invalid state?");
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // States
+
+  ALWAYS_INLINE ExiError handleDocument(ORDERED_ARGS) {
+    // Document is always empty, and therefore never reads.
+    this->pushGrammar(DocContent);
+    return ExiError::OK;
+  }
+
+  CC ExiError handleDocContent(ORDERED_ARGS) {
+    using enum SimpleEventTerm;
+    static constexpr State S = DocContent;
+    switch (K) {
+    case SimpleEventTerm::SE:
+      // This should only be called once, at the start of processing.
+      //exi_assert(GStack.empty() && Grammars.empty());
+      exi_todo("DocContent: Implement SE");
+      return ExiError::OK;
+    case SimpleEventTerm::CM:
+      tail_return encodeEventS<S, CM>(ORDERED_NEXT);
+    case SimpleEventTerm::PI:
+      tail_return encodeEventS<S, PI>(ORDERED_NEXT);
+    case SimpleEventTerm::DT:
+      tail_return encodeEventS<S, DT>(ORDERED_NEXT);
+    default:
+      exi_unreachable("invalid DocContent");
+    }
+  }
+
+  CC ExiError handleDocEnd(ORDERED_ARGS) {
+    using enum SimpleEventTerm;
+    static constexpr State S = DocContent;
+    switch (K) {
+    case SimpleEventTerm::SE:
+      // This should only be called once, at the start of processing.
+      //exi_assert(GStack.empty() && Grammars.empty());
+      exi_todo("DocContent: Implement SE");
+      return ExiError::OK;
+    case SimpleEventTerm::CM:
+      tail_return encodeEventS<S, CM>(ORDERED_NEXT);
+    case SimpleEventTerm::PI:
+      tail_return encodeEventS<S, PI>(ORDERED_NEXT);
+    default:
+      exi_unreachable("invalid DocEnd");
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Event Handling
+
+  ////////////////////////////////////////////////////////////////////////
+  // Grammar
 
   ////////////////////////////////////////////////////////////////////////
   // Printing
 
 public:
   void dump() const override {}
-
   // ...
+
 private:
 #if EXI_LOGGING
   //EXI_PRESERVE_CALLSITE void logCurrentGrammar(ExiDecoder* D);
@@ -217,6 +313,9 @@ private:
 // Channel Encoding (soon)
 //===----------------------------------------------------------------===//
 
+#define CHANNEL_ARGS ChannelEncoder* CE, const BaseEvent& Event, SimpleEventTerm K
+#define CHANNEL_NEXT CE, Event, K
+
 // ...
 
 } // namespace INTERNAL_NS
@@ -228,6 +327,7 @@ template<> void OrderedBuiltinSchema<ByteWriter>::anchor() {}
 // Logging
 //===----------------------------------------------------------------===//
 
+#if EXI_LOGGING
 template <is_ordwriter_stream StrmT>
 EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEvent(
  const BaseEvent& Event, SimpleEventTerm K) {
@@ -236,12 +336,15 @@ EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEvent(
   VisitEvent(Event, K, [] <typename T> (T& Event) EXI_MINSIZE {
     SmallStr<64> Str;
     raw_svector_ostream OS(Str);
-    OS << get_event_name(Event);
-    if (!is_empty_event<T>)
-      OS << ": " << Event;
+    OS << "> With " << get_event_name(Event) << ": ";
+    if constexpr (is_empty_event<T>)
+      OS << get_event_signature(unmap_event_v<T>);
+    else
+      OS << Event;
     LOG_EXTRA("{}", Str.str());
   });
 }
+#endif // EXI_LOGGING
 
 //===----------------------------------------------------------------===//
 // Getters

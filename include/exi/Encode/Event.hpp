@@ -231,7 +231,14 @@ ALWAYS_INLINE constexpr const Event& event_cast(const BaseEvent& BE) {
 
 template <SimpleEventTerm Term, class Event = map_event_t<Term>>
 EXI_INLINE constexpr Event& event_cast(
- auto& BE, [[maybe_unused]] SimpleEventTerm K) {
+ BaseEvent& BE, [[maybe_unused]] SimpleEventTerm K) {
+  exi_invariant(K == Term, "Invalid term_cast!");
+  return event_cast<Term, Event>(BE);
+}
+
+template <SimpleEventTerm Term, class Event = map_event_t<Term>>
+EXI_INLINE constexpr const Event& event_cast(
+ const BaseEvent& BE, [[maybe_unused]] SimpleEventTerm K) {
   exi_invariant(K == Term, "Invalid term_cast!");
   return event_cast<Term, Event>(BE);
 }
