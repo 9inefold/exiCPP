@@ -149,7 +149,7 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final
    Info(BIInfoArray::New(Info)) {
   }
   OrderedBuiltinSchema(OrderedEncoder&, const BIBuilder& BIB) : 
-   OrderedBuiltinSchema(BIB.Terms, BIB.Info) {
+   OrderedBuiltinSchema(BIB.terms(), BIB.info()) {
   }
 
 public:
@@ -159,7 +159,7 @@ public:
   static Box<OrderedBuiltinSchema> New(OrderedEncoder* OE,
                                        const BIBuilder& BIB) {
     exi_invariant(BIB, "Builder must be initialized!");
-    const unsigned Size = BIB.Terms.size();
+    const unsigned Size = BIB.trailing();
     auto* TheSchema = InitT(Size).init(*OE, BIB);
     return Box<OrderedBuiltinSchema>(TheSchema);
   }
@@ -167,7 +167,7 @@ public:
   [[nodiscard]] static OrderedBuiltinSchema*
    New(OrderedEncoder* OE, const BIBuilder& BIB, Alloc& A) {
     exi_invariant(BIB, "Builder must be initialized!");
-    const unsigned Size = BIB.Terms.size();
+    const unsigned Size = BIB.trailing();
     return InitT(Size, A).init(*OE, BIB);
   }
   static Box<OrderedBuiltinSchema> New(BodyEncoder* BE,

@@ -74,11 +74,8 @@ alignas(16) inline constexpr u8 BISmallLog2[10] {0, 0, 1, 2, 2, 3, 3, 3, 3, 4};
 
 /// Used to build the `TrailingArray`s for encoder/decoder schemas.
 class BIBuilder {
-public:
   SmallVec<EventTerm, 8> Terms;
   SmallVec<BIInfo, BIInfoArray::size()> Info;
-
-private:
   ExiOptions::PreserveOpts Preserve;
   bool SelfContained;
 
@@ -104,6 +101,7 @@ private:
   }
 
 public:
+  // TODO: Add error argument?
   BIBuilder(const ExiOptions& Opts) :
    Preserve(Opts.Preserve),
    SelfContained(Opts.SelfContained) {
@@ -111,8 +109,7 @@ public:
   }
 
   static BIBuilder New(const ExiOptions& Opts) {
-    BIBuilder B(Opts);
-    return B;
+    return BIBuilder(Opts);
   }
 
   static void Inc(SEventCode& C, i8 I = 1) {
@@ -131,6 +128,11 @@ public:
     BIBuilder::Inc(C, I);
     BIBuilder::Next(C);
   }
+
+  ArrayRef<EventTerm> terms() const { return Terms; }
+  ArrayRef<BIInfo> info() const { return Info; }
+  /// @returns `Terms.size()`, used to initialize `TrailingArray`.
+  unsigned trailing() const { return Terms.size(); }
 
   inline explicit operator bool() const {
     return !Terms.empty() && !Info.empty();

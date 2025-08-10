@@ -124,7 +124,7 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final
    Info(BIInfoArray::New(Info)) {
   }
   OrderedBuiltinSchema(const BIBuilder& B) : 
-   OrderedBuiltinSchema(B.Terms, B.Info) {
+   OrderedBuiltinSchema(B.terms(), B.info()) {
   }
 
 public:
@@ -133,14 +133,14 @@ public:
 
   static Box<OrderedBuiltinSchema> New(const BIBuilder& BIB) {
     exi_invariant(BIB, "Builder must be initialized!");
-    const unsigned Size = BIB.Terms.size();
+    const unsigned Size = BIB.trailing();
     auto* TheSchema = InitT(Size).init(BIB);
     return Box<OrderedBuiltinSchema>(TheSchema);
   }
   template <is_exi_allocator Alloc>
   [[nodiscard]] static OrderedBuiltinSchema* New(const BIBuilder& BIB, Alloc& A) {
     exi_invariant(BIB, "Builder must be initialized!");
-    const unsigned Size = BIB.Terms.size();
+    const unsigned Size = BIB.trailing();
     return InitT(Size, A).init(BIB);
   }
   static Box<OrderedBuiltinSchema> New(const ExiOptions& Opts) {
