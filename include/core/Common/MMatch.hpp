@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include <Common/Features.hpp>
+#include <Common/Fundamental.hpp>
 #include <type_traits>
 
 namespace exi {
