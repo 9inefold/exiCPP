@@ -65,9 +65,9 @@ struct EXI_EMPTY_BASES PairEventData : BaseEvent {
   u32 Size[2] = {0, 0};
   const char* Data[2] = {nullptr, nullptr};
 public:
-  ALWAYS_INLINE StrRef operator[](usize Ix) const 
+  constexpr ALWAYS_INLINE StrRef operator[](usize Ix) const 
    EXI_ERROR_IF(Ix > 1, "Index out of range!") {
-    exi_assert(Ix <= 1, "Index out of range!");
+    exi_invariant(Ix <= 1, "Index out of range!");
     return StrRef(Data[Ix], Size[Ix]);
   }
 };
@@ -96,9 +96,9 @@ struct DoctypeEvent   : BaseEvent {
   u32 Size[4] = {};
   const char* Data[4] = {};
 public:
-  ALWAYS_INLINE StrRef operator[](usize Ix) const 
-   EXI_ERROR_IF(Ix > 4, "Index out of range!") {
-    exi_assert(Ix <= 4, "Index out of range!");
+  constexpr ALWAYS_INLINE StrRef operator[](usize Ix) const 
+   EXI_ERROR_IF(Ix > 3, "Index out of range!") {
+    exi_invariant(Ix <= 3, "Index out of range!");
     return StrRef(Data[Ix], Size[Ix]);
   }
 };
