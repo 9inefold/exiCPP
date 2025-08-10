@@ -1,4 +1,4 @@
-//===- exi/Grammar/BICoder.hpp --------------------------------------===//
+//===- exi/Grammar/BIEventMap.hpp -----------------------------------===//
 //
 // Copyright (C) 2025 Eightfold
 //
@@ -45,41 +45,46 @@ namespace exi {
 // ER == 0xA
 
 /// Used for mapping events to values.
-/// Works via "perfect hashing" over the domain. 
-class BICoder {
+/// Works via "perfect hashing" over the domain.
+/// Given:
+///   SE: 0b0000
+///   CM: 0b0111
+///   PI: 0b1000
+///   DT: 0b1001
+/// `DocContent` can take `0b[X]xx[X]`.
+/// `DocEnd` can take `0b[XX]xx`.
+class BIEventMap {
   using enum SimpleEventTerm;
-  DirectEventCode DocContent[4] {};
-  DirectEventCode DocEnd[3] {};
+  Array<FullEventCode, 4> DocContent {};
+  Array<FullEventCode, 3> DocEnd {};
+
+  static unsigned GetShift(const ExiOptions& Opts) {
+    return (Opts.Alignment == AlignKind::BitPacked) ? 1 : 8;
+  }
+
+  BIEventMap(ExiOptions::PreserveOpts Preserve, unsigned Shift) {
+    
+  }
+
 public:
-  ALWAYS_INLINE static DirectEventCode
+  BIEventMap(const ExiOptions& Opts)
+   : BIEventMap(Opts.Preserve, GetShift(Opts)) {
+  }
+
+  ALWAYS_INLINE static FullEventCode
    mapDocument([[maybe_unused]] SimpleEventTerm K) {
     exi_invariant(K == SD);
     return {0, 0};
   }
-  DirectEventCode mapDocContent(SimpleEventTerm K) const {
-    // Given:
-    //  SE: 0b0000
-    //  CM: 0b0111
-    //  PI: 0b1000
-    //  DT: 0b1001
-    // Take 0b[X]xx[X]
+  EXI_FLATTEN FullEventCode mapDocContent(SimpleEventTerm K) const {
     exi_invariant(MMatch(K).is(SE, CM, PI, DT));
     return DocContent[(unsigned(K) >> 3)
                     | (unsigned(K) & 0b1)];
   }
-  DirectEventCode mapDocEnd(SimpleEventTerm K) const {
-    // Given:
-    //  SE: 0b0000
-    //  CM: 0b0111
-    //  PI: 0b1000
-    // Take 0b[XX]xx
+  EXI_FLATTEN FullEventCode mapDocEnd(SimpleEventTerm K) const {
     exi_invariant(MMatch(K).is(SE, CM, PI));
     return DocContent[unsigned(K) >> 2];
   }
-};
-
-class BICoderBuilder {
-
 };
 
 } // namespace exi

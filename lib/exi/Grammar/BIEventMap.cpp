@@ -1,4 +1,4 @@
-//===- exi/Grammar/BICoder.cpp --------------------------------------===//
+//===- exi/Grammar/BIEventMap.cpp -----------------------------------===//
 //
 // Copyright (C) 2025 Eightfold
 //
@@ -21,7 +21,7 @@
 ///
 //===----------------------------------------------------------------===//
 
-#include <exi/Grammar/BICoder.hpp>
+#include <exi/Grammar/BIEventMap.hpp>
 
 using namespace exi;
 using enum SimpleEventTerm;

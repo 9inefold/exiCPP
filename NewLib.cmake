@@ -119,7 +119,7 @@ include_items(EXICPP_ENCODE "lib/exi"
 )
 
 include_items(EXICPP_GRAMMAR "lib/exi"
-  Grammar/BICoder.cpp
+  Grammar/BIEventMap.cpp
   Grammar/BIState.cpp
   Grammar/Grammar.cpp
   Grammar/SchemaFactory.cpp
