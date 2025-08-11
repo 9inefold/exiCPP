@@ -41,6 +41,7 @@
 #include <exi/Basic/EventCodes.hpp>
 #include <exi/Basic/Except.hpp>
 #include <exi/Encode/D/StringTableMappings.mac>
+#include <exi/Encode/BodyEncoderAlloc.hpp>
 #include <exi/Encode/StringTableHandles.hpp>
 #include <type_traits>
 
@@ -59,7 +60,7 @@ class NSContextStack;
 namespace encode {
 class StringTable;
 
-using TableBumpAllocator = exi::BumpPtrAllocator;
+using TableBumpAllocator = exi::EncoderBumpAllocator;
 
 template <typename Value, bool IsOwned = false>
 using BumpStringMap = StringMap<Value,

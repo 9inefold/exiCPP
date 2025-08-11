@@ -27,6 +27,7 @@
 #include <exi/Encode/BodyEncoder.hpp>
 #include <exi/Encode/StringTable.hpp>
 #include <exi/Encode/NamespaceContextStack.hpp>
+#include <exi/Encode/BodyEncoderAlloc.hpp>
 #include <exi/Grammar/EncoderSchema.hpp>
 #include <exi/Stream/OrderedWriter.hpp>
 
@@ -39,7 +40,7 @@ class OrderedEncoder final : public BodyEncoder {
 
   using BodyEncoder::Opts;
   /// A BumpPtrAllocator for processor internals.
-  exi::BumpPtrAllocator BP;
+  mutable EncoderBumpAllocator BP;
   /// The provided `OrderedWriter`.
   OrdWriter Writer;
   /// The table holding decoded string values (QNames, LocalNames, etc.)
@@ -72,7 +73,17 @@ public:
         *E = std::move(Err);
   }
 
-  EXI_INLINE EXI_FLATTEN encode::Schema* getSchema() const {
+  EncoderBumpAllocator& getAllocator() const { return BP; }
+
+  void* Allocate(usize Size, unsigned Align = 8) const {
+    return BP.Allocate(Size, Align);
+  }
+  template <typename T> T* Allocate(usize N = 1) const {
+    return static_cast<T*>(Allocate(N * sizeof(T), alignof(T)));
+  }
+  void Deallocate(void* Ptr) const {}
+
+  EXI_FLATTEN ALWAYS_INLINE encode::Schema* getSchema() const {
     return CurrentSchema.operator->();
   }
 
@@ -148,3 +159,58 @@ public:
 };
 
 } // namespace exi
+
+//////////////////////////////////////////////////////////////////////////
+// operator new/delete
+
+/// Placement new for using OrderedEncoder's allocator.
+///
+/// This placement form of operator new uses the OrderedEncoder's allocator for
+/// obtaining memory.
+///
+/// We intentionally avoid using a nothrow specification here so that the calls
+/// to this operator will not perform a null check on the result -- the
+/// underlying allocator never returns null pointers.
+///
+/// Memory allocated through this placement new operator does not need to be
+/// explicitly freed, as OrderedEncoder will free all of this memory when it
+/// gets destroyed. Please note that you cannot use delete on the pointer.
+inline void* operator new(usize Bytes, const exi::OrderedEncoder& OE,
+                          usize Alignment /* = 8 */) {
+  return OE.Allocate(Bytes, Alignment);
+}
+
+/// Placement delete companion to the new above.
+///
+/// This operator is just a companion to the new above. There is no way of
+/// invoking it directly; see the new operator for more details. This operator
+/// is called implicitly by the compiler if a placement new expression using
+/// the OrderedEncoder throws in the object constructor.
+inline void operator delete(void* Ptr, const exi::OrderedEncoder& OE, usize) {
+  OE.Deallocate(Ptr);
+}
+
+/// This placement form of operator new[] uses the OrderedEncoder's allocator
+/// for obtaining memory.
+///
+/// We intentionally avoid using a nothrow specification here so that the calls
+/// to this operator will not perform a null check on the result -- the
+/// underlying allocator never returns null pointers.
+///
+/// Memory allocated through this placement new[] operator does not need to be
+/// explicitly freed, as OrderedEncoder will free all of this memory when it
+/// gets destroyed. Please note that you cannot use delete on the pointer.
+inline void* operator new[](usize Bytes, const exi::OrderedEncoder& OE,
+                            usize Alignment /* = 8 */) {
+  return OE.Allocate(Bytes, Alignment);
+}
+
+/// Placement delete[] companion to the new[] above.
+///
+/// This operator is just a companion to the new[] above. There is no way of
+/// invoking it directly; see the new[] operator for more details. This operator
+/// is called implicitly by the compiler if a placement new[] expression using
+/// the OrderedEncoder throws in the object constructor.
+inline void operator delete[](void* Ptr, const exi::OrderedEncoder& OE, usize) {
+  OE.Deallocate(Ptr);
+}
