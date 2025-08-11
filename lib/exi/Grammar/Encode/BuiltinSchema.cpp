@@ -35,7 +35,7 @@
 #include <exi/Encode/D/EventMappings.mac>
 #include <exi/Grammar/BIBuilder.hpp>
 #include <exi/Grammar/BIEventMap.hpp>
-// #include <exi/Encode/Grammar.hpp>
+#include <exi/Encode/Grammar.hpp>
 #include <exi/Stream/OrderedWriter.hpp>
 #include <fmt/ranges.h>
 #include "SchemaGet.hpp"
@@ -130,12 +130,10 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final : public BuiltinSchema {
   using BuiltinSchema::State;
 
   using Get = encode::Schema::Get<StrmT>;
-  //using GrammarT = PointerIntPair<BuiltinGrammar*, 1, bool>;
+  using GrammarT = PointerIntPair<BuiltinGrammar*, 1, bool>;
 
   /// Contains info on the compressed grammars.
   BIInfoArray Info;
-  /// The current event ID
-  EventUID Event = EventUID::NewNull();
   /// The pseudo grammar stack.
   BIGrammarState Current = Document;
   /// ...
@@ -184,19 +182,19 @@ private:
   }
 
   /// Encodes a simple event - can be {SD, ED}.
-  ALWAYS_INLINE CC ExiError encodeEventS(OrderedEncoder*, const NoEventData&) {
+  CC ExiError encodeEventS(OrderedEncoder*, const NoEventData&) {
     return ExiError::OK;
   }
   /// Encodes a simple event - can be {CM, ER}.
-  ALWAYS_INLINE CC ExiError encodeEventS(OrderedEncoder* OE,
-                                         const StringEventData& Event) {
+  CC ExiError encodeEventS(OrderedEncoder* OE,
+                           const StringEventData& Event) {
     Get::Writer(OE).encodeString(
       StrRef(Event.Data, Event.Size));
     return ExiError::OK;
   }
   /// Encodes a simple event - can be {PI}.
-  ALWAYS_INLINE CC ExiError encodeEventS(OrderedEncoder* OE,
-                                         const ProcInstrEvent& Event) {
+  CC ExiError encodeEventS(OrderedEncoder* OE,
+                           const ProcInstrEvent& Event) {
     StrmT& Strm = Get::Writer(OE);
     Strm.encodeString(Event[0]);
     Strm.encodeString(Event[1]);
@@ -205,7 +203,7 @@ private:
   /// Encodes a simple event - can be {DT}.
   inline CC ExiError encodeEventS(OrderedEncoder* OE,
                                   const DoctypeEvent& Event);
-  
+  // TODO: Flatten?
   template <SimpleEventTerm Term>
   CC ExiError encodeDocContent(ORDERED_ARGS) {
     encodePrecomputedCode(OE, TMap.mapDocContent<Term>());
@@ -213,6 +211,7 @@ private:
     return this->encodeEventS(
       OE, event_cast<Term>(Event, K));
   }
+  // TODO: Flatten?
   template <SimpleEventTerm Term>
   CC ExiError encodeDocEnd(ORDERED_ARGS) {
     encodePrecomputedCode(OE, TMap.mapDocEnd<Term>());
