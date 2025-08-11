@@ -71,15 +71,16 @@ class INTERNAL_LINKAGE XMLEncoderRunner<OrderedEncoder>
     : public GenericXMLEncoderRunner {
   using Base = GenericXMLEncoderRunner;
   using enum SimpleEventTerm;
-  OrderedEncoder& BE;
+  using Encoder = OrderedEncoder; // TODO: Remove
+  Encoder& BE;
   encode::Schema* TheSchema = nullptr;
   NodeKindBitset CurrKinds;
 
 public:
-  XMLEncoderRunner(OrderedEncoder& OE)
-   : GenericXMLEncoderRunner(OE),
-      BE(OE), TheSchema(OE.getSchema()),
-      CurrKinds() {
+  XMLEncoderRunner(Encoder& BE)
+   : GenericXMLEncoderRunner(BE),
+      BE(BE), TheSchema(BE.getSchema()),
+      CurrKinds(0b1) {
   }
 
   ALWAYS_INLINE void loadKinds() {
