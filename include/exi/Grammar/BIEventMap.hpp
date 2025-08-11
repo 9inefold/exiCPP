@@ -32,17 +32,7 @@
 
 namespace exi {
 
-// SE == 0x0
-// EE == 0x1
-// AT == 0x2
-// CH == 0x3
-// NS == 0x4
-// SD == 0x5
-// ED == 0x6
-// CM == 0x7
-// PI == 0x8
-// DT == 0x9
-// ER == 0xA
+class BIEventMapBuilder;
 
 /// Used for mapping events to values.
 /// Works via "perfect hashing" over the domain.
@@ -57,24 +47,25 @@ namespace exi {
 /// `DocContent` can take `0bxx[XX]`.
 /// `DocEnd` can take `0bx[XX]x - 1`.
 class BIEventMap {
+  friend class BIEventMapBuilder;
   /// Accessed with [SE, CM, PI, DT]
   Array<FullEventCode, 4> DocContent {};
   /// Accessed with [ED, CM, PI]
   Array<FullEventCode, 3> DocEnd {};
+  /// Currently stores everything. Will change this later.
+  using FatElementArray = EnumArray<SecondLevelEventCode, SimpleEventTerm>;
+  /// Accessed with [EE, AT, NS, SC, CC...]
+  FatElementArray StartTagContent {};
+  /// Accessed with [EE, CC...]
+  FatElementArray ElementContent {};
 
   static unsigned GetShift(const ExiOptions& Opts) {
     return (Opts.Alignment == AlignKind::BitPacked) ? 1 : 8;
   }
 
-  BIEventMap(ExiOptions::PreserveOpts Preserve, unsigned Shift) {
-    // TODO: Implement
-  }
-
+  constexpr BIEventMap() = default;
 public:
-  BIEventMap() = default; // FIXME: Remove
-  BIEventMap(const ExiOptions& Opts)
-   : BIEventMap(Opts.Preserve, GetShift(Opts)) {
-  }
+  inline static BIEventMap New(const ExiOptions& Opts);
 
   static constexpr unsigned IdxDocContent(SimpleEventTerm K) {
     using enum SimpleEventTerm;
@@ -113,6 +104,63 @@ inline constexpr unsigned map_doccontent_v = BIEventMap::IdxDocContent(K);
 
 template <SimpleEventTerm K>
 inline constexpr unsigned map_docend_v = BIEventMap::IdxDocEnd(K);
+
+//////////////////////////////////////////////////////////////////////////
+// Builder
+
+/// Builds a `BIEventMap` from the given options.
+/// Current implementation isn't clean, but should work.
+class BIEventMapBuilder {
+  using enum SimpleEventTerm;
+  using T = BIEventMap;
+  BIEventMap TMap {};
+  ExiOptions::PreserveOpts Preserve;
+  bool SelfContained;
+  bool Packed; // Is bit-aligned?
+public:
+  BIEventMapBuilder(const ExiOptions& Opts) :
+   Preserve(Opts.Preserve),
+   SelfContained(Opts.SelfContained),
+   Packed(Opts.Alignment == AlignKind::BitPacked) {
+    this->initFull();
+    this->initSecondLevel();
+  }
+
+  BIEventMap operator()() const { return TMap; }
+
+private:
+  /// These have no dynamic grammars, and can be fully precomputed.
+  /// They are also binary only (eg. 1-bit values of 0/1), so are simpler to compute.
+  void initFull();
+  template <bool> inline void initDocContent();
+  template <bool> inline void initDocEnd();
+
+  /// These have dynamic grammars, and can only be partially precomputed.
+  void initSecondLevel();
+  inline void initStartTagContent();
+  inline void initElementContent();
+  inline void initCCItems(BIEventMap::FatElementArray& A,
+                          unsigned Count, unsigned Bits);
+
+  bool hasThirdLevelCodes() const {
+    return Preserve.PIs || Preserve.Comments;
+  }
+  bool hasCMPI() const {
+    return Preserve.PIs && Preserve.Comments;
+  }
+
+  unsigned countCCItemsBits() const {
+    unsigned Count = 2;            // {SE, CH}
+    Count += Preserve.DTDs;        // ER
+    Count += hasThirdLevelCodes(); // {CM, PI}
+    return Count;
+  }
+};
+
+BIEventMap BIEventMap::New(const ExiOptions& Opts) {
+  BIEventMapBuilder EMB(Opts);
+  return EMB();
+}
 
 } // namespace exi
 

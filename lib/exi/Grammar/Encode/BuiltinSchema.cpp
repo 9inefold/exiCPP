@@ -125,15 +125,11 @@ namespace INTERNAL_NS(exi) {
 #define ORDERED_NEXT OE, Event, K
 
 template <is_ordwriter_stream StrmT>
-class INTERNAL_LINKAGE OrderedBuiltinSchema final
-    : public BuiltinSchema,
-      public TrailingArray<OrderedBuiltinSchema<StrmT>, EventTerm> {
+class INTERNAL_LINKAGE OrderedBuiltinSchema final : public BuiltinSchema {
   using enum BIGrammarState;
   using BuiltinSchema::State;
 
   using Get = encode::Schema::Get<StrmT>;
-  using BaseT = TrailingArray<OrderedBuiltinSchema, EventTerm>;
-  using MatchT = MMatch<EventTerm, EventTerm>;
   using GrammarT = PointerIntPair<BuiltinGrammar*, 1, bool>;
 
   /// Contains info on the compressed grammars.
@@ -143,41 +139,27 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final
   /// The pseudo grammar stack.
   BIGrammarState Current = Document;
   /// ...
-
   /// Maps `SimpleEventTerm`s to event codes.
   BIEventMap TMap;
 
-  OrderedBuiltinSchema(ArrayRef<EventTerm> Terms,
-                       ArrayRef<BIInfo> Info) : 
-   BaseT(Terms.size(), Terms.begin(), Terms.end()),
-   Info(BIInfoArray::New(Info)) {
-  }
-  OrderedBuiltinSchema(OrderedEncoder&, const BIBuilder& BIB) : 
-   OrderedBuiltinSchema(BIB.terms(), BIB.info()) {
-  }
+  OrderedBuiltinSchema(OrderedEncoder&, const BIEventMap& TMap) : TMap(TMap) {}
 
 public:
-  friend class BaseT::New;
-  using InitT = typename BaseT::New;
-
   static Box<OrderedBuiltinSchema> New(OrderedEncoder* OE,
-                                       const BIBuilder& BIB) {
-    exi_invariant(BIB, "Builder must be initialized!");
-    const unsigned Size = BIB.trailing();
-    auto* TheSchema = InitT(Size).init(*OE, BIB);
+                                       const BIEventMap& BIEM) {
+    auto* TheSchema = new OrderedBuiltinSchema(*OE, BIEM);
     return Box<OrderedBuiltinSchema>(TheSchema);
   }
   template <is_exi_allocator Alloc>
   [[nodiscard]] static OrderedBuiltinSchema*
-   New(OrderedEncoder* OE, const BIBuilder& BIB, Alloc& A) {
-    exi_invariant(BIB, "Builder must be initialized!");
-    const unsigned Size = BIB.trailing();
-    return InitT(Size, A).init(*OE, BIB);
+   New(OrderedEncoder* OE, const BIEventMap& BIEM, Alloc& A) {
+    auto* TheSchema = A.template Allocate<OrderedBuiltinSchema>();
+    return new(TheSchema) OrderedBuiltinSchema(*OE, BIEM);
   }
   static Box<OrderedBuiltinSchema> New(BodyEncoder* BE,
                                        const ExiOptions& Opts) {
     if (auto* OE = dyn_cast_if_present<OrderedEncoder>(BE))
-      return New(OE, BIBuilder::New(Opts));
+      return New(OE, BIEventMap::New(Opts));
     LOG_ERROR("Input was null or not an ordered encoder!");
     return nullptr;
   }
@@ -194,6 +176,10 @@ public:
 private:
   ALWAYS_INLINE CC void encodePrecomputedCode(OrderedEncoder* OE,
                                               FullEventCode EC) {
+    if constexpr (std::same_as<StrmT, BitWriter>)
+      LOG_EXTRA(">> Code: {:0{}b}", EC.Data, EC.Bits);
+    else
+      LOG_EXTRA(">> Code: {:0{}x}", EC.Data, (EC.Bits / 8));
     Get::Writer(OE).writeBits64(EC.Data, EC.Bits);
   }
 
@@ -411,12 +397,14 @@ namespace INTERNAL_NS(exi) {
 
 template <is_ordwriter_stream StrmT>
 class OrderedBISchemaFactory {
-  BIBuilder Builder;
+  BIEventMap BIEM;
 public:
-  OrderedBISchemaFactory(const ExiOptions& Opts) : Builder(Opts) {}
+  OrderedBISchemaFactory(const ExiOptions& Opts)
+   : BIEM(BIEventMap::New(Opts)) {}
+  
   Box<BuiltinSchema> operator()(BodyEncoder* BE) const {
     if (auto* OE = dyn_cast<OrderedEncoder>(BE)) [[likely]]
-      return OrderedBuiltinSchema<StrmT>::New(OE, Builder);
+      return OrderedBuiltinSchema<StrmT>::New(OE, BIEM);
     LOG_ERROR("Incorrect BodyEncoder type passed to SchemaFactory!");
     return nullptr;
   }
