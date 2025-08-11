@@ -31,9 +31,6 @@
 using namespace exi;
 using namespace exi::decode;
 
-void Grammar::anchor() {}
-void BuiltinGrammar::anchor() {}
-
 void BuiltinGrammar::setLog(bool IsStart) {
   if (IsStart) {
     const u32 Log = getStartTagCount();

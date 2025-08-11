@@ -43,19 +43,7 @@ using FirstLevelProd = u64;
 using GrammarTerm = Result<EventUID, FirstLevelProd>;
 
 /// The base for all grammars.
-class Grammar {
-public:
-  virtual ~Grammar() = default;
-  /// Gets the terminal symbol at the current position, if it exists.
-  /// Otherwise returns the first part of the event code.
-  virtual GrammarTerm getTerm(OrdReader& Strm, bool IsStart) = 0;
-  /// Adds a new StartTag term to the list.
-  virtual void addTerm(EventUID Term, bool IsStart) = 0;
-  /// Dumps the current grammar.
-  virtual void dump(ExiDecoder* D) const {}
-private:
-  virtual void anchor();
-};
+class alignas(8) Grammar {};
 
 /// The grammars for `BuiltinSchema`.
 /// TODO: Profile SmallVecs
@@ -98,17 +86,17 @@ public:
     return Err(Out - Size);
   }
 
-  EXI_FLATTEN GrammarTerm getTerm(OrdReader& Reader, bool IsStart) override {
+  EXI_FLATTEN GrammarTerm getTerm(OrdReader& Reader, bool IsStart) {
     return this->getTerm(Reader.operator->(), IsStart);
   }
 
-  void addTerm(EventUID Term, bool IsStart) override {
+  void addTerm(EventUID Term, bool IsStart) {
     getElts(IsStart).push_back(Term);
     this->setLog(IsStart);
   }
 
   SmallQName getName() const { return Name; }
-  void dump(ExiDecoder* D) const override;
+  void dump(ExiDecoder* D) const;
 
 private:
   /// Sets the log for StartTag or Element.
@@ -140,8 +128,6 @@ private:
   usize getElementCount() const {
     return Element.size() + 2;
   }
-
-  void anchor() override;
 };
 
 } // namespace decode
