@@ -41,8 +41,12 @@ struct EXI_TRIVIAL_ABI BIInfo {
   SEventCode Code = {};
 };
 
-using BIInfoArray = EnumeratedArray<BIInfo, BIGrammarState,
+template <typename T>
+using BIGrammarStateArray = EnumeratedArray<BIInfo, BIGrammarState,
   BIGrammarState::Last, BIGrammarState::DocContent>;
+
+/// Stores the data for builtin decoder schemas.
+using BIInfoArray = BIGrammarStateArray<BIInfo>;
 
 /// EventCode which represents a `([x.y.z], Size)`.
 struct FullEventCode {
