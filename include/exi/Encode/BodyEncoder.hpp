@@ -169,6 +169,10 @@ public:
 
   /// Gets the options held by the current encoder.
   const ExiOptions& getOptions() const { return Opts; }
+  /// Gets the value of Preserve.Prefixes.
+  bool PreservePrefixes() const { return Opts.Preserve.Prefixes; }
+  /// Gets the value of Preserve.LexicalValues.
+  bool LexicalValues() const { return Opts.Preserve.LexicalValues; }
   /// Gets the type of the encoder.
   EncoderKind get_kind() const { return Kind; }
 
