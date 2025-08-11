@@ -177,9 +177,9 @@ private:
   ALWAYS_INLINE CC void encodePrecomputedCode(OrderedEncoder* OE,
                                               FullEventCode EC) {
     if constexpr (std::same_as<StrmT, BitWriter>)
-      LOG_EXTRA(">> Code: {:0{}b}", EC.Data, EC.Bits);
+      LOG_EXTRA(">> Code: 0b{:0{}b}", EC.Data, EC.Bits);
     else
-      LOG_EXTRA(">> Code: {:0{}x}", EC.Data, (EC.Bits / 8));
+      LOG_EXTRA(">> Code: 0x{:0{}x}", EC.Data, (EC.Bits / 8));
     Get::Writer(OE).writeBits64(EC.Data, EC.Bits);
   }
 
