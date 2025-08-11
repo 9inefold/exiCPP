@@ -53,7 +53,6 @@ template <typename Ptr> struct PunnedPointer {
   static_assert(std::is_trivially_move_constructible<Ptr>::value);
 
   explicit constexpr PunnedPointer(iptr I = 0) : Data(I) {}
-
   constexpr PunnedPointer &operator=(iptr V) {
     Data = V;
     return *this;
@@ -109,8 +108,20 @@ public:
   explicit PointerIntPair(PointerTy PtrVal) { initWithPointer(PtrVal); }
 
   PointerTy getPointer() const { return Info::getPointer(Value); }
-
   IntType getInt() const { return (IntType)Info::getInt(Value); }
+
+  /// Gets a pointer under the assumption there is no int value.
+  /// Only different when PointerTy is trivial.
+  EXI_FLATTEN EXI_INLINE PointerTy getPointerWithNoInt() const {
+    if constexpr (std::is_pointer_v<PointerTy>) {
+      if constexpr (IntBits > 0)
+        exi_invariant(this->getInt() == 0,
+                      "Int cannot have a value!");
+      return std::bit_cast<PointerTy>(Value.Data);
+    } else {
+      return Info::getPointer(Value);
+    }
+  }
 
   inline PointerTy operator->() const {
     const PointerTy Ptr = Info::getPointer(Value); 
@@ -121,18 +132,16 @@ public:
   void setPointer(PointerTy PtrVal) & {
     Value = Info::updatePointer(Value, PtrVal);
   }
-
   void setInt(IntType IntVal) & {
     Value = Info::updateInt(Value, static_cast<iptr>(IntVal));
+  }
+  void setPointerAndInt(PointerTy PtrVal, IntType IntVal) & {
+    Value = Info::updateInt(Info::updatePointer(0, PtrVal),
+                            static_cast<iptr>(IntVal));
   }
 
   void initWithPointer(PointerTy PtrVal) & {
     Value = Info::updatePointer(0, PtrVal);
-  }
-
-  void setPointerAndInt(PointerTy PtrVal, IntType IntVal) & {
-    Value = Info::updateInt(Info::updatePointer(0, PtrVal),
-                            static_cast<iptr>(IntVal));
   }
 
   PointerTy const *getAddrOfPointer() const {
