@@ -100,9 +100,9 @@ public:
       LOG_ERROR("Document: Must have root node.");
       return ErrorCode::kUnexpectedError;
     }
-  Document:
+  // Document:
     exi_try(BE.StartDocument());
-  DocContent:
+  // DocContent:
     this->andKinds(kNKBitsetDocContent);
     while (N->type() != NodeKind::node_element) {
       exi_try(handleDocContent(*N));
@@ -112,11 +112,11 @@ public:
         return ErrorCode::kInconsistentProcState;
       }
     }
-  Content:
+  // Content:
     this->loadKinds(/*Options*/);
     exi_todo("StartTagContent/ElementContent");
 
-  DocEnd:
+  // DocEnd:
     this->andKinds(kNKBitsetDocEnd);
     N = N->next_sibling();
     if (needsDocEndLoop()) while(N) {
