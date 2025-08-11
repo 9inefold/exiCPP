@@ -167,8 +167,10 @@ inline void BIEventMapBuilder::initStartTagContent() {
 
 inline void BIEventMapBuilder::initElementContent() {
   auto& A = TMap.ElementContent;
+  const unsigned Bits = Packed
+    ? BISmallLog2[countCCItemsBits()] : 8;
   // No second-level events other than CCItems.
-  initCCItems(A, 0, BISmallLog2[countCCItemsBits()]);
+  initCCItems(A, 0, Bits);
 }
 
 void BIEventMapBuilder::initSecondLevel() {

@@ -84,7 +84,15 @@ public:
   }
   constexpr EXI_FLATTEN FullEventCode
    mapDocEnd(SimpleEventTerm K) const {
-    return DocContent[IdxDocEnd(K)];
+    return DocEnd[IdxDocEnd(K)];
+  }
+  constexpr EXI_FLATTEN SecondLevelEventCode
+   mapStartTagContent(SimpleEventTerm K) const {
+    return StartTagContent[K];
+  }
+  constexpr EXI_FLATTEN SecondLevelEventCode
+   mapElementContent(SimpleEventTerm K) const {
+    return ElementContent[K];
   }
 
   template <SimpleEventTerm K> 
@@ -95,7 +103,15 @@ public:
   template <SimpleEventTerm K> 
   constexpr EXI_FLATTEN FullEventCode mapDocEnd() const {
     constexpr_static unsigned Off = IdxDocEnd(K);
-    return DocContent[Off];
+    return DocEnd[Off];
+  }
+  template <SimpleEventTerm K> 
+  constexpr EXI_FLATTEN SecondLevelEventCode mapStartTagContent() const {
+    return StartTagContent[K];
+  }
+  template <SimpleEventTerm K> 
+  constexpr EXI_FLATTEN SecondLevelEventCode mapElementContent() const {
+    return ElementContent[K];
   }
 };
 
