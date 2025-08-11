@@ -404,13 +404,14 @@ consteval Int Constant(const char(&Arr)[N]) {
 template <std::unsigned_integral Int, unsigned Bytes = sizeof(Int)>
 ALWAYS_INLINE Int Load(const char* S) {
   static_assert(sizeof(Int) >= Bytes);
-#if 1
+  // TODO: Add version for bits?
+#if 0
   static constexpr Int Mask = ~Int(0) >> ((sizeof(Int) - Bytes) * 8);
   // FIXME: Uses ub. Also may not work on big endian.
   return *reinterpret_cast<const Int*>(S) & Mask;
 #else
   Int I = 0;
-  std::memcpy(&I, Arr, Bytes);
+  exi___builtin_memcpy(&I, S, Bytes);
   return I;
 #endif
 }
