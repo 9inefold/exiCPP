@@ -1,4 +1,4 @@
-//===- exi/Grammar/Grammar.hpp --------------------------------------===//
+//===- exi/Decode/Grammar.hpp ---------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -17,7 +17,7 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines the base for grammars.
+/// This file defines the base for decoder grammars.
 ///
 //===----------------------------------------------------------------===//
 
@@ -33,9 +33,9 @@
 #define DEBUG_TYPE "Grammar"
 
 namespace exi {
-
 class ExiDecoder;
-class ExiEncoder;
+
+namespace decode {
 
 /// Represents the first part of an event code.
 using FirstLevelProd = u64;
@@ -144,6 +144,7 @@ private:
   void anchor() override;
 };
 
+} // namespace decode
 } // namespace exi
 
 #undef DEBUG_TYPE

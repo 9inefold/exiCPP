@@ -1,4 +1,4 @@
-//===- exi/Grammar/Grammar.cpp --------------------------------------===//
+//===- exi/Decode/Grammar.cpp ---------------------------------------===//
 //
 // Copyright (C) 2024 Eightfold
 //
@@ -21,14 +21,15 @@
 ///
 //===----------------------------------------------------------------===//
 
-#include <exi/Grammar/Grammar.hpp>
+#include <exi/Decode/Grammar.hpp>
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/CompactID.hpp>
-#include "Decode/SchemaGet.hpp"
+#include <Grammar/Decode/SchemaGet.hpp>
 
 #define DEBUG_TYPE "Grammar"
 
 using namespace exi;
+using namespace exi::decode;
 
 void Grammar::anchor() {}
 void BuiltinGrammar::anchor() {}

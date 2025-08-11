@@ -35,7 +35,7 @@
 #include <exi/Encode/D/EventMappings.mac>
 #include <exi/Grammar/BIBuilder.hpp>
 #include <exi/Grammar/BIEventMap.hpp>
-#include <exi/Grammar/Grammar.hpp>
+// #include <exi/Encode/Grammar.hpp>
 #include <exi/Stream/OrderedWriter.hpp>
 #include <fmt/ranges.h>
 #include "SchemaGet.hpp"
@@ -130,7 +130,7 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final : public BuiltinSchema {
   using BuiltinSchema::State;
 
   using Get = encode::Schema::Get<StrmT>;
-  using GrammarT = PointerIntPair<BuiltinGrammar*, 1, bool>;
+  //using GrammarT = PointerIntPair<BuiltinGrammar*, 1, bool>;
 
   /// Contains info on the compressed grammars.
   BIInfoArray Info;

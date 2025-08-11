@@ -103,6 +103,7 @@ include_items(EXICPP_BASIC "lib/exi"
 include_items(EXICPP_DECODE "lib/exi"
   Decode/BodyDecoder.cpp
   Decode/Deserializer.cpp
+  Decode/Grammar.cpp
   Decode/HeaderDecoder.cpp
   Decode/StringTables.cpp
 )
@@ -121,7 +122,6 @@ include_items(EXICPP_ENCODE "lib/exi"
 include_items(EXICPP_GRAMMAR "lib/exi"
   Grammar/BIEventMap.cpp
   Grammar/BIState.cpp
-  Grammar/Grammar.cpp
   Grammar/SchemaFactory.cpp
   
   Grammar/Encode/Schema.cpp
