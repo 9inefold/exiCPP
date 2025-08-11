@@ -76,6 +76,13 @@ public:
     return CurrentSchema.operator->();
   }
 
+  static bool classof(const BodyEncoder* BE) {
+    return BE->get_kind() == EncoderKind::EK_Ordered;
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Initialization
+
   /// Returns an error if the writer isn't empty.
   ExiError assumeWriterIsEmpty() const;
   /// Generic interface for initializing the OrderedWriter.
@@ -83,6 +90,18 @@ public:
   /// Generic interface for initializing the OrderedWriter.
   ExiError init(SmallVecImpl<char>& Buf);
 
+private:
+  /// Initializes the writer with arbitrary data.
+  void initWriter(auto& BufOrStrm, auto...Rest) {
+    if (Opts.Alignment == AlignKind::BitPacked) {
+      Writer.emplace<BitWriter>(BufOrStrm, Rest...);
+    } else /*AlignKind::BytePacked*/ {
+      Writer.emplace<ByteWriter>(BufOrStrm, Rest...);
+    }
+    IsStreamInitialized = true;
+  }
+
+public:
   /// Checks that a `BitBuffer` could contain valid data.
   inline static bool IsValidHeaderBuffer(BitBuffer Data,
                                          AlignKind A = AlignKind::BitPacked);
@@ -99,10 +118,6 @@ public:
     return IsConstructed
         && IsStreamInitialized
         && DidEncodeHeader;
-  }
-
-  static bool classof(const BodyEncoder* BE) {
-    return BE->get_kind() == EncoderKind::EK_Ordered;
   }
 
   ////////////////////////////////////////////////////////////////////////
@@ -130,22 +145,6 @@ public:
   ExiError Doctype(const DoctypeEvent& DocType) {
     return getSchema()->encode(this, DocType);
   }
-
-private:
-  /// Initializes the writer with arbitrary data.
-  void initWriter(auto& BufOrStrm, auto...Rest) {
-    if (Opts.Alignment == AlignKind::BitPacked) {
-      Writer.emplace<BitWriter>(BufOrStrm, Rest...);
-    } else /*AlignKind::BytePacked*/ {
-      Writer.emplace<ByteWriter>(BufOrStrm, Rest...);
-    }
-    IsStreamInitialized = true;
-  }
-
-  ////////////////////////////////////////////////////////////////////////
-  // Terms
-public:
-
 };
 
 } // namespace exi
