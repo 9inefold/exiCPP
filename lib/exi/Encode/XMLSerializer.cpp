@@ -534,11 +534,10 @@ static ExiError RunAs(XMLDocument& Doc, BodyEncoder* BE) {
 }
 
 static ExiError Run(XMLDocument& Doc, BodyEncoder* BE) {
-  if EXI_NEVER(!isa<OrderedEncoder>(*BE)) {
-    LOG_ERROR("Non-ordered encoders have not been implemented!");
-    return ExiError::TODO;
-  }
-  tail_return RunAs<OrderedEncoder>(Doc, BE);
+  if EXI_ALWAYS(isa<OrderedEncoder>(*BE))
+    tail_return RunAs<OrderedEncoder>(Doc, BE);
+  LOG_ERROR("Non-ordered encoders have not been implemented!");
+  return ExiError::TODO;
 }
 
 //===----------------------------------------------------------------===//

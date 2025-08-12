@@ -190,7 +190,15 @@ public:
   ExiError batchEncode(BodyEncoder* BE, const void* Arr, usize N,
                                         SimpleEventTerm K) override {
     exi_expensive_invariant(isa<OrderedEncoder>(BE));
-    return this->batchEventsImpl(static_cast<OrderedEncoder*>(BE), Arr, N, K);
+    return this->batchEventsImpl</*IsRoot=*/false>(
+      static_cast<OrderedEncoder*>(BE), Arr, N, K);
+  }
+
+  ExiError batchEncodeRoot(BodyEncoder* BE, const void* Arr, usize N,
+                                            SimpleEventTerm K) override {
+    exi_expensive_invariant(isa<OrderedEncoder>(BE));
+    return this->batchEventsImpl</*IsRoot=*/true>(
+      static_cast<OrderedEncoder*>(BE), Arr, N, K);
   }
 
 private:
@@ -253,33 +261,13 @@ private:
 
     switch (Current) {
     case StartTagContent:
-      //tail_return this->handleStartTag(ORDERED_NEXT);
-      exi_todo("Implement StartTagContent");
+      tail_return this->handleStartTag(ORDERED_NEXT);
     case ElementContent:
-      //tail_return this->handleElement(ORDERED_NEXT);
-      exi_todo("Implement ElementContent");
+      tail_return this->handleElement(ORDERED_NEXT);
     case Fragment:
       exi_unimplemented("SC elements are currently unsupported");
     default:
       tail_return this->setDocTerm(ORDERED_NEXT);
-    }
-  }
-
-  /// ENTRY POINT - Dispatches common batch events.
-  CC_INLINE ExiError batchEventsImpl(ORDERED_BARGS) {
-    this->logEvent(Arr, N, K);
-
-    switch (Current) {
-    case StartTagContent:
-      //tail_return this->batchStartTag(ORDERED_BNEXT);
-      exi_todo("Implement StartTagContent batching");
-    case ElementContent:
-      //tail_return this->batchElement(ORDERED_BNEXT);
-      exi_todo("Implement ElementContent batching");
-    case Fragment:
-      exi_unimplemented("SC elements are currently unsupported");
-    default:
-      exi_guardrail("invalid batching state?");
     }
   }
 
@@ -294,6 +282,24 @@ private:
       tail_return this->handleDocEnd(ORDERED_NEXT);
     default:
       exi_unreachable("invalid state?");
+    }
+  }
+
+  /// ENTRY POINT - Dispatches common batch events.
+  template <bool IsRoot = false>
+  CC_INLINE ExiError batchEventsImpl(ORDERED_BARGS) {
+    this->logEvent(Arr, N, K);
+    switch (Current) {
+    case StartTagContent:
+      tail_return this->batchStartTag<IsRoot>(ORDERED_BNEXT);
+    case ElementContent:
+      if constexpr (!IsRoot)
+        tail_return this->batchElement(ORDERED_BNEXT);
+    case Fragment:
+      if constexpr (!IsRoot)
+        exi_unimplemented("SC elements are currently unsupported");
+    default:
+      exi_guardrail("invalid batching state?");
     }
   }
 
@@ -340,6 +346,23 @@ private:
     default:
       exi_guardrail("invalid DocEnd");
     }
+  }
+
+  CC ExiError handleStartTag(ORDERED_ARGS) {
+    exi_todo("Implement StartTagContent");
+  }
+
+  CC ExiError handleElement(ORDERED_ARGS) {
+    exi_todo("Implement ElementContent");
+  }
+
+  template <bool IsRoot = false>
+  CC ExiError batchStartTag(ORDERED_BARGS) {
+    exi_todo("Implement StartTagContent batching");
+  }
+
+  CC ExiError batchElement(ORDERED_BARGS) {
+    exi_todo("Implement ElementContent batching");
   }
 
   ////////////////////////////////////////////////////////////////////////
