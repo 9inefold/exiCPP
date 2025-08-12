@@ -50,12 +50,24 @@ protected:
 
   /// Sets the terminal symbol at the current position.
   virtual ExiError encode(BodyEncoder* BE,
-    const BaseEvent& Event, SimpleEventTerm Term) = 0;
+    const BaseEvent& Event, SimpleEventTerm K) = 0;
+  
+  /// Batches setting the terminal symbols of the same type (if possible).
+  virtual ExiError batchEncode(BodyEncoder* BE,
+    const void* Arr, usize N, SimpleEventTerm K);
 
 public:
+  /// Sets the terminal symbol at the current position.
   template <is_encode_event EventT>
   ALWAYS_INLINE ExiError encode(BodyEncoder* BE, const EventT& Event) {
     return this->encode(BE, Event, unmap_event_v<EventT>);
+  }
+  /// Batches setting the terminal symbols of the same type (if possible).
+  template <is_encode_event EventT>
+  ALWAYS_INLINE ExiError batchEncode(BodyEncoder* BE, ArrayRef<EventT> Arr) {
+    if EXI_NEVER(Arr.size() == 0)
+      return ExiError::OK;
+    return this->batchEncode(BE, Arr.data(), Arr.size(), unmap_event_v<EventT>);
   }
 
   /// Dumps info about the current schema.

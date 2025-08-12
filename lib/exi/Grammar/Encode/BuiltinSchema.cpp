@@ -62,6 +62,10 @@ EXI_ERROR_CC EXI_MINSIZE static void Diagnose(const ExiResult<T>& Result) {
 case SimpleEventTerm::FROM:                                                   \
   Fn(static_cast<const TO&>(Event));                                          \
   return;
+#define VISIT_ARR_CASE(FROM, TO)                                              \
+case SimpleEventTerm::FROM:                                                   \
+  Fn(static_cast<const TO*>(Arr), N);                                         \
+  return;
 
 template <typename F>
 EXI_MINSIZE static void VisitEvent(const BaseEvent& Event,
@@ -70,6 +74,16 @@ EXI_MINSIZE static void VisitEvent(const BaseEvent& Event,
     EXI_ENCODE_EVENT_MAPPINGS(VISIT_CASE)
   default:
     LOG_WARN("Invalid EventTerm: {}!", get_event_name(K));
+    return;
+  }
+}
+template <typename F>
+EXI_MINSIZE static void VisitEvent(const void* Arr, usize N,
+                                   SimpleEventTerm K, F&& Fn) {
+  switch (K) {
+    EXI_ENCODE_EVENT_MAPPINGS(VISIT_ARR_CASE)
+  default:
+    LOG_WARN("Invalid EventTerm[]: {}!", get_event_name(K));
     return;
   }
 }
@@ -123,6 +137,8 @@ namespace INTERNAL_NS(exi) {
 
 #define ORDERED_ARGS OrderedEncoder* OE, const BaseEvent& Event, SimpleEventTerm K
 #define ORDERED_NEXT OE, Event, K
+#define ORDERED_BARGS OrderedEncoder* OE, const void* Arr, usize N, SimpleEventTerm K
+#define ORDERED_BNEXT OE, Arr, N, K
 
 template <is_ordwriter_stream StrmT>
 class INTERNAL_LINKAGE OrderedBuiltinSchema final : public BuiltinSchema {
@@ -166,9 +182,15 @@ public:
   // Encoding
 
   ExiError encode(BodyEncoder* BE, const BaseEvent& Event,
-                                   SimpleEventTerm Term) override {
+                                   SimpleEventTerm K) override {
     exi_expensive_invariant(isa<OrderedEncoder>(BE));
-    return this->setEventImpl(static_cast<OrderedEncoder*>(BE), Event, Term);
+    return this->setEventImpl(static_cast<OrderedEncoder*>(BE), Event, K);
+  }
+
+  ExiError batchEncode(BodyEncoder* BE, const void* Arr, usize N,
+                                        SimpleEventTerm K) override {
+    exi_expensive_invariant(isa<OrderedEncoder>(BE));
+    return this->batchEventsImpl(static_cast<OrderedEncoder*>(BE), Arr, N, K);
   }
 
 private:
@@ -208,8 +230,12 @@ private:
   CC ExiError encodeDocContent(ORDERED_ARGS) {
     encodePrecomputedCode(OE, TMap.mapDocContent<Term>());
     // TODO: Handle top-level SE
-    return this->encodeEventS(
-      OE, event_cast<Term>(Event, K));
+    if constexpr (Term != SimpleEventTerm::SE)
+      return this->encodeEventS(
+        OE, event_cast<Term>(Event, K));
+    else
+      return this->handleSE</*IsRoot=*/true>(
+        OE, event_cast<Term>(Event, K));
   }
   // TODO: Flatten?
   template <SimpleEventTerm Term>
@@ -236,6 +262,24 @@ private:
       exi_unimplemented("SC elements are currently unsupported");
     default:
       tail_return this->setDocTerm(ORDERED_NEXT);
+    }
+  }
+
+  /// ENTRY POINT - Dispatches common batch events.
+  CC_INLINE ExiError batchEventsImpl(ORDERED_BARGS) {
+    this->logEvent(Arr, N, K);
+
+    switch (Current) {
+    case StartTagContent:
+      //tail_return this->batchStartTag(ORDERED_BNEXT);
+      exi_todo("Implement StartTagContent batching");
+    case ElementContent:
+      //tail_return this->batchElement(ORDERED_BNEXT);
+      exi_todo("Implement ElementContent batching");
+    case Fragment:
+      exi_unimplemented("SC elements are currently unsupported");
+    default:
+      exi_guardrail("invalid batching state?");
     }
   }
 
@@ -316,10 +360,12 @@ private:
   //EXI_PRESERVE_CALLSITE void logCurrentGrammar(ExiDecoder* D);
   //EXI_PRESERVE_CALLSITE void logCurrentEvent();
   EXI_PRESERVE_CALLSITE void logEvent(const BaseEvent& Event, SimpleEventTerm K);
+  EXI_PRESERVE_CALLSITE void logEvent(const void* Arr, usize N, SimpleEventTerm K);
 #else
   //ALWAYS_INLINE constexpr void logCurrentGrammar(ExiDecoder*) {}
   //ALWAYS_INLINE constexpr void logCurrentEvent() {}
   ALWAYS_INLINE constexpr void logEvent(const BaseEvent&, SimpleEventTerm) {}
+  ALWAYS_INLINE constexpr void logEvent(const void*, usize, SimpleEventTerm) {}
 #endif
   void anchor() override;
 };
@@ -384,6 +430,16 @@ EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEvent(
     else
       OS << Event;
     LOG_EXTRA("{}", Str.str());
+  });
+}
+template <is_ordwriter_stream StrmT>
+EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEvent(
+ const void* Arr, usize N, SimpleEventTerm K) {
+  if (!hasDbgLogLevel(VERBOSE))
+    return;
+  VisitEvent(Arr, N, K, [] <typename T> (T*, usize N) EXI_MINSIZE {
+    LOG_EXTRA("> Batch of {}[{}]",
+      get_event_name(unmap_event_v<T>), N);
   });
 }
 #endif // EXI_LOGGING
