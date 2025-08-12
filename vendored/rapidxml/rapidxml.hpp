@@ -2199,12 +2199,7 @@ private:
       // Create new attribute
       AttrType* attribute = this->allocate_attribute();
       attribute->name(name, Text - name);
-
-      if (attribute->id_kind() == IK_Name)
-        node->append_attribute(attribute);
-      else
-        // Throw it in front, should make sorting a bit faster.
-        node->prepend_attribute(attribute);
+      node->append_attribute(attribute);
 
       // Skip whitespace after attribute name
       skip<whitespace_pred, Flags>(Text);
