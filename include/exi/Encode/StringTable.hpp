@@ -546,13 +546,26 @@ public:
     return S;
   }
 
+  EXI_INLINE static STURIEntry* GetURIEntry(const STPrefixEntry* Entry) {
+    exi_invariant(Entry != nullptr);
+    return VOfX(Entry)->Link;
+  }
+  EXI_INLINE static StrRef GetPfx(const STPrefixEntry* Entry) {
+    exi_invariant(Entry != nullptr);
+    return X(Entry)->first();
+  }
+  EXI_INLINE static unsigned GetID(const STPrefixEntry* Entry) {
+    exi_invariant(Entry != nullptr);
+    return VOfX(Entry)->pfx();
+  }
+
   EXI_INLINE static StrRef GetURI(const STURIEntry* Entry) {
     exi_invariant(Entry != nullptr);
     return X(Entry)->first();
   }
-  EXI_INLINE static u32 GetID(const STURIEntry* Entry) {
+  EXI_INLINE static unsigned GetID(const STURIEntry* Entry) {
     exi_invariant(Entry != nullptr);
-    return X(Entry)->second.URI;
+    return VOfX(Entry)->URI;
   }
 
   ////////////////////////////////////////////////////////////////////////
@@ -651,13 +664,56 @@ public:
   NSContext enterNamespace(ImplicitHashStrRef Pfx, ImplicitHashStrRef URI) {
     return createURI(URI, Pfx);
   }
-
   /// When exiting a scoped namespace context.
   void exitNamespace(STPrefixEntry* Pfx) {
     exi_invariant(Pfx != nullptr);
     return popURIContext(X(Pfx));
   }
   // TODO: Add method for normal users to access?
+
+  ////////////////////////////////////////////////////////////////////////
+  // Getters
+
+  STPrefixEntry* lookupPfx(ImplicitHashStrRef Pfx) {
+    auto It = PrefixMap.find(Pfx);
+    if (It == PrefixMap.end())
+      return nullptr;
+    return X(&*It);
+  }
+  STURIEntry* lookupURI(ImplicitHashStrRef URI) {
+    auto It = URIMap->find(URI);
+    if (It == URIMap->end())
+      return nullptr;
+    return X(&*It);
+  }
+
+  /// Gets `URIEntry*` for a given Prefix.
+  STURIEntry* getURIFromPfx(ImplicitHashStrRef Pfx) {
+    auto It = PrefixMap.find(Pfx);
+    exi_assert(It != PrefixMap.end());
+    return It->second.Link;
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Log Getters
+
+  /// Returns the number of bits needed for the given Prefix.
+  unsigned getPfxLog(STPrefixEntry* Pfx) const {
+    return VOfX(Pfx)->PfxLog;
+  }
+  /// Returns an `(ID, Log)` pair for a Prefix.
+  std::pair<u32, u32> getPfxIDAndLog(STPrefixEntry* Pfx) const {
+    return {GetID(Pfx), getPfxLog(Pfx)};
+  }
+
+  /// Returns the number of bits needed for URIs.
+  unsigned getURILog() const {
+    return URIMap.bits();
+  }
+  /// Returns an `(ID, Log)` pair for a URI.
+  std::pair<u32, u32> getURIIDAndLog(STURIEntry* URI) const {
+    return {GetID(URI), getURILog()};
+  }
 
 private:
   // TODO: Finish design...
@@ -803,6 +859,9 @@ private:
   }
   
   // Add other stuff...
+
+  ////////////////////////////////////////////////////////////////////////
+  // Local Names
 
   ////////////////////////////////////////////////////////////////////////
   // Batch Initialization
