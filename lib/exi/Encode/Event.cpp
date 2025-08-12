@@ -34,6 +34,11 @@ using namespace exi::encode;
 
 #define DEBUG_TYPE "DoctypeEvent"
 
+static_assert(sizeof(StringEventData) == 2 * sizeof(void*));
+static_assert(sizeof(StringEventData) == sizeof(StartElemEvent));
+static_assert(sizeof(StartElemURIEvent) == 3 * sizeof(void*));
+static_assert(sizeof(NamespaceEvent) == 3 * sizeof(void*));
+
 StrRef exi::get_doctype_name(DoctypeKind K) {
   switch (K) {
   case DTK_None:   return "";

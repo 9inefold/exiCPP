@@ -59,7 +59,7 @@ struct EXI_EMPTY_BASES NoEventData : BaseEvent {};
 /// The base of all string types.
 struct EXI_EMPTY_BASES StringEventData : BaseEvent {
   u32 Size = 0;
-  u32 Extra : 32 = 0;
+  u32 Extra : 30 = 0;
   u32 Tag : 2 = 0b00;
   const char* Data = nullptr;
 };
