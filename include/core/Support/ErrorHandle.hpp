@@ -45,6 +45,7 @@ enum AssertionKind : int {
   ASK_Unreachable,
   ASK_Unimplemented,
   ASK_Todo,
+  ASK_Guardrail,
 };
 
 } // namespace H
@@ -116,6 +117,12 @@ class Twine;
 # define exi_unreachable(MSG) exi_fail(ASK_Unreachable, MSG)
 #else
 # define exi_unreachable(MSG) EXI_REAL_UNREACHABLE
+#endif
+
+#if EXI_DEBUG || EXI_ENABLE_GUARDRAILS
+# define exi_guardrail(MSG) exi_fail(ASK_Guardrail, MSG)
+#else
+# define exi_guardrail(MSG) EXI_REAL_UNREACHABLE
 #endif
 
 /// Marks a section as unimplemented, with no claims of completion.

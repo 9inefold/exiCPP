@@ -60,6 +60,8 @@ static const char* getAssertionMacro(H::AssertionKind Kind) {
     return "exi_unimplemented";
    case ASK_Todo:
     return "exi_todo";
+   case ASK_Guardrail:
+    return "exi_guardrail";
   }
   return "???";
 }
@@ -79,6 +81,8 @@ static const char* getAssertionMessage(H::AssertionKind Kind) {
     return "Not implemented";
    case ASK_Todo:
     return "Not yet implemented";
+   case ASK_Guardrail:
+    return "Hit a guardrail";
   }
   return "??? failed";
 }
