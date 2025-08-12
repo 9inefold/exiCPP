@@ -76,7 +76,8 @@ public:
     static_assert(!is_empty_event<EventT>, "Empty events cannot be batched!");
     static constexpr SimpleEventTerm K = unmap_event_v<EventT>;
     using enum SimpleEventTerm;
-    static_assert(EventMatch(K).isnt(PI, DT, ER));
+    // Disallow SE events as they have dynamic size.
+    static_assert(EventMatch(K).isnt(SE, PI, DT, ER));
     if EXI_NEVER(Arr.size() == 0)
       return ExiError::OK;
     if constexpr (IsRoot)
