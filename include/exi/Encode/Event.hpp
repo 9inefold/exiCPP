@@ -28,6 +28,7 @@
 #include <core/Common/VariadicFunction.hpp>
 #include <exi/Basic/EventTerms.hpp>
 #include <exi/Encode/D/EventMappings.mac>
+#include <exi/Encode/StringTableHandles.hpp>
 #include <concepts>
 
 namespace exi {
@@ -58,6 +59,8 @@ struct EXI_EMPTY_BASES NoEventData : BaseEvent {};
 /// The base of all string types.
 struct EXI_EMPTY_BASES StringEventData : BaseEvent {
   u32 Size = 0;
+  u32 Tag : 2 = 0b00;
+  u32 Extra : 32 = 0;
   const char* Data = nullptr;
 };
 /// The base of all (string, string) types.
@@ -74,6 +77,13 @@ public:
 
 // Start Element (qname)
 struct StartElemEvent : StringEventData {};
+// Start Element (uri:*)
+struct StartElemURIEvent : StartElemEvent {
+  union {
+    const char* URI;
+    encode::STURIEntry* OpaqueURI;
+  };
+};
 /// End Element
 struct EndElemEvent   : NoEventData {};
 /// Attribute (string, string)
@@ -81,7 +91,9 @@ struct AttrEvent      : PairEventData {};
 /// Characters (string)
 struct CharEvent      : StringEventData {};
 /// Namespace (string, string, bool)
-struct NamespaceEvent : PairEventData { bool IsLocal = false; };
+struct NamespaceEvent : PairEventData {
+  bool IsLocal = false;
+};
 /// Start Document
 struct StartDocEvent  : NoEventData {};
 /// End Document
@@ -196,6 +208,36 @@ struct MakeEvent<Term> {
   }
 };
 
+template <> struct MakeEvent<SimpleEventTerm::SE> {
+  using Type = StartElemEvent;
+  inline constexpr Type operator()(StrRef Data) const {
+    return Type{{
+      .Size = unsigned(Data.size()),
+      .Data = Data.data()
+    }};
+  }
+  using TypeEx = StartElemURIEvent;
+  inline constexpr TypeEx operator()(StrRef Data, StrRef URI) const {
+    return TypeEx{{{
+      .Size = unsigned(Data.size()),
+      .Tag  = 1, .Extra = unsigned(URI.size()),
+      .Data = Data.data()
+    }}, {
+      .URI = URI.data()
+    }};
+  }
+  inline constexpr TypeEx operator()(StrRef Data,
+                                     encode::STURIEntry* URI) const {
+    return TypeEx{{{
+      .Size = unsigned(Data.size()),
+      .Tag  = 2,
+      .Data = Data.data()
+    }}, {
+      .OpaqueURI = URI
+    }};
+  }
+};
+
 template <> struct MakeEvent<SimpleEventTerm::NS> {
   using Type = NamespaceEvent;
   inline constexpr Type operator()(StrRef Name, StrRef Data,
@@ -256,6 +298,8 @@ constexpr StrRef get_event_name(const Event&) {
 inline raw_ostream& operator<<(raw_ostream& OS, const NoEventData&) {return OS;}
 raw_ostream& operator<<(raw_ostream& OS, const StringEventData& Event);
 raw_ostream& operator<<(raw_ostream& OS, const PairEventData& Event);
+
+raw_ostream& operator<<(raw_ostream& OS, const StartElemEvent& SE);
 raw_ostream& operator<<(raw_ostream& OS, const NamespaceEvent& NS);
 raw_ostream& operator<<(raw_ostream& OS, const DoctypeEvent& DT);
 

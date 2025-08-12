@@ -26,9 +26,11 @@
 #include <core/Support/IntCast.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/Except.hpp>
+#include <exi/Encode/StringTable.hpp>
 #include <exi/Grammar/EncoderSchema.hpp>
 
 using namespace exi;
+using namespace exi::encode;
 
 #define DEBUG_TYPE "DoctypeEvent"
 
@@ -96,6 +98,31 @@ raw_ostream& exi::operator<<(raw_ostream& OS, const StringEventData& Event) {
 
 raw_ostream& exi::operator<<(raw_ostream& OS, const PairEventData& Event) {
   return OS << format("'{}' -> {}", Event[0], Event[1]);
+}
+
+template <bool Opaque>
+static StrRef GetSEURI(const StartElemEvent& SE) {
+  static constexpr unsigned TAG = (Opaque ? 2 : 1);
+  exi_invariant(SE.Tag == TAG);
+  auto* SEUri = &static_cast<const StartElemURIEvent&>(SE);
+  if constexpr (!Opaque)
+    return StrRef(SEUri->URI, SEUri->Extra);
+  else
+    return StringTable::GetURI(SEUri->OpaqueURI);
+}
+
+raw_ostream& exi::operator<<(raw_ostream& OS, const StartElemEvent& SE) {
+  StrRef Name(SE.Data, SE.Size);
+  switch (SE.Tag) {
+  case 0:
+    return OS << Name;
+  case 1:
+    return OS << Name << '=' << GetSEURI<false>(SE);
+  case 2:
+    return OS << Name << '=' << GetSEURI<true>(SE);
+  default:
+    return OS << "INVALID-TAG";
+  }
 }
 
 raw_ostream& exi::operator<<(raw_ostream& OS, const NamespaceEvent& NS) {
