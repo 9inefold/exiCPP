@@ -65,9 +65,11 @@ public:
   /// Batches setting the terminal symbols of the same type (if possible).
   template <is_encode_event EventT>
   ALWAYS_INLINE ExiError batchEncode(BodyEncoder* BE, ArrayRef<EventT> Arr) {
+    static constexpr SimpleEventTerm K = unmap_event_v<EventT>;
+    // TODO: Validate the types?
     if EXI_NEVER(Arr.size() == 0)
       return ExiError::OK;
-    return this->batchEncode(BE, Arr.data(), Arr.size(), unmap_event_v<EventT>);
+    return this->batchEncode(BE, Arr.data(), Arr.size(), K);
   }
 
   /// Dumps info about the current schema.

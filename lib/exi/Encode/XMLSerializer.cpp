@@ -34,8 +34,6 @@
 #include <Encode/OrderedEncoder-inl.hpp>
 #include <bitset>
 
-CLANG_IGNORED("-Wunused-label")
-
 using namespace exi;
 using namespace exi::encode;
 
@@ -113,9 +111,10 @@ public:
         return ErrorCode::kInconsistentProcState;
       }
     }
+
   // Content:
     this->loadKinds(/*Options*/);
-    exi_todo("StartTagContent/ElementContent");
+    exi_try(handleTopLevelSE(N));
 
   // DocEnd:
     this->andKinds(kNKBitsetDocEnd);
@@ -125,6 +124,272 @@ public:
       N = N->next_sibling();
     }
     return BE.EndDocument();
+  }
+
+private:
+  static bool IsSENode(XMLNode* N) {
+    if EXI_UNLIKELY(!N)
+      return false;
+    return N->type() == NodeKind::node_element;
+  }
+
+  static bool IsRootNode(XMLNode* N) {
+    if (!IsSENode(N))
+      return false;
+    if (auto* P = N->parent())
+      return P->type() == NodeKind::node_document;
+    return true;
+  }
+
+  [[nodiscard]] static std::pair<StrRef, StrRef> SplitName(StrRef S) {
+    usize Idx = S.find(':');
+    if (Idx == StrRef::npos)
+      return std::make_pair(StrRef(), S);
+    return std::make_pair(S.slice(0, Idx), S.substr(Idx + 1));
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // PreParse
+
+  /// Caches information which can be used by the namespaces later.
+  struct PPAttributeCtx {
+    SmallVec<XMLAttribute*, 3> NS;
+    XMLAttribute* XsiType = nullptr;
+    XMLAttribute* XsiNil  = nullptr;
+    SmallVec<XMLAttribute*, 4> Attrs;
+    XMLAttribute* LocalNS = nullptr;
+  };
+
+  inline ExiError ppAddAttr(XMLAttribute* const A, const StrRef&,
+                            PPAttributeCtx& Ctx) {
+    Ctx.Attrs.push_back(A);
+    return ExiError::OK;
+  }
+
+  template <xml::IdentifierKind IK>
+  ExiError ppAddXsi(XMLAttribute* const A, const StrRef&,
+                    PPAttributeCtx& Ctx) {
+    static constexpr bool kIsNil = (IK == xml::IK_XsiNil);
+    static_assert(kIsNil || IK == xml::IK_XsiType);
+    exi_invariant(A && A->id_kind() == xml::IK_XsiNil);
+    static constexpr auto XsiV = kIsNil 
+      ? &PPAttributeCtx::XsiNil
+      : &PPAttributeCtx::XsiType;
+    if EXI_UNLIKELY(Ctx.*XsiV) {
+      LOG_ERROR("Multiple {} in attribute list!",
+                kIsNil ? "xsi:nil" : "xsi:type");
+      return ErrorCode::kInvalidEXIInput;
+    }
+    Ctx.*XsiV = A;
+    return ExiError::OK;
+  }
+
+  template <bool IsEmpty>
+  inline ExiError ppAddNamespace(XMLAttribute* const A, const StrRef& Pfx,
+                                 PPAttributeCtx& Ctx) {
+    if constexpr (IsEmpty) {
+      if (Pfx.empty())
+        Ctx.LocalNS = A;
+    } else {
+      auto AttrName = A->name().drop_front(5);
+      if (Pfx == AttrName)
+        Ctx.LocalNS = A;
+    }
+    Ctx.NS.push_back(A);
+    return ExiError::OK;
+  }
+
+  EXI_INLINE ExiError ppDispatchNodeAttr(XMLAttribute* const A,
+                                         const StrRef& Pfx,
+                                         PPAttributeCtx& Ctx) {
+    switch (A->id_kind()) {
+    case xml::IK_Name:
+      tail_return this->ppAddAttr(A, Pfx, Ctx);
+    case xml::IK_XsiNil:
+      tail_return this->ppAddXsi<xml::IK_XsiNil>(A, Pfx, Ctx);
+    case xml::IK_XsiType:
+      tail_return this->ppAddXsi<xml::IK_XsiType>(A, Pfx, Ctx);
+    case xml::IK_AnonNS:
+      tail_return this->ppAddNamespace<true>(A, Pfx, Ctx);
+    case xml::IK_NamedNS:
+      tail_return this->ppAddNamespace<false>(A, Pfx, Ctx);
+    case xml::IK_None:
+      exi_guardrail("empty attributes are not valid.");
+    }
+  }
+
+  /// Handles parsing out attributes and such.
+  ExiError preparseNodeAttrs(XMLNode* const N, PPAttributeCtx& Ctx) {
+    XMLAttribute* A = N->first_attribute();
+    exi_assume(A != nullptr);
+    auto [Pfx, _] = SplitName(N->name());
+    while (A) {
+      if (auto E = ppDispatchNodeAttr(A, Pfx, Ctx))
+        return E;
+      A = A->next_attribute();
+    }
+    return ExiError::OK;
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // SE + NS
+
+  EXI_INLINE static StrRef GetPrefixFromNS(XMLAttribute* A) {
+    exi_invariant(A->is_namespace(), "AT or xsi:* passed to NS handler.");
+    const bool IsAnon = (A->id_kind() == xml::IK_AnonNS);
+#if EXI_DEBUG
+    StrRef Out = A->name();
+    if (IsAnon) {
+      exi_assert(Out.consume_front("xmlns"));
+      return ""_str;
+    } else {
+      exi_assert(Out.consume_front("xmlns"));
+      return Out;
+    }
+#else
+    // If anon, must be empty. Otherwise, drop 'xmlns:` and return.
+    return IsAnon ? ""_str : A->name().drop_front(6)
+#endif
+  }
+
+  static NamespaceEvent MakeNSEvent(XMLAttribute* NS) {
+    return make_event<SimpleEventTerm::NS>(
+      GetPrefixFromNS(NS), NS->value());
+  }
+  static NamespaceEvent MakeNSEvent(XMLAttribute* NS, XMLAttribute* LocalNS) {
+    return make_event<SimpleEventTerm::NS>(
+      GetPrefixFromNS(NS), NS->value(), NS == LocalNS);
+  }
+
+  static AttrEvent MakeATEvent(XMLAttribute* AT) {
+    exi_invariant(AT->is_name(), "NS or xsi:* passed to AT handler.");
+    return make_event<SimpleEventTerm::AT>(AT->name(), AT->value());
+  }
+
+  /// Handles StartElement with a local-element-ns.
+  ExiError handleSEWithLocalNS(XMLNode* N, PPAttributeCtx& Ctx) {
+    exi_invariant(Ctx.LocalNS, "local-element-ns cannot be null");
+    return BE.StartElementURI(N->name(), Ctx.LocalNS->value());
+  }
+
+  /// Handles StartElement in different ways depending on if a local-element-ns
+  /// was encountered.
+  ExiError dispatchHandleSE(XMLNode* N, PPAttributeCtx& Ctx) {
+    if EXI_LIKELY(!Ctx.LocalNS)
+      return BE.StartElement(N->name());
+    tail_return this->handleSEWithLocalNS(N, Ctx);
+  }
+
+  /// Simple case, no local-element-ns.
+  template <bool IsRoot>
+  ExiError handleNS(XMLNode*, PPAttributeCtx& Ctx) {
+    SmallVec<NamespaceEvent> NSBatch;
+    NSBatch.reserve(Ctx.NS.size());
+    for (XMLAttribute* NS : Ctx.NS)
+      NSBatch.push_back(MakeNSEvent(NS));
+    return BE.BatchNamespace<IsRoot>(NSBatch);
+  }
+
+  /// Complex case, a local-element-ns was encountered.
+  template <bool IsRoot>
+  ExiError handleNSWithLocalNS(XMLNode*, PPAttributeCtx& Ctx) {
+    SmallVec<NamespaceEvent> NSBatch;
+    NSBatch.reserve(Ctx.NS.size());
+    for (XMLAttribute* NS : Ctx.NS)
+      NSBatch.push_back(MakeNSEvent(NS, Ctx.LocalNS));
+    return BE.BatchNamespace<IsRoot>(NSBatch);
+  }
+
+  /// Handles NameSpace in different ways depending on if a local-element-ns
+  /// was encountered.
+  template <bool IsRoot>
+  ExiError dispatchHandleNS(XMLNode* N, PPAttributeCtx& Ctx) {
+    if (!Ctx.LocalNS)
+      tail_return this->handleNS<IsRoot>(N, Ctx);
+    else
+      tail_return this->handleNSWithLocalNS<IsRoot>(N, Ctx);
+  }
+
+  /// Handles the `xsi:{type, nil}` ATtributes, if required.
+  ExiError handleXsiBuiltins(XMLNode*, PPAttributeCtx& Ctx) {
+    if EXI_NEVER(Ctx.XsiNil || Ctx.XsiType) {
+      LOG_ERROR("'xsi:*' builtins are currently unimplemented!");
+      return ExiError::TODO;
+    }
+    return ExiError::OK;
+  }
+
+  /// Handles ATtributes. Assumes unsorted.
+  ExiError handleAttributes(XMLNode*, PPAttributeCtx& Ctx) {
+    SmallVec<AttrEvent> ATBatch;
+    ATBatch.reserve(Ctx.Attrs.size());
+    for (XMLAttribute* AT : Ctx.Attrs)
+      ATBatch.push_back(MakeATEvent(AT));
+    return BE.BatchAttribute(ATBatch);
+  }
+
+  /// Handles StartElement events + PreParsed ATtributes.
+  template <bool IsRoot = false>
+  EXI_FLATTEN ExiError handleSEWithPPAT(XMLNode* N, PPAttributeCtx& Ctx) {
+    exi_try(dispatchHandleSE(N, Ctx));
+    exi_try(dispatchHandleNS<IsRoot>(N, Ctx));
+    exi_try(handleXsiBuiltins(N, Ctx));
+    tail_return handleAttributes(N, Ctx);
+  }
+
+  /// Handles StartElement and its ATtributes.
+  template <bool IsRoot = false>
+  ExiError handleSEAndAT(XMLNode* N) {
+    if (N->first_attribute()) {
+      PPAttributeCtx PPCtx;
+      exi_try(preparseNodeAttrs(N, PPCtx));
+      // Handle passing of the namespaces.
+      return handleSEWithPPAT<IsRoot>(N, PPCtx);
+    }
+    /// Simple StartElement!
+    return BE.StartElement(N->name());
+  }
+
+  template <bool IsRoot = false>
+  ExiError handleElement(XMLNode* N) {
+    // IsRoot only used on root :)
+    exi_try(handleSEAndAT<IsRoot>(N));
+    if (auto* Child = N->first_node())
+      exi_try(walkXMLContent(Child));
+    return BE.EndElement();
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // StartTag/Element
+
+  EXI_FLATTEN ExiError handleNode(XMLNode* N, const NodeKind K) {
+    exi_invariant(CurrKinds.test(K));
+    switch (K) {
+    case NodeKind::node_element:
+      return handleElement</*IsRoot=*/false>(N);
+    case NodeKind::node_data:
+    case NodeKind::node_cdata:
+      return BE.Characters(N->value());
+    case NodeKind::node_comment:
+      return handleCM(*N);
+    case NodeKind::node_pi:
+      return handlePI(*N);
+    default:
+      exi_guardrail("StartTagContent: Invalid NodeKind.");
+    }
+  }
+
+  /// Depth-first traversal of the XML tree.
+  /// Assumes the Node is not the root.
+  EXI_NO_INLINE EXI_FLATTEN ExiError walkXMLContent(XMLNode* N) {
+    exi_invariant(IsSENode(N) && !IsRootNode(N));
+    do {
+      const NodeKind K = N->type();
+      if (!CurrKinds.test(K))
+        continue;
+      exi_try(handleNode(N, K));
+    } while ((N = N->next_sibling()));
+    return ExiError::OK;
   }
 
 protected:
@@ -214,7 +479,7 @@ protected:
     case NodeKind::node_doctype:
       tail_return handleDT(N);
     default:
-      exi_unreachable("DocContent: impossible state.");
+      exi_guardrail("DocContent: impossible state.");
     }
   }
 
@@ -228,8 +493,16 @@ protected:
     case NodeKind::node_pi:
       tail_return handlePI(N);
     default:
-      exi_unreachable("DocEnd: impossible state.");
+      exi_guardrail("DocEnd: impossible state.");
     }
+  }
+
+  ExiError handleTopLevelSE(XMLNode* Root) {
+    if EXI_UNLIKELY(!IsRootNode(Root)) {
+      LOG_ERROR("non-root SE passed to handleTopLevelSE!");
+      return ErrorCode::kInvalidEXIInput;
+    }
+    tail_return handleElement</*IsRoot=*/true>(Root);
   }
 };
 

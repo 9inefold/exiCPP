@@ -132,7 +132,7 @@ public:
   }
 
   ////////////////////////////////////////////////////////////////////////
-  // Terms
+  // Interface
 
   ExiError StartDocument() {
     static constexpr StartDocEvent SD
@@ -143,6 +143,53 @@ public:
     static constexpr EndDocEvent ED
       = make_event<SimpleEventTerm::ED>();
     return getSchema()->encode(this, ED);
+  }
+
+  ExiError StartElement(StrRef Name) {
+    CtxStack.inc(Strings);
+    return getSchema()->encode(this,
+      make_event<SimpleEventTerm::SE>(Name));
+  }
+  ExiError StartElementURI(StrRef Name, StrRef URI) {
+    CtxStack.inc(Strings);
+    return getSchema()->encode(this,
+      make_event<SimpleEventTerm::SE>(Name, URI));
+  }
+  ExiError StartElementURI(StrRef Name, encode::STURIEntry* URI) {
+    CtxStack.inc(Strings);
+    return getSchema()->encode(this,
+      make_event<SimpleEventTerm::SE>(Name, URI));
+  }
+  ExiError EndElement() {
+    static constexpr EndElemEvent EE
+      = make_event<SimpleEventTerm::EE>();
+    CtxStack.pop(Strings);
+    return getSchema()->encode(this, EE);
+  }
+
+  ExiError Attribute(StrRef Name, StrRef Value) {
+    return getSchema()->encode(this,
+      make_event<SimpleEventTerm::AT>(Name, Value));
+  }
+  ExiError BatchAttribute(ArrayRef<AttrEvent> Arr) {
+    return getSchema()->batchEncode(this, Arr);
+  }
+
+  ExiError Characters(StrRef Value) {
+    return getSchema()->encode(this,
+      make_event<SimpleEventTerm::CH>(Value));
+  }
+
+  template <bool /*IsRoot*/>
+  ExiError Namespace(StrRef Pfx, StrRef URI, bool IsLocal = false) {
+    // FIXME: Use IsRoot somehow?
+    return getSchema()->encode(this,
+      make_event<SimpleEventTerm::NS>(Pfx, URI, IsLocal));
+  }
+  template <bool /*IsRoot*/>
+  ExiError BatchNamespace(ArrayRef<NamespaceEvent> Arr) {
+    // FIXME: Use IsRoot somehow?
+    return getSchema()->batchEncode(this, Arr);
   }
 
   ExiError Comment(StrRef Data) {
@@ -156,6 +203,10 @@ public:
   ExiError Doctype(const DoctypeEvent& DocType) {
     return getSchema()->encode(this, DocType);
   }
+
+private:
+  ////////////////////////////////////////////////////////////////////////
+  // Terms
 };
 
 } // namespace exi
