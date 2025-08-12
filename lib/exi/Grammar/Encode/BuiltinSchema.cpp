@@ -197,6 +197,7 @@ public:
   ExiError batchEncodeRoot(BodyEncoder* BE, const void* Arr, usize N,
                                             SimpleEventTerm K) override {
     exi_expensive_invariant(isa<OrderedEncoder>(BE));
+    exi_assert(Current == StartTagContent);
     return this->batchEventsImpl</*IsRoot=*/true>(
       static_cast<OrderedEncoder*>(BE), Arr, N, K);
   }
@@ -258,7 +259,6 @@ private:
   /// ENTRY POINT - Dispatches common events.
   CC_INLINE ExiError setEventImpl(ORDERED_ARGS) {
     this->logEvent(Event, K);
-
     switch (Current) {
     case StartTagContent:
       tail_return this->handleStartTag(ORDERED_NEXT);

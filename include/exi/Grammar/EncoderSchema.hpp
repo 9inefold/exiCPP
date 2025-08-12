@@ -25,6 +25,7 @@
 
 #include <core/Common/Box.hpp>
 #include <core/Common/MaybeBox.hpp>
+#include <core/Common/MMatch.hpp>
 #include <core/Support/ExtensibleRTTI.hpp>
 #include <exi/Basic/EventCodes.hpp>
 #include <exi/Encode/Event.hpp>
@@ -43,6 +44,7 @@ namespace encode {
 
 /// The base for all schemas.
 class Schema : public RTTIExtends<Schema, RTTIRoot> {
+  using EventMatch = MMatch<SimpleEventTerm, SimpleEventTerm>;
 protected:
   friend class exi::ChannelEncoder;
   friend class exi::OrderedEncoder;
@@ -71,8 +73,10 @@ public:
   /// Batches setting the terminal symbols of the same type (if possible).
   template <bool IsRoot = false, is_encode_event EventT>
   ALWAYS_INLINE ExiError batchEncode(BodyEncoder* BE, ArrayRef<EventT> Arr) {
+    static_assert(!is_empty_event<EventT>, "Empty events cannot be batched!");
     static constexpr SimpleEventTerm K = unmap_event_v<EventT>;
-    // TODO: Validate the types?
+    using enum SimpleEventTerm;
+    static_assert(EventMatch(K).isnt(PI, DT, ER));
     if EXI_NEVER(Arr.size() == 0)
       return ExiError::OK;
     if constexpr (IsRoot)
