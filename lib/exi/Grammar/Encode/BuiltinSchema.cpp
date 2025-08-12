@@ -148,13 +148,13 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final : public BuiltinSchema {
   using Get = encode::Schema::Get<StrmT>;
   using GrammarT = PointerIntPair<encode::BuiltinGrammar*, 1, bool>;
 
-  /// Contains info on the compressed grammars.
-  BIInfoArray Info;
-  /// The pseudo grammar stack.
+  /// The grammar state.
   BIGrammarState Current = Document;
-  /// ...
   /// Maps `SimpleEventTerm`s to event codes.
   BIEventMap TMap;
+  /// The grammar stack.
+  SmallVec<GrammarT, 0> GStack;
+  /// ...
 
   OrderedBuiltinSchema(OrderedEncoder&, const BIEventMap& TMap) : TMap(TMap) {}
 

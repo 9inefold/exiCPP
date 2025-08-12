@@ -51,6 +51,8 @@ enum class EventTerm : EventTermType {
   ER,       // Entity Reference (name)
   SC,       // Self Contained
   Void,
+  SEAny = SE,
+  ATAny = AT,
   Last = SC,
   Invalid = 0b1111111,
 };

@@ -17,17 +17,18 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines the base for decoder grammars.
+/// This file defines the base for encoder grammars.
 ///
 //===----------------------------------------------------------------===//
 
 #pragma once
 
-#include <core/Common/Box.hpp>
+#include <core/Common/FoldingSet.hpp>
 #include <core/Common/Result.hpp>
 #include <core/Common/SmallVec.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/EventCodes.hpp>
+#include <exi/Encode/GrammarNodes.hpp>
 #include <exi/Stream/OrderedWriter.hpp>
 
 #define DEBUG_TYPE "Grammar"
@@ -38,30 +39,35 @@ class ExiEncoder;
 namespace encode {
 
 /// Represents the first part of an event code.
-using FirstLevelProd = u64;
-/// Value is a full event code, error is the first part of an event code.
-using GrammarTerm = Result<EventUID, FirstLevelProd>;
+using FirstLevelProd = u32;
 
 /// The base for all grammars.
-class alignas(8) Grammar {};
+class alignas(8) Grammar {
+  // Grammar impl...
+};
 
 /// The grammars for `BuiltinSchema`.
 /// TODO: Profile SmallVecs
 class BuiltinGrammar final : public Grammar {
   u32 StartTagLog = 0, ElementLog = 1;
+  
+  Option<gnode::CHNode> StartTagCH;
+  Option<gnode::CHNode> ElementCH;
 
 public:
   BuiltinGrammar() = default;
   //explicit BuiltinGrammar(SmallQName Name) : Name(Name) {}
 
-  void dump(ExiDecoder* D) const;
+  void dump(ExiEncoder* E) const;
 
 private:
   usize getStartTagCount() const {
     //return StartTag.size() + 1;
+    exi_guardrail("getStartTagCount");
   }
   usize getElementCount() const {
     //return Element.size() + 2;
+    exi_guardrail("getElementCount");
   }
 };
 
