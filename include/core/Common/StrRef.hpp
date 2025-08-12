@@ -820,7 +820,10 @@ public:
   /// \param Separator The character to split on.
   /// \returns The split substrings.
   [[nodiscard]] std::pair<StrRef, StrRef> split(char Separator) const {
-    return split(StrRef(&Separator, 1));
+    usize Idx = find(Separator);
+    if (Idx == npos)
+      return std::make_pair(*this, StrRef());
+    return std::make_pair(slice(0, Idx), substr(Idx + 1));
   }
 
   /// Split into two substrings around the first occurrence of a separator
