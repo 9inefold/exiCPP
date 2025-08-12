@@ -179,7 +179,7 @@ public:
   }
 
   ////////////////////////////////////////////////////////////////////////
-  // Encoding
+  // Event Encoding
 
   ExiError encode(BodyEncoder* BE, const BaseEvent& Event,
                                    SimpleEventTerm K) override {
@@ -211,29 +211,14 @@ private:
       LOG_EXTRA(">> Code: 0x{:0{}x}", EC.Data, (EC.Bits / 8));
     Get::Writer(OE).writeBits64(EC.Data, EC.Bits);
   }
-
-  /// Encodes a simple event - can be {SD, ED}.
-  CC ExiError encodeEventS(OrderedEncoder*, const NoEventData&) {
-    return ExiError::OK;
+  ALWAYS_INLINE CC void encodePrecomputedCode(OrderedEncoder* OE,
+                                              SecondLevelEventCode EC) {
+    if constexpr (std::same_as<StrmT, BitWriter>)
+      LOG_EXTRA(">> S-Code: 0b{:0{}b}", EC.Data, EC.Bits);
+    else
+      LOG_EXTRA(">> S-Code: 0x{:0{}x}", EC.Data, (EC.Bits / 8));
+    Get::Writer(OE).writeBits64(EC.Data, EC.Bits);
   }
-  /// Encodes a simple event - can be {CM, ER}.
-  CC ExiError encodeEventS(OrderedEncoder* OE,
-                           const StringEventData& Event) {
-    Get::Writer(OE).encodeString(
-      StrRef(Event.Data, Event.Size));
-    return ExiError::OK;
-  }
-  /// Encodes a simple event - can be {PI}.
-  CC ExiError encodeEventS(OrderedEncoder* OE,
-                           const ProcInstrEvent& Event) {
-    StrmT& Strm = Get::Writer(OE);
-    Strm.encodeString(Event[0]);
-    Strm.encodeString(Event[1]);
-    return ExiError::OK;
-  }
-  /// Encodes a simple event - can be {DT}.
-  inline CC ExiError encodeEventS(OrderedEncoder* OE,
-                                  const DoctypeEvent& Event);
 
   template <SimpleEventTerm Term>
   CC_FLATTEN ExiError encodeDocContent(ORDERED_ARGS) {
@@ -243,8 +228,7 @@ private:
       return this->encodeEventS(
         OE, event_cast<Term>(Event, K));
     else
-      return this->handleSE</*IsRoot=*/true>(
-        OE, event_cast<Term>(Event, K));
+      return this->handleSE</*IsRoot=*/true>(ORDERED_NEXT);
   }
   // TODO: Flatten?
   template <SimpleEventTerm Term>
@@ -253,8 +237,6 @@ private:
     return this->encodeEventS(
       OE, event_cast<Term>(Event, K));
   }
-
-  ALWAYS_INLINE CC void pushGrammar(State New) { Current = New; }
 
   /// ENTRY POINT - Dispatches common events.
   CC_INLINE ExiError setEventImpl(ORDERED_ARGS) {
@@ -319,9 +301,7 @@ private:
     case map_doccontent_v<SE>:
       // This should only be called once, at the start of processing.
       //exi_assert(GStack.empty() && Grammars.empty());
-      exi_todo("DocContent: Implement SE");
-      //tail_return encodeDocContent<SE>(ORDERED_NEXT);
-      return ExiError::OK;
+      tail_return encodeDocContent<SE>(ORDERED_NEXT);
     case map_doccontent_v<CM>:
       tail_return encodeDocContent<CM>(ORDERED_NEXT);
     case map_doccontent_v<PI>:
@@ -348,28 +328,194 @@ private:
     }
   }
 
-  CC ExiError handleStartTag(ORDERED_ARGS) {
+  CC GNU_ATTR(hot) ExiError handleStartTag(ORDERED_ARGS) {
     exi_todo("Implement StartTagContent");
   }
 
-  CC ExiError handleElement(ORDERED_ARGS) {
+  CC GNU_ATTR(hot) ExiError handleElement(ORDERED_ARGS) {
     exi_todo("Implement ElementContent");
+  }
+
+  /// Events shared between StartTag and Element.
+  template <bool IsStart>
+  CC ExiError handleSharedContent(ORDERED_ARGS) {
+    switch (K) {
+    case SimpleEventTerm::EE:
+      tail_return this->handleEE(ORDERED_NEXT);
+    /*
+    case SEQName:
+      // SE(qname) events are cached.
+      tail_return this->handleSEQName(D);
+    case CHExtern:
+      tail_return this->handleCH<true>(D);
+    */
+    default:
+      tail_return this->handleChildContent<IsStart>(ORDERED_NEXT);
+    }
+  }
+
+  /// Events under the ChildContentItems macro.
+  template <bool IsStart>
+  CC_INLINE ExiError handleChildContent(ORDERED_ARGS) {
+    static constexpr const char* UnreachableMsg
+      = IsStart ? "invalid StartTagContent" : "invalid ElementContent";
+    switch (K) {
+    case SimpleEventTerm::SE:
+      tail_return this->handleSE(ORDERED_NEXT);
+    case SimpleEventTerm::CH:
+      tail_return this->handleCH(ORDERED_NEXT);
+    case SimpleEventTerm::CM:
+    case SimpleEventTerm::PI:
+    case SimpleEventTerm::ER:
+      tail_return this->handleUncommon<IsStart>(ORDERED_NEXT);
+    default:
+      exi_unreachable(UnreachableMsg);
+    }
   }
 
   template <bool IsRoot = false>
   CC ExiError batchStartTag(ORDERED_BARGS) {
-    exi_todo("Implement StartTagContent batching");
+    switch (K) {
+    case SimpleEventTerm::NS:
+      tail_return this->batchNS<IsRoot>(ORDERED_BNEXT);
+    case SimpleEventTerm::AT:
+      if constexpr (!IsRoot)
+        tail_return this->batchAT(ORDERED_BNEXT);
+    case SimpleEventTerm::CH:
+      if constexpr (!IsRoot)
+        tail_return this->batchCH(ORDERED_BNEXT);
+    default:
+      exi_guardrail("invalid batch type.");
+    }
   }
 
   CC ExiError batchElement(ORDERED_BARGS) {
     exi_todo("Implement ElementContent batching");
+    switch (K) {
+    case SimpleEventTerm::NS:
+      tail_return this->batchNS(ORDERED_BNEXT);
+    case SimpleEventTerm::AT:
+      tail_return this->batchAT(ORDERED_BNEXT);
+    case SimpleEventTerm::CH:
+      tail_return this->batchCH(ORDERED_BNEXT);
+    default:
+      exi_guardrail("invalid batch type.");
+    }
   }
 
   ////////////////////////////////////////////////////////////////////////
   // Event Handling
 
+  template <bool IsRoot = false>
+  EXI_FLATTEN CC ExiError handleSE(ORDERED_ARGS) {
+    return this->handleSE<IsRoot>(OE,
+      event_cast<SimpleEventTerm::SE>(Event, K));
+  }
+  template <bool IsRoot = false>
+  CC ExiError handleSE(OrderedEncoder* OE, const StartElemEvent& SE) {
+    exi_todo("Implement SE");
+  }
+
+  /// Since element grammars always have single term EE event codes, we don't
+  /// need to add it to the grammar.
+  template <bool IsStart = false>
+  CC ExiError handleEE(ORDERED_ARGS) {
+    exi_todo("Implement EE");
+  }
+
+  EXI_FLATTEN CC ExiError handleAT(ORDERED_ARGS) {
+    return this->handleAT(OE,
+      event_cast<SimpleEventTerm::AT>(Event, K));
+  }
+  CC ExiError handleAT(OrderedEncoder* OE, const AttrEvent& AT) {
+    exi_todo("Implement AT");
+  }
+
+  template <bool IsRoot = false>
+  EXI_FLATTEN CC ExiError handleNS(ORDERED_ARGS) {
+    return this->handleSE<IsRoot>(OE,
+      event_cast<SimpleEventTerm::NS>(Event, K));
+  }
+  template <bool IsRoot = false>
+  CC ExiError handleNS(OrderedEncoder* OE, const NamespaceEvent& NS) {
+    exi_todo("Implement NS");
+  }
+
+  EXI_FLATTEN CC ExiError handleCH(ORDERED_ARGS) {
+    return this->handleCH(OE,
+      event_cast<SimpleEventTerm::CH>(Event, K));
+  }
+  CC ExiError handleCH(OrderedEncoder* OE, const CharEvent& NS) {
+    exi_todo("Implement CH");
+  }
+
+  template <bool IsStart>
+  CC ExiError handleUncommon(ORDERED_ARGS) {
+    exi_todo("Add first-level event code");
+    // Place first-level event code.
+    if constexpr (IsStart) {
+      TMap.mapStartTagContent(K);
+      this->pushGrammar(ElementContent);
+    } else
+      TMap.mapElementContent(K);
+    exi_todo("Implement {CH,PI,ER}");
+  }
+
+  // Batching
+  // TODO: Add optimizations specific to batches.
+
+  CC ExiError batchAT(ORDERED_BARGS) {
+    auto* VArr = static_cast<const AttrEvent*>(Arr);
+    for (usize Ix = 0; Ix < N - 1; ++Ix)
+      exi_try(handleAT(OE, VArr[Ix]));
+    return handleAT(OE, VArr[N - 1]);
+  }
+
+  template <bool IsRoot = false>
+  CC ExiError batchNS(ORDERED_BARGS) {
+    auto* VArr = static_cast<const NamespaceEvent*>(Arr);
+    for (usize Ix = 0; Ix < N - 1; ++Ix)
+      exi_try(handleNS<IsRoot>(OE, VArr[Ix]));
+    return handleNS<IsRoot>(OE, VArr[N - 1]);
+  }
+
+  CC ExiError batchCH(ORDERED_BARGS) {
+    auto* VArr = static_cast<const CharEvent*>(Arr);
+    for (usize Ix = 0; Ix < N - 1; ++Ix)
+      exi_try(handleCH(OE, VArr[Ix]));
+    return handleCH(OE, VArr[N - 1]);
+  }
+
+  ////////////////////////////////////////////////////////////////////////
+  // Value Encoding
+
+  /// Encodes a simple event - can be {SD, ED}.
+  CC ExiError encodeEventS(OrderedEncoder*, const NoEventData&) {
+    return ExiError::OK;
+  }
+  /// Encodes a simple event - can be {CM, ER}.
+  CC ExiError encodeEventS(OrderedEncoder* OE,
+                           const StringEventData& Event) {
+    Get::Writer(OE).encodeString(
+      StrRef(Event.Data, Event.Size));
+    return ExiError::OK;
+  }
+  /// Encodes a simple event - can be {PI}.
+  CC ExiError encodeEventS(OrderedEncoder* OE,
+                           const ProcInstrEvent& Event) {
+    StrmT& Strm = Get::Writer(OE);
+    Strm.encodeString(Event[0]);
+    Strm.encodeString(Event[1]);
+    return ExiError::OK;
+  }
+  /// Encodes a simple event - can be {DT}.
+  inline CC ExiError encodeEventS(OrderedEncoder* OE,
+                                  const DoctypeEvent& Event);
+
   ////////////////////////////////////////////////////////////////////////
   // Grammar
+
+  ALWAYS_INLINE CC void pushGrammar(State New) { Current = New; }
 
   ////////////////////////////////////////////////////////////////////////
   // Printing
