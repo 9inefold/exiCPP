@@ -59,8 +59,8 @@ struct EXI_EMPTY_BASES NoEventData : BaseEvent {};
 /// The base of all string types.
 struct EXI_EMPTY_BASES StringEventData : BaseEvent {
   u32 Size = 0;
-  u32 Tag : 2 = 0b00;
   u32 Extra : 32 = 0;
+  u32 Tag : 2 = 0b00;
   const char* Data = nullptr;
 };
 /// The base of all (string, string) types.
@@ -91,8 +91,12 @@ struct AttrEvent      : PairEventData {};
 /// Characters (string)
 struct CharEvent      : StringEventData {};
 /// Namespace (string, string, bool)
-struct NamespaceEvent : PairEventData {
-  bool IsLocal = false;
+struct NamespaceEvent : BaseEvent {
+  u32 PfxSize = 0;
+  u32 UriSize : 31 = 0;
+  u32 IsLocal : 1  = false;
+  const char* PfxData = nullptr;
+  const char* UriData = nullptr;
 };
 /// Start Document
 struct StartDocEvent  : NoEventData {};
@@ -145,6 +149,9 @@ template <SimpleEventTerm Term> struct MapTermToEvent {
 };
 template <is_encode_event Event> struct UnmapTermToEvent {
   COMPILE_FAILURE(Event, "Invalid Event!");
+};
+template <> struct UnmapTermToEvent<StartElemURIEvent> {
+  static constexpr SimpleEventTerm value = SimpleEventTerm::SE;
 };
 
 #define MAP_TERM(FROM, TO)                                                    \
@@ -220,7 +227,7 @@ template <> struct MakeEvent<SimpleEventTerm::SE> {
   inline constexpr TypeEx operator()(StrRef Data, StrRef URI) const {
     return TypeEx{{{
       .Size = unsigned(Data.size()),
-      .Tag  = 1, .Extra = unsigned(URI.size()),
+      .Extra = unsigned(URI.size()), .Tag = 1,
       .Data = Data.data()
     }}, {
       .URI = URI.data()
@@ -240,13 +247,14 @@ template <> struct MakeEvent<SimpleEventTerm::SE> {
 
 template <> struct MakeEvent<SimpleEventTerm::NS> {
   using Type = NamespaceEvent;
-  inline constexpr Type operator()(StrRef Name, StrRef Data,
+  inline constexpr Type operator()(StrRef Pfx, StrRef Uri,
                                    bool IsLocal = false) const {
-    return Type{{
-        .Size = {unsigned(Name.size()), unsigned(Data.size())},
-        .Data = {Name.data(), Data.data()},
-      },
-      IsLocal
+    return Type{
+      .PfxSize = unsigned(Pfx.size()),
+      .UriSize = unsigned(Uri.size()),
+      .IsLocal = IsLocal,
+      .PfxData = Pfx.data(),
+      .UriData = Uri.data(),
     };
   }
 };

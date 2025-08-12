@@ -127,7 +127,9 @@ raw_ostream& exi::operator<<(raw_ostream& OS, const StartElemEvent& SE) {
 
 raw_ostream& exi::operator<<(raw_ostream& OS, const NamespaceEvent& NS) {
   return OS << format("{}=\"{}\"{}",
-    NS[0], NS[1], (NS.IsLocal ? " (local)" : ""));
+    StrRef(NS.PfxData, NS.PfxSize),
+    StrRef(NS.UriData, NS.UriSize),
+    (NS.IsLocal ? " (local)" : ""));
 }
 
 raw_ostream& exi::operator<<(raw_ostream& OS, const DoctypeEvent& DT) {
