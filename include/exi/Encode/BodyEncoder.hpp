@@ -174,6 +174,8 @@ public:
   /// Gets the value of Preserve.LexicalValues.
   bool LexicalValues() const { return Opts.Preserve.LexicalValues; }
   /// Gets the type of the encoder.
+  EncoderKind kind() const { return Kind; }
+  /// Gets the type of the encoder.
   EncoderKind get_kind() const { return Kind; }
 
   ////////////////////////////////////////////////////////////////////////
