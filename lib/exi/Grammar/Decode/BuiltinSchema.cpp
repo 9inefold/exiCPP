@@ -104,7 +104,7 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final
   using Get = Schema::Get<ExiDecoder, StrmT>;
   using BaseT = TrailingArray<OrderedBuiltinSchema, EventTerm>;
   using MatchT = MMatch<EventTerm, EventTerm>;
-  using GrammarT = PointerIntPair<BuiltinGrammar*, 1, bool>;
+  using GrammarT = PointerIntPair<decode::BuiltinGrammar*, 1, bool>;
 
   /// Contains info on the compressed grammars.
   BIInfoArray Info;

@@ -146,7 +146,7 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final : public BuiltinSchema {
   using BuiltinSchema::State;
 
   using Get = encode::Schema::Get<StrmT>;
-  using GrammarT = PointerIntPair<BuiltinGrammar*, 1, bool>;
+  using GrammarT = PointerIntPair<encode::BuiltinGrammar*, 1, bool>;
 
   /// Contains info on the compressed grammars.
   BIInfoArray Info;
