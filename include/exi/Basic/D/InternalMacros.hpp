@@ -36,11 +36,15 @@
 # define CC __attribute__((preserve_none))
 /// Preserves none, inlines the function when unavailable.
 # define CC_INLINE __attribute__((preserve_none))
+/// Preserves none, flattens the function when unavailable.
+# define CC_FLATTEN __attribute__((preserve_none))
 #else
 /// Empty attribute.
 # define CC
 /// Inlines the function.
 # define CC_INLINE ALWAYS_INLINE
+/// Flattens the function.
+# define CC_FLATTEN EXI_FLATTEN
 #endif
 
 #ifdef __clang__

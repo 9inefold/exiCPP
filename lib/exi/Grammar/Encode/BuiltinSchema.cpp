@@ -234,9 +234,9 @@ private:
   /// Encodes a simple event - can be {DT}.
   inline CC ExiError encodeEventS(OrderedEncoder* OE,
                                   const DoctypeEvent& Event);
-  // TODO: Flatten?
+
   template <SimpleEventTerm Term>
-  CC ExiError encodeDocContent(ORDERED_ARGS) {
+  CC_FLATTEN ExiError encodeDocContent(ORDERED_ARGS) {
     encodePrecomputedCode(OE, TMap.mapDocContent<Term>());
     // TODO: Handle top-level SE
     if constexpr (Term != SimpleEventTerm::SE)
