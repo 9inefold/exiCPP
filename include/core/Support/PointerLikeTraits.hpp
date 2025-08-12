@@ -98,7 +98,15 @@ template <typename T> struct PointerLikeTypeTraits<T *> {
 };
 
 template <> struct PointerLikeTypeTraits<void *> {
-  static inline void *getAsVoidPointer(void *P) { return P; }
+  static inline bool IsAlignedPointer(void *P) {
+    static constexpr uptr Mask = (1 << NumLowBitsAvailable) - 1u;
+    return (reinterpret_cast<uptr>(P) & Mask) == 0;
+  }
+  static inline void *getAsVoidPointer(void *P) {
+    exi_invariant(IsAlignedPointer(P),
+                  "Input was not sufficiently aligned!");
+    return P;
+  }
   static inline void *getFromVoidPointer(void *P) { return P; }
 
   /// Note, we assume here that void* is related to raw malloc'ed memory and

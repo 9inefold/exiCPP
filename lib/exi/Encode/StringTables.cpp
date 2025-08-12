@@ -67,9 +67,19 @@ namespace exi::encode {
 // Encoding
 //===----------------------------------------------------------------===//
 
+#define CHECK_ALIGNMENT(REAL, FAKE)                                           \
+  static_assert(exi::PointerLikeTypeTraits<REAL*>::NumLowBitsAvailable >=     \
+                exi::PointerLikeTypeTraits<FAKE*>::NumLowBitsAvailable,       \
+                #FAKE " is overaligned! This should never occur, please report.");
+
 StringTable::StringTable()
     : NameCache(Alloc), URIMap(4, Alloc),
-      PrefixMap(4, Alloc), LVMap(4), GValueMap(kDefaultReserveSize) {}
+      PrefixMap(4, Alloc), LVMap(4), GValueMap(kDefaultReserveSize) {
+  CHECK_ALIGNMENT(PrefixEntry, STPrefixEntry);
+  CHECK_ALIGNMENT(URIEntry,    STURIEntry);
+  CHECK_ALIGNMENT(ValueEntry,  STValueEntry);
+  CHECK_ALIGNMENT(InlineStr,   QualName);
+}
 
 void StringTable::setup(const ExiOptions& Opts) {
   if (DidSetup)
