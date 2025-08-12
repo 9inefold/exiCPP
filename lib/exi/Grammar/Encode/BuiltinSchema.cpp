@@ -323,7 +323,7 @@ private:
     case map_doccontent_v<DT>:
       tail_return encodeDocContent<DT>(ORDERED_NEXT);
     default:
-      exi_unreachable("invalid DocContent");
+      exi_guardrail("invalid DocContent");
     }
   }
 
@@ -338,7 +338,7 @@ private:
     case map_docend_v<PI>:
       tail_return encodeDocEnd<PI>(ORDERED_NEXT);
     default:
-      exi_unreachable("invalid DocEnd");
+      exi_guardrail("invalid DocEnd");
     }
   }
 

@@ -288,7 +288,7 @@ private:
     } else if (M.is(DT, CM, PI))
       return NewTerm(M.Data);
     
-    exi_unreachable("invalid DocContent");
+    exi_guardrail("invalid DocContent");
   }
 
   CC EventUID handleDocEnd(ExiDecoder* D) {
@@ -302,7 +302,7 @@ private:
     } else if (M.is(CM, PI))
       return NewTerm(M.Data);
     
-    exi_unreachable("invalid DocEnd");
+    exi_guardrail("invalid DocEnd");
   }
 
   /// Handles StartTag unique elements.
