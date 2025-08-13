@@ -283,14 +283,25 @@ public:
     exi_invariant(has_value(), "value is inactive!");
     return Data;
   }
-
   constexpr NodeT& value() & EXI_LIFETIMEBOUND {
     exi_invariant(has_value(), "value is inactive!");
     return Data;
   }
-
   constexpr NodeT&& value() && {
     exi_invariant(has_value(), "value is inactive!");
+    return std::move(Data);
+  }
+
+  constexpr const NodeT& value_unchecked() const& EXI_LIFETIMEBOUND {
+    exi_expensive_invariant(has_value(), "value is inactive!");
+    return Data;
+  }
+  constexpr NodeT& value_unchecked() & EXI_LIFETIMEBOUND {
+    exi_expensive_invariant(has_value(), "value is inactive!");
+    return Data;
+  }
+  constexpr NodeT&& value_unchecked() && {
+    exi_expensive_invariant(has_value(), "value is inactive!");
     return std::move(Data);
   }
 

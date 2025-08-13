@@ -1,6 +1,6 @@
 //===- Common/Option.hpp --------------------------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2024-2025 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@
 #include <Common/Features.hpp>
 #include <Common/Fundamental.hpp>
 #include <Common/StrRef.hpp>
+#include <Common/D/AssertExpect.hpp>
 #include <Common/D/Expect.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <new>
@@ -195,14 +196,25 @@ public:
     exi_invariant(has_value(), "value is inactive!");
     return BaseT::Data;
   }
-
   constexpr T& value() & EXI_LIFETIMEBOUND {
     exi_invariant(has_value(), "value is inactive!");
     return BaseT::Data;
   }
-
   constexpr T&& value() && {
     exi_invariant(has_value(), "value is inactive!");
+    return std::move(BaseT::Data);
+  }
+
+  EXI_INLINE constexpr const T& value_unchecked() const& EXI_LIFETIMEBOUND {
+    exi_expensive_invariant(has_value(), "value is inactive!");
+    return BaseT::Data;
+  }
+  EXI_INLINE constexpr T& value_unchecked() & EXI_LIFETIMEBOUND {
+    exi_expensive_invariant(has_value(), "value is inactive!");
+    return BaseT::Data;
+  }
+  EXI_INLINE constexpr T&& value_unchecked() && {
+    exi_expensive_invariant(has_value(), "value is inactive!");
     return std::move(BaseT::Data);
   }
 
@@ -213,7 +225,8 @@ public:
 
 // Optional type which internal storage can be specialized by providing
 // OptionStorage. The interface follows std::optional.
-template <typename T> class Option {
+template <typename T> class Option
+    : public H::AssertExpect<Option<T>, true> {
   EXI_NO_UNIQUE_ADDRESS OptionStorage<T> Storage;
 
   EXI_INLINE static constexpr void DoPartialSwap(
@@ -320,6 +333,16 @@ public:
   constexpr const T& value() const& { return Storage.value(); }
   constexpr T& value() & { return Storage.value(); }
   constexpr T&& value() && { return std::move(Storage.value()); }
+
+  constexpr const T& value_unchecked() const& {
+    return Storage.value_unchecked();
+  }
+  constexpr T& value_unchecked() & {
+    return Storage.value_unchecked();
+  }
+  constexpr T&& value_unchecked() && {
+    return std::move(Storage.value_unchecked());
+  }
   
   constexpr explicit operator bool() const { return has_value(); }
   constexpr bool has_value() const { return Storage.has_value(); }
@@ -352,45 +375,6 @@ public:
     return ref().value_or(Alt);
   }
 
-  const T& expect(const char* Msg) const& {
-    this->assert_expect(Msg);
-    return Storage.value();
-  }
-  T& expect(const char* Msg) & {
-    this->assert_expect(Msg);
-    return Storage.value();
-  }
-  T&& expect(const char* Msg) && {
-    this->assert_expect(Msg);
-    return std::move(Storage.value());
-  }
-
-  const T& expect(StrRef Msg) const& {
-    this->assert_expect(Msg);
-    return Storage.value();
-  }
-  T& expect(StrRef Msg) & {
-    this->assert_expect(Msg);
-    return Storage.value();
-  }
-  T&& expect(StrRef Msg) && {
-    this->assert_expect(Msg);
-    return std::move(Storage.value());
-  }
-
-  const T& expect(const Twine& Msg) const& {
-    this->assert_expect(Msg);
-    return Storage.value();
-  }
-  T& expect(const Twine& Msg) & {
-    this->assert_expect(Msg);
-    return Storage.value();
-  }
-  T&& expect(const Twine& Msg) && {
-    this->assert_expect(Msg);
-    return std::move(Storage.value());
-  }
-
   template <typename U> constexpr T value_or(U&& Alt) const& {
     return has_value() ? **this : EXI_FWD(Alt);
   }
@@ -410,23 +394,6 @@ public:
     using OutT = option_detail::Transform<F, T&&>;
     return has_value()
       ? OutT(EXI_FWD(Fn)(std::move(**this))) : std::nullopt;
-  }
-
-private:
-  EXI_INLINE EXI_NODEBUG void
-   assert_expect(const char* Msg) const {
-    if EXI_UNLIKELY(!has_value())
-      exi::report_fatal_error(Msg);
-  }
-  EXI_INLINE EXI_NODEBUG void
-   assert_expect(StrRef Msg) const {
-    if EXI_UNLIKELY(!has_value())
-      exi::report_fatal_error(Msg);
-  }
-  EXI_INLINE EXI_NODEBUG void
-   assert_expect(const Twine& Msg) const {
-    if EXI_UNLIKELY(!has_value())
-      exi::report_fatal_error(Msg);
   }
 };
 
@@ -519,7 +486,8 @@ public:
 
 // Optional type specialized for direct references.
 template <typename T> class Option<T&>
-    : public option_detail::RefStorage<T> {
+    : public option_detail::RefStorage<T>,
+      public H::AssertExpect<Option<T&>, false> {
   using BaseT = option_detail::RefStorage<T>;
   using BaseT::Storage;
 public:
@@ -559,6 +527,10 @@ public:
     exi_assert(has_value(), "value is inactive!");
     return *Storage;
   }
+  constexpr T& value_unchecked() const {
+    exi_expensive_invariant(has_value(), "value is inactive!");
+    return *Storage;
+  }
   
   constexpr explicit operator bool() const { return has_value(); }
   using BaseT::has_value;
@@ -570,22 +542,6 @@ public:
 
   constexpr T& operator*() const {
     exi_invariant(has_value(), "value is inactive!");
-    return *Storage;
-  }
-
-  T& expect(const char* Msg) const {
-    if EXI_UNLIKELY(!has_value())
-      exi::report_fatal_error(Msg);
-    return *Storage;
-  }
-  T& expect(StrRef Msg) const {
-    if EXI_UNLIKELY(!has_value())
-      exi::report_fatal_error(Msg);
-    return *Storage;
-  }
-  T& expect(const Twine& Msg) const {
-    if EXI_UNLIKELY(!has_value())
-      exi::report_fatal_error(Msg);
     return *Storage;
   }
 
