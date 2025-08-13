@@ -31,6 +31,7 @@
 #include <core/Common/DenseMap.hpp>
 #include <core/Common/FoldingSet.hpp>
 #include <core/Common/Naked.hpp>
+#include <core/Common/PointerUnion.hpp>
 #include <core/Common/SmallVec.hpp>
 #include <core/Common/StringMap.hpp>
 #include <core/Common/StrRef.hpp>
@@ -503,9 +504,8 @@ private:
 
 public:
   StringTable();
-  StringTable(const ExiOptions& Opts) : StringTable() {
-    this->setup(Opts);
-  }
+  StringTable(const ExiOptions& Opts) : StringTable() { this->setup(Opts); }
+  ~StringTable();
 
   /// Sets up the initial encoder state.
   /// The signature will have to change when schemas are introduced.
@@ -647,6 +647,8 @@ public:
   NSContext declareURI(CachedHashStrRef URI) {
     return createURI(URI, std::nullopt);
   }
+
+  LocalNameInfo* createLocalName(STURIEntry* URI, StrRef Name, LocalNameInsert*);
   
   /// When encountering a `xmlns:[Pfx]=[URI]`.
   NSContext enterNamespace(ImplicitHashStrRef Pfx, ImplicitHashStrRef URI) {
@@ -674,6 +676,8 @@ public:
       return nullptr;
     return X(&*It);
   }
+  Result<LocalNameInfo*, LocalNameInsert*>
+   lookupLocalName(STURIEntry* URI, StrRef Name);
 
   /// Gets `URIEntry*` for a given Prefix.
   STURIEntry* getURIFromPfx(ImplicitHashStrRef Pfx) {
@@ -787,7 +791,7 @@ private:
   /// Insert LocalName when it is known to not exist.
   LocalNameInfo* createNewLocalName(URIEntry* URI, StrRef Raw);
   /// Get LocalName if it exists, otherwise create new entry.
-  LocalNameInfo* getLocalName(URIEntry* URI, StrRef Raw);
+  std::pair<LocalNameInfo*, bool> getLocalName(URIEntry* URI, StrRef Raw);
 
   ////////////////////////////////////////////////////////////////////////
   // Batch Initialization

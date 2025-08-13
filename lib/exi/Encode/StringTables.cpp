@@ -77,6 +77,13 @@ StringTable::StringTable()
   CHECK_ALIGNMENT(InlineStr,   QualName);
 }
 
+StringTable::~StringTable() {
+  for (LocalNameInfo& LN : LVMap) {
+    LN.~LocalNameInfo();
+    Alloc.Deallocate(&LN);
+  }
+}
+
 void StringTable::setup(const ExiOptions& Opts) {
   if (DidSetup)
     return;
@@ -258,7 +265,17 @@ LocalNameInfo* StringTable::createNewLocalName(URIEntry* URI, StrRef Raw) {
   return LN;
 }
 
-LocalNameInfo* StringTable::getLocalName(URIEntry* URI, StrRef Raw) {
+LocalNameInfo* StringTable::createLocalName(
+ STURIEntry* URI, StrRef Name, LocalNameInsert* IP) {
+  if EXI_NEVER(IP == nullptr)
+    Throw<argument_error>("InsertPoint is null!");
+  const InlineStr* Name = internLocalName(Raw);
+  auto* LN = new (Alloc) LocalNameInfo(X(URI), Name);
+  LVMap.InsertNode(LN, InsertPoint);
+  return LN;
+}
+
+std::pair<LocalNameInfo*, bool> StringTable::getLocalName(URIEntry* URI, StrRef Raw) {
   exi_invariant(URI != nullptr);
   FoldingSetNodeID ID;
   ID.AddString(Raw);
@@ -270,7 +287,21 @@ LocalNameInfo* StringTable::getLocalName(URIEntry* URI, StrRef Raw) {
     const InlineStr* Name = internLocalName(Raw);
     LN = new (Alloc) LocalNameInfo(X(URI), Name);
     LVMap.InsertNode(LN, InsertPoint);
+    return {LN, true};
   }
+  return {LN, false};
+}
+
+Result<LocalNameInfo*, LocalNameInsert*>
+ StringTable::lookupLocalName(STURIEntry* URI, StrRef Name) {
+  exi_invariant(URI != nullptr);
+  FoldingSetNodeID ID;
+  ID.AddString(Name);
+  ID.AddInteger(VOfX(URI)->uri());
+  void* InsertPoint;
+  auto* LN = LVMap.FindNodeOrInsertPos(ID, InsertPoint);
+  if (LN == nullptr)
+    return Err(static_cast<LocalNameInsert*>(InsertPoint));
   return LN;
 }
 

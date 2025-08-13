@@ -39,6 +39,9 @@ using STPrefixEntry = EXI_OPAQUE_HANDLE_T(STPrefixEntry, StringTable);
 /// @typedef STURIEntry
 /// Typed handle for `StringTable::URIEntry`.
 using STURIEntry = EXI_OPAQUE_HANDLE_T(STURIEntry, StringTable);
+/// @typedef LocalNameInsert
+/// Insertion point for a LocalName.
+using LocalNameInsert = EXI_OPAQUE_HANDLE_T(LocalNameInsert, StringTable);
 //struct STURIEntry;
 /// @typedef STValueEntry
 /// Typed handle for `StringTable::ValueEntry`.
@@ -74,6 +77,12 @@ template <> struct PointerLikeTypeTraits<encode::STURIEntry*> {
   static inline void* getAsVoidPointer(T* P) { return P; }
   static inline T* getFromVoidPointer(void* P) { return static_cast<T*>(P); }
   static constexpr int NumLowBitsAvailable = encode::H::kSTEntryLowBits;
+};
+template <> struct PointerLikeTypeTraits<encode::LocalNameInsert*> {
+  using T = encode::LocalNameInsert;
+  static inline void* getAsVoidPointer(T* P) { return P; }
+  static inline T* getFromVoidPointer(void* P) { return static_cast<T*>(P); }
+  static constexpr int NumLowBitsAvailable = H::ConstantLog2<4>::value;
 };
 template <> struct PointerLikeTypeTraits<encode::STValueEntry*> {
   using T = encode::STValueEntry;
