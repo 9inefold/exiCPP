@@ -35,6 +35,9 @@
 
 namespace exi {
 namespace encode {
+/// Represents the first part of an event code.
+using FirstLevelProd = u32;
+inline constexpr FirstLevelProd kInvalidFLProd = ~FirstLevelProd(0);
 
 /// Defines the GrammarNode types.
 namespace gnode {
@@ -193,10 +196,10 @@ public:
 #undef FINAL_NODE
 
 inline void BaseNode::Profile(FoldingSetNodeID& ID) const {
-  switch (Kind) {
-#define GNODE_SWITCH(TY)
-  case EventTerm::TY:
-    return static_cast<const Ty##NODE*>(this)->Profile(ID);
+  switch (this->kind()) {
+#define GNODE_SWITCH(TY)                                                      \
+  case EventTerm::TY:                                                         \
+    return static_cast<const TY##Node*>(this)->Profile(ID);
   GNODE_TYPES(GNODE_SWITCH)
 #undef GNODE_SWITCH
   default:
@@ -205,7 +208,7 @@ inline void BaseNode::Profile(FoldingSetNodeID& ID) const {
 }
 
 EXI_FLATTEN inline void SENode::Profile(FoldingSetNodeID& ID) const {
-  switch (Kind) {
+  switch (this->kind()) {
   case EventTerm::SEAny:
     return static_cast<const SEAnyNode*>(this)->Profile(ID);
   case EventTerm::SEUri:
@@ -218,7 +221,7 @@ EXI_FLATTEN inline void SENode::Profile(FoldingSetNodeID& ID) const {
 }
 
 EXI_FLATTEN inline void ATNode::Profile(FoldingSetNodeID& ID) const {
-  switch (Kind) {
+  switch (this->kind()) {
   case EventTerm::ATAny:
     return static_cast<const ATAnyNode*>(this)->Profile(ID);
   case EventTerm::ATUri:
@@ -276,17 +279,17 @@ public:
     new (&Data) NodeT(std::nullopt);
   }
 
-  constexpr const T& value() const& EXI_LIFETIMEBOUND {
+  constexpr const NodeT& value() const& EXI_LIFETIMEBOUND {
     exi_invariant(has_value(), "value is inactive!");
     return Data;
   }
 
-  constexpr T& value() & EXI_LIFETIMEBOUND {
+  constexpr NodeT& value() & EXI_LIFETIMEBOUND {
     exi_invariant(has_value(), "value is inactive!");
     return Data;
   }
 
-  constexpr T&& value() && {
+  constexpr NodeT&& value() && {
     exi_invariant(has_value(), "value is inactive!");
     return std::move(Data);
   }
