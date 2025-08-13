@@ -32,11 +32,13 @@
 #include <Common/D/Expect.hpp>
 #include <Common/D/OptionStorage.hpp>
 #include <Support/ErrorHandle.hpp>
+#include <compare>
 #include <new>
 #include <optional>
 #include <utility>
 
 // TODO: Annotate more lifetimebounds
+// TODO: Implement simpler comparisons...
 
 namespace exi {
 
