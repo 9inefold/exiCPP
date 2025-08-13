@@ -191,16 +191,18 @@ public:
       make_event<SimpleEventTerm::CH>(Value));
   }
 
-  template <bool /*IsRoot*/>
+  template <bool IsRoot>
   ExiError Namespace(StrRef Pfx, StrRef URI, bool IsLocal = false) {
-    // FIXME: Use IsRoot somehow?
-    return getSchema()->encode(this,
-      make_event<SimpleEventTerm::NS>(Pfx, URI, IsLocal));
+    if constexpr (!IsRoot)
+      return getSchema()->encode(this,
+        make_event<SimpleEventTerm::NS>(Pfx, URI, IsLocal));
+    else
+      return BatchNamespace<IsRoot>(
+        make_event<SimpleEventTerm::NS>(Pfx, URI, IsLocal));
   }
-  template <bool /*IsRoot*/>
+  template <bool IsRoot>
   ExiError BatchNamespace(ArrayRef<NamespaceEvent> Arr) {
-    // FIXME: Use IsRoot somehow?
-    return getSchema()->batchEncode(this, Arr);
+    return getSchema()->batchEncode<IsRoot>(this, Arr);
   }
 
   ExiError Comment(StrRef Data) {
