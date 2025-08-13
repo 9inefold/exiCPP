@@ -23,8 +23,8 @@
 
 #pragma once
 
+#include <core/Common/D/OptionStorage.hpp>
 #include <core/Common/FoldingSet.hpp>
-#include <core/Common/Option.hpp>
 #include <core/Support/Casting.hpp>
 #include <exi/Basic/EventCodes.hpp>
 
@@ -279,31 +279,7 @@ public:
     new (&Data) NodeT(std::nullopt);
   }
 
-  constexpr const NodeT& value() const& EXI_LIFETIMEBOUND {
-    exi_invariant(has_value(), "value is inactive!");
-    return Data;
-  }
-  constexpr NodeT& value() & EXI_LIFETIMEBOUND {
-    exi_invariant(has_value(), "value is inactive!");
-    return Data;
-  }
-  constexpr NodeT&& value() && {
-    exi_invariant(has_value(), "value is inactive!");
-    return std::move(Data);
-  }
-
-  constexpr const NodeT& value_unchecked() const& EXI_LIFETIMEBOUND {
-    exi_expensive_invariant(has_value(), "value is inactive!");
-    return Data;
-  }
-  constexpr NodeT& value_unchecked() & EXI_LIFETIMEBOUND {
-    exi_expensive_invariant(has_value(), "value is inactive!");
-    return Data;
-  }
-  constexpr NodeT&& value_unchecked() && {
-    exi_expensive_invariant(has_value(), "value is inactive!");
-    return std::move(Data);
-  }
+  EXI_OPTIONSTORAGE_IMPL_VALUE(constexpr, NodeT, Data)
 
   ALWAYS_INLINE constexpr bool has_value() const {
     return static_cast<const BaseNodeT&>(Data).isValid();

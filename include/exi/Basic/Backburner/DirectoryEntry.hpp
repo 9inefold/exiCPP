@@ -129,18 +129,7 @@ public:
 
   bool has_value() const { return MaybeRef.hasOptionalValue(); }
 
-  RefT& value() & {
-    exi_assert(has_value());
-    return MaybeRef;
-  }
-  const RefT& value() const& {
-    exi_assert(has_value());
-    return MaybeRef;
-  }
-  RefT&& value() && {
-    exi_assert(has_value());
-    return std::move(MaybeRef);
-  }
+  EXI_OPTIONSTORAGE_IMPL_VALUE(, RefT, MaybeRef)
 
   void emplace(auto&&...Args) {
     MaybeRef = RefT(EXI_FWD(Args)...);

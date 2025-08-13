@@ -30,6 +30,7 @@
 #include <Common/StrRef.hpp>
 #include <Common/D/AssertExpect.hpp>
 #include <Common/D/Expect.hpp>
+#include <Common/D/OptionStorage.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <new>
 #include <optional>
@@ -125,8 +126,7 @@ public:
 
 } // namespace option_detail
 
-/// The default storage provider for `Option`.
-/// Works like `std::optional`.
+/// The default storage provider for `Option`. Works like `std::optional`.
 template <typename T>
 class OptionStorage : public option_detail::Storage<T> {
   using BaseT = option_detail::Storage<T>;
@@ -192,35 +192,9 @@ public:
 
   inline constexpr void reset() { BaseT::reset(); }
 
-  constexpr const T& value() const& EXI_LIFETIMEBOUND {
-    exi_invariant(has_value(), "value is inactive!");
-    return BaseT::Data;
-  }
-  constexpr T& value() & EXI_LIFETIMEBOUND {
-    exi_invariant(has_value(), "value is inactive!");
-    return BaseT::Data;
-  }
-  constexpr T&& value() && {
-    exi_invariant(has_value(), "value is inactive!");
-    return std::move(BaseT::Data);
-  }
+  EXI_OPTIONSTORAGE_IMPL_VALUE(constexpr, T, BaseT::Data)
 
-  EXI_INLINE constexpr const T& value_unchecked() const& EXI_LIFETIMEBOUND {
-    exi_expensive_invariant(has_value(), "value is inactive!");
-    return BaseT::Data;
-  }
-  EXI_INLINE constexpr T& value_unchecked() & EXI_LIFETIMEBOUND {
-    exi_expensive_invariant(has_value(), "value is inactive!");
-    return BaseT::Data;
-  }
-  EXI_INLINE constexpr T&& value_unchecked() && {
-    exi_expensive_invariant(has_value(), "value is inactive!");
-    return std::move(BaseT::Data);
-  }
-
-  constexpr bool has_value() const {
-    return BaseT::Active;
-  } 
+  constexpr bool has_value() const { return BaseT::Active; }
 };
 
 // Optional type which internal storage can be specialized by providing
@@ -334,13 +308,16 @@ public:
   constexpr T& value() & { return Storage.value(); }
   constexpr T&& value() && { return std::move(Storage.value()); }
 
-  constexpr const T& value_unchecked() const& {
+  EXI_FLATTEN constexpr const T& value_unchecked() const& {
+    exi_expensive_invariant(has_value(), "value is inactive!");
     return Storage.value_unchecked();
   }
-  constexpr T& value_unchecked() & {
+  EXI_FLATTEN constexpr T& value_unchecked() & {
+    exi_expensive_invariant(has_value(), "value is inactive!");
     return Storage.value_unchecked();
   }
-  constexpr T&& value_unchecked() && {
+  EXI_FLATTEN constexpr T&& value_unchecked() && {
+    exi_expensive_invariant(has_value(), "value is inactive!");
     return std::move(Storage.value_unchecked());
   }
   
