@@ -177,10 +177,18 @@ class Twine;
 # define exi_assertCT_(EXPR) (void(0))
 #endif
 
+#if EXI_IS_LANG_SERVER
+/// Simpler version for language servers.
+#define exi_assert_(KIND, EXPR, ...) do {                                     \
+  if (!EXPR)                                                                  \
+    exi_fail(KIND, ("`" #EXPR "`" __VA_OPT__(". Reason: ") #__VA_ARGS__));    \
+} while(0)
+#else
 #define exi_assert_(KIND, EXPR, ...) do {                                     \
   exi_assertCT_(EXPR __VA_OPT__(,) __VA_ARGS__);                              \
   exi_assertRT_(KIND, EXPR __VA_OPT__(,) __VA_ARGS__);                        \
 } while(0)
+#endif
 
 #if EXI_ASSERTS
 /// Takes `(condition, "message")`, asserts in debug mode.

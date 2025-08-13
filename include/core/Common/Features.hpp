@@ -54,6 +54,8 @@
 /// This macro is defined for language servers, speeding up suggestions.
 // TODO: Add config for wider disabling of macro features.
 #  define EXI_IS_LANG_SERVER 1
+# else
+#  define EXI_IS_LANG_SERVER 0
 # endif
 #endif
 
@@ -557,18 +559,34 @@
 # define EXI_EXPECT_UNPREDICTABLE(EXPR) (EXPR)
 #endif
 
+#if EXI_IS_LANG_SERVER
 /// Tells the compiler a branch is likely.
-#define EXI_LIKELY(...)   EXI_EXPECT(1, static_cast<bool>(__VA_ARGS__))
+/// Full definition hidden for brevity.
+# define EXI_LIKELY(...) (__VA_ARGS__)
 /// Tells the compiler a branch is unlikely.
-#define EXI_UNLIKELY(...) EXI_EXPECT(0, static_cast<bool>(__VA_ARGS__))
-
+/// Full definition hidden for brevity.
+# define EXI_UNLIKELY(...) (__VA_ARGS__)
 /// Tells the compiler a branch should "always" be taken.
-#define EXI_ALWAYS(...) EXI_EXPECT_WITH(1, static_cast<bool>(__VA_ARGS__), 1.0)
+/// Full definition hidden for brevity.
+# define EXI_ALWAYS(...) (__VA_ARGS__)
 /// Tells the compiler a branch should "never" be taken.
-#define EXI_NEVER(...)  EXI_EXPECT_WITH(0, static_cast<bool>(__VA_ARGS__), 1.0)
-
+/// Full definition hidden for brevity.
+# define EXI_NEVER(...) (__VA_ARGS__)
 /// Tells the compiler a branch will not be predictable.
-#define EXI_UNPREDICT(...) EXI_EXPECT_UNPREDICTABLE(static_cast<bool>(__VA_ARGS__))
+/// Full definition hidden for brevity.
+# define EXI_UNPREDICT(...) (__VA_ARGS__)
+#else
+/// Tells the compiler a branch is likely.
+# define EXI_LIKELY(...)   EXI_EXPECT(1, static_cast<bool>(__VA_ARGS__))
+/// Tells the compiler a branch is unlikely.
+# define EXI_UNLIKELY(...) EXI_EXPECT(0, static_cast<bool>(__VA_ARGS__))
+/// Tells the compiler a branch should "always" be taken.
+# define EXI_ALWAYS(...) EXI_EXPECT_WITH(1, static_cast<bool>(__VA_ARGS__), 1.0)
+/// Tells the compiler a branch should "never" be taken.
+# define EXI_NEVER(...)  EXI_EXPECT_WITH(0, static_cast<bool>(__VA_ARGS__), 1.0)
+/// Tells the compiler a branch will not be predictable.
+# define EXI_UNPREDICT(...) EXI_EXPECT_UNPREDICTABLE(static_cast<bool>(__VA_ARGS__))
+#endif
 
 #if defined(EXI_UNREACHABLE)
 // Use the provided definition.
