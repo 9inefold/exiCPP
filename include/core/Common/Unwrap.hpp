@@ -29,12 +29,7 @@
 #include <Common/D/Expect.hpp>
 #include <concepts>
 
-#if EXI_IS_LANG_SERVER
-/// Uses GNU Statement Exprs to unwrap values.
-# define EXI_UNWRAP(VAL, ...) (::exi::Expect{*VAL}).value()
-/// Uses GNU Statement Exprs to unwrap values. Gets raw value on success.
-# define EXI_UNWRAP_RAW(VAL, ...) VAL
-#elif defined(_MSC_VER) && !defined(__GNUC__)
+#if defined(_MSC_VER) && !defined(__GNUC__)
 /// Unwrapping not possible on MSVC.
 # define EXI_UNWRAP(VAL, ...) [&]() {                                         \
   static_assert("$unwrap not available on MSVC!");                            \
@@ -48,6 +43,12 @@
   return EXI_FWD(_u_Obj);                                                     \
 }()
 #else
+#if EXI_IS_LANG_SERVER
+/// Uses GNU Statement Exprs to unwrap values.
+# define EXI_UNWRAP(VAL, ...) (*VAL)
+/// Uses GNU Statement Exprs to unwrap values. Gets raw value on success.
+# define EXI_UNWRAP_RAW(VAL, ...) (VAL)
+#else // !EXI_IS_LANG_SERVER
 /// Uses GNU Statement Exprs to unwrap values.
 # define EXI_UNWRAP(VAL, ...) ({                                              \
   auto&& _u_Obj = VAL;                                                        \
@@ -62,6 +63,7 @@
     return ::exi::H::unwrap_fail(EXI_FWD(_u_Obj), ##__VA_ARGS__);             \
   EXI_FWD(_u_Obj);                                                            \
 })
+#endif
 #endif
 
 #define $unwrap(VAL, ...) (EXI_UNWRAP((VAL) __VA_OPT__(,) __VA_ARGS__))
