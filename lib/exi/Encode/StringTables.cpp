@@ -31,29 +31,25 @@
 #include <algorithm>
 
 #define DEBUG_TYPE "StringTables"
-#define GEN_IV(URI, PFX, LV) {                                                \
-  .LocalName = #LV, .QualifiedName = #URI "$" #LV                             \
-}
+#define GEN_IV(URI, PFX, LV) #LV
 #define SEP ,
 
 // TODO: Merge common info...
 
 using namespace exi;
-
-using NameMapping = encode::StringTable::NameMapping;
-using NSContext   = encode::StringTable::NSContext;
+using NSContext = encode::StringTable::NSContext;
 
 namespace {
 enum : u64 { kDefaultReserveSize = 64 };
 
 constexpr StrRef XML_URI("http://www.w3.org/XML/1998/namespace");
-constexpr NameMapping XML_InitialValues[] { EXI_XML_IV(GEN_IV, SEP) };
+constexpr StrRef XML_InitialValues[] { EXI_XML_IV(GEN_IV, SEP) };
 
 constexpr StrRef XSI_URI("http://www.w3.org/2001/XMLSchema-instance");
-constexpr NameMapping XSI_InitialValues[] { EXI_XSI_IV(GEN_IV, SEP) };
+constexpr StrRef XSI_InitialValues[] { EXI_XSI_IV(GEN_IV, SEP) };
 
 constexpr StrRef XSD_URI("http://www.w3.org/2001/XMLSchema");
-constexpr NameMapping XSD_InitialValues[] { EXI_XSD_IV(GEN_IV, SEP) };
+constexpr StrRef XSD_InitialValues[] { EXI_XSD_IV(GEN_IV, SEP) };
 
 } // namespace `anonymous`
 
@@ -74,7 +70,7 @@ namespace exi::encode {
 
 StringTable::StringTable()
     : NameCache(Alloc), URIMap(4, Alloc),
-      PrefixMap(4, Alloc), LVMap(4), GValueMap(kDefaultReserveSize) {
+      PrefixMap(4, Alloc), LVMap(), GValueMap(kDefaultReserveSize) {
   CHECK_ALIGNMENT(PrefixEntry, STPrefixEntry);
   CHECK_ALIGNMENT(URIEntry,    STURIEntry);
   CHECK_ALIGNMENT(ValueEntry,  STValueEntry);
@@ -198,14 +194,6 @@ void StringTable::cleanupURIStacks() {
 //////////////////////////////////////////////////////////////////////////
 // Uniquing
 
-const QualName* StringTable::internQualName(u32 URI, StrRef LocalName) {
-  SmallStr<80> Storage;
-  this->writeURITagChecked(URI, Storage);
-  Storage.push_back('$');
-  Storage.append(LocalName.begin(), LocalName.end());
-  return X(NameCache.saveRaw(Storage.str()));
-}
-
 std::pair<StringTable::URIEntry*, bool>
  StringTable::createURIOnly(CachedHashStrRef URI) {
   auto [It, DidInsert] = URIMap->try_emplace(URI);
@@ -253,6 +241,39 @@ NSContext StringTable::createURIForInit(StrRef URI, StrRef Pfx) {
   return Ctx;
 }
 
+LocalNameInfo* StringTable::createNewLocalName(URIEntry* URI, StrRef Raw) {
+  const InlineStr* Name = internLocalName(Raw);
+  auto* LN = new (Alloc) LocalNameInfo(X(URI), Name);
+#if EXI_DEBUG
+  auto* Alt = LVMap.GetOrInsertNode(LN);
+  if EXI_UNLIKELY(LN != Alt) {
+    LOG_ERROR("LocalName '{}:{}' was already inserted!", URI->first(), Raw);
+    std::destroy_at(LN);
+    Alloc.Deallocate(LN);
+    return Alt;
+  }
+#else
+  LVMap.InsertNode(LN);
+#endif
+  return LN;
+}
+
+LocalNameInfo* StringTable::getLocalName(URIEntry* URI, StrRef Raw) {
+  exi_invariant(URI != nullptr);
+  FoldingSetNodeID ID;
+  ID.AddString(Raw);
+  ID.AddInteger(VOf(URI)->uri());
+  void* InsertPoint;
+  auto* LN = LVMap.FindNodeOrInsertPos(ID, InsertPoint);
+  // We have to make a new LocalName.
+  if (LN == nullptr) {
+    const InlineStr* Name = internLocalName(Raw);
+    LN = new (Alloc) LocalNameInfo(X(URI), Name);
+    LVMap.InsertNode(LN, InsertPoint);
+  }
+  return LN;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Batch Initialization
 
@@ -281,27 +302,12 @@ void StringTable::createInitialEntries(bool UsesSchema) {
 }
 
 void StringTable::appendLocalNames(
- URIEntry* ID, ArrayRef<NameMapping> LNMappings) {
+ URIEntry* ID, ArrayRef<StrRef> LNMappings) {
   exi_relassert(ID != nullptr);
-  for (auto [Local, Qualified] : LNMappings) {
-    const auto* LN = internQualName(Qualified);
-    this->initLocalName(ID, LN);
+  for (auto Local : LNMappings) {
+    const auto* LN = createNewLocalName(ID, Local);
+    exi_relassert(LN != nullptr);
   }
-}
-
-void StringTable::appendLocalNames(ArrayRef<NameMapping> LNMappings) {
-  for (auto [Local, Qualified] : LNMappings) {
-    const auto* LN = internQualName(Qualified);
-    this->initLocalName(nullptr, LN);
-  }
-}
-
-void StringTable::initLocalName(URIEntry* URI, const QualName* ID) {
-  exi_relassert(ID != nullptr);
-  // Initializing LocalNameInfo.
-  auto [It, DidEmplace] = LVMap.try_emplace(ID, URI);
-  if EXI_UNLIKELY(!DidEmplace)
-    LOG_WARN("\"{}\" already exists.", X(ID)->str());
 }
 
 } // namespace exi::encode

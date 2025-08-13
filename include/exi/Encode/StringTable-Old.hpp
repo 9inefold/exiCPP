@@ -29,7 +29,6 @@
 #include <core/Common/Box.hpp>
 #include <core/Common/CachedHashString.hpp>
 #include <core/Common/DenseMap.hpp>
-#include <core/Common/FoldingSet.hpp>
 #include <core/Common/Naked.hpp>
 #include <core/Common/SmallVec.hpp>
 #include <core/Common/StringMap.hpp>
@@ -106,42 +105,10 @@ public:
   }
 };
 
-/// Represents the `[LNID, [LV...]]` tuple.
-class LocalNameInfo : public FoldingSetNode {
-  friend class StringTable;
-  using LVType = SmallDenseMap<STValueEntry*, CompactID, 8>;
-  /// The ID of the associated URI.
-  unsigned WithURI = 0;
-  /// The id of this LocalName.
-  unsigned LNID = 0;
-  /// The string value of the LocalName.
-  const InlineStr* LocalName;
-  /// The LocalValues associated with this LocalName.
-  mutable LVType LVs;
-
-  /// Gets `WithURI` for `ID`.
-  inline static unsigned CheckURI(STURIEntry* ID);
-  /// Gets `LNID` for `ID`, then increments.
-  inline static unsigned GetLNID(STURIEntry* ID);
-
-public:
-  inline LocalNameInfo(STURIEntry* ID, const InlineStr* LocalName);
-
-  unsigned uri() const { return WithURI; }
-  unsigned id() const { return LNID; }
-  LVType& get() const { return LVs; }
-
-  void Profile(FoldingSetNodeID& ID) const {
-    ID.AddString(LocalName->str());
-    ID.AddInteger(WithURI);
-  }
-};
-
 /// The string table used for encoding. Assumes all inputs it recieves are valid.
 /// TODO: Check if we can get a more optimal memory layout.
 class StringTable {
   friend class exi::NSContextStack;
-  friend class LocalNameInfo;
   /// The allocator shared internally.
   mutable TableBumpAllocator Alloc;
   /// Used to unique strings for lookup.
@@ -421,20 +388,65 @@ private:
   URIStackMapHandler URIStackMap = {};
 
   /// Represents LocalValues.
-  using LocalValuesType = LocalNameInfo::LVType;
-  /// Maps a `(URI, "ln")` pair to its LocalValues.
-  using LNMapType = FoldingSet<LocalNameInfo>;
-  /// Stores the LocalName.
-  using LNEntry = LocalNameInfo;
-  /// Maps a QName to LocalName data: `URI:"ln" -> [LNID, [LV...]]`.
-  LNMapType LVMap;
+  using LocalValuesType = SmallDenseMap<STValueEntry*, CompactID, 8>;
+  /// Represents the `[LNID, [LV...]]` tuple. LocalValues are lazily initialized
+  /// unless told otherwise.
+  struct LocalNameInfo {
+    u32 LNID = 0;
+    DtorOnlyBox<LocalValuesType> LVs;
+
+    static LocalValuesType* GetLVsOrNull(StringTable* Tbl) {
+      if (!Tbl)
+        return nullptr;
+      return new (Tbl->Alloc) LocalValuesType;
+    }
+
+    EXI_COLD void init(BumpPtrAllocator& BP) {
+      exi_invariant(LVs == nullptr);
+      LocalValuesType* Ptr = new (BP) LocalValuesType;
+      LVs.reset(Ptr);
+    }
+
+  public:
+    LocalNameInfo() = default;
+    LocalNameInfo(URIEntry* ID, StringTable* Tbl = nullptr) :
+     LNID(ID ? VOf(ID)->LocalNames++ : 0), LVs(GetLVsOrNull(Tbl)) {
+    }
+
+    u32 id() const { return LNID; }
+    bool didInit() const { return LVs.get(); }
+
+    LocalValuesType& get(const StringTable& Tbl) {
+      return get(Tbl.Alloc);
+    }
+
+    LocalValuesType& get(BumpPtrAllocator& BP) {
+      if EXI_UNLIKELY(!LVs)
+        this->init(BP);
+      return *LVs;
+    }
+
+    Option<LocalValuesType&> get() const {
+      if EXI_UNLIKELY(!LVs)
+        return std::nullopt;
+      return *LVs;
+    }
+  };
+  /// Maps a QName to LocalName data: `"URI$ln" -> [LNID, [LV...]]`.
+  /// FIXME: Replace with `FoldingSet` once implemented?
+  DenseMap<const QualName*, LocalNameInfo> LVMap;
   
   /// The value stored for each entry in the Value map.
   struct ValueInfo {
     /// The value's GlobalID.
     CompactID GID = 0;
+    /// The latest LocalName using this Value.
+    const QualName* Name = nullptr;
     /// The latest `[LocalValues, ID]` associated with this Value.
-    std::pair<LocalNameInfo*, u32> LVs = {nullptr, 0xFFFFFFFF};
+    std::pair<LocalValuesType*, u32> LVs = {nullptr, 0xFFFFFFFF};
+    /// The latest specific bucket associated with this Value.
+    /// @warning May be invalid, ensure `isPointerIntoBucketsArray` is checked.
+    const LocalValuesType::mapped_type* LocalValue = nullptr;
   };
   /// Maps a Value to its corresponding data.
   using ValueMapType = BumpStringMap<ValueInfo, /*IsOwned=*/true>;
@@ -749,7 +761,72 @@ private:
   void cleanupURIStacks();
 
   ////////////////////////////////////////////////////////////////////////
+  // Qualified Names
+
+  enum URITagInfo : usize {
+    kUTagBase = 32,
+    kUTagBits = Log2_64(kUTagBase),
+    kUTagMask = kUTagBase - 1,
+    kUTagIters = (kUTagBase / kUTagBits) + 1,
+  };
+
+  /// Checks if `C` is in the range of our base-32 character mappings.
+  ALWAYS_INLINE static constexpr bool IsURITagChar(char C) {
+    return (C >= '0') && (C <= 'O');
+  }
+
+  template <bool CheckID = true>
+  bool isValidQualifiedName(StrRef S) const {
+    if EXI_UNLIKELY(S.size() < 3)
+      return false;
+    
+    const char* I = S.begin();
+    auto* const E = S.end();
+
+    [[maybe_unused]] u32 ID {};
+    while (IsURITagChar(*I)) {
+      if constexpr (CheckID)
+        ID = (ID << kUTagBits) | u32(*I - '0');
+      if EXI_UNLIKELY(++I == E - 1)
+        return false;
+    }
+
+    if constexpr (CheckID) {
+      if EXI_UNLIKELY(ID >= URIMap->size())
+        return false;
+    }
+    return (*I == '$') && (I + 1 != E);
+  }
+
+  static void WriteURITag(u32 ID, SmallVecImpl<char>& Buf) {
+    if EXI_LIKELY(ID < 32) {
+      Buf.push_back('0' + ID);
+      return;
+    }
+
+    for (int Ix = 0; Ix < int(kUTagIters); ++Ix) {
+      Buf.push_back('0' + (ID & kUTagMask));
+      ID >>= kUTagBits;
+      if EXI_LIKELY(ID == 0)
+        return;
+    }
+  }
+
+  EXI_INLINE void writeURITagChecked(u32 ID, SmallVecImpl<char>& Buf) const {
+    exi_invariant(ID < URIMap->size());
+    return WriteURITag(ID, Buf);
+  }
+
+  ////////////////////////////////////////////////////////////////////////
   // Uniquing
+
+  template <bool CheckID = true>
+  EXI_INLINE const QualName* internQualName(StrRef Raw) {
+    exi_invariant(isValidQualifiedName<CheckID>(Raw));
+    return X(NameCache.saveRaw(Raw));
+  }
+
+  const QualName* internQualName(u32 URI, StrRef LocalName);
 
   /// Gets a new `(URI*, IsNewURI)` from a URI.
   std::pair<URIEntry*, bool> createURIOnly(CachedHashStrRef URI);
@@ -780,23 +857,33 @@ private:
     auto [It, IsNewPfx] = PrefixMap.try_emplace(Pfx);
     return {&*It, IsNewPfx};
   }
+  
+  // Add other stuff...
 
-  EXI_INLINE const InlineStr* internLocalName(StrRef Raw) {
-    return NameCache.saveRaw(Raw);
-  }
-  /// Insert LocalName when it is known to not exist.
-  LocalNameInfo* createNewLocalName(URIEntry* URI, StrRef Raw);
-  /// Get LocalName if it exists, otherwise create new entry.
-  LocalNameInfo* getLocalName(URIEntry* URI, StrRef Raw);
+  ////////////////////////////////////////////////////////////////////////
+  // Local Names
 
   ////////////////////////////////////////////////////////////////////////
   // Batch Initialization
 
+public:
+  /// Only really used for initialization. Maps `"pfx:[ln]" -> "URI$pfx:ln"`.
+  struct NameMapping {
+    StrRef LocalName;
+    StrRef QualifiedName;
+  };
+
+private:
   /// Creates the initial entries for the string table. The values inserted
   /// depend on the schema.
   void createInitialEntries(bool UsesSchema);
   /// Appends LocalNames to the provided URI.
-  void appendLocalNames(URIEntry* ID, ArrayRef<StrRef> LNMappings);
+  void appendLocalNames(URIEntry* ID, ArrayRef<NameMapping> LNMappings);
+  /// Appends LocalNames to the provided URI.
+  [[deprecated("Use the ID bound variant")]]
+  void appendLocalNames(ArrayRef<NameMapping> LNMappings);
+  /// Initializes a unique LocalName entry.
+  void initLocalName(URIEntry* URI, const QualName* ID);
 };
 
 bool PrefixInfo::isSyncedWithURI() const {
@@ -813,23 +900,6 @@ void PrefixInfo::syncWithURI() {
     Throw<uninit_error>("Prefix::Link is uninitialized!");
   // exi_relassert(Link != nullptr);
   PfxLog = StringTable::VOfX(Link)->pfxLog();
-}
-
-inline unsigned LocalNameInfo::CheckURI(STURIEntry* ID) {
-  if EXI_NEVER(!ID)
-    Throw<argument_error>("LocalName URI is null!");
-  return StringTable::VOfX(ID)->uri();
-}
-inline unsigned LocalNameInfo::GetLNID(STURIEntry* ID) {
-  exi_invariant(ID != nullptr);
-  return StringTable::VOfX(ID)->LocalNames++;
-}
-
-inline LocalNameInfo::LocalNameInfo(
-  STURIEntry* ID, const InlineStr* LocalName) :
- WithURI(CheckURI(ID)), LNID(GetLNID(ID)), LocalName(LocalName) {
-  if EXI_NEVER(!LocalName)
-    Throw<argument_error>("LocalName Name is null!");
 }
 
 } // namespace encode
