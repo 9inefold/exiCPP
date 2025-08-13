@@ -392,19 +392,20 @@ public:
       auto Bits = ID_Log2(LN->get().size());
       auto ID = Strings.GetLocalID(GV);
       writer<StrmT>().writeBits64(ID, Bits);
-      LOG_INFO(">> LV hit: {}", ID);
+      LOG_INFO(">> LV (hit): @{} <{}>", ID, Bits);
     } else if (GV) {
       writer<StrmT>().writeUInt(1);
       auto Bits = Strings.getGlobalValueLog();
       auto ID = Strings.GetGlobalID(GV);
       writer<StrmT>().writeBits64(ID, Bits);
       Strings.addLocalValue(LN, GV);
-      LOG_INFO(">> GV hit: {}", ID);
+      LOG_INFO(">> GV (hit): @{} <{}>", ID, Bits);
     } else {
       // Cache miss
       writer<StrmT>().writeUInt(Value.size() + 2);
       writer<StrmT>().writeString(Value);
       Strings.addValue(LN, ChValue);
+      LOG_INFO(">> LV (miss)");
     }
     return ExiError::OK;
   }
