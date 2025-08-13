@@ -199,6 +199,34 @@ void StringTable::cleanupURIStacks() {
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Getters
+
+Result<LocalNameInfo*, LocalNameInsert*>
+ StringTable::lookupLocalName(STURIEntry* URI, StrRef Name) {
+  exi_invariant(URI != nullptr);
+  FoldingSetNodeID ID;
+  ID.AddString(Name);
+  ID.AddInteger(VOfX(URI)->uri());
+  void* InsertPoint;
+  auto* LN = LVMap.FindNodeOrInsertPos(ID, InsertPoint);
+  if (LN == nullptr)
+    return Err(static_cast<LocalNameInsert*>(InsertPoint));
+  return LN;
+}
+
+std::pair<STValueEntry*, bool>
+ StringTable::lookupLocalValue(LocalNameInfo* LN, ImplicitHashStrRef Value) {
+  exi_invariant(LN != nullptr);
+  auto It = GValueMap->find(Value);
+  if (It == GValueMap->end())
+    return {nullptr, false};
+  
+  ValueEntry* GV = &*It;
+  auto [RecentLN, LVID] = VOf(GV)->RecentLV;
+  return {X(GV), RecentLN == LN};
+}
+
+//////////////////////////////////////////////////////////////////////////
 // Uniquing
 
 std::pair<StringTable::URIEntry*, bool>
@@ -265,16 +293,6 @@ LocalNameInfo* StringTable::createNewLocalName(URIEntry* URI, StrRef Raw) {
   return LN;
 }
 
-LocalNameInfo* StringTable::createLocalName(
- STURIEntry* URI, StrRef Name, LocalNameInsert* IP) {
-  if EXI_NEVER(IP == nullptr)
-    Throw<argument_error>("InsertPoint is null!");
-  const InlineStr* Name = internLocalName(Raw);
-  auto* LN = new (Alloc) LocalNameInfo(X(URI), Name);
-  LVMap.InsertNode(LN, InsertPoint);
-  return LN;
-}
-
 std::pair<LocalNameInfo*, bool> StringTable::getLocalName(URIEntry* URI, StrRef Raw) {
   exi_invariant(URI != nullptr);
   FoldingSetNodeID ID;
@@ -292,17 +310,28 @@ std::pair<LocalNameInfo*, bool> StringTable::getLocalName(URIEntry* URI, StrRef 
   return {LN, false};
 }
 
-Result<LocalNameInfo*, LocalNameInsert*>
- StringTable::lookupLocalName(STURIEntry* URI, StrRef Name) {
-  exi_invariant(URI != nullptr);
-  FoldingSetNodeID ID;
-  ID.AddString(Name);
-  ID.AddInteger(VOfX(URI)->uri());
-  void* InsertPoint;
-  auto* LN = LVMap.FindNodeOrInsertPos(ID, InsertPoint);
-  if (LN == nullptr)
-    return Err(static_cast<LocalNameInsert*>(InsertPoint));
+LocalNameInfo* StringTable::addLocalName(
+ STURIEntry* URI, StrRef Raw, LocalNameInsert* IP) {
+  if EXI_NEVER(IP == nullptr)
+    Throw<argument_error>("InsertPoint is null!");
+  const InlineStr* Name = internLocalName(Raw);
+  auto* LN = new (Alloc) LocalNameInfo(URI, Name);
+  LVMap.InsertNode(LN, IP);
   return LN;
+}
+
+STValueEntry* StringTable::addLocalValue(LocalNameInfo* LN, STValueEntry* GV) {
+  exi_invariant(LN && GV);
+  auto [LVID, DidInsert] = LN->addEntry(GV);
+  return GV;
+}
+
+STValueEntry* StringTable::addValue(LocalNameInfo* LN, CachedHashStrRef Value) {
+  exi_invariant(LN != nullptr);
+  const CompactID GID = GValueMap->size();
+  auto [It, DidInsert] = GValueMap->try_emplace(Value, GID);
+  GValueMap.recalculateLog();
+  return this->addLocalValue(LN, X(&*It));
 }
 
 //////////////////////////////////////////////////////////////////////////

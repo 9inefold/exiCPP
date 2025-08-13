@@ -31,7 +31,7 @@
 #include <core/Common/DenseMap.hpp>
 #include <core/Common/FoldingSet.hpp>
 #include <core/Common/Naked.hpp>
-#include <core/Common/PointerUnion.hpp>
+#include <core/Common/Result.hpp>
 #include <core/Common/SmallVec.hpp>
 #include <core/Common/StringMap.hpp>
 #include <core/Common/StrRef.hpp>
@@ -74,6 +74,7 @@ class ImplicitHashStrRef : public CachedHashStrRef {
 public:
   using CachedHashStrRef::CachedHashStrRef;
   ImplicitHashStrRef(StrRef S) : CachedHashStrRef(S) {}
+  ImplicitHashStrRef(CachedHashStrRef S) : CachedHashStrRef(S) {}
 };
 
 /// Using `u32`, because if you have 4 billion uris... wtf.
@@ -131,6 +132,13 @@ public:
   unsigned uri() const { return WithURI; }
   unsigned id() const { return LNID; }
   LVType& get() const { return LVs; }
+
+  std::pair<CompactID, bool> addEntry(STValueEntry* GV) {
+    exi_invariant(GV != nullptr);
+    const CompactID LVID = LVs.size();
+    auto [It, DidInsert] = LVs.try_emplace(GV, LVID);
+    return {LVID, DidInsert};
+  }
 
   void Profile(FoldingSetNodeID& ID) const {
     ID.AddString(LocalName->str());
@@ -435,7 +443,7 @@ private:
     /// The value's GlobalID.
     CompactID GID = 0;
     /// The latest `[LocalValues, ID]` associated with this Value.
-    std::pair<LocalNameInfo*, u32> LVs = {nullptr, 0xFFFFFFFF};
+    std::pair<LocalNameInfo*, u32> RecentLV = {nullptr, 0xFFFFFFFF};
   };
   /// Maps a Value to its corresponding data.
   using ValueMapType = BumpStringMap<ValueInfo, /*IsOwned=*/true>;
@@ -555,6 +563,19 @@ public:
     exi_invariant(Entry != nullptr);
     return VOfX(Entry)->URI;
   }
+  EXI_INLINE static usize GetPfxCount(const STURIEntry* Entry) {
+    exi_invariant(Entry != nullptr);
+    return VOfX(Entry)->PfxMap.size();
+  }
+
+  EXI_INLINE static CompactID GetGlobalID(const STValueEntry* Entry) {
+    exi_invariant(Entry != nullptr);
+    return VOfX(Entry)->GID;
+  }
+  EXI_INLINE static unsigned GetLocalID(const STValueEntry* Entry) {
+    exi_invariant(Entry != nullptr);
+    return VOfX(Entry)->RecentLV.second;
+  }
 
   ////////////////////////////////////////////////////////////////////////
   // Setters
@@ -648,8 +669,30 @@ public:
     return createURI(URI, std::nullopt);
   }
 
-  LocalNameInfo* createLocalName(STURIEntry* URI, StrRef Name, LocalNameInsert*);
-  
+  /// Creates a new URI.
+  STURIEntry* addURI(ImplicitHashStrRef URI) {
+    auto [UI, IsNewURI] = createURIOnly(URI);
+    // TODO: LOG_WARN("URI '{}' already existed.")
+    return X(UI);
+  }
+  /// Creates a new Prefix entry for a URI.
+  STPrefixEntry* addPrefix(STURIEntry* URI, ImplicitHashStrRef Pfx) {
+    exi_invariant(URI != nullptr);
+    auto [PI, IsNewPfx] = createPfxOnly(Pfx);
+    if (IsNewPfx)
+      BindPrefixToNewURI(&PI->second, X(URI));
+    else
+      pushURIContext(PI, X(URI));
+    return X(PI);
+  }
+  /// Creates a new LocalName for a URI.
+  LocalNameInfo* addLocalName(STURIEntry* URI, StrRef Name, LocalNameInsert*);
+
+  /// Creates a new LocalValue for a GV.
+  STValueEntry* addLocalValue(LocalNameInfo* LN, STValueEntry* GV);
+  /// Creates a new GlobalValue and LocalValue for `Value`.
+  STValueEntry* addValue(LocalNameInfo* LN, CachedHashStrRef Value);
+
   /// When encountering a `xmlns:[Pfx]=[URI]`.
   NSContext enterNamespace(ImplicitHashStrRef Pfx, ImplicitHashStrRef URI) {
     return createURI(URI, Pfx);
@@ -664,27 +707,35 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Getters
 
+  /// Returns the `PrefixEntry` for `Pfx`, if it exists.
   STPrefixEntry* lookupPfx(ImplicitHashStrRef Pfx) {
     auto It = PrefixMap.find(Pfx);
     if (It == PrefixMap.end())
       return nullptr;
     return X(&*It);
   }
+  /// Returns the `URIEntry` for `URI`, if it exists.
   STURIEntry* lookupURI(ImplicitHashStrRef URI) {
     auto It = URIMap->find(URI);
     if (It == URIMap->end())
       return nullptr;
     return X(&*It);
   }
-  Result<LocalNameInfo*, LocalNameInsert*>
-   lookupLocalName(STURIEntry* URI, StrRef Name);
-
   /// Gets `URIEntry*` for a given Prefix.
   STURIEntry* getURIFromPfx(ImplicitHashStrRef Pfx) {
     auto It = PrefixMap.find(Pfx);
     exi_assert(It != PrefixMap.end());
     return It->second.Link;
   }
+
+  /// Checks if a LocalName exists for a given `URI:"Name"`.
+  /// If one doesn't, returns an insertion point.
+  Result<LocalNameInfo*, LocalNameInsert*>
+   lookupLocalName(STURIEntry* URI, StrRef Name);
+  /// Returns the `ValueEntry`, if one exists. The bool marks if the value was
+  /// global, or bound to the `LocalName` `LN`.
+  std::pair<STValueEntry*, bool>
+   lookupLocalValue(LocalNameInfo* LN, ImplicitHashStrRef Value);
 
   ////////////////////////////////////////////////////////////////////////
   // Log Getters
@@ -693,9 +744,23 @@ public:
   unsigned getPfxLog(STPrefixEntry* Pfx) const {
     return VOfX(Pfx)->PfxLog;
   }
+  /// Returns the number of bits needed for the given Prefix.
+  unsigned getPfxLogQ(STPrefixEntry* Pfx) const {
+    STURIEntry* URI = VOfX(Pfx)->Link;
+    if EXI_NEVER(!URI)
+      return 0;
+    auto Count = IntCast<unsigned>(GetPfxCount(URI));
+    if (Count == 0)
+      return 0;
+    return ID_Log2(Count - 1);
+  }
   /// Returns an `(ID, Log)` pair for a Prefix.
   std::pair<u32, u32> getPfxIDAndLog(STPrefixEntry* Pfx) const {
     return {GetID(Pfx), getPfxLog(Pfx)};
+  }
+  /// Returns an `(ID, Log)` pair for a Prefix.
+  std::pair<u32, u32> getPfxIDAndLogQ(STPrefixEntry* Pfx) const {
+    return {GetID(Pfx), getPfxLogQ(Pfx)};
   }
 
   /// Returns the number of bits needed for URIs.
@@ -705,6 +770,16 @@ public:
   /// Returns an `(ID, Log)` pair for a URI.
   std::pair<u32, u32> getURIIDAndLog(STURIEntry* URI) const {
     return {GetID(URI), getURILog()};
+  }
+
+  /// Returns the number of bits needed for URIs.
+  unsigned getLocalNameLog(STURIEntry* URI) const {
+    return ID_Log2(VOfX(URI)->LocalNames);
+  }
+
+  /// Returns the number of bits needed for GVs.
+  unsigned getGlobalValueLog() const {
+    return GValueMap.bits();
   }
 
 private:
