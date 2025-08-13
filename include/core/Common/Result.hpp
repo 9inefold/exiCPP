@@ -1,6 +1,6 @@
 //===- Common/Result.hpp --------------------------------------------===//
 //
-// Copyright (C) 2024 Eightfold
+// Copyright (C) 2024-2025 Eightfold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,8 +27,9 @@
 #include <Common/Features.hpp>
 #include <Common/Option.hpp>
 #include <Common/D/Expect.hpp>
+#include <Common/D/AssertExpect.hpp>
 
-// TODO: expect/expect_error
+// TODO: expect_error
 
 namespace exi {
 
@@ -388,7 +389,9 @@ public:
 
 /// Implements functions for `Result<T, ?>`.
 template <typename T, typename E>
-class EXI_EMPTY_BASES Storage : public StorageUnex<T, E> {
+class EXI_EMPTY_BASES Storage
+    : public StorageUnex<T, E>,
+      public H::AssertExpect<Storage<T, E>, /*Owning=*/true> {
   using BaseT = StorageUnex<T, E>;
   using error_type = std::remove_reference_t<E>;
 
@@ -466,18 +469,8 @@ public:
     return &BaseT::X.Data;
   }
 
-  constexpr const T& value() const& EXI_LIFETIMEBOUND {
-    exi_assert(has_value(), "value is inactive!");
-    return BaseT::X.Data;
-  }
-  constexpr T& value() & EXI_LIFETIMEBOUND {
-    exi_assert(has_value(), "value is inactive!");
-    return BaseT::X.Data;
-  }
-  constexpr T&& value() && EXI_LIFETIMEBOUND {
-    exi_assert(has_value(), "value is inactive!");
-    return std::move(BaseT::X.Data);
-  }
+  // Implements value and value_unchecked.
+  EXI_OPTIONSTORAGE_IMPL_VALUE(constexpr, T, BaseT::X.Data)
 
   constexpr const auto* operator->() const& {
     exi_assert(has_value(), "value is inactive!");
@@ -522,7 +515,9 @@ public:
 
 /// Implements functions for `Result<T&, ?>`.
 template <typename T, typename E>
-class EXI_EMPTY_BASES Storage<T&, E> : public StorageUnex<T&, E> {
+class EXI_EMPTY_BASES Storage<T&, E>
+    : public StorageUnex<T&, E>,
+      public H::AssertExpect<Storage<T&, E>, /*Owning=*/false>  {
   using BaseT = StorageUnex<T&, E>;
   using error_type = std::remove_reference_t<E>;
 
@@ -581,6 +576,10 @@ public:
   }
   constexpr T& value() const {
     exi_assert(has_value(), "value is inactive!");
+    return reference();
+  }
+  constexpr T& value_unchecked() const {
+    exi_expensive_invariant(has_value(), "value is inactive!");
     return reference();
   }
 

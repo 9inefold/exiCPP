@@ -250,12 +250,11 @@ public:
   template <typename StrmT>
   ExiError encodeAT(const AttrEvent& AT) {
     auto [Pfx, LN] = SplitName(AT[0]);
-    // FIXME: Garbage
     URIEntry* URIV = EXI_UNWRAP(encodeQName<StrmT>(Pfx, LN));
-    Result LNOrIP = Strings.lookupLocalName(URIV, LN);
-    if (LNOrIP.is_err())
-      exi_guardrail("LN should have been added.");
-    return encodeValue<StrmT>(*LNOrIP, AT[1]);
+    encode::LocalNameInfo* LNV
+      = Strings.lookupLocalName(URIV, LN)
+               .expect("LN should have been added.");
+    return encodeValue<StrmT>(LNV, AT[1]);
   }
 
   template <typename StrmT, bool IsRoot = false>
