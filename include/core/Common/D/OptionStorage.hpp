@@ -74,7 +74,7 @@ CONSTEXPR TYPE& value() & EXI_LIFETIMEBOUND {                                 \
   exi_invariant(has_value(), "value is inactive!");                           \
   return EXPR;                                                                \
 }                                                                             \
-CONSTEXPR TYPE&& value() && {                                                 \
+CONSTEXPR TYPE&& value() && EXI_LIFETIMEBOUND {                               \
   exi_invariant(has_value(), "value is inactive!");                           \
   return std::move(EXPR);                                                     \
 }                                                                             \
@@ -85,7 +85,7 @@ CONSTEXPR const TYPE& value_unchecked() const& EXI_LIFETIMEBOUND {            \
 CONSTEXPR TYPE& value_unchecked() & EXI_LIFETIMEBOUND {                       \
   return EXPR;                                                                \
 }                                                                             \
-CONSTEXPR TYPE&& value_unchecked() && {                                       \
+CONSTEXPR TYPE&& value_unchecked() && EXI_LIFETIMEBOUND {                     \
   return std::move(EXPR);                                                     \
 }
 
