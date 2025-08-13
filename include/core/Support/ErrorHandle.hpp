@@ -94,6 +94,9 @@ class Twine;
   }                                                                           \
 } while(0)
 
+//////////////////////////////////////////////////////////////////////////
+// Implementation
+
 #define EXI__FUNCTION__ (EXI_SMALL_FUNCNAME ? __func__ : EXI_FUNCTION)
 /// Simplified assertion handler, provides required arguments for you.
 #define exi_fail(KIND, MSG) ::exi::exi_assert_impl(                           \
@@ -101,6 +104,9 @@ class Twine;
 
 /// Simplified assertion handler, provides required arguments for you.
 #define exi_fail_stringify(KIND, ...) exi_fail(KIND, "`" #__VA_ARGS__ "`")
+
+//////////////////////////////////////////////////////////////////////////
+// Unreachable
 
 #if !defined(EXI_UNREACHABLE)
 # define EXI_REAL_UNREACHABLE ::exi::exi_unreachable_impl()
@@ -113,17 +119,19 @@ class Twine;
   } while(0)
 #endif
 
-#ifndef NDEBUG
+#if EXI_DEBUG
 # define exi_unreachable(MSG) exi_fail(ASK_Unreachable, MSG)
 #else
 # define exi_unreachable(MSG) EXI_REAL_UNREACHABLE
 #endif
-
 #if EXI_DEBUG || EXI_ENABLE_GUARDRAILS
 # define exi_guardrail(MSG) exi_fail(ASK_Guardrail, MSG)
 #else
 # define exi_guardrail(MSG) EXI_REAL_UNREACHABLE
 #endif
+
+//////////////////////////////////////////////////////////////////////////
+// Miscellaneous
 
 /// Marks a section as unimplemented, with no claims of completion.
 #define exi_unimplemented(MSG) do {                                           \
@@ -141,11 +149,14 @@ class Twine;
     if EXI_NEVER(!static_cast<bool>(__VA_ARGS__))                             \
       exi_fail_stringify(ASK_Assume, __VA_ARGS__);                            \
   } while(0)
-#elif defined(EXI_ASSUME)
+#elif defined(EXI_ASSUME) && !EXI_ENABLE_GUARDRAILS
 # define exi_assume(...) EXI_ASSUME(__VA_ARGS__)
 #else
 # define exi_assume(...) (void(0))
 #endif
+
+//////////////////////////////////////////////////////////////////////////
+// Assertions
 
 /// Provides runtime assertion checking for a generic kind.
 #define exi_assertRT_(KIND, EXPR, ...) void(EXI_ALWAYS((EXPR))                \
@@ -173,10 +184,17 @@ class Twine;
 
 #if EXI_ASSERTS
 /// Takes `(condition, "message")`, asserts in debug mode.
-# define exi_assert(EXPR, ...) \
+# define exi_assert(EXPR, ...)                                                \
  exi_assert_(ASK_Assert, EXPR __VA_OPT__(,) __VA_ARGS__)
 #else
 # define exi_assert(EXPR, ...) exi_assertCT_(EXPR)
+#endif
+#if EXI_ASSERTS || EXI_ENABLE_GUARDRAILS
+/// Takes `(condition, "message")`, asserts in debug mode.
+# define exi_guard_assert(EXPR, ...)                                          \
+ exi_assert_(ASK_Assert, EXPR __VA_OPT__(,) __VA_ARGS__)
+#else
+# define exi_guard_assert(EXPR, ...) exi_assertCT_(EXPR)
 #endif
 
 #if EXI_ASSERTS
@@ -199,6 +217,13 @@ class Twine;
 # define exi_assert_neq(LHS, RHS, ...) exi_assertCT_((LHS) != (RHS))
 #endif
 
+/// Takes `(condition, "message")`, always asserts. Use sparingly.
+# define exi_relassert(EXPR, ...)                                             \
+ exi_assert_(ASK_Assert, EXPR __VA_OPT__(,) __VA_ARGS__)
+
+//////////////////////////////////////////////////////////////////////////
+// Invariants
+
 #if EXI_INVARIANTS
 /// Takes `(condition, "message")`, checks when invariants on.
 # define exi_invariant(EXPR, ...)                                             \
@@ -206,6 +231,15 @@ class Twine;
 #else
 /// Noop in this mode.
 # define exi_invariant(EXPR, ...) exi_assertCT_(EXPR __VA_OPT__(,) __VA_ARGS__)
+#endif
+#if EXI_INVARIANTS || EXI_ENABLE_GUARDRAILS
+/// Takes `(condition, "message")`, checks when invariants on.
+# define exi_guard_invariant(EXPR, ...)                                       \
+ exi_assert_(ASK_Invariant, EXPR __VA_OPT__(,) __VA_ARGS__)
+#else
+/// Noop in this mode.
+# define exi_guard_invariant(EXPR, ...)                                       \
+ exi_assertCT_(EXPR __VA_OPT__(,) __VA_ARGS__)
 #endif
 
 #ifdef EXPENSIVE_CHECKS
@@ -216,7 +250,3 @@ class Twine;
 /// Noop in this mode.
 # define exi_expensive_invariant(EXPR, ...) (void(0))
 #endif
-
-/// Takes `(condition, "message")`, always asserts. Use sparingly.
-# define exi_relassert(EXPR, ...) \
- exi_assert_(ASK_Assert, EXPR __VA_OPT__(,) __VA_ARGS__)
