@@ -348,14 +348,15 @@ public:
 
   template <typename StrmT>
   ExiResult<encode::STPrefixEntry*> encodePfx(encode::STURIEntry* URI, StrRef Pfx) {
+    auto ChPfx = encode::StringTable::prehash(Pfx);
     if (!this->PreservePrefixes()) {
       LOG_ERROR("Encoded NS prefix with prefixes disabled!");
       return Err(ErrorCode::kInconsistentProcState);
     }
-    if (auto* PfxV = Strings.lookupPfx(Pfx))
+    if (auto* PfxV = Strings.lookupPfx(ChPfx))
       return encodePfx<StrmT>(PfxV);
     writer<StrmT>().encodeString(Pfx);
-    return Strings.addPrefix(URI, Pfx);
+    return Strings.addPrefix(URI, ChPfx);
   }
   template <typename StrmT>
   encode::STPrefixEntry* encodePfx(encode::STPrefixEntry* Pfx) {
@@ -368,22 +369,22 @@ public:
 
   template <typename StrmT>
   ExiError encodeValue(encode::LocalNameInfo* LN, StrRef Value) {
-    CachedHashStrRef ChValue(Value);
+    auto ChValue = encode::StringTable::prehash(Value);
     auto [GV, IsLocal] = Strings.lookupLocalValue(LN, ChValue);
     if (IsLocal) {
       exi_invariant(GV, "Local with no GlobalValue?");
-      LOG_INFO(">> LV hit");
       writer<StrmT>().writeUInt(0);
       auto Bits = ID_Log2(LN->get().size());
       auto ID = Strings.GetLocalID(GV);
       writer<StrmT>().writeBits64(ID, Bits);
+      LOG_INFO(">> LV hit: {}", ID);
     } else if (GV) {
-      LOG_INFO(">> GV hit");
       writer<StrmT>().writeUInt(1);
       auto Bits = Strings.getGlobalValueLog();
       auto ID = Strings.GetGlobalID(GV);
       writer<StrmT>().writeBits64(ID, Bits);
       Strings.addLocalValue(LN, GV);
+      LOG_INFO(">> GV hit: {}", ID);
     } else {
       // Cache miss
       writer<StrmT>().writeUInt(Value.size() + 2);

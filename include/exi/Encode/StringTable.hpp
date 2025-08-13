@@ -73,8 +73,13 @@ using BumpStringMap = StringMap<Value,
 class ImplicitHashStrRef : public CachedHashStrRef {
 public:
   using CachedHashStrRef::CachedHashStrRef;
-  ImplicitHashStrRef(StrRef S) : CachedHashStrRef(S) {}
-  ImplicitHashStrRef(CachedHashStrRef S) : CachedHashStrRef(S) {}
+  ImplicitHashStrRef(StrRef S) : CachedHashStrRef(S, StringMapImpl::hash(S)) {}
+  ImplicitHashStrRef(CachedHashStrRef S) : CachedHashStrRef(S) {
+    exi_invariant(S.hash() == StringMapImpl::hash(S.val()));
+  }
+  constexpr bool operator==(const CachedHashStrRef& S) const {
+    return CachedHashStrRef::equals(S);
+  }
 };
 
 /// Using `u32`, because if you have 4 billion uris... wtf.
