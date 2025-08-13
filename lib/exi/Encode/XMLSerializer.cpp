@@ -191,7 +191,7 @@ private:
       if (Pfx.empty())
         Ctx.LocalNS = A;
     } else {
-      auto AttrName = A->name().drop_front(5);
+      auto AttrName = A->name().drop_front(6);
       if (Pfx == AttrName)
         Ctx.LocalNS = A;
     }
@@ -243,7 +243,7 @@ private:
       exi_assert(Out.consume_front("xmlns"));
       return ""_str;
     } else {
-      exi_assert(Out.consume_front("xmlns"));
+      exi_assert(Out.consume_front("xmlns:"));
       return Out;
     }
 #else
@@ -331,6 +331,10 @@ private:
   /// Handles StartElement events + PreParsed ATtributes.
   template <bool IsRoot = false>
   EXI_FLATTEN ExiError handleSEWithPPAT(XMLNode* N, PPAttributeCtx& Ctx) {
+    LOG_EXTRA(">>> Scanned {} NS{}, {} AT",
+              Ctx.NS.size(),
+              Ctx.LocalNS ? " (local)" : "",
+              Ctx.Attrs.size());
     exi_try(dispatchHandleSE(N, Ctx));
     exi_try(dispatchHandleNS<IsRoot>(N, Ctx));
     exi_try(handleXsiBuiltins(N, Ctx));

@@ -31,6 +31,8 @@
 #include <exi/Grammar/EncoderSchema.hpp>
 #include <exi/Stream/OrderedWriter.hpp>
 
+#define DEBUG_TYPE "OrderedEncoder"
+
 namespace exi {
 
 class OrderedEncoder final : public BodyEncoder {
@@ -110,6 +112,14 @@ private:
       Writer.emplace<ByteWriter>(BufOrStrm, Rest...);
     }
     IsStreamInitialized = true;
+  }
+
+  template <typename StrmT = OrderedWriter>
+  EXI_INLINE StrmT& writer() {
+    if constexpr (std::same_as<StrmT, OrderedWriter>)
+      return *Writer;
+    else
+      return cast<StrmT>(Writer);
   }
 
 public:
@@ -204,9 +214,184 @@ public:
     return getSchema()->encode(this, DocType);
   }
 
-private:
   ////////////////////////////////////////////////////////////////////////
   // Terms
+
+  [[nodiscard]] static std::pair<StrRef, StrRef> SplitName(StrRef S) {
+    usize Idx = S.find(':');
+    if (Idx == StrRef::npos)
+      return std::make_pair(StrRef(), S);
+    return std::make_pair(S.slice(0, Idx), S.substr(Idx + 1));
+  }
+  static StrRef GetSEUriValue(const StartElemURIEvent& SE) {
+    if EXI_LIKELY(SE.Tag == 1)
+      return StrRef(SE.URI, SE.Extra);
+    else
+      return encode::StringTable::GetURI(SE.OpaqueURI);
+  }
+
+  template <typename StrmT>
+  ExiResult<encode::STURIEntry*> encodeSE(const StartElemEvent& SE) {
+    StrRef Name(SE.Data, SE.Size);
+    return encodeQName<StrmT>(Name);
+  }
+  template <typename StrmT>
+  ExiResult<encode::STURIEntry*> encodeSEUri(const StartElemURIEvent& SE) {
+    StrRef Name(SE.Data, SE.Size);
+    return encodeQName<StrmT>(Name, GetSEUriValue(SE));
+  }
+
+  /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.
+  template <typename StrmT>
+  ExiResult<encode::STURIEntry*> encodeQName(StrRef Name) {
+    LOG_EXTRA(">> Name: {}", Name);
+    auto [Pfx, LN] = SplitName(Name);
+    auto* PfxV = Strings.lookupPfx(Pfx);
+    auto* URIV = Strings.GetURIEntry(PfxV);
+    if EXI_NEVER(URIV == nullptr) {
+      LOG_ERROR("No URI bound to prefix '{}'", Pfx);
+      return Err(ErrorCode::kNullptrRef);
+    }
+    
+    (void) encodeURI<StrmT>(URIV);
+    exi_try_r(encodeName<StrmT>(URIV, LN));
+    exi_try_r(encodePfxQ<StrmT>(PfxV));
+    return URIV;
+  }
+  /// Encodes a `*:local-name` with a late-bound prefix mapping.
+  template <typename StrmT>
+  ExiResult<encode::STURIEntry*> encodeQName(StrRef Name, StrRef URI) {
+    LOG_EXTRA(">> Name: {}, URI: {}", Name, URI);
+    auto [Pfx, LN] = SplitName(Name);
+    auto* PfxV = Strings.lookupPfx(Pfx);
+    auto* URIV = encodeURI<StrmT>(URI);
+    if EXI_NEVER(URIV == nullptr) {
+      LOG_ERROR("No URI could be bound to prefix '{}'", Pfx);
+      return Err(ErrorCode::kUnexpectedError);
+    }
+
+    exi_try_r(encodeName<StrmT>(URIV, LN));
+    exi_try_r(encodePfxQ<StrmT>(PfxV));
+    return URIV;
+  }
+
+  template <typename StrmT, bool IsRoot = false>
+  ExiError encodeNS(const NamespaceEvent& NS) {
+    StrRef URI(NS.UriData, NS.UriSize);
+    auto* URIV = encodeURI<StrmT>(URI);
+    exi_assert(URIV != nullptr);
+    StrRef Pfx(NS.PfxData, NS.PfxSize);
+    Result PfxOrErr = encodePfx<StrmT>(URIV, Pfx);
+    if EXI_UNLIKELY(PfxOrErr.is_err())
+      return PfxOrErr.error();
+    if constexpr (!IsRoot)
+      CtxStack.add(Strings, *PfxOrErr);
+    writer<StrmT>().writeBit(NS.IsLocal);
+    return ExiError::OK;
+  }
+
+  /// Encodes a uri.
+  template <typename StrmT>
+  encode::STURIEntry* encodeURI(StrRef URI) {
+    if (auto* URIV = Strings.lookupURI(URI))
+      return encodeURI<StrmT>(URIV);
+    return encodeURIStr<StrmT>(URI);
+  }
+  /// Encodes a given `URIEntry`.
+  template <typename StrmT>
+  encode::STURIEntry* encodeURI(encode::STURIEntry* URI) {
+    auto [ID, Bits] = Strings.getURIIDAndLog(URI);
+    writer<StrmT>().writeBits64(ID + 1, Bits);
+    return URI;
+  }
+  /// Encodes a uri string.
+  template <typename StrmT>
+  encode::STURIEntry* encodeURIStr(StrRef URI) {
+    u32 Bits = Strings.getURILog();
+    writer<StrmT>().writeBits64(0, Bits);
+    writer<StrmT>().encodeString(URI);
+    return Strings.addURI(URI);
+  }
+
+  template <typename StrmT>
+  ExiError encodeName(encode::STURIEntry* URI, StrRef LN) {
+    Result LNOrIP = Strings.lookupLocalName(URI, LN);
+    if (LNOrIP.is_ok())
+      return encodeName<StrmT>(URI, *LNOrIP);
+    auto* IP = LNOrIP.error();
+    if (!IP) {
+      LOG_ERROR("InsertionPoint cannot be null!");
+      return ErrorCode::kNullptrRef;
+    }
+    writer<StrmT>().writeUInt(LN.size() + 1);
+    writer<StrmT>().writeString(LN);
+    Strings.addLocalName(URI, LN, IP);
+    return ExiError::OK;
+  }
+  template <typename StrmT>
+  ExiError encodeName(encode::STURIEntry* URI, encode::LocalNameInfo* LN) {
+    u32 Bits = Strings.getLocalNameLog(URI);
+    writer<StrmT>().writeBits64(LN->id(), Bits);
+    return ExiError::OK;
+  }
+
+  template <typename StrmT>
+  ExiError encodePfxQ(encode::STPrefixEntry* Pfx) {
+    if (!this->PreservePrefixes() || !Pfx) {
+      // LOG_WARN("Pfx is null.");
+      return ExiError::OK;
+    }
+    auto [ID, Bits] = Strings.getPfxIDAndLogQ(Pfx);
+    writer<StrmT>().writeBits64(ID, Bits);
+    return ExiError::OK;
+  }
+
+  template <typename StrmT>
+  ExiResult<encode::STPrefixEntry*> encodePfx(encode::STURIEntry* URI, StrRef Pfx) {
+    if (!this->PreservePrefixes()) {
+      LOG_ERROR("Encoded NS prefix with prefixes disabled!");
+      return Err(ErrorCode::kInconsistentProcState);
+    }
+    if (auto* PfxV = Strings.lookupPfx(Pfx))
+      return encodePfx<StrmT>(PfxV);
+    writer<StrmT>().encodeString(Pfx);
+    return Strings.addPrefix(URI, Pfx);
+  }
+  template <typename StrmT>
+  encode::STPrefixEntry* encodePfx(encode::STPrefixEntry* Pfx) {
+    if (auto Bits = Strings.getPfxLog(Pfx)) {
+      auto ID = Strings.GetID(Pfx);
+      writer<StrmT>().writeBits64(ID + 1, Bits);
+    }
+    return Pfx;
+  }
+
+  template <typename StrmT>
+  ExiError encodeValue(encode::LocalNameInfo* LN, StrRef Value) {
+    CachedHashStrRef ChValue(Value);
+    auto [GV, IsLocal] = Strings.lookupLocalValue(LN, ChValue);
+    if (IsLocal) {
+      exi_invariant(GV, "Local with no GlobalValue?");
+      LOG_INFO(">> LV hit");
+      writer<StrmT>().writeUInt(0);
+      auto Bits = ID_Log2(LN->get().size());
+      auto ID = Strings.GetLocalID(GV);
+      writer<StrmT>().writeBits64(ID, Bits);
+    } else if (GV) {
+      LOG_INFO(">> GV hit");
+      writer<StrmT>().writeUInt(1);
+      auto Bits = Strings.getGlobalValueLog();
+      auto ID = Strings.GetGlobalID(GV);
+      writer<StrmT>().writeBits64(ID, Bits);
+      Strings.addLocalValue(LN, GV);
+    } else {
+      // Cache miss
+      writer<StrmT>().writeUInt(Value.size() + 2);
+      writer<StrmT>().writeString(Value);
+      Strings.addValue(LN, ChValue);
+    }
+    return ExiError::OK;
+  }
 };
 
 } // namespace exi
@@ -265,3 +450,5 @@ inline void* operator new[](usize Bytes, const exi::OrderedEncoder& OE,
 inline void operator delete[](void* Ptr, const exi::OrderedEncoder& OE, usize) {
   OE.Deallocate(Ptr);
 }
+
+#undef DEBUG_TYPE

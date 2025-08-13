@@ -330,10 +330,28 @@ private:
 
   CC GNU_ATTR(hot) ExiError handleStartTag(ORDERED_ARGS) {
     exi_todo("Implement StartTagContent");
+    switch (K) {
+    case SimpleEventTerm::EE:
+      tail_return this->handleEE<true>(ORDERED_NEXT);
+    case SimpleEventTerm::AT:
+      tail_return this->handleAT(ORDERED_NEXT);
+    case SimpleEventTerm::NS:
+      tail_return this->handleNS(ORDERED_NEXT);
+    case SimpleEventTerm::SC:
+      tail_return this->handleSC(ORDERED_NEXT);
+    default:
+      tail_return this->handleChildContent<true>(ORDERED_NEXT);
+    }
   }
 
   CC GNU_ATTR(hot) ExiError handleElement(ORDERED_ARGS) {
     exi_todo("Implement ElementContent");
+    switch (K) {
+    case SimpleEventTerm::EE:
+      tail_return this->handleEE<false>(ORDERED_NEXT);
+    default:
+      tail_return this->handleChildContent<false>(ORDERED_NEXT);
+    }
   }
 
   /// Events shared between StartTag and Element.
@@ -413,7 +431,24 @@ private:
   }
   template <bool IsRoot = false>
   CC ExiError handleSE(OrderedEncoder* OE, const StartElemEvent& SE) {
+    if EXI_UNLIKELY(SE.Tag != 0)
+      tail_return this->handleSEUri<IsRoot>(OE, SE);
+    Result R = OE->encodeSE<StrmT>(SE);
+    if constexpr (IsRoot) {
+      this->pushGrammar(StartTagContent);
+      return R.error_or(ExiError::OK);
+    }
     exi_todo("Implement SE");
+  }
+  template <bool IsRoot = false>
+  CC_INLINE ExiError handleSEUri(OrderedEncoder* OE, const StartElemEvent& SE) {
+    auto& SEUri = static_cast<const StartElemURIEvent&>(SE);
+    Result R = OE->encodeSEUri<StrmT>(SEUri);
+    if constexpr (IsRoot) {
+      this->pushGrammar(StartTagContent);
+      return R.error_or(ExiError::OK);
+    }
+    exi_todo("Implement SEUri");
   }
 
   /// Since element grammars always have single term EE event codes, we don't
@@ -433,7 +468,7 @@ private:
 
   template <bool IsRoot = false>
   EXI_FLATTEN CC ExiError handleNS(ORDERED_ARGS) {
-    return this->handleSE<IsRoot>(OE,
+    return this->handleNS<IsRoot>(OE,
       event_cast<SimpleEventTerm::NS>(Event, K));
   }
   template <bool IsRoot = false>
@@ -447,6 +482,12 @@ private:
   }
   CC ExiError handleCH(OrderedEncoder* OE, const CharEvent& NS) {
     exi_todo("Implement CH");
+  }
+
+  EXI_NO_INLINE CC ExiError handleSC(ORDERED_ARGS) {
+    LOG_ERROR("SC events are not supported.");
+    this->pushGrammar(Fragment);
+    return ExiError::TODO;
   }
 
   template <bool IsStart>
