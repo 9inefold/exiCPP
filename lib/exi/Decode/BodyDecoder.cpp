@@ -351,9 +351,9 @@ Option<StrRef> ExiDecoder::tryGetPfx(CompactID URI, CompactID PfxID) {
 
 template <typename StrmT>
 ExiResult<EventUID> ExiDecoder::decodeQName() {
-  const CompactID URI = $unwrap(decodeURI<StrmT>());
-  const CompactID LNI = $unwrap(decodeName<StrmT>(URI));
-  Option Pfx = $unwrap(decodePfxQ<StrmT>(URI));
+  const CompactID URI = EXI_UNWRAP(decodeURI<StrmT>());
+  const CompactID LNI = EXI_UNWRAP(decodeName<StrmT>(URI));
+  Option Pfx = EXI_UNWRAP(decodePfxQ<StrmT>(URI));
 
   auto QName = SmallQName::NewQName(URI, LNI);
   return Ok(EventUID::NewQName(QName, Pfx));
@@ -361,8 +361,8 @@ ExiResult<EventUID> ExiDecoder::decodeQName() {
 
 template <typename StrmT>
 ExiResult<EventUID> ExiDecoder::decodeNS() {
-  const CompactID URI = $unwrap(decodeURI<StrmT>());
-  const CompactID PfxID = $unwrap(decodePfx<StrmT>(URI));
+  const CompactID URI = EXI_UNWRAP(decodeURI<StrmT>());
+  const CompactID PfxID = EXI_UNWRAP(decodePfx<StrmT>(URI));
 
   bool IsLocal = false;
   exi_try_r(reader<StrmT>().readBit(IsLocal));
@@ -387,7 +387,7 @@ ExiResult<CompactID> ExiDecoder::decodeURI() {
     StrRef URIStr;
     SmallStr<32> Data;
     LOG_POSITION(this);
-    StrRef Str = $unwrap(reader<StrmT>().decodeString(Data));
+    StrRef Str = EXI_UNWRAP(reader<StrmT>().decodeString(Data));
     std::tie(URIStr, URI) = Strings.addURI(Str);
     LOG_INFO(">> URI(Miss) @{}: \"{}\"", URI, URIStr);
   } else {
@@ -425,7 +425,7 @@ ExiResult<CompactID> ExiDecoder::decodeName(CompactID URI) {
     // Cache miss
     LnID -= 1;
     SmallStr<32> Data;
-    StrRef Str = $unwrap(reader<StrmT>().readString(LnID, Data));
+    StrRef Str = EXI_UNWRAP(reader<StrmT>().readString(LnID, Data));
     std::tie(LocalName, LnID) = Strings.addLocalName(URI, Str);
   }
 
@@ -479,7 +479,7 @@ ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
   } else {
     // Cache miss
     SmallStr<32> Data;
-    StrRef Str = $unwrap(reader<StrmT>().decodeString(Data));
+    StrRef Str = EXI_UNWRAP(reader<StrmT>().decodeString(Data));
     std::tie(Pfx, PfxID) = Strings.addPrefix(URI, Str);
   }
 
@@ -529,7 +529,7 @@ ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
     // Cache miss
     const u64 Size = (ValID - 2);
     SmallStr<80> Data;
-    StrRef Str = $unwrap(readString<StrmT>(Size, Data));
+    StrRef Str = EXI_UNWRAP(readString<StrmT>(Size, Data));
     auto [Value, GID, LnID] = Strings.addValue(Name, Str);
 
 #if EXI_LOGGING

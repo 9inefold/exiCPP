@@ -32,13 +32,13 @@
 #if defined(_MSC_VER) && !defined(__GNUC__)
 /// Unwrapping not possible on MSVC.
 # define EXI_UNWRAP(VAL, ...) [&]() {                                         \
-  static_assert("$unwrap not available on MSVC!");                            \
+  static_assert("EXI_UNWRAP not available on MSVC!");                         \
   auto&& _u_Obj = VAL;                                                        \
   return ::exi::Expect{*EXI_FWD(_u_Obj)};                                     \
 }().value()
 /// Unwrapping not possible on MSVC.
 # define EXI_UNWRAP_RAW(VAL, ...) [&]() {                                     \
-  static_assert("$unwrap_raw not available on MSVC!");                        \
+  static_assert("EXI_UNWRAP_RAW not available on MSVC!");                     \
   auto&& _u_Obj = VAL;                                                        \
   return EXI_FWD(_u_Obj);                                                     \
 }()
@@ -66,8 +66,6 @@
 #endif
 #endif
 
-#define $unwrap(VAL, ...) (EXI_UNWRAP((VAL) __VA_OPT__(,) __VA_ARGS__))
-#define $unwrap_raw(VAL, ...) (EXI_UNWRAP_RAW((VAL) __VA_OPT__(,) __VA_ARGS__))
 
 namespace exi::H {
 
@@ -85,14 +83,14 @@ concept has__exi_unwrap_fail = requires(T Data, Args...Extra) {
 
 template <typename T>
 EXI_REQUIRES_IF(has__exi_unwrap_chk<T>, "Missing exi_unwrap_chk!")
-ALWAYS_INLINE constexpr bool unwrap_chk(const T& Data) {
+EXI_FLATTEN ALWAYS_INLINE constexpr bool unwrap_chk(const T& Data) {
   using namespace ::exi;
   return exi_unwrap_chk(Data);
 }
 
 template <typename T, typename...Args>
 EXI_REQUIRES_IF((has__exi_unwrap_fail<T, Args...>), "Missing exi_unwrap_fail!")
-ALWAYS_INLINE constexpr decltype(auto)
+EXI_FLATTEN constexpr decltype(auto)
  unwrap_fail(T&& Data, Args&&...Extra) {
   using namespace ::exi;
   return exi_unwrap_fail(EXI_FWD(Data), EXI_FWD(Extra)...);
