@@ -29,6 +29,7 @@
 namespace exi::encode {
 
 class StringTable;
+class LocalNameInfo;
 
 // TODO: Enable macro expansion for EXI_OPAQUE_HANDLE[_T]
 // See https://stackoverflow.com/questions/42300539/documenting-macros-using-doxygen

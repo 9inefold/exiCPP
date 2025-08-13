@@ -117,6 +117,8 @@ public:
 class LocalNameInfo : public FoldingSetNode {
   friend class StringTable;
   using LVType = SmallDenseMap<STValueEntry*, CompactID, 8>;
+  /// The URI associated with this LocalName.
+  STURIEntry* URI;
   /// The ID of the associated URI.
   unsigned WithURI = 0;
   /// The id of this LocalName.
@@ -136,13 +138,19 @@ public:
 
   unsigned uri() const { return WithURI; }
   unsigned id() const { return LNID; }
-  LVType& get() const { return LVs; }
+  STURIEntry* link() const { return URI; }
+
+  LVType& values() const { return LVs; }
+  unsigned size() const { return LVs.size(); }
+  unsigned log() const { return ID_Log2(LVs.size()); }
 
   std::pair<CompactID, bool> addEntry(STValueEntry* GV) {
     exi_invariant(GV != nullptr);
     const CompactID LVID = LVs.size();
     auto [It, DidInsert] = LVs.try_emplace(GV, LVID);
-    return {LVID, DidInsert};
+    if EXI_UNLIKELY(!DidInsert)
+      return {It->second, false};
+    return {LVID, true};
   }
 
   void Profile(FoldingSetNodeID& ID) const {
@@ -176,6 +184,7 @@ class StringTable {
     return X(Unmap(Val));
   }
 
+public:
   /// TODO: Use to pack memory? (and profile...)
   static constexpr u32 kURIMax = 0xFFFFFF;
   static constexpr u32 kURIUninit = max_v<u32>;
@@ -297,7 +306,6 @@ class StringTable {
   /// Stores the mapping between a URI and its associated ID.
   using URIEntry = URIMapType::value_type;
 
-public:
   friend struct PrefixInfo;
   /// Maps a Prefix to its corresponding URI(s).
   using PrefixMapType = BumpStringMap<PrefixInfo>;
@@ -310,8 +318,6 @@ private:
   /// Used to map Prefixes to URIs (and their IDs).
   PrefixMapType PrefixMap;
 
-  // TODO: Add Deque<ExternAllocBumpStringMap<QualName*>>?
-  
   static constexpr unsigned kURIStackElts = 8;
   /// Represents nested namespace contexts.
   using URIStack = SmallVec<PrefixInfo, 1>;
@@ -434,15 +440,14 @@ private:
   /// Lazily initialized as many files will not require it.
   URIStackMapHandler URIStackMap = {};
 
+public:
   /// Represents LocalValues.
   using LocalValuesType = LocalNameInfo::LVType;
   /// Maps a `(URI, "ln")` pair to its LocalValues.
   using LNMapType = FoldingSet<LocalNameInfo>;
   /// Stores the LocalName.
   using LNEntry = LocalNameInfo;
-  /// Maps a QName to LocalName data: `URI:"ln" -> [LNID, [LV...]]`.
-  LNMapType LVMap;
-  
+
   /// The value stored for each entry in the Value map.
   struct ValueInfo {
     /// The value's GlobalID.
@@ -454,6 +459,10 @@ private:
   using ValueMapType = BumpStringMap<ValueInfo, /*IsOwned=*/true>;
   /// Stores the mapping between a Value and its corresponding data.
   using ValueEntry = ValueMapType::value_type;
+
+private:
+  /// Maps a QName to LocalName data: `URI:"ln" -> [LNID, [LV...]]`.
+  LNMapType LVMap;
   /// Handles the mapping from the string representation of a value to the
   /// value's data. Lookups aren't done through NameCache to reduce the number
   /// of searches required for that.
@@ -580,6 +589,11 @@ public:
       return nullptr;
     exi_invariant(PMap.back(), "Invalid Prefix entry!");
     return XUnmap(PMap.back());
+  }
+
+  EXI_INLINE static URIEntry* GetLink(const LNEntry* Entry) {
+    exi_invariant(Entry != nullptr);
+    return X(Entry->link());
   }
 
   EXI_INLINE static CompactID GetGlobalID(const STValueEntry* Entry) {
@@ -797,9 +811,10 @@ public:
     return GValueMap.bits();
   }
 
-private:
-  // TODO: Finish design...
+  ////////////////////////////////////////////////////////////////////////
+  // Logging
 
+private:
   ////////////////////////////////////////////////////////////////////////
   // Prefixes
 
@@ -919,9 +934,8 @@ inline unsigned LocalNameInfo::GetLNID(STURIEntry* ID) {
   return StringTable::VOfX(ID)->LocalNames++;
 }
 
-inline LocalNameInfo::LocalNameInfo(
-  STURIEntry* ID, const InlineStr* LocalName) :
- WithURI(CheckURI(ID)), LNID(GetLNID(ID)), LocalName(LocalName) {
+inline LocalNameInfo::LocalNameInfo(STURIEntry* ID, const InlineStr* LocalName) :
+ URI(ID), WithURI(CheckURI(ID)), LNID(GetLNID(ID)), LocalName(LocalName) {
   if EXI_NEVER(!LocalName)
     Throw<argument_error>("LocalName Name is null!");
 }

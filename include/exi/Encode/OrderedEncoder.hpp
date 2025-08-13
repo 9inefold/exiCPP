@@ -218,9 +218,9 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Terms
 
-  using URIEntry = encode::STURIEntry;
+  using URIEntry    = encode::STURIEntry;
   using PrefixEntry = encode::STPrefixEntry;
-  using ValueEntry = encode::STValueEntry;
+  using ValueEntry  = encode::STValueEntry;
 
   [[nodiscard]] static std::pair<StrRef, StrRef> SplitName(StrRef S) {
     usize Idx = S.find(':');
@@ -391,7 +391,7 @@ public:
     auto [GV, IsLocal] = Strings.lookupLocalValue(LN, ChValue);
     if (IsLocal && GV) /*TODO: Assert GV*/ {
       writer<StrmT>().writeUInt(0);
-      unsigned Bits = ID_Log2(LN->get().size());
+      unsigned Bits = LN->log();
       unsigned ID = Strings.GetLocalID(GV);
       writer<StrmT>().writeBits64(ID, Bits);
       LOG_INFO(">> LV (hit): @{} <{}>", ID, Bits);
