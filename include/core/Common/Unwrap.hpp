@@ -66,6 +66,13 @@
 #endif
 #endif
 
+/// Checks if the value can be unwrapped. Returns the same as `EXI_UNWRAP`.
+#define exi_try_unwrap(VAL, ...) do {                                         \
+  auto&& _u_Obj = VAL;                                                        \
+  if (!::exi::H::unwrap_chk(_u_Obj))                                          \
+    return ::exi::H::unwrap_fail(                                             \
+      static_cast<decltype(VAL)>(_u_Obj), ##__VA_ARGS__);                     \
+} while(0)
 
 namespace exi::H {
 

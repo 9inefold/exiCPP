@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <core/Common/Unwrap.hpp>
 #include <exi/Basic/XML.hpp>
 #include <exi/Encode/BodyEncoder.hpp>
 #include <exi/Encode/StringTable.hpp>
@@ -30,8 +31,6 @@
 #include <exi/Encode/BodyEncoderAlloc.hpp>
 #include <exi/Grammar/EncoderSchema.hpp>
 #include <exi/Stream/OrderedWriter.hpp>
-// TODO: Remove
-#include <core/Common/Unwrap.hpp>
 
 #define DEBUG_TYPE "OrderedEncoder"
 
@@ -264,8 +263,7 @@ public:
     exi_assert(URIV != nullptr);
     StrRef Pfx(NS.PfxData, NS.PfxSize);
     Result PfxOrErr = encodePfx<StrmT>(URIV, Pfx);
-    if EXI_UNLIKELY(PfxOrErr.is_err())
-      return PfxOrErr.error();
+    exi_try_unwrap(PfxOrErr);
     if constexpr (!IsRoot)
       CtxStack.add(Strings, *PfxOrErr);
     writer<StrmT>().writeBit(NS.IsLocal);
