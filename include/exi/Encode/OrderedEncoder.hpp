@@ -30,6 +30,8 @@
 #include <exi/Encode/BodyEncoderAlloc.hpp>
 #include <exi/Grammar/EncoderSchema.hpp>
 #include <exi/Stream/OrderedWriter.hpp>
+// TODO: Remove
+#include <core/Common/Unwrap.hpp>
 
 #define DEBUG_TYPE "OrderedEncoder"
 
@@ -217,6 +219,10 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Terms
 
+  using URIEntry = encode::STURIEntry;
+  using PrefixEntry = encode::STPrefixEntry;
+  using ValueEntry = encode::STValueEntry;
+
   [[nodiscard]] static std::pair<StrRef, StrRef> SplitName(StrRef S) {
     usize Idx = S.find(':');
     if (Idx == StrRef::npos)
@@ -231,12 +237,12 @@ public:
   }
 
   template <typename StrmT>
-  ExiResult<encode::STURIEntry*> encodeSE(const StartElemEvent& SE) {
+  ExiResult<URIEntry*> encodeSE(const StartElemEvent& SE) {
     StrRef Name(SE.Data, SE.Size);
     return encodeQName<StrmT>(Name);
   }
   template <typename StrmT>
-  ExiResult<encode::STURIEntry*> encodeSEUri(const StartElemURIEvent& SE) {
+  ExiResult<URIEntry*> encodeSEUri(const StartElemURIEvent& SE) {
     StrRef Name(SE.Data, SE.Size);
     return encodeLateBoundQName<StrmT>(Name, GetSEUriValue(SE));
   }
@@ -245,9 +251,8 @@ public:
   ExiError encodeAT(const AttrEvent& AT) {
     auto [Pfx, LN] = SplitName(AT[0]);
     // FIXME: Garbage
-    Result R = encodeQName<StrmT>(Pfx, LN);
-    exi_try(R.error_or(ExiError::OK));
-    auto LNOrIP = Strings.lookupLocalName(*R, LN);
+    URIEntry* URIV = EXI_UNWRAP(encodeQName<StrmT>(Pfx, LN));
+    Result LNOrIP = Strings.lookupLocalName(URIV, LN);
     if (LNOrIP.is_err())
       exi_guardrail("LN should have been added.");
     return encodeValue<StrmT>(*LNOrIP, AT[1]);
@@ -256,7 +261,7 @@ public:
   template <typename StrmT, bool IsRoot = false>
   ExiError encodeNS(const NamespaceEvent& NS) {
     StrRef URI(NS.UriData, NS.UriSize);
-    auto* URIV = encodeURI<StrmT>(URI);
+    URIEntry* URIV = encodeURI<StrmT>(URI);
     exi_assert(URIV != nullptr);
     StrRef Pfx(NS.PfxData, NS.PfxSize);
     Result PfxOrErr = encodePfx<StrmT>(URIV, Pfx);
@@ -270,15 +275,15 @@ public:
 
   /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.
   template <typename StrmT>
-  ExiResult<encode::STURIEntry*> encodeQName(StrRef Name) {
+  ExiResult<URIEntry*> encodeQName(StrRef Name) {
     auto [Pfx, LN] = SplitName(Name);
     return encodeQName<StrmT>(Pfx, LN);
   }
   /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.
   template <typename StrmT>
-  ExiResult<encode::STURIEntry*> encodeQName(StrRef Pfx, StrRef LN) {
-    auto* PfxV = Strings.lookupPfx(Pfx);
-    auto* URIV = Strings.GetURIEntry(PfxV);
+  ExiResult<URIEntry*> encodeQName(StrRef Pfx, StrRef LN) {
+    PrefixEntry* PfxV = Strings.lookupPfx(Pfx);
+    URIEntry* URIV = Strings.GetURIEntry(PfxV);
     if EXI_NEVER(URIV == nullptr) {
       LOG_ERROR("No URI bound to prefix '{}'", Pfx);
       return Err(ErrorCode::kNullptrRef);
@@ -290,9 +295,9 @@ public:
   }
   /// Encodes a `*:local-name` with a late-bound prefix mapping.
   template <typename StrmT>
-  ExiResult<encode::STURIEntry*> encodeLateBoundQName(StrRef Name, StrRef URI) {
+  ExiResult<URIEntry*> encodeLateBoundQName(StrRef Name, StrRef URI) {
     auto [Pfx, LN] = SplitName(Name);
-    auto* URIV = encodeURI<StrmT>(URI);
+    URIEntry* URIV = encodeURI<StrmT>(URI);
     if EXI_NEVER(URIV == nullptr) {
       LOG_ERROR("No URI could be bound to prefix '{}'", Pfx);
       return Err(ErrorCode::kUnexpectedError);
@@ -306,21 +311,21 @@ public:
 
   /// Encodes a uri.
   template <typename StrmT>
-  encode::STURIEntry* encodeURI(StrRef URI) {
+  URIEntry* encodeURI(StrRef URI) {
     if (auto* URIV = Strings.lookupURI(URI))
       return encodeURI<StrmT>(URIV);
     return encodeURIStr<StrmT>(URI);
   }
   /// Encodes a given `URIEntry`.
   template <typename StrmT>
-  encode::STURIEntry* encodeURI(encode::STURIEntry* URI) {
+  URIEntry* encodeURI(URIEntry* URI) {
     auto [ID, Bits] = Strings.getURIIDAndLog(URI);
     writer<StrmT>().writeBits64(ID + 1, Bits);
     return URI;
   }
   /// Encodes a uri string.
   template <typename StrmT>
-  encode::STURIEntry* encodeURIStr(StrRef URI) {
+  URIEntry* encodeURIStr(StrRef URI) {
     u32 Bits = Strings.getURILog();
     writer<StrmT>().writeBits64(0, Bits);
     writer<StrmT>().encodeString(URI);
@@ -328,12 +333,12 @@ public:
   }
 
   template <typename StrmT>
-  ExiError encodeName(encode::STURIEntry* URI, StrRef LN) {
+  ExiError encodeName(URIEntry* URI, StrRef LN) {
     Result LNOrIP = Strings.lookupLocalName(URI, LN);
     if (LNOrIP.is_ok())
       return encodeName<StrmT>(URI, *LNOrIP);
-    auto* IP = LNOrIP.error();
-    if (!IP) {
+    encode::LocalNameInsert* IP = LNOrIP.error();
+    if EXI_NEVER(!IP) {
       LOG_ERROR("InsertionPoint cannot be null!");
       return ErrorCode::kNullptrRef;
     }
@@ -343,17 +348,18 @@ public:
     return ExiError::OK;
   }
   template <typename StrmT>
-  ExiError encodeName(encode::STURIEntry* URI, encode::LocalNameInfo* LN) {
+  ExiError encodeName(URIEntry* URI, encode::LocalNameInfo* LN) {
     u32 Bits = Strings.getLocalNameLog(URI);
     writer<StrmT>().writeBits64(LN->id(), Bits);
     return ExiError::OK;
   }
 
   template <typename StrmT>
-  ExiError encodePfxQ(encode::STPrefixEntry* Pfx) {
-    if (!this->PreservePrefixes() || !Pfx) {
-      if (!Pfx)
-        LOG_WARN("Pfx is null.");
+  ExiError encodePfxQ(PrefixEntry* Pfx) {
+    if (!this->PreservePrefixes())
+      return ExiError::OK;
+    if EXI_UNLIKELY(!Pfx) {
+      LOG_WARN("Pfx is null.");
       return ExiError::OK;
     }
     auto [ID, Bits] = Strings.getPfxIDAndLogQ(Pfx);
@@ -362,21 +368,21 @@ public:
   }
 
   template <typename StrmT>
-  ExiResult<encode::STPrefixEntry*> encodePfx(encode::STURIEntry* URI, StrRef Pfx) {
-    auto ChPfx = encode::StringTable::prehash(Pfx);
+  ExiResult<PrefixEntry*> encodePfx(URIEntry* URI, StrRef Pfx) {
+    CachedHashStrRef ChPfx = Strings.prehash(Pfx);
     if (!this->PreservePrefixes()) {
       LOG_ERROR("Encoded NS prefix with prefixes disabled!");
       return Err(ErrorCode::kInconsistentProcState);
     }
-    if (auto* PfxV = Strings.lookupPfx(ChPfx))
+    if (PrefixEntry* PfxV = Strings.lookupPfx(ChPfx))
       return encodePfx<StrmT>(PfxV);
     writer<StrmT>().encodeString(Pfx);
     return Strings.addPrefix(URI, ChPfx);
   }
   template <typename StrmT>
   encode::STPrefixEntry* encodePfx(encode::STPrefixEntry* Pfx) {
-    if (auto Bits = Strings.getPfxLog(Pfx)) {
-      auto ID = Strings.GetID(Pfx);
+    if (unsigned Bits = Strings.getPfxLog(Pfx)) {
+      unsigned ID = Strings.GetID(Pfx);
       writer<StrmT>().writeBits64(ID + 1, Bits);
     }
     return Pfx;
@@ -384,24 +390,22 @@ public:
 
   template <typename StrmT>
   ExiError encodeValue(encode::LocalNameInfo* LN, StrRef Value) {
-    auto ChValue = encode::StringTable::prehash(Value);
+    CachedHashStrRef ChValue = Strings.prehash(Value);
     auto [GV, IsLocal] = Strings.lookupLocalValue(LN, ChValue);
-    if (IsLocal) {
-      exi_invariant(GV, "Local with no GlobalValue?");
+    if (IsLocal && GV) /*TODO: Assert GV*/ {
       writer<StrmT>().writeUInt(0);
-      auto Bits = ID_Log2(LN->get().size());
-      auto ID = Strings.GetLocalID(GV);
+      unsigned Bits = ID_Log2(LN->get().size());
+      unsigned ID = Strings.GetLocalID(GV);
       writer<StrmT>().writeBits64(ID, Bits);
       LOG_INFO(">> LV (hit): @{} <{}>", ID, Bits);
     } else if (GV) {
       writer<StrmT>().writeUInt(1);
-      auto Bits = Strings.getGlobalValueLog();
-      auto ID = Strings.GetGlobalID(GV);
+      unsigned Bits = Strings.getGlobalValueLog();
+      unsigned ID = Strings.GetGlobalID(GV);
       writer<StrmT>().writeBits64(ID, Bits);
       Strings.addLocalValue(LN, GV);
       LOG_INFO(">> GV (hit): @{} <{}>", ID, Bits);
     } else {
-      // Cache miss
       writer<StrmT>().writeUInt(Value.size() + 2);
       writer<StrmT>().writeString(Value);
       Strings.addValue(LN, ChValue);
