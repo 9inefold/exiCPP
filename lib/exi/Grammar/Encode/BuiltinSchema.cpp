@@ -329,7 +329,7 @@ private:
   }
 
   CC GNU_ATTR(hot) ExiError handleStartTag(ORDERED_ARGS) {
-    exi_todo("Implement StartTagContent");
+    //exi_todo("Implement StartTagContent");
     switch (K) {
     case SimpleEventTerm::EE:
       tail_return this->handleEE<true>(ORDERED_NEXT);
@@ -433,16 +433,18 @@ private:
   CC ExiError handleSE(OrderedEncoder* OE, const StartElemEvent& SE) {
     if EXI_UNLIKELY(SE.Tag != 0)
       tail_return this->handleSEUri<IsRoot>(OE, SE);
+    LOG_WARN(">> SE: No event code");
     Result R = OE->encodeSE<StrmT>(SE);
     if constexpr (IsRoot) {
       this->pushGrammar(StartTagContent);
-      return R.error_or(ExiError::OK);
     }
-    exi_todo("Implement SE");
+    //exi_todo("Implement SE");
+    return R.error_or(ExiError::OK);
   }
   template <bool IsRoot = false>
   CC_INLINE ExiError handleSEUri(OrderedEncoder* OE, const StartElemEvent& SE) {
     auto& SEUri = static_cast<const StartElemURIEvent&>(SE);
+    LOG_WARN(">> SEUri: No event code");
     Result R = OE->encodeSEUri<StrmT>(SEUri);
     if constexpr (IsRoot) {
       this->pushGrammar(StartTagContent);
@@ -463,7 +465,8 @@ private:
       event_cast<SimpleEventTerm::AT>(Event, K));
   }
   CC ExiError handleAT(OrderedEncoder* OE, const AttrEvent& AT) {
-    exi_todo("Implement AT");
+    LOG_WARN(">> AT: No event code");
+    return OE->encodeAT<StrmT>(AT);
   }
 
   template <bool IsRoot = false>
@@ -473,15 +476,19 @@ private:
   }
   template <bool IsRoot = false>
   CC ExiError handleNS(OrderedEncoder* OE, const NamespaceEvent& NS) {
-    exi_todo("Implement NS");
+    LOG_WARN(">> NS: No event code");
+    return OE->encodeNS<StrmT, IsRoot>(NS);
   }
 
   EXI_FLATTEN CC ExiError handleCH(ORDERED_ARGS) {
     return this->handleCH(OE,
       event_cast<SimpleEventTerm::CH>(Event, K));
   }
-  CC ExiError handleCH(OrderedEncoder* OE, const CharEvent& NS) {
-    exi_todo("Implement CH");
+  CC ExiError handleCH(OrderedEncoder* OE, const CharEvent& CH) {
+    LOG_WARN(">> CH: No event code");
+    this->pushGrammar(ElementContent);
+    exi_todo("Need to store LN.");
+    //return OE->encodeValue(LN, StrRef(CH.Data, CH.Size));
   }
 
   EXI_NO_INLINE CC ExiError handleSC(ORDERED_ARGS) {
@@ -507,23 +514,32 @@ private:
 
   CC ExiError batchAT(ORDERED_BARGS) {
     auto* VArr = static_cast<const AttrEvent*>(Arr);
-    for (usize Ix = 0; Ix < N - 1; ++Ix)
+    for (usize Ix = 0; Ix < N - 1; ++Ix) {
+      this->logEvent(VArr[Ix], K);
       exi_try(handleAT(OE, VArr[Ix]));
+    }
+    this->logEvent(VArr[N - 1], K);
     return handleAT(OE, VArr[N - 1]);
   }
 
   template <bool IsRoot = false>
   CC ExiError batchNS(ORDERED_BARGS) {
     auto* VArr = static_cast<const NamespaceEvent*>(Arr);
-    for (usize Ix = 0; Ix < N - 1; ++Ix)
+    for (usize Ix = 0; Ix < N - 1; ++Ix) {
+      this->logEvent(VArr[Ix], K);
       exi_try(handleNS<IsRoot>(OE, VArr[Ix]));
+    }
+    this->logEvent(VArr[N - 1], K);
     return handleNS<IsRoot>(OE, VArr[N - 1]);
   }
 
   CC ExiError batchCH(ORDERED_BARGS) {
     auto* VArr = static_cast<const CharEvent*>(Arr);
-    for (usize Ix = 0; Ix < N - 1; ++Ix)
+    for (usize Ix = 0; Ix < N - 1; ++Ix) {
+      this->logEvent(VArr[Ix], K);
       exi_try(handleCH(OE, VArr[Ix]));
+    }
+    this->logEvent(VArr[N - 1], K);
     return handleCH(OE, VArr[N - 1]);
   }
 

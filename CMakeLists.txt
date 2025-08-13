@@ -3,7 +3,7 @@ include_guard(DIRECTORY)
 
 project(
   exi-cpp
-  VERSION 0.7.21
+  VERSION 0.7.22
   LANGUAGES CXX C
 )
 

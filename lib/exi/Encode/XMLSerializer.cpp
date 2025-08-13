@@ -386,7 +386,7 @@ private:
   /// Depth-first traversal of the XML tree.
   /// Assumes the Node is not the root.
   EXI_NO_INLINE EXI_FLATTEN ExiError walkXMLContent(XMLNode* N) {
-    exi_invariant(IsSENode(N) && !IsRootNode(N));
+    exi_invariant(N && /*IsSENode(N) &&*/ !IsRootNode(N));
     do {
       const NodeKind K = N->type();
       if (!CurrKinds.test(K))
