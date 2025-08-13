@@ -572,6 +572,15 @@ public:
     exi_invariant(Entry != nullptr);
     return VOfX(Entry)->PfxMap.size();
   }
+  static STPrefixEntry* GetAnyPfx(const STURIEntry* Entry) {
+    if (!Entry)
+      return nullptr;
+    auto& PMap = VOfX(Entry)->PfxMap;
+    if (PMap.empty())
+      return nullptr;
+    exi_invariant(PMap.back(), "Invalid Prefix entry!");
+    return XUnmap(PMap.back());
+  }
 
   EXI_INLINE static CompactID GetGlobalID(const STValueEntry* Entry) {
     exi_invariant(Entry != nullptr);
@@ -692,7 +701,6 @@ public:
   }
   /// Creates a new LocalName for a URI.
   LocalNameInfo* addLocalName(STURIEntry* URI, StrRef Name, LocalNameInsert*);
-
   /// Creates a new LocalValue for a GV.
   STValueEntry* addLocalValue(LocalNameInfo* LN, STValueEntry* GV);
   /// Creates a new GlobalValue and LocalValue for `Value`.
@@ -714,6 +722,8 @@ public:
 
   /// Returns the `PrefixEntry` for `Pfx`, if it exists.
   STPrefixEntry* lookupPfx(ImplicitHashStrRef Pfx) {
+    if (Pfx == GetEmptyHashString())
+      return X(Pfx_NIL);
     auto It = PrefixMap.find(Pfx);
     if (It == PrefixMap.end())
       return nullptr;

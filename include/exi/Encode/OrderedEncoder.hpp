@@ -238,41 +238,19 @@ public:
   template <typename StrmT>
   ExiResult<encode::STURIEntry*> encodeSEUri(const StartElemURIEvent& SE) {
     StrRef Name(SE.Data, SE.Size);
-    return encodeQName<StrmT>(Name, GetSEUriValue(SE));
+    return encodeLateBoundQName<StrmT>(Name, GetSEUriValue(SE));
   }
 
-  /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.
   template <typename StrmT>
-  ExiResult<encode::STURIEntry*> encodeQName(StrRef Name) {
-    LOG_EXTRA(">> Name: {}", Name);
-    auto [Pfx, LN] = SplitName(Name);
-    auto* PfxV = Strings.lookupPfx(Pfx);
-    auto* URIV = Strings.GetURIEntry(PfxV);
-    if EXI_NEVER(URIV == nullptr) {
-      LOG_ERROR("No URI bound to prefix '{}'", Pfx);
-      return Err(ErrorCode::kNullptrRef);
-    }
-    
-    (void) encodeURI<StrmT>(URIV);
-    exi_try_r(encodeName<StrmT>(URIV, LN));
-    exi_try_r(encodePfxQ<StrmT>(PfxV));
-    return URIV;
-  }
-  /// Encodes a `*:local-name` with a late-bound prefix mapping.
-  template <typename StrmT>
-  ExiResult<encode::STURIEntry*> encodeQName(StrRef Name, StrRef URI) {
-    LOG_EXTRA(">> Name: {}, URI: {}", Name, URI);
-    auto [Pfx, LN] = SplitName(Name);
-    auto* PfxV = Strings.lookupPfx(Pfx);
-    auto* URIV = encodeURI<StrmT>(URI);
-    if EXI_NEVER(URIV == nullptr) {
-      LOG_ERROR("No URI could be bound to prefix '{}'", Pfx);
-      return Err(ErrorCode::kUnexpectedError);
-    }
-
-    exi_try_r(encodeName<StrmT>(URIV, LN));
-    exi_try_r(encodePfxQ<StrmT>(PfxV));
-    return URIV;
+  ExiError encodeAT(const AttrEvent& AT) {
+    auto [Pfx, LN] = SplitName(AT[0]);
+    // FIXME: Garbage
+    Result R = encodeQName<StrmT>(Pfx, LN);
+    exi_try(R.error_or(ExiError::OK));
+    auto LNOrIP = Strings.lookupLocalName(*R, LN);
+    if (LNOrIP.is_err())
+      exi_guardrail("LN should have been added.");
+    return encodeValue<StrmT>(*LNOrIP, AT[1]);
   }
 
   template <typename StrmT, bool IsRoot = false>
@@ -288,6 +266,42 @@ public:
       CtxStack.add(Strings, *PfxOrErr);
     writer<StrmT>().writeBit(NS.IsLocal);
     return ExiError::OK;
+  }
+
+  /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.
+  template <typename StrmT>
+  ExiResult<encode::STURIEntry*> encodeQName(StrRef Name) {
+    auto [Pfx, LN] = SplitName(Name);
+    return encodeQName<StrmT>(Pfx, LN);
+  }
+  /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.
+  template <typename StrmT>
+  ExiResult<encode::STURIEntry*> encodeQName(StrRef Pfx, StrRef LN) {
+    auto* PfxV = Strings.lookupPfx(Pfx);
+    auto* URIV = Strings.GetURIEntry(PfxV);
+    if EXI_NEVER(URIV == nullptr) {
+      LOG_ERROR("No URI bound to prefix '{}'", Pfx);
+      return Err(ErrorCode::kNullptrRef);
+    }
+    (void) encodeURI<StrmT>(URIV);
+    exi_try_r(encodeName<StrmT>(URIV, LN));
+    exi_try_r(encodePfxQ<StrmT>(PfxV));
+    return URIV;
+  }
+  /// Encodes a `*:local-name` with a late-bound prefix mapping.
+  template <typename StrmT>
+  ExiResult<encode::STURIEntry*> encodeLateBoundQName(StrRef Name, StrRef URI) {
+    auto [Pfx, LN] = SplitName(Name);
+    auto* URIV = encodeURI<StrmT>(URI);
+    if EXI_NEVER(URIV == nullptr) {
+      LOG_ERROR("No URI could be bound to prefix '{}'", Pfx);
+      return Err(ErrorCode::kUnexpectedError);
+    }
+
+    exi_try_r(encodeName<StrmT>(URIV, LN));
+    if (auto* PfxV = Strings.GetAnyPfx(URIV))
+      exi_try_r(encodePfxQ<StrmT>(PfxV));
+    return URIV;
   }
 
   /// Encodes a uri.
@@ -338,7 +352,8 @@ public:
   template <typename StrmT>
   ExiError encodePfxQ(encode::STPrefixEntry* Pfx) {
     if (!this->PreservePrefixes() || !Pfx) {
-      // LOG_WARN("Pfx is null.");
+      if (!Pfx)
+        LOG_WARN("Pfx is null.");
       return ExiError::OK;
     }
     auto [ID, Bits] = Strings.getPfxIDAndLogQ(Pfx);
