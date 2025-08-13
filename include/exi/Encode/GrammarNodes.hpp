@@ -282,7 +282,7 @@ public:
   EXI_OPTIONSTORAGE_IMPL_VALUE(constexpr, NodeT, Data)
 
   ALWAYS_INLINE constexpr bool has_value() const {
-    return static_cast<const BaseNodeT&>(Data).isValid();
+    return Data.isValid();
   }
 };
 

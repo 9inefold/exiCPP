@@ -136,8 +136,8 @@ namespace INTERNAL_NS(exi) {
 //===----------------------------------------------------------------===//
 
 #define ORDERED_ARGS OrderedEncoder* OE, const BaseEvent& Event, SimpleEventTerm K
-#define ORDERED_NEXT OE, Event, K
 #define ORDERED_BARGS OrderedEncoder* OE, const void* Arr, usize N, SimpleEventTerm K
+#define ORDERED_NEXT OE, Event, K
 #define ORDERED_BNEXT OE, Arr, N, K
 
 template <is_ordwriter_stream StrmT>

@@ -65,7 +65,7 @@ class BIEventMap {
 
   constexpr BIEventMap() = default;
 public:
-  inline static BIEventMap New(const ExiOptions& Opts);
+  [[nodiscard]] inline static BIEventMap New(const ExiOptions& Opts);
 
   static constexpr unsigned IdxDocContent(SimpleEventTerm K) {
     using enum SimpleEventTerm;
@@ -78,39 +78,41 @@ public:
     return ((unsigned(K) & 0b0110) >> 1) - 1u;
   }
 
-  constexpr EXI_FLATTEN FullEventCode
+  [[nodiscard]] constexpr EXI_FLATTEN FullEventCode
    mapDocContent(SimpleEventTerm K) const {
     return DocContent[IdxDocContent(K)];
   }
-  constexpr EXI_FLATTEN FullEventCode
+  [[nodiscard]] constexpr EXI_FLATTEN FullEventCode
    mapDocEnd(SimpleEventTerm K) const {
     return DocEnd[IdxDocEnd(K)];
   }
-  constexpr EXI_FLATTEN SecondLevelEventCode
+  [[nodiscard]] constexpr EXI_FLATTEN SecondLevelEventCode
    mapStartTagContent(SimpleEventTerm K) const {
     return StartTagContent[K];
   }
-  constexpr EXI_FLATTEN SecondLevelEventCode
+  [[nodiscard]] constexpr EXI_FLATTEN SecondLevelEventCode
    mapElementContent(SimpleEventTerm K) const {
     return ElementContent[K];
   }
 
   template <SimpleEventTerm K> 
-  constexpr EXI_FLATTEN FullEventCode mapDocContent() const {
+  [[nodiscard]] constexpr EXI_FLATTEN FullEventCode mapDocContent() const {
     constexpr_static unsigned Off = IdxDocContent(K);
     return DocContent[Off];
   }
   template <SimpleEventTerm K> 
-  constexpr EXI_FLATTEN FullEventCode mapDocEnd() const {
+  [[nodiscard]] constexpr EXI_FLATTEN FullEventCode mapDocEnd() const {
     constexpr_static unsigned Off = IdxDocEnd(K);
     return DocEnd[Off];
   }
   template <SimpleEventTerm K> 
-  constexpr EXI_FLATTEN SecondLevelEventCode mapStartTagContent() const {
+  [[nodiscard]] constexpr EXI_FLATTEN
+   SecondLevelEventCode mapStartTagContent() const {
     return StartTagContent[K];
   }
   template <SimpleEventTerm K> 
-  constexpr EXI_FLATTEN SecondLevelEventCode mapElementContent() const {
+  [[nodiscard]] constexpr EXI_FLATTEN
+   SecondLevelEventCode mapElementContent() const {
     return ElementContent[K];
   }
 };

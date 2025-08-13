@@ -349,7 +349,7 @@ private:
 
     switch (Term) {
     case EE:
-      tail_return this->handleEE(D);
+      tail_return this->handleEE<IsStart>(D);
     case SEQName:
       // SE(qname) events are cached.
       tail_return this->handleSEQName(D);
