@@ -24,10 +24,13 @@
 #pragma once
 
 #include <core/Common/FoldingSet.hpp>
+#include <core/Common/Option.hpp>
 #include <core/Common/Result.hpp>
 #include <core/Common/SmallVec.hpp>
 #include <core/Support/Logging.hpp>
+#include <exi/Basic/CompactID.hpp>
 #include <exi/Basic/EventCodes.hpp>
+#include <exi/Encode/BodyEncoderAlloc.hpp>
 #include <exi/Encode/GrammarNodes.hpp>
 #include <exi/Stream/OrderedWriter.hpp>
 
@@ -38,36 +41,194 @@ class ExiEncoder;
 
 namespace encode {
 
-/// Represents the first part of an event code.
-using FirstLevelProd = u32;
-
 /// The base for all grammars.
 class alignas(8) Grammar {
   // Grammar impl...
 };
 
 /// The grammars for `BuiltinSchema`.
-/// TODO: Profile SmallVecs
+/// Grammars represent codes attached to SE events.
 class BuiltinGrammar final : public Grammar {
+  /// The LocalName bound to this grammar.
+  LocalNameInfo* Name = nullptr;
   u32 StartTagLog = 0, ElementLog = 1;
-  
-  Option<gnode::CHNode> StartTagCH;
-  Option<gnode::CHNode> ElementCH;
+  FoldingSet<gnode::BaseNode> StartTag; // +1
+  FoldingSet<gnode::BaseNode> Element;  // +2
+  FirstLevelProd StartTagCH = kInvalidFLProd;
+  FirstLevelProd ElementCH = kInvalidFLProd;
+  FirstLevelProd StartTagEE = kInvalidFLProd;
+
+  /// Writes a first-level SE term to the stream.
+  /// @returns nonnull if second-level encoding is needed.
+  template <class NodeT, bool IsStart, is_ordwriter_stream StrmT>
+  void* setSEOrATTerm(StrmT* Writer, LocalNameInfo* LN) {
+    auto [SEOrAT, IP] = profileTerm<NodeT, IsStart>(LN);
+    if (SEOrAT != nullptr) {
+      writeFoundCode<IsStart>(Writer, SEOrAT->code());
+      return nullptr;
+    }
+    exi_invariant(IP != nullptr, "Invalid SE/AT insertion point!");
+    writeFallbackCode<IsStart>(Writer);
+    return IP;
+  }
+
+  template <class NodeT, bool IsStart, class Encoder>
+  void addSEOrATTerm(Encoder* BE, LocalNameInfo* LN, void* IP) {
+    exi_invariant(IP != nullptr, "Invalid SE/AT insertion point!");
+    auto& Elts = getElts<IsStart>();
+    auto Code = IntCast<u32>(Elts.size());
+    auto* SE = new (*BE) NodeT(Code, LN);
+    Elts.InsertNode(SE, IP);
+    this->setLog(IsStart);
+  }
 
 public:
-  BuiltinGrammar() = default;
-  //explicit BuiltinGrammar(SmallQName Name) : Name(Name) {}
+  explicit BuiltinGrammar(LocalNameInfo* LN) : Name(LN) {
+    exi_guard_invariant(LN != nullptr,
+      "Grammars cannot have empty names!");
+  }
 
-  void dump(ExiEncoder* E) const;
+  /// Writes a first-level SE term to the stream.
+  /// @returns nonnull if second-level encoding is needed.
+  template <bool IsStart, is_ordwriter_stream StrmT>
+  void* setSETerm(StrmT* Writer, LocalNameInfo* LN) {
+    tail_return this->setSEOrATTerm<gnode::SEQNameNode, IsStart>(Writer, LN);
+  }
+  /// Writes a first-level AT term to the stream.
+  /// @returns nonnull if second-level encoding is needed.
+  template <is_ordwriter_stream StrmT>
+  void* setATTerm(StrmT* Writer, LocalNameInfo* LN) {
+    // AT terms are always StartTagContent.
+    tail_return this->setSEOrATTerm<gnode::ATQNameNode, true>(Writer, LN);
+  }
+
+  /// Writes a first-level EE term to the stream. Only needs to be checked
+  /// dynamically when in `StartTagContent`, as `ElementContent` has a
+  /// first-level EE code to start with.
+  /// @returns `true` if second-level encoding is needed.
+  template <bool IsStart, is_ordwriter_stream StrmT>
+  bool setEETerm(StrmT* Writer) {
+    if constexpr (IsStart) {
+      if (StartTagEE != kInvalidFLProd) {
+        writeFoundCode<true>(Writer, StartTagEE);
+        return false;
+      }
+    }
+    writeFallbackCode<IsStart>(Writer);
+    return IsStart;
+  }
+
+  /// Writes a first-level CH term to the stream.
+  /// @returns `true` if second-level encoding is needed.
+  template <bool IsStart, is_ordwriter_stream StrmT>
+  bool setCHTerm(StrmT* Writer) {
+    const FirstLevelProd CH = getCH<IsStart>();
+    if (CH != kInvalidFLProd) {
+      writeFoundCode<IsStart>(Writer, CH);
+      return false;
+    }
+    writeFallbackCode<IsStart>(Writer);
+    return true;
+  }
+
+  template <bool IsStart, class Encoder>
+  void addSETerm(Encoder* BE, LocalNameInfo* LN, void* IP) {
+    tail_return this->addSEOrATTerm<gnode::SEQNameNode, IsStart>(BE, LN, IP);
+  }
+  template <class Encoder>
+  void addATTerm(Encoder* BE, LocalNameInfo* LN, void* IP) {
+    // AT terms are always StartTagContent.
+    tail_return this->addSEOrATTerm<gnode::SEQNameNode, true>(BE, LN, IP);
+  }
+
+  template <bool IsStart>
+  inline void addEETerm(gnode::EENode* EE) {
+    if constexpr (IsStart) {
+      exi_invariant(StartTagEE == kInvalidFLProd,
+                    "EE Grammar already active!");
+      StartTagEE = IntCast<FirstLevelProd>(StartTag.size());
+      StartTag.InsertNode(EE);
+      this->setLog(IsStart);
+    }
+  }
+  template <bool IsStart>
+  void addCHTerm(gnode::CHNode* Node) {
+    exi_invariant(getCH<IsStart>() == kInvalidFLProd,
+                  "CH Grammar already active!");
+    auto& Elts = getElts<IsStart>();
+    const auto CH = IntCast<FirstLevelProd>(Elts.size());
+    this->setCH<IsStart>(CH);
+    Elts.InsertNode(Node);
+    this->setLog(IsStart);
+  }
+
+  template <bool IsStart, is_ordwriter_stream StrmT>
+  void writeFallbackCode(StrmT* Writer) {
+    const u64 Size = getElts<IsStart>().size();
+    u64 Code = IsStart ? Size : Size + 1;
+    Writer->writeBits64(Code, getLog<IsStart>());
+  }
+
+  LocalNameInfo* getName() const { return Name; }
+  void dump(BodyEncoder* E) const;
 
 private:
+  template <class NodeT, bool IsStart>
+  std::pair<NodeT*, void*> profileTerm(auto&&...Args) {
+    FoldingSetNodeID ID;
+    NodeT::ProfileImpl(ID, Args...);
+    void* InsertPos;
+    gnode::BaseNode* Val = Element.FindNodeOrInsertPos(ID, InsertPos);
+    return {cast_if_present<NodeT>(Val), InsertPos};
+  }
+
+  template <bool IsStart, is_ordwriter_stream StrmT>
+  void writeFoundCode(StrmT* Writer, u64 OGCode) {
+    const u64 Size = getElts<IsStart>().size();
+    exi_invariant(OGCode < Size && OGCode != kInvalidFLProd);
+    u64 Code = (Size - 1) - OGCode;
+    Writer->writeBits64(Code, getLog<IsStart>());
+  }
+
+  template <bool IsStart> inline FirstLevelProd getCH() {
+    return IsStart ? StartTagCH : ElementCH;
+  }
+  template <bool IsStart> ALWAYS_INLINE void setCH(FirstLevelProd CH) {
+    if constexpr (IsStart)
+      StartTagCH = CH;
+    else
+      ElementCH  = CH;
+  }
+
+  /// Returns a precalculated log for StartTag or Element.
+  template <bool IsStart> u32 getLog() const {
+    return IsStart ? StartTagLog : ElementLog;
+  }
+
+  void setLog(bool IsStart) {
+    if (IsStart) {
+      const u32 Log = getStartTagCount();
+      StartTagLog = ID_Log2(Log);
+    } else {
+      const u32 Log = getElementCount();
+      ElementLog = ID_Log2(Log);
+    }
+  }
+
+  /// Returns the backing for StartTag or Element.
+  template <bool IsStart> 
+  FoldingSet<gnode::BaseNode>& getElts() {
+    if constexpr (IsStart)
+      return StartTag;
+    else
+      return Element;
+  }
+
   usize getStartTagCount() const {
-    //return StartTag.size() + 1;
-    exi_guardrail("getStartTagCount");
+    return StartTag.size() + 1;
   }
   usize getElementCount() const {
-    //return Element.size() + 2;
-    exi_guardrail("getElementCount");
+    return Element.size() + 2;
   }
 };
 

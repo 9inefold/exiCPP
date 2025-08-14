@@ -292,7 +292,7 @@ int main(int Argc, char* Argv[]) {
   root::DumpOptions DO {.Conforming = true};
 
   MemoryBufferRef DecodeBuf;
-  SmallVec<char, 0> EncodeBuf;
+  SmallStr<0> EncodeBuf;
 
   /*Decoding*/ {
     const StrRef File = "examples/NamespaceNooptB.exi";
@@ -348,7 +348,7 @@ int main(int Argc, char* Argv[]) {
       return 1;
     }
 
-    SetLogLevel(LogLevel::VERBOSE);
+    //SetLogLevel(LogLevel::VERBOSE);
     LOG_INFO("Encoding body...");
     if (auto E = Factory->encode(&S, EncodeBuf)) {
       errs() << E << '\n';
@@ -360,7 +360,25 @@ int main(int Argc, char* Argv[]) {
     INFO_ONLY(dbgs() << '\n');
     WithColor(errs(), BRIGHT_GREEN)
       << "Encoding successful!\n\n";
-  }
+  } /*Decoding, again*/ {
+    const StrRef File = "examples/Namespace.xml";
+    WithColor(errs(), BRIGHT_CYAN)
+      << format("Decoding: \"{}\"", File) << '\n';
+    auto MB = MemoryBuffer::getMemBuffer(EncodeBuf.str());
+
+    ExiDecoder Decoder(Opts);
+    XMLDeserializer S;
+
+    SetLogLevel(LogLevel::VERBOSE);
+    if (int Ret = Decode(Decoder, MB->getMemBufferRef(), &S)) {
+      WithColor(errs(), BRIGHT_RED)
+        << "Decoding failed.\n";
+      return Ret;
+    }
+
+    WithColor(errs(), BRIGHT_GREEN)
+      << "Decoding successful!\n\n";
+  } 
 
 #endif
 }

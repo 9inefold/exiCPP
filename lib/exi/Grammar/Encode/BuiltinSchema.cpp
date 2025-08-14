@@ -154,7 +154,12 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final : public BuiltinSchema {
   BIEventMap TMap;
   /// The grammar stack.
   SmallVec<GrammarT, 0> GStack;
-  /// ...
+  /// Stores all the SE grammars.
+  DenseMap<LocalNameInfo*, BuiltinGrammar*> Grammars;
+  /// Used for all EE GrammarNodes.
+  gnode::EENode GlobalEENode;
+  /// Used for all CH GrammarNodes.
+  gnode::CHNode GlobalCHNode;
 
   OrderedBuiltinSchema(OrderedEncoder&, const BIEventMap& TMap) : TMap(TMap) {}
 
@@ -220,6 +225,14 @@ private:
     Get::Writer(OE).writeBits64(EC.Data, EC.Bits);
   }
 
+  template <bool IsStart, SimpleEventTerm K>
+  ALWAYS_INLINE CC void encodeSLCode(OrderedEncoder* OE) {
+    if constexpr (IsStart)
+      encodePrecomputedCode(OE, TMap.mapStartTagContent(K));
+    else
+      encodePrecomputedCode(OE, TMap.mapElementContent(K));
+  }
+
   template <SimpleEventTerm Term>
   CC_FLATTEN ExiError encodeDocContent(ORDERED_ARGS) {
     encodePrecomputedCode(OE, TMap.mapDocContent<Term>());
@@ -228,7 +241,8 @@ private:
       return this->encodeEventS(
         OE, event_cast<Term>(Event, K));
     else
-      return this->handleSE</*IsRoot=*/true>(ORDERED_NEXT);
+      // TODO: Make this its own thing...
+      return this->handleSE<DocContent>(ORDERED_NEXT);
   }
   // TODO: Flatten?
   template <SimpleEventTerm Term>
@@ -290,7 +304,7 @@ private:
 
   ALWAYS_INLINE ExiError handleDocument(ORDERED_ARGS) {
     // Document is always empty, and therefore never reads.
-    this->pushGrammar(DocContent);
+    this->transition(DocContent);
     return ExiError::OK;
   }
 
@@ -300,7 +314,7 @@ private:
     switch (BIEventMap::IdxDocContent(K)) {
     case map_doccontent_v<SE>:
       // This should only be called once, at the start of processing.
-      //exi_assert(GStack.empty() && Grammars.empty());
+      exi_assert(GStack.empty() /*&& Grammars.empty()*/);
       tail_return encodeDocContent<SE>(ORDERED_NEXT);
     case map_doccontent_v<CM>:
       tail_return encodeDocContent<CM>(ORDERED_NEXT);
@@ -345,7 +359,7 @@ private:
   }
 
   CC GNU_ATTR(hot) ExiError handleElement(ORDERED_ARGS) {
-    exi_todo("Implement ElementContent");
+    // exi_todo("Implement ElementContent");
     switch (K) {
     case SimpleEventTerm::EE:
       tail_return this->handleEE<false>(ORDERED_NEXT);
@@ -375,13 +389,14 @@ private:
   /// Events under the ChildContentItems macro.
   template <bool IsStart>
   CC_INLINE ExiError handleChildContent(ORDERED_ARGS) {
+    static constexpr State S = IsStart ? StartTagContent : ElementContent;
     static constexpr const char* UnreachableMsg
       = IsStart ? "invalid StartTagContent" : "invalid ElementContent";
     switch (K) {
     case SimpleEventTerm::SE:
-      tail_return this->handleSE(ORDERED_NEXT);
+      tail_return this->handleSE<S>(ORDERED_NEXT);
     case SimpleEventTerm::CH:
-      tail_return this->handleCH(ORDERED_NEXT);
+      tail_return this->handleCH<IsStart>(ORDERED_NEXT);
     case SimpleEventTerm::CM:
     case SimpleEventTerm::PI:
     case SimpleEventTerm::ER:
@@ -401,63 +416,116 @@ private:
         tail_return this->batchAT(ORDERED_BNEXT);
     case SimpleEventTerm::CH:
       if constexpr (!IsRoot)
-        tail_return this->batchCH(ORDERED_BNEXT);
+        tail_return this->batchCHStart(ORDERED_BNEXT);
     default:
       exi_guardrail("invalid batch type.");
     }
   }
 
   CC ExiError batchElement(ORDERED_BARGS) {
-    exi_todo("Implement ElementContent batching");
-    switch (K) {
-    case SimpleEventTerm::NS:
-      tail_return this->batchNS(ORDERED_BNEXT);
-    case SimpleEventTerm::AT:
-      tail_return this->batchAT(ORDERED_BNEXT);
-    case SimpleEventTerm::CH:
-      tail_return this->batchCH(ORDERED_BNEXT);
-    default:
-      exi_guardrail("invalid batch type.");
-    }
+    if EXI_ALWAYS(K == SimpleEventTerm::CH)
+      tail_return this->batchCHElem(ORDERED_BNEXT);
+    exi_guardrail("invalid batch type.");
   }
 
   ////////////////////////////////////////////////////////////////////////
   // Event Handling
 
-  template <bool IsRoot = false>
+  template <bool IsStart>
+  ALWAYS_INLINE CC void handlePrevSEGrammar(OrderedEncoder* OE, LocalNameInfo* LN) {
+    exi_invariant(!GStack.empty());
+    auto* G = GStack.back().getPointer();
+    if (void* IP = G->setSETerm<IsStart>(&Get::Writer(OE), LN)) {
+      this->encodeSLCode<IsStart, SimpleEventTerm::SE>(OE);
+      G->addSETerm<IsStart>(OE, LN, IP);
+    }
+  }
+  template <State S>
+  void handleSEDefaultCode(OrderedEncoder* OE) {
+    static constexpr bool IsStart = (S == StartTagContent);
+    static_assert(S != DocContent);
+    auto* G = GStack.back().getPointer();
+    G->writeFallbackCode<IsStart>(&Get::Writer(OE));
+    this->encodeSLCode<IsStart, SimpleEventTerm::SE>(OE);
+  }
+  CC ExiError loadSEGrammar(OrderedEncoder* OE, LocalNameInfo* LN) {
+    this->transition(StartTagContent);
+    auto [G, Cached] = loadGrammar(OE, LN);
+    GStack.push_back({G, true});
+    return ExiError::OK;
+  }
+
+  template <State S>
   EXI_FLATTEN CC ExiError handleSE(ORDERED_ARGS) {
-    return this->handleSE<IsRoot>(OE,
+    return this->handleSE<S>(OE,
       event_cast<SimpleEventTerm::SE>(Event, K));
   }
-  template <bool IsRoot = false>
+  template <State S>
   CC ExiError handleSE(OrderedEncoder* OE, const StartElemEvent& SE) {
     if EXI_UNLIKELY(SE.Tag != 0)
-      tail_return this->handleSEUri<IsRoot>(OE, SE);
-    LOG_WARN(">> SE: No event code");
-    Result R = OE->encodeSE<StrmT>(SE);
-    if constexpr (IsRoot) {
-      this->pushGrammar(StartTagContent);
+      tail_return this->handleSEUri<S>(OE, SE);
+    if constexpr (S != DocContent) {
+      auto [URIV, LN] = OE->lookupSE(SE);
+      if (LN != nullptr)
+        return this->handlePrevSE<S>(OE, SE, LN);
+      this->handleSEDefaultCode<S>(OE);
     }
-    //exi_todo("Implement SE");
-    return R.error_or(ExiError::OK);
+    LocalNameInfo* LN = EXI_UNWRAP(OE->encodeSE<StrmT>(SE));
+    return this->loadSEGrammar(OE, LN);
   }
-  template <bool IsRoot = false>
-  CC_INLINE ExiError handleSEUri(OrderedEncoder* OE, const StartElemEvent& SE) {
+  template <State S>
+  CC ExiError handleSEUri(OrderedEncoder* OE, const StartElemEvent& SE) {
     auto& SEUri = static_cast<const StartElemURIEvent&>(SE);
-    LOG_WARN(">> SEUri: No event code");
-    Result R = OE->encodeSEUri<StrmT>(SEUri);
-    if constexpr (IsRoot) {
-      this->pushGrammar(StartTagContent);
-      return R.error_or(ExiError::OK);
+    if constexpr (S != DocContent) {
+      auto [URIV, LN] = OE->lookupSEUri(SEUri);
+      if (LN != nullptr)
+        return this->handlePrevSEUri<S>(OE, SEUri, LN);
+      this->handleSEDefaultCode<S>(OE);
     }
-    exi_todo("Implement SEUri");
+    LocalNameInfo* LN = EXI_UNWRAP(OE->encodeSEUri<StrmT>(SEUri));
+    return this->loadSEGrammar(OE, LN);
+  }
+  template <State S>
+  CC ExiError handlePrevSE(OrderedEncoder* OE,
+                           const StartElemEvent& SE, LocalNameInfo* LN) {
+    static constexpr bool IsStart = (S == StartTagContent);
+    this->handlePrevSEGrammar<IsStart>(OE, LN);
+    // TODO: Encode previous!
+    auto* LN2 = EXI_UNWRAP(OE->encodeSE<StrmT>(SE));
+    exi_invariant(LN2 == LN);
+    return this->loadSEGrammar(OE, LN);
+  }
+  template <State S>
+  CC ExiError handlePrevSEUri(OrderedEncoder* OE,
+                              const StartElemURIEvent& SE, LocalNameInfo* LN) {
+    static constexpr bool IsStart = (S == StartTagContent);
+    this->handlePrevSEGrammar<IsStart>(OE, LN);
+    // TODO: Encode previous!
+    auto* LN2 = EXI_UNWRAP(OE->encodeSEUri<StrmT>(SE));
+    exi_invariant(LN2 == LN);
+    return this->loadSEGrammar(OE, LN);
   }
 
   /// Since element grammars always have single term EE event codes, we don't
   /// need to add it to the grammar.
   template <bool IsStart = false>
   CC ExiError handleEE(ORDERED_ARGS) {
-    exi_todo("Implement EE");
+    exi_invariant(!GStack.empty()
+               && IsStart == GStack.back().getInt());
+    auto* G = GStack.back().getPointer();
+    if (G->setEETerm<IsStart>(&Get::Writer(OE))) {
+      // Must be StartTagContent.
+      this->encodePrecomputedCode(OE,
+        TMap.mapStartTagContent(SimpleEventTerm::SE));
+      auto* EENode = new (*OE) gnode::EENode;
+      G->addEETerm<IsStart>(EENode);
+    }
+    GStack.pop_back();
+    if EXI_LIKELY(!GStack.empty())
+      this->transition<ElementContent>();
+    else
+      this->transition(DocEnd);
+    return ExiError::OK;
   }
 
   EXI_FLATTEN CC ExiError handleAT(ORDERED_ARGS) {
@@ -465,7 +533,19 @@ private:
       event_cast<SimpleEventTerm::AT>(Event, K));
   }
   CC ExiError handleAT(OrderedEncoder* OE, const AttrEvent& AT) {
-    LOG_WARN(">> AT: No event code");
+    exi_invariant(!GStack.empty() && GStack.back().getInt());
+    auto* G = GStack.back().getPointer();
+    auto [URIV, LN] = OE->lookupAT(AT);
+    if (LN == nullptr) {
+      G->writeFallbackCode<true>(&Get::Writer(OE));
+      this->encodeSLCode<true, SimpleEventTerm::AT>(OE);
+      return OE->encodeAT<StrmT>(AT);
+    }
+    // LocalName does exist.
+    if (void* IP = G->setATTerm(&Get::Writer(OE), LN)) {
+      this->encodeSLCode<true, SimpleEventTerm::AT>(OE);
+      G->addATTerm(OE, LN, IP);
+    }
     return OE->encodeAT<StrmT>(AT);
   }
 
@@ -476,37 +556,71 @@ private:
   }
   template <bool IsRoot = false>
   CC ExiError handleNS(OrderedEncoder* OE, const NamespaceEvent& NS) {
-    LOG_WARN(">> NS: No event code");
-    return OE->encodeNS<StrmT, IsRoot>(NS);
+    if (OE->PreservePrefixes()) {
+      StrmT* OW = &Get::Writer(OE);
+      GStack.back()->writeFallbackCode<true>(OW);
+      this->encodeSLCode<true, SimpleEventTerm::NS>(OE);
+      return OE->encodeNS<StrmT, IsRoot>(NS);
+    }
+    return OE->saveNSToTableOnly<IsRoot>(NS);
   }
 
+  template <bool IsStart>
   EXI_FLATTEN CC ExiError handleCH(ORDERED_ARGS) {
-    return this->handleCH(OE,
+    return this->handleCH<IsStart>(OE,
       event_cast<SimpleEventTerm::CH>(Event, K));
   }
+  template <bool IsStart>
   CC ExiError handleCH(OrderedEncoder* OE, const CharEvent& CH) {
-    LOG_WARN(">> CH: No event code");
-    this->pushGrammar(ElementContent);
-    exi_todo("Need to store LN.");
-    //return OE->encodeValue(LN, StrRef(CH.Data, CH.Size));
+    exi_invariant(!GStack.empty()
+               && IsStart == GStack.back().getInt());
+    auto* G = GStack.back().getPointer();
+    if (G->setCHTerm<IsStart>(&Get::Writer(OE))) {
+      this->encodeSLCode<IsStart, SimpleEventTerm::CH>(OE);
+      auto* CHNode = new (*OE) gnode::CHNode;
+      G->addCHTerm<IsStart>(CHNode);
+    }
+    if constexpr (IsStart)
+      this->transition<ElementContent>();
+    return OE->encodeValue<StrmT>(G->getName(), CH.name());
   }
 
   EXI_NO_INLINE CC ExiError handleSC(ORDERED_ARGS) {
     LOG_ERROR("SC events are not supported.");
-    this->pushGrammar(Fragment);
+    this->transition(Fragment);
     return ExiError::TODO;
   }
 
   template <bool IsStart>
   CC ExiError handleUncommon(ORDERED_ARGS) {
-    exi_todo("Add first-level event code");
-    // Place first-level event code.
+    StrmT* OW = &Get::Writer(OE);
+    GStack.back()->writeFallbackCode<IsStart>(OW);
     if constexpr (IsStart) {
-      TMap.mapStartTagContent(K);
-      this->pushGrammar(ElementContent);
-    } else
-      TMap.mapElementContent(K);
-    exi_todo("Implement {CH,PI,ER}");
+      encodePrecomputedCode(OE,
+        TMap.mapStartTagContent(K));
+      this->transition<ElementContent>();
+    } else {
+      encodePrecomputedCode(OE,
+        TMap.mapElementContent(K));
+    }
+    tail_return this->encodeUncommon(ORDERED_NEXT);
+  }
+
+  CC ExiError encodeUncommon(ORDERED_ARGS) {
+    using enum SimpleEventTerm;
+    switch (K) {
+    case SimpleEventTerm::CM:
+      return this->encodeEventS(
+        OE, event_cast<SimpleEventTerm::CM>(Event));
+    case SimpleEventTerm::PI:
+      return this->encodeEventS(
+        OE, event_cast<SimpleEventTerm::PI>(Event));
+    case SimpleEventTerm::DT:
+      return this->encodeEventS(
+        OE, event_cast<SimpleEventTerm::DT>(Event));
+    default:
+      exi_guardrail("uncommon type not in {CH,PI,ER}");
+    }
   }
 
   // Batching
@@ -533,14 +647,23 @@ private:
     return handleNS<IsRoot>(OE, VArr[N - 1]);
   }
 
-  CC ExiError batchCH(ORDERED_BARGS) {
+  CC ExiError batchCHElem(ORDERED_BARGS) {
     auto* VArr = static_cast<const CharEvent*>(Arr);
     for (usize Ix = 0; Ix < N - 1; ++Ix) {
       this->logEvent(VArr[Ix], K);
-      exi_try(handleCH(OE, VArr[Ix]));
+      exi_try(handleCH<false>(OE, VArr[Ix]));
     }
     this->logEvent(VArr[N - 1], K);
-    return handleCH(OE, VArr[N - 1]);
+    return handleCH<false>(OE, VArr[N - 1]);
+  }
+
+  CC ExiError batchCHStart(ORDERED_BARGS) {
+    auto* VArr = static_cast<const CharEvent*>(Arr);
+    this->logEvent(*VArr, K);
+    if (N <= 1)
+      return handleCH<true>(OE, *VArr);
+    exi_try(handleCH<true>(OE, *VArr));
+    tail_return this->batchCHElem(OE, VArr + 1, N - 1, K);
   }
 
   ////////////////////////////////////////////////////////////////////////
@@ -572,7 +695,31 @@ private:
   ////////////////////////////////////////////////////////////////////////
   // Grammar
 
-  ALWAYS_INLINE CC void pushGrammar(State New) { Current = New; }
+  ALWAYS_INLINE CC void transition(State New) { Current = New; }
+
+  template <State NextState>
+  ALWAYS_INLINE CC void transition() {
+    Current = NextState;
+    if constexpr (NextState == ElementContent)
+      GStack.back().setInt(false);
+  }
+
+  /// Returns `[Grammar, Cached]`.
+  std::pair<BuiltinGrammar*, bool>
+   loadGrammar(OrderedEncoder* OE, LocalNameInfo* LN) {
+    if (auto* G = Grammars.lookup(LN))
+      return {G, true};
+    // Cache miss
+    auto* G = this->makeGrammar(OE, LN);
+    return {G, false};
+  }
+
+  BuiltinGrammar* makeGrammar(OrderedEncoder* OE, LocalNameInfo* LN) {
+    auto G = new (*OE) BuiltinGrammar(LN);
+    auto [It, DidEmplace] = Grammars.try_emplace(LN, G);
+    exi_invariant(DidEmplace, "grammar already added");
+    return G;
+  }
 
   ////////////////////////////////////////////////////////////////////////
   // Printing

@@ -222,6 +222,7 @@ public:
 
   using URIEntry    = encode::STURIEntry;
   using PrefixEntry = encode::STPrefixEntry;
+  using NameEntry   = encode::LocalNameInfo;
   using ValueEntry  = encode::STValueEntry;
 
   [[nodiscard]] static std::pair<StrRef, StrRef> SplitName(StrRef S) {
@@ -237,24 +238,43 @@ public:
       return encode::StringTable::GetURI(SE.OpaqueURI);
   }
 
+  std::pair<URIEntry*, NameEntry*> lookupSE(const StartElemEvent& SE) {
+    auto [Pfx, LN] = SplitName(SE.name());
+    URIEntry* URIV = Strings.getURIFromPfx(Pfx);
+    if (!URIV)
+      return {nullptr, nullptr};
+    return {URIV, Strings.lookupLocalName(URIV, LN).value_or(nullptr)};
+  }
+  std::pair<URIEntry*, NameEntry*> lookupSEUri(const StartElemURIEvent& SE) {
+    URIEntry* URIV = Strings.lookupURI(GetSEUriValue(SE));
+    if (!URIV)
+      return {nullptr, nullptr};
+    auto [Pfx, LN] = SplitName(SE.name());
+    return {URIV, Strings.lookupLocalName(URIV, LN).value_or(nullptr)};
+  }
+  std::pair<URIEntry*, NameEntry*> lookupAT(const AttrEvent& AT) {
+    auto [Pfx, LN] = SplitName(AT[0]);
+    URIEntry* URIV = Strings.getURIFromPfx(Pfx);
+    if (!URIV)
+      return {nullptr, nullptr};
+    return {URIV, Strings.lookupLocalName(URIV, LN).value_or(nullptr)};
+  }
+
   template <typename StrmT>
-  ExiResult<URIEntry*> encodeSE(const StartElemEvent& SE) {
-    StrRef Name(SE.Data, SE.Size);
-    return encodeQName<StrmT>(Name);
+  ExiResult<NameEntry*> encodeSE(const StartElemEvent& SE) {
+    return encodeQName<StrmT>(SE.name());
   }
   template <typename StrmT>
-  ExiResult<URIEntry*> encodeSEUri(const StartElemURIEvent& SE) {
-    StrRef Name(SE.Data, SE.Size);
-    return encodeLateBoundQName<StrmT>(Name, GetSEUriValue(SE));
+  ExiResult<NameEntry*> encodeSEUri(const StartElemURIEvent& SE) {
+    return encodeLateBoundQName<StrmT>(SE.name(), GetSEUriValue(SE));
   }
 
   template <typename StrmT>
   ExiError encodeAT(const AttrEvent& AT) {
     auto [Pfx, LN] = SplitName(AT[0]);
-    URIEntry* URIV = EXI_UNWRAP(encodeQName<StrmT>(Pfx, LN));
     encode::LocalNameInfo* LNV
-      = Strings.lookupLocalName(URIV, LN)
-               .expect("LN should have been added.");
+      = EXI_UNWRAP(encodeQName<StrmT>(Pfx, LN));
+    exi_guard_invariant(LNV != nullptr);
     return encodeValue<StrmT>(LNV, AT[1]);
   }
 
@@ -271,16 +291,20 @@ public:
     writer<StrmT>().writeBit(NS.IsLocal);
     return ExiError::OK;
   }
+  template <bool IsRoot = false>
+  ExiError saveNSToTableOnly(const NamespaceEvent& NS) {
+    exi_todo("Encoding without Preserve.Prefixes");
+  }
 
   /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.
   template <typename StrmT>
-  ExiResult<URIEntry*> encodeQName(StrRef Name) {
+  ExiResult<NameEntry*> encodeQName(StrRef Name) {
     auto [Pfx, LN] = SplitName(Name);
     return encodeQName<StrmT>(Pfx, LN);
   }
   /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.
   template <typename StrmT>
-  ExiResult<URIEntry*> encodeQName(StrRef Pfx, StrRef LN) {
+  ExiResult<NameEntry*> encodeQName(StrRef Pfx, StrRef LN) {
     PrefixEntry* PfxV = Strings.lookupPfx(Pfx);
     URIEntry* URIV = Strings.GetURIEntry(PfxV);
     if EXI_NEVER(URIV == nullptr) {
@@ -288,13 +312,13 @@ public:
       return Err(ErrorCode::kNullptrRef);
     }
     (void) encodeURI<StrmT>(URIV);
-    exi_try_r(encodeName<StrmT>(URIV, LN));
+    NameEntry* LNV = EXI_UNWRAP(encodeName<StrmT>(URIV, LN));
     exi_try_r(encodePfxQ<StrmT>(PfxV));
-    return URIV;
+    return LNV;
   }
   /// Encodes a `*:local-name` with a late-bound prefix mapping.
   template <typename StrmT>
-  ExiResult<URIEntry*> encodeLateBoundQName(StrRef Name, StrRef URI) {
+  ExiResult<NameEntry*> encodeLateBoundQName(StrRef Name, StrRef URI) {
     auto [Pfx, LN] = SplitName(Name);
     URIEntry* URIV = encodeURI<StrmT>(URI);
     if EXI_NEVER(URIV == nullptr) {
@@ -302,10 +326,10 @@ public:
       return Err(ErrorCode::kUnexpectedError);
     }
 
-    exi_try_r(encodeName<StrmT>(URIV, LN));
+    NameEntry* LNV = EXI_UNWRAP(encodeName<StrmT>(URIV, LN));
     if (auto* PfxV = Strings.GetAnyPfx(URIV))
       exi_try_r(encodePfxQ<StrmT>(PfxV));
-    return URIV;
+    return LNV;
   }
 
   /// Encodes a uri.
@@ -332,25 +356,24 @@ public:
   }
 
   template <typename StrmT>
-  ExiError encodeName(URIEntry* URI, StrRef LN) {
+  ExiResult<NameEntry*> encodeName(URIEntry* URI, StrRef LN) {
     Result LNOrIP = Strings.lookupLocalName(URI, LN);
     if (LNOrIP.is_ok())
       return encodeName<StrmT>(URI, *LNOrIP);
     encode::LocalNameInsert* IP = LNOrIP.error();
     if EXI_NEVER(!IP) {
       LOG_ERROR("InsertionPoint cannot be null!");
-      return ErrorCode::kNullptrRef;
+      return Err(ErrorCode::kNullptrRef);
     }
     writer<StrmT>().writeUInt(LN.size() + 1);
     writer<StrmT>().writeString(LN);
-    Strings.addLocalName(URI, LN, IP);
-    return ExiError::OK;
+    return Strings.addLocalName(URI, LN, IP);
   }
   template <typename StrmT>
-  ExiError encodeName(URIEntry* URI, encode::LocalNameInfo* LN) {
+  ExiResult<NameEntry*> encodeName(URIEntry* URI, NameEntry* LN) {
     u32 Bits = Strings.getLocalNameLog(URI);
     writer<StrmT>().writeBits64(LN->id(), Bits);
-    return ExiError::OK;
+    return LN;
   }
 
   template <typename StrmT>
@@ -379,7 +402,7 @@ public:
     return Strings.addPrefix(URI, ChPfx);
   }
   template <typename StrmT>
-  encode::STPrefixEntry* encodePfx(encode::STPrefixEntry* Pfx) {
+  PrefixEntry* encodePfx(PrefixEntry* Pfx) {
     if (unsigned Bits = Strings.getPfxLog(Pfx)) {
       unsigned ID = Strings.GetID(Pfx);
       writer<StrmT>().writeBits64(ID + 1, Bits);
@@ -388,7 +411,7 @@ public:
   }
 
   template <typename StrmT>
-  ExiError encodeValue(encode::LocalNameInfo* LN, StrRef Value) {
+  ExiError encodeValue(NameEntry* LN, StrRef Value) {
     CachedHashStrRef ChValue = Strings.prehash(Value);
     auto [GV, IsLocal] = Strings.lookupLocalValue(LN, ChValue);
     if (IsLocal && GV) /*TODO: Assert GV*/ {

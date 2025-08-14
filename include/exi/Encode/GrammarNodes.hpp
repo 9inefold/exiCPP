@@ -27,11 +27,12 @@
 #include <core/Common/FoldingSet.hpp>
 #include <core/Support/Casting.hpp>
 #include <exi/Basic/EventCodes.hpp>
+#include <exi/Encode/StringTableHandles.hpp>
 
 #define GNODE_TYPES(X)                                                        \
-  X(SEAny) X(SEUri) X(SEQName)                                                \
-  X(ATAny) X(ATUri) X(ATQName)                                                \
-  X(CH)
+  X(SEUri) X(SEQName)                                                         \
+  X(ATUri) X(ATQName)                                                         \
+  X(CH) X(EE)
 
 namespace exi {
 namespace encode {
@@ -72,9 +73,9 @@ public:                                                                       \
 
 /// The base for GrammarNodes. It is the only first-level node.
 class BaseNode : public FoldingSetNode {
+protected:
   enum : u32 { kIllegalKind = kInvalidTerm };
   u32 Kind = kIllegalKind;
-protected:
   constexpr BaseNode() = default;
   constexpr BaseNode(EventTerm K) : Kind(u32(K)) {}
 public:
@@ -105,34 +106,59 @@ public:
 
 class SENode : public BaseNode {
 protected:
+  FirstLevelProd Code = kInvalidFLProd;
   constexpr SENode() = default;
   EXI_INLINE constexpr SENode(EventTerm K) : BaseNode(K) {
+    exi_invariant(this->isaSE());
+  }
+  constexpr SENode(EventTerm K, FirstLevelProd Code) : BaseNode(K), Code(Code) {
     exi_invariant(this->isaSE());
   }
 public:
   /// Dispatches `Profile` to the proper types.
   inline void Profile(FoldingSetNodeID& ID) const;
+  FirstLevelProd code() const { return Code; }
   static bool classof(const BaseNode* N) { return N->isaSE(); }
 };
 
 class ATNode : public BaseNode {
 protected:
+  FirstLevelProd Code = kInvalidFLProd;
   constexpr ATNode() = default;
   EXI_INLINE constexpr ATNode(EventTerm K) : BaseNode(K) {
+    exi_invariant(this->isaAT());
+  }
+  constexpr ATNode(EventTerm K, FirstLevelProd Code) : BaseNode(K), Code(Code) {
     exi_invariant(this->isaAT());
   }
 public:
   /// Dispatches `Profile` to the proper types.
   inline void Profile(FoldingSetNodeID& ID) const;
+  FirstLevelProd code() const { return Code; }
   static bool classof(const BaseNode* N) { return N->isaAT(); }
 };
 
 class CHNode final : public BaseNode {
-  static constexpr auto kTerm = EventTerm::CHExtern;
+  static constexpr auto kTerm = EventTerm::CH;
   FINAL_NODE(CHNode, BaseNode)
 public:
   constexpr CHNode() : BaseNode(kTerm) {}
-  void Profile(FoldingSetNodeID& ID) const {
+  void Profile(FoldingSetNodeID& ID) const { ProfileImpl(ID); }
+  static void ProfileImpl(FoldingSetNodeID& ID) {
+    ID.AddInteger(unsigned(kTerm));
+  }
+  static bool classof(const BaseNode* N) {
+    return N->kind() == kTerm;
+  }
+};
+
+class EENode final : public BaseNode {
+  static constexpr auto kTerm = EventTerm::EE;
+  FINAL_NODE(EENode, BaseNode)
+public:
+  constexpr EENode() : BaseNode(kTerm) {}
+  void Profile(FoldingSetNodeID& ID) const { ProfileImpl(ID); }
+  static void ProfileImpl(FoldingSetNodeID& ID) {
     ID.AddInteger(unsigned(kTerm));
   }
   static bool classof(const BaseNode* N) {
@@ -145,7 +171,9 @@ public:
 class SEAnyNode final : public SENode {
   THIRDLEVEL_NODE(SE, SEAny)
 public:
-  void Profile(FoldingSetNodeID& ID) const {
+  constexpr SEAnyNode(FirstLevelProd Code) : SENode(kTerm, Code) {}
+  void Profile(FoldingSetNodeID& ID) const { ProfileImpl(ID); }
+  static void ProfileImpl(FoldingSetNodeID& ID) {
     ID.AddInteger(unsigned(kTerm));
   }
 };
@@ -161,16 +189,24 @@ public:
 
 class SEQNameNode final : public SENode {
   THIRDLEVEL_NODE(SE, SEQName)
+  LocalNameInfo* Name = nullptr;
 public:
-  void Profile(FoldingSetNodeID& ID) const {
+  constexpr SEQNameNode(FirstLevelProd Code, LocalNameInfo* Name)
+      : SENode(kTerm, Code), Name(Name) {}
+  void Profile(FoldingSetNodeID& ID) const { ProfileImpl(ID, Name); }
+  static void ProfileImpl(FoldingSetNodeID& ID, LocalNameInfo* Name) {
     ID.AddInteger(unsigned(kTerm));
+    if (Name)
+      ID.AddPointer(Name);
   }
 };
 
 class ATAnyNode final : public ATNode {
   THIRDLEVEL_NODE(AT, ATAny)
 public:
-  void Profile(FoldingSetNodeID& ID) const {
+  constexpr ATAnyNode(FirstLevelProd Code) : ATNode(kTerm, Code) {}
+  void Profile(FoldingSetNodeID& ID) const { ProfileImpl(ID); }
+  static void ProfileImpl(FoldingSetNodeID& ID) {
     ID.AddInteger(unsigned(kTerm));
   }
 };
@@ -181,14 +217,21 @@ class ATUriNode final : public ATNode {
 public:
   void Profile(FoldingSetNodeID& ID) const {
     ID.AddInteger(unsigned(kTerm));
+    ID.AddInteger(ATNode::Code);
   }
 };
 
 class ATQNameNode final : public ATNode {
   THIRDLEVEL_NODE(AT, ATQName)
+  LocalNameInfo* Name = nullptr;
 public:
-  void Profile(FoldingSetNodeID& ID) const {
+  constexpr ATQNameNode(FirstLevelProd Code, LocalNameInfo* Name)
+      : ATNode(kTerm, Code), Name(Name) {}
+  void Profile(FoldingSetNodeID& ID) const { ProfileImpl(ID, Name); }
+  static void ProfileImpl(FoldingSetNodeID& ID, LocalNameInfo* Name) {
     ID.AddInteger(unsigned(kTerm));
+    if (Name)
+      ID.AddPointer(Name);
   }
 };
 
@@ -210,7 +253,8 @@ inline void BaseNode::Profile(FoldingSetNodeID& ID) const {
 EXI_FLATTEN inline void SENode::Profile(FoldingSetNodeID& ID) const {
   switch (this->kind()) {
   case EventTerm::SEAny:
-    return static_cast<const SEAnyNode*>(this)->Profile(ID);
+    //return static_cast<const SEAnyNode*>(this)->Profile(ID);
+    exi_guardrail("SEAny cannot be profiled!");
   case EventTerm::SEUri:
     return static_cast<const SEUriNode*>(this)->Profile(ID);
   case EventTerm::SEQName:
@@ -223,7 +267,8 @@ EXI_FLATTEN inline void SENode::Profile(FoldingSetNodeID& ID) const {
 EXI_FLATTEN inline void ATNode::Profile(FoldingSetNodeID& ID) const {
   switch (this->kind()) {
   case EventTerm::ATAny:
-    return static_cast<const ATAnyNode*>(this)->Profile(ID);
+    //return static_cast<const ATAnyNode*>(this)->Profile(ID);
+    exi_guardrail("ATAny cannot be profiled!");
   case EventTerm::ATUri:
     return static_cast<const ATUriNode*>(this)->Profile(ID);
   case EventTerm::ATQName:
