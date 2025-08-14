@@ -62,13 +62,17 @@ struct EXI_EMPTY_BASES StringEventData : BaseEvent {
   u32 Extra : 30 = 0;
   u32 Tag : 2 = 0b00;
   const char* Data = nullptr;
+public:
+  ALWAYS_INLINE constexpr StrRef name() const {
+    return StrRef(Data, Size);
+  }
 };
 /// The base of all (string, string) types.
 struct EXI_EMPTY_BASES PairEventData : BaseEvent {
   u32 Size[2] = {0, 0};
   const char* Data[2] = {nullptr, nullptr};
 public:
-  constexpr ALWAYS_INLINE StrRef operator[](usize Ix) const 
+  ALWAYS_INLINE constexpr StrRef operator[](usize Ix) const 
    EXI_ERROR_IF(Ix > 1, "Index out of range!") {
     exi_invariant(Ix <= 1, "Index out of range!");
     return StrRef(Data[Ix], Size[Ix]);
