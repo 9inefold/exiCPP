@@ -106,15 +106,27 @@ struct StreamBase {
   static constexpr size_type UnicodeReads = 3; // FIXME: Use agnostic name
 
   /// Creates a mask for the current word type.
-  inline static constexpr word_t MakeNBitMask(size_type Bits) EXI_READNONE {
-    constexpr_static word_t Mask = ~word_t(0);
-    return EXI_LIKELY(Bits != kBitsPerWord) ? ~(Mask << Bits) : Mask;
+  template <typename IntT = word_t>
+  inline static constexpr IntT MakeNBitMask(size_type Bits) EXI_READNONE {
+    constexpr_static IntT Mask = ~IntT(0);
+    return EXI_LIKELY(Bits != bitsizeof_v<IntT>) ? ~(Mask << Bits) : Mask;
+  }
+  /// Creates an upper mask for the current word type.
+  template <typename IntT = word_t>
+  inline static constexpr IntT MakeUpperNBitMask(size_type Bits) EXI_READNONE {
+    constexpr_static IntT Mask = ~IntT(0);
+    return EXI_LIKELY(Bits != bitsizeof_v<IntT>) ? ~(Mask >> Bits) : Mask;
   }
 
   /// Get the number of bytes N bits can fit in.
   inline static constexpr size_type MakeByteCount(size_type Bits) EXI_READNONE {
     exi_invariant(Bits != 0);
     return ((Bits - 1) >> 3) + size_type(1);
+  }
+
+  /// Get the number of bytes N bits can fit in.
+  inline static constexpr size_type MakeByteAligned(size_type Bits) EXI_READNONE {
+    return EXI_LIKELY(Bits < 64) ? (Bits + 7) & ~ByteAlignMask : 64;
   }
 
   /// Get the byte-aligned shift required for N bits.
