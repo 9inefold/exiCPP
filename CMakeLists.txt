@@ -20,7 +20,7 @@ cmake_policy(SET CMP0079 NEW)
 set_version(EXI PROJECT)
 set(EFL_NAMESPACE exi) # Unused... for now
 
-# list(APPEND CMAKE_CXX_FLAGS "-fsanitize=address")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
 
 # TODO: Remove when complete?
 option(EXI_DRIVER       "If the driver should be built (always ON at top level)." OFF)

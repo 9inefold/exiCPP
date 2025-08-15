@@ -164,15 +164,13 @@ public:
     this->construct(std::move(Other));
   }
 
-  constexpr OptionStorage& operator=(const T& V) {
-    BaseT::Data = V;
-    BaseT::Active = true;
+  EXI_FLATTEN constexpr OptionStorage& operator=(const T& V) {
+    this->emplace(V);
     return *this;
   }
 
-  constexpr OptionStorage& operator=(T&& V) {
-    BaseT::Data = std::move(V);
-    BaseT::Active = true;
+  EXI_FLATTEN constexpr OptionStorage& operator=(T&& V) {
+    this->emplace(std::move(V));
     return *this;
   }
 
