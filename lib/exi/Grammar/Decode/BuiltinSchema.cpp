@@ -30,6 +30,7 @@
 #include <core/Support/Format.hpp>
 #include <core/Support/Logging.hpp>
 #include <core/Support/TrailingArray.hpp>
+#include <core/Support/WithColor.hpp>
 #include <exi/Basic/D/InternalMacros.hpp>
 #include <exi/Basic/ExiOptions.hpp>
 #include <exi/Decode/Grammar.hpp>
@@ -657,21 +658,18 @@ EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logCurrentGrammar(ExiDec
     // Don't do any work if log level is insufficient.
     return;
   
-  const auto OldColor = dbgs().getColor();
-  dbgs().changeColor(BRIGHT_WHITE) << '\n';
-
-  dbgs() << "State: " << get_state_name(Current);
+  WithColor OS(dbgs(), BRIGHT_WHITE);
+  OS << "\nState: " << get_state_name(Current);
   const bool IsContent = mmatch(Current).is(StartTagContent, ElementContent);
   if EXI_LIKELY(IsContent && !GStack.empty()) {
     const SmallQName ID = GStack.back()->getName();
     auto [URI, Name] = Get::Strings(D).getQName(ID);
     if (URI.empty())
-      dbgs() << format("[{}]", Name);
+      OS << format("[{}]", Name);
     else
-      dbgs() << format("[{}:{}]", URI, Name);
+      OS << format("[{}:{}]", URI, Name);
   }
-
-  dbgs() << '\n' << OldColor;
+  OS << '\n';
 }
 
 template <class StrmT>

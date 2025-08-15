@@ -140,6 +140,9 @@ public:
   unsigned id() const { return LNID; }
   STURIEntry* link() const { return URI; }
 
+  StrRef name() const { return LocalName->str(); }
+  inline StrRef uriName() const;
+
   LVType& values() const { return LVs; }
   unsigned size() const { return LVs.size(); }
   unsigned log() const { return ID_Log2(LVs.size()); }
@@ -938,6 +941,10 @@ inline LocalNameInfo::LocalNameInfo(STURIEntry* ID, const InlineStr* LocalName) 
  URI(ID), WithURI(CheckURI(ID)), LNID(GetLNID(ID)), LocalName(LocalName) {
   if EXI_NEVER(!LocalName)
     Throw<argument_error>("LocalName Name is null!");
+}
+
+inline StrRef LocalNameInfo::uriName() const {
+  return StringTable::GetURI(URI);
 }
 
 } // namespace encode

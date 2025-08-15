@@ -63,7 +63,7 @@
 #if DECODER_LOG_POSITIONS
 // FIXME: Update if needed...
 # define LOG_POSITION(...)                                                    \
-  LOG_EXTRA("@[{}]:", ((__VA_ARGS__)->Reader->bitPos()))
+  LOG_EXTRA("@[{:#02x}]:", ((__VA_ARGS__)->Reader->bitPos() / 8))
 #else
 # define LOG_POSITION(...) ((void)(0))
 #endif

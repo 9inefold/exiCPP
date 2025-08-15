@@ -30,6 +30,7 @@
 #include <core/Support/Format.hpp>
 #include <core/Support/Logging.hpp>
 #include <core/Support/TrailingArray.hpp>
+#include <core/Support/WithColor.hpp>
 #include <exi/Basic/D/InternalMacros.hpp>
 #include <exi/Basic/ExiOptions.hpp>
 #include <exi/Encode/D/EventMappings.mac>
@@ -248,7 +249,8 @@ private:
 
   /// ENTRY POINT - Dispatches common events.
   CC_INLINE ExiError setEventImpl(ORDERED_ARGS) {
-    this->logEvent(Event, K);
+    this->logCurrentGrammar();
+    this->logEvent(K);
     switch (Current) {
     case StartTagContent:
       tail_return this->handleStartTag(ORDERED_NEXT);
@@ -278,7 +280,8 @@ private:
   /// ENTRY POINT - Dispatches common batch events.
   template <bool IsRoot = false>
   CC_INLINE ExiError batchEventsImpl(ORDERED_BARGS) {
-    this->logEvent(Arr, N, K);
+    this->logCurrentGrammar();
+    this->logEventEx(Arr, N, K);
     switch (Current) {
     case StartTagContent:
       tail_return this->batchStartTag<IsRoot>(ORDERED_BNEXT);
@@ -621,10 +624,10 @@ private:
   CC ExiError batchAT(ORDERED_BARGS) {
     auto* VArr = static_cast<const AttrEvent*>(Arr);
     for (usize Ix = 0; Ix < N - 1; ++Ix) {
-      this->logEvent(VArr[Ix], K);
+      this->logEventEx(VArr[Ix], K);
       exi_try(handleAT(OE, VArr[Ix]));
     }
-    this->logEvent(VArr[N - 1], K);
+    this->logEventEx(VArr[N - 1], K);
     return handleAT(OE, VArr[N - 1]);
   }
 
@@ -632,26 +635,26 @@ private:
   CC ExiError batchNS(ORDERED_BARGS) {
     auto* VArr = static_cast<const NamespaceEvent*>(Arr);
     for (usize Ix = 0; Ix < N - 1; ++Ix) {
-      this->logEvent(VArr[Ix], K);
+      this->logEventEx(VArr[Ix], K);
       exi_try(handleNS<IsRoot>(OE, VArr[Ix]));
     }
-    this->logEvent(VArr[N - 1], K);
+    this->logEventEx(VArr[N - 1], K);
     return handleNS<IsRoot>(OE, VArr[N - 1]);
   }
 
   CC ExiError batchCHElem(ORDERED_BARGS) {
     auto* VArr = static_cast<const CharEvent*>(Arr);
     for (usize Ix = 0; Ix < N - 1; ++Ix) {
-      this->logEvent(VArr[Ix], K);
+      this->logEventEx(VArr[Ix], K);
       exi_try(handleCH<false>(OE, VArr[Ix]));
     }
-    this->logEvent(VArr[N - 1], K);
+    this->logEventEx(VArr[N - 1], K);
     return handleCH<false>(OE, VArr[N - 1]);
   }
 
   CC ExiError batchCHStart(ORDERED_BARGS) {
     auto* VArr = static_cast<const CharEvent*>(Arr);
-    this->logEvent(*VArr, K);
+    this->logEventEx(*VArr, K);
     if (N <= 1)
       return handleCH<true>(OE, *VArr);
     exi_try(handleCH<true>(OE, *VArr));
@@ -715,15 +718,15 @@ public:
 
 private:
 #if EXI_LOGGING
-  //EXI_PRESERVE_CALLSITE void logCurrentGrammar(ExiDecoder* D);
-  //EXI_PRESERVE_CALLSITE void logCurrentEvent();
-  EXI_PRESERVE_CALLSITE void logEvent(const BaseEvent& Event, SimpleEventTerm K);
-  EXI_PRESERVE_CALLSITE void logEvent(const void* Arr, usize N, SimpleEventTerm K);
+  EXI_PRESERVE_CALLSITE void logCurrentGrammar();
+  EXI_PRESERVE_CALLSITE void logEvent(SimpleEventTerm Term);
+  EXI_PRESERVE_CALLSITE void logEventEx(const BaseEvent& Event, SimpleEventTerm K);
+  EXI_PRESERVE_CALLSITE void logEventEx(const void*, usize N, SimpleEventTerm K);
 #else
-  //ALWAYS_INLINE constexpr void logCurrentGrammar(ExiDecoder*) {}
-  //ALWAYS_INLINE constexpr void logCurrentEvent() {}
-  ALWAYS_INLINE constexpr void logEvent(const BaseEvent&, SimpleEventTerm) {}
-  ALWAYS_INLINE constexpr void logEvent(const void*, usize, SimpleEventTerm) {}
+  ALWAYS_INLINE constexpr void logCurrentGrammar() {}
+  ALWAYS_INLINE constexpr void logEvent(SimpleEventTerm) {}
+  ALWAYS_INLINE constexpr void logEventEx(const BaseEvent&, SimpleEventTerm) {}
+  ALWAYS_INLINE constexpr void logEventEx(const void*, usize, SimpleEventTerm) {}
 #endif
   void anchor() override;
 };
@@ -775,7 +778,36 @@ template<> void OrderedBuiltinSchema<ByteWriter>::anchor() {}
 
 #if EXI_LOGGING
 template <is_ordwriter_stream StrmT>
-EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEvent(
+EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logCurrentGrammar() {
+  using enum raw_ostream::Colors;
+  if (!hasDbgLogLevel(VERBOSE))
+    // Don't do any work if log level is insufficient.
+    return;
+  
+  WithColor OS(dbgs(), BRIGHT_WHITE);
+  OS << "\nState: " << get_state_name(Current);
+  const bool IsContent = mmatch(Current).is(StartTagContent, ElementContent);
+  if EXI_LIKELY(IsContent && !GStack.empty()) {
+    LocalNameInfo* LN = GStack.back()->getName();
+    StrRef URI = LN->uriName(), Name = LN->name();
+    if (URI.empty())
+      OS << format("[{}]", Name);
+    else
+      OS << format("[{}:{}]", URI, Name);
+  }
+  OS << '\n';
+}
+
+template <is_ordwriter_stream StrmT>
+EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEvent(SimpleEventTerm Term) {
+  LOG_INFO("> With {}: {}",
+    get_event_name(Term),
+    get_event_signature(Term)
+  );
+}
+
+template <is_ordwriter_stream StrmT>
+EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEventEx(
  const BaseEvent& Event, SimpleEventTerm K) {
   if (!hasDbgLogLevel(VERBOSE))
     return;
@@ -791,14 +823,12 @@ EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEvent(
   });
 }
 template <is_ordwriter_stream StrmT>
-EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEvent(
- const void* Arr, usize N, SimpleEventTerm K) {
+EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEventEx(
+ const void*, usize N, SimpleEventTerm K) {
   if (!hasDbgLogLevel(VERBOSE))
     return;
-  VisitEvent(Arr, N, K, [] <typename T> (T*, usize N) EXI_MINSIZE {
-    LOG_EXTRA("> Batch of {}[{}]",
-      get_event_name(unmap_event_v<T>), N);
-  });
+  WithColor(dbgs(), raw_ostream::BRIGHT_MAGENTA)
+    << format("Batch of {}[{}]\n", get_event_name(K), N);
 }
 #endif // EXI_LOGGING
 
