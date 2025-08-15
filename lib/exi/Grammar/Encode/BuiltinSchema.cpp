@@ -156,7 +156,12 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final : public BuiltinSchema {
   /// Stores all the SE grammars.
   DenseMap<LocalNameInfo*, BuiltinGrammar*> Grammars;
 
-  OrderedBuiltinSchema(OrderedEncoder&, const BIEventMap& TMap) : TMap(TMap) {}
+  OrderedBuiltinSchema(OrderedEncoder& OE, const BIEventMap& TMap) : TMap(TMap) {
+#if !defined(NDEBUG) || EXI_ENABLE_DUMP
+  if (hasDbgLogLevel(INFO))
+    TMap.dump(OE.getOptions());
+#endif
+  }
 
 public:
   static Box<OrderedBuiltinSchema> New(OrderedEncoder* OE,
@@ -308,7 +313,7 @@ private:
   CC ExiError handleDocContent(ORDERED_ARGS) {
     using enum SimpleEventTerm;
     static constexpr State S = DocContent;
-    switch (BIEventMap::IdxDocContent(K)) {
+    switch (eventmap::DocContentIdx(K)) {
     case map_doccontent_v<SE>:
       // This should only be called once, at the start of processing.
       exi_assert(GStack.empty() && Grammars.empty());
@@ -327,7 +332,7 @@ private:
   CC ExiError handleDocEnd(ORDERED_ARGS) {
     using enum SimpleEventTerm;
     static constexpr State S = DocEnd;
-    switch (BIEventMap::IdxDocEnd(K)) {
+    switch (eventmap::DocEndIdx(K)) {
     case map_docend_v<ED>:
       tail_return encodeDocEnd<ED>(ORDERED_NEXT);
     case map_docend_v<CM>:

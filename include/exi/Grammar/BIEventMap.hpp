@@ -32,7 +32,55 @@
 
 namespace exi {
 
+class BodyEncoder;
 class BIEventMapBuilder;
+
+namespace eventmap {
+
+using TermT = SimpleEventTerm;
+
+inline constexpr unsigned DocContentIdx(TermT K) {
+  using enum SimpleEventTerm;
+  exi_invariant(mmatch_value(K).is(SE, CM, PI, DT));
+  return unsigned(K) & 0b0011;
+}
+inline constexpr unsigned DocEndIdx(TermT K) {
+  using enum SimpleEventTerm;
+  exi_invariant(mmatch_value(K).is(ED, CM, PI));
+  return ((unsigned(K) & 0b0110) >> 1) - 1u;
+}
+
+/// Maps full event codes for `DocContent`.
+struct DocContentArray {
+  FullEventCode Data[4] {};
+public:
+  EXI_FLATTEN EXI_INLINE FullEventCode& operator[](TermT K) {
+    return Data[DocContentIdx(K)];
+  }
+  EXI_FLATTEN EXI_INLINE FullEventCode operator[](TermT K) const {
+    return Data[DocContentIdx(K)];
+  }
+};
+
+/// Maps full event codes for `DocEnd`.
+struct DocEndArray {
+  FullEventCode Data[3] {};
+public:
+  EXI_FLATTEN EXI_INLINE FullEventCode& operator[](TermT K) {
+    return Data[DocEndIdx(K)];
+  }
+  EXI_FLATTEN EXI_INLINE FullEventCode operator[](TermT K) const {
+    return Data[DocEndIdx(K)];
+  }
+};
+
+/// Currently stores everything. Will change this later.
+using FatElementArray = EnumArray<SecondLevelEventCode, SimpleEventTerm>;
+
+using StartTagArray = FatElementArray;
+using ElementArray  = FatElementArray;
+
+} // namespace eventmap
 
 /// Used for mapping events to values.
 /// Works via "perfect hashing" over the domain.
@@ -49,42 +97,29 @@ class BIEventMapBuilder;
 class BIEventMap {
   friend class BIEventMapBuilder;
   /// Accessed with [SE, CM, PI, DT]
-  Array<FullEventCode, 4> DocContent {};
+  eventmap::DocContentArray DocContent;
   /// Accessed with [ED, CM, PI]
-  Array<FullEventCode, 3> DocEnd {};
-  /// Currently stores everything. Will change this later.
-  using FatElementArray = EnumArray<SecondLevelEventCode, SimpleEventTerm>;
+  eventmap::DocEndArray DocEnd;
   /// Accessed with [EE, AT, NS, SC, CC...]
-  FatElementArray StartTagContent {};
+  eventmap::StartTagArray StartTagContent {};
   /// Accessed with [EE, CC...]
-  FatElementArray ElementContent {};
+  eventmap::ElementArray ElementContent {};
 
   static unsigned GetShift(const ExiOptions& Opts) {
     return (Opts.Alignment == AlignKind::BitPacked) ? 1 : 8;
   }
-
   constexpr BIEventMap() = default;
+
 public:
   [[nodiscard]] inline static BIEventMap New(const ExiOptions& Opts);
 
-  static constexpr unsigned IdxDocContent(SimpleEventTerm K) {
-    using enum SimpleEventTerm;
-    exi_invariant(MMatch(K).is(SE, CM, PI, DT));
-    return unsigned(K) & 0b0011;
-  }
-  static constexpr unsigned IdxDocEnd(SimpleEventTerm K) {
-    using enum SimpleEventTerm;
-    exi_invariant(MMatch(K).is(ED, CM, PI));
-    return ((unsigned(K) & 0b0110) >> 1) - 1u;
-  }
-
-  [[nodiscard]] constexpr EXI_FLATTEN FullEventCode
+  [[nodiscard]] constexpr FullEventCode
    mapDocContent(SimpleEventTerm K) const {
-    return DocContent[IdxDocContent(K)];
+    return DocContent[K];
   }
-  [[nodiscard]] constexpr EXI_FLATTEN FullEventCode
+  [[nodiscard]] constexpr FullEventCode
    mapDocEnd(SimpleEventTerm K) const {
-    return DocEnd[IdxDocEnd(K)];
+    return DocEnd[K];
   }
   [[nodiscard]] constexpr EXI_FLATTEN SecondLevelEventCode
    mapStartTagContent(SimpleEventTerm K) const {
@@ -96,14 +131,14 @@ public:
   }
 
   template <SimpleEventTerm K> 
-  [[nodiscard]] constexpr EXI_FLATTEN FullEventCode mapDocContent() const {
-    constexpr_static unsigned Off = IdxDocContent(K);
-    return DocContent[Off];
+  [[nodiscard]] constexpr FullEventCode mapDocContent() const {
+    constexpr unsigned Off = eventmap::DocContentIdx(K);
+    return DocContent.Data[Off];
   }
   template <SimpleEventTerm K> 
-  [[nodiscard]] constexpr EXI_FLATTEN FullEventCode mapDocEnd() const {
-    constexpr_static unsigned Off = IdxDocEnd(K);
-    return DocEnd[Off];
+  [[nodiscard]] constexpr FullEventCode mapDocEnd() const {
+    constexpr unsigned Off = eventmap::DocEndIdx(K);
+    return DocEnd.Data[Off];
   }
   template <SimpleEventTerm K> 
   [[nodiscard]] constexpr EXI_FLATTEN
@@ -115,13 +150,21 @@ public:
    SecondLevelEventCode mapElementContent() const {
     return ElementContent[K];
   }
+
+#if EXI_DEBUG || EXI_ENABLE_DUMP
+  EXI_DUMP_METHOD void dump(BodyEncoder* BE) const;
+  EXI_DUMP_METHOD void dump(const ExiOptions& Opts) const;
+private:
+  inline void dumpPacked(const ExiOptions& Opts) const;
+  inline void dumpNonPacked(const ExiOptions& Opts) const;
+#endif
 };
 
 template <SimpleEventTerm K>
-inline constexpr unsigned map_doccontent_v = BIEventMap::IdxDocContent(K);
+inline constexpr unsigned map_doccontent_v = eventmap::DocContentIdx(K);
 
 template <SimpleEventTerm K>
-inline constexpr unsigned map_docend_v = BIEventMap::IdxDocEnd(K);
+inline constexpr unsigned map_docend_v = eventmap::DocEndIdx(K);
 
 //////////////////////////////////////////////////////////////////////////
 // Builder
@@ -129,8 +172,6 @@ inline constexpr unsigned map_docend_v = BIEventMap::IdxDocEnd(K);
 /// Builds a `BIEventMap` from the given options.
 /// Current implementation isn't clean, but should work.
 class BIEventMapBuilder {
-  using enum SimpleEventTerm;
-  using T = BIEventMap;
   BIEventMap TMap {};
   ExiOptions::PreserveOpts Preserve;
   bool SelfContained;
@@ -157,7 +198,7 @@ private:
   void initSecondLevel();
   inline void initStartTagContent();
   inline void initElementContent();
-  inline void initCCItems(BIEventMap::FatElementArray& A,
+  inline void initCCItems(eventmap::FatElementArray& A,
                           unsigned Count, unsigned Bits);
 
   bool hasThirdLevelCodes() const {

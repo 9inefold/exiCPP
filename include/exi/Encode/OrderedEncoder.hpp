@@ -90,8 +90,12 @@ public:
     return CurrentSchema.operator->();
   }
 
+  StreamBase::StreamKind streamKind() const override {
+    return Writer->getStreamKind();
+  }
+
   static bool classof(const BodyEncoder* BE) {
-    return BE->get_kind() == EncoderKind::EK_Ordered;
+    return BE->kind() == EncoderKind::EK_Ordered;
   }
 
   ////////////////////////////////////////////////////////////////////////
