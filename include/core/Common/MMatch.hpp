@@ -27,6 +27,8 @@
 #include <Common/Fundamental.hpp>
 #include <type_traits>
 
+// TODO: Update explicit MMatch with ConvT to use overloads.
+
 namespace exi {
 namespace H {
 template <class T> struct SimplifyMMatch {
@@ -36,8 +38,24 @@ template <class T> struct SimplifyMMatch<T&&> {
   using type = typename SimplifyMMatch<T>::type;
 };
 
+template <class T, bool InferPassByType>
+struct MMatchPassByValue {
+  static constexpr bool kIsCheapPassByRegister
+    = std::is_trivially_copyable_v<T>
+    && sizeof(T) <= 2 * sizeof(void*);
+  /// The pass-by type.
+  using type = std::conditional_t<kIsCheapPassByRegister, T, const T&>;
+};
+template <class T>
+struct MMatchPassByValue<T, false> {
+  using type = dummy_t;
+};
+
 template <class T> using simplify_mmatch_t
   = typename SimplifyMMatch<T>::type;
+
+template <class T, bool InferPassByType>
+using mmatch_passby_t = typename MMatchPassByValue<T, InferPassByType>::type;
 } // namespace H
 
 /// Match adaptor, simplifies some stuff.
@@ -127,6 +145,13 @@ template <typename Conv = dummy_t>
 EXI_INLINE constexpr auto mmatch(auto&& ToMatch) {
   using MatchT = MMatch<decltype(ToMatch), Conv>;
   return MatchT(EXI_FWD(ToMatch));
+}
+
+template <bool InferPassByType = true>
+EXI_INLINE constexpr auto mmatch_value(auto&& ToMatch) {
+  using BaseT = std::remove_cvref_t<decltype(ToMatch)>;
+  using ConvT = H::mmatch_passby_t<BaseT, InferPassByType>;
+  return MMatch<BaseT, ConvT>(EXI_FWD(ToMatch));
 }
 
 } // namespace exi
