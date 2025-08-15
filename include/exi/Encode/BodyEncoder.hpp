@@ -53,7 +53,8 @@ struct EncoderFlags {
   bool DidInit : 1 = false;
 };
 
-/// The EXI encoding processor.
+/// The EXI encoding processor generator. You configure your options here, then
+/// create an `EncoderFactory` that will instantiate the encoder for you.
 class ExiEncoder {
   /// The provided Header.
   // TODO: Check .HasOptions everywhere?
@@ -178,55 +179,6 @@ public:
   /// Gets the type of the encoder.
   EncoderKind get_kind() const { return Kind; }
 
-  ////////////////////////////////////////////////////////////////////////
-  // Terms
-#if 0
-  /// Start Document
-  ExiError SD();
-  /// End Document
-  ExiError ED();
-
-  /// Start Element (with prefix)
-  virtual ExiError SE_Pfx(StrRef Name, StrRef Pfx) {
-    return ExiError::OK;
-  }
-  /// Start Element (with URI) - for local-element-ns
-  virtual ExiError SE_Uri(StrRef Name, StrRef URI) {
-    return ExiError::OK;
-  }
-  /// End Element
-  virtual ExiError EE() {
-    return ExiError::OK;
-  }
-  /// Attribute
-  virtual ExiError AT(StrRef Name, StrRef Pfx, StrRef Value) {
-    return ExiError::OK;
-  }
-
-  // TODO: Make typed AT variants that forward to normal AT by default.
-
-  /// Namespace Declaration
-  virtual ExiError NS(StrRef URI, StrRef Prefix) {
-    return ExiError::OK;
-  }
-  /// Characters
-  virtual ExiError CH(StrRef Value) {
-    return ExiError::OK;
-  }
-
-  /// Comment
-  virtual ExiError CM(StrRef Comment);
-  /// Processing Instruction
-  virtual ExiError PI(StrRef Target, StrRef Text);
-  /// DOCTYPE
-  virtual ExiError DT(StrRef Name, StrRef PublicID,
-                      StrRef SystemID, StrRef Text);
-  /// Entity Reference
-  virtual ExiError ER(StrRef Name);
-  
-  /// Self-Contained
-  virtual ExiError SC();
-#endif
 private:
   virtual void anchor();
 };
