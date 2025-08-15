@@ -227,12 +227,14 @@ public:
   }
 
   /// If empty, adds element to the current scope. If it is the global scope,
-  /// returns. Throw(...) if depth is >1.
-  void add(encode::StringTable&, value_type Elt) {
-    if EXI_NEVER(Head->Depth != 1) {
+  /// returns. Creates a new scope if depth is >1.
+  void add(encode::StringTable& SM, value_type Elt) {
+    if EXI_UNLIKELY(Head->Depth != 1) {
       if (Head->isTail())
         return;
-      Throw<runtime_error>("Attempted to add() to a parent scope!");
+      exi_assert(Head->Depth > 1);
+      decDepth();
+      return pushScope(SM, Elt);
     }
     const usize NewNumElts = Head->NumElts + 1;
     Scopes.pop_back();
