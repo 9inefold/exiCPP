@@ -82,9 +82,7 @@ public:
   virtual void setProxy(proxy_t Proxy) = 0;
 
   /// The position in bits.
-  virtual size_type bitPos() const {
-    return ByteOffset * 8;
-  }
+  virtual size_type bitPos() const = 0;
 
   /// Return size of the stream in bytes.
   usize sizeInBytes() const { return Stream.size(); }
@@ -506,6 +504,11 @@ public:
     // Load data into store.
     if (auto E = fillStore())
       OrderedReader::WriteError(E, "unable to load store");
+  }
+
+  /// The position in bits.
+  size_type bitPos() const override {
+    return (ByteOffset - BytesInStore) * 8;
   }
 
   StreamKind getStreamKind() const override {
