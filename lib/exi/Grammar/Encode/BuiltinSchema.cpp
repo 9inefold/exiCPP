@@ -144,22 +144,16 @@ template <is_ordwriter_stream StrmT>
 class INTERNAL_LINKAGE OrderedBuiltinSchema final : public BuiltinSchema {
   using enum BIGrammarState;
   using BuiltinSchema::State;
-
   using Get = encode::Schema::Get<StrmT>;
-  using GrammarT = PointerIntPair<encode::BuiltinGrammar*, 1, bool>;
 
   /// The grammar state.
   BIGrammarState Current = Document;
   /// Maps `SimpleEventTerm`s to event codes.
   BIEventMap TMap;
   /// The grammar stack.
-  SmallVec<GrammarT, 0> GStack;
+  SmallVec<encode::BuiltinGrammar*, 0> GStack;
   /// Stores all the SE grammars.
   DenseMap<LocalNameInfo*, BuiltinGrammar*> Grammars;
-  /// Used for all EE GrammarNodes.
-  gnode::EENode GlobalEENode;
-  /// Used for all CH GrammarNodes.
-  gnode::CHNode GlobalCHNode;
 
   OrderedBuiltinSchema(OrderedEncoder&, const BIEventMap& TMap) : TMap(TMap) {}
 
@@ -314,7 +308,7 @@ private:
     switch (BIEventMap::IdxDocContent(K)) {
     case map_doccontent_v<SE>:
       // This should only be called once, at the start of processing.
-      exi_assert(GStack.empty() /*&& Grammars.empty()*/);
+      exi_assert(GStack.empty() && Grammars.empty());
       tail_return encodeDocContent<SE>(ORDERED_NEXT);
     case map_doccontent_v<CM>:
       tail_return encodeDocContent<CM>(ORDERED_NEXT);
@@ -434,7 +428,7 @@ private:
   template <bool IsStart>
   ALWAYS_INLINE CC void handlePrevSEGrammar(OrderedEncoder* OE, LocalNameInfo* LN) {
     exi_invariant(!GStack.empty());
-    auto* G = GStack.back().getPointer();
+    auto* G = GStack.back();
     if (void* IP = G->setSETerm<IsStart>(&Get::Writer(OE), LN)) {
       this->encodeSLCode<IsStart, SimpleEventTerm::SE>(OE);
       G->addSETerm<IsStart>(OE, LN, IP);
@@ -444,14 +438,14 @@ private:
   void handleSEDefaultCode(OrderedEncoder* OE) {
     static constexpr bool IsStart = (S == StartTagContent);
     static_assert(S != DocContent);
-    auto* G = GStack.back().getPointer();
+    auto* G = GStack.back();
     G->writeFallbackCode<IsStart>(&Get::Writer(OE));
     this->encodeSLCode<IsStart, SimpleEventTerm::SE>(OE);
   }
   CC ExiError loadSEGrammar(OrderedEncoder* OE, LocalNameInfo* LN) {
     this->transition(StartTagContent);
     auto [G, Cached] = loadGrammar(OE, LN);
-    GStack.push_back({G, true});
+    GStack.push_back(G);
     return ExiError::OK;
   }
 
@@ -510,9 +504,8 @@ private:
   /// need to add it to the grammar.
   template <bool IsStart = false>
   CC ExiError handleEE(ORDERED_ARGS) {
-    exi_invariant(!GStack.empty()
-               && IsStart == GStack.back().getInt());
-    auto* G = GStack.back().getPointer();
+    exi_invariant(!GStack.empty());
+    auto* G = GStack.back();
     if (G->setEETerm<IsStart>(&Get::Writer(OE))) {
       // Must be StartTagContent.
       this->encodePrecomputedCode(OE,
@@ -522,7 +515,7 @@ private:
     }
     GStack.pop_back();
     if EXI_LIKELY(!GStack.empty())
-      this->transition<ElementContent>();
+      this->transition(ElementContent);
     else
       this->transition(DocEnd);
     return ExiError::OK;
@@ -533,8 +526,8 @@ private:
       event_cast<SimpleEventTerm::AT>(Event, K));
   }
   CC ExiError handleAT(OrderedEncoder* OE, const AttrEvent& AT) {
-    exi_invariant(!GStack.empty() && GStack.back().getInt());
-    auto* G = GStack.back().getPointer();
+    exi_invariant(!GStack.empty() && GStack.back());
+    auto* G = GStack.back();
     auto [URIV, LN] = OE->lookupAT(AT);
     if (LN == nullptr) {
       G->writeFallbackCode<true>(&Get::Writer(OE));
@@ -572,16 +565,15 @@ private:
   }
   template <bool IsStart>
   CC ExiError handleCH(OrderedEncoder* OE, const CharEvent& CH) {
-    exi_invariant(!GStack.empty()
-               && IsStart == GStack.back().getInt());
-    auto* G = GStack.back().getPointer();
+    exi_invariant(!GStack.empty());
+    auto* G = GStack.back();
     if (G->setCHTerm<IsStart>(&Get::Writer(OE))) {
       this->encodeSLCode<IsStart, SimpleEventTerm::CH>(OE);
       auto* CHNode = new (*OE) gnode::CHNode;
       G->addCHTerm<IsStart>(CHNode);
     }
     if constexpr (IsStart)
-      this->transition<ElementContent>();
+      this->transition(ElementContent);
     return OE->encodeValue<StrmT>(G->getName(), CH.name());
   }
 
@@ -598,7 +590,7 @@ private:
     if constexpr (IsStart) {
       encodePrecomputedCode(OE,
         TMap.mapStartTagContent(K));
-      this->transition<ElementContent>();
+      this->transition(ElementContent);
     } else {
       encodePrecomputedCode(OE,
         TMap.mapElementContent(K));
@@ -696,13 +688,6 @@ private:
   // Grammar
 
   ALWAYS_INLINE CC void transition(State New) { Current = New; }
-
-  template <State NextState>
-  ALWAYS_INLINE CC void transition() {
-    Current = NextState;
-    if constexpr (NextState == ElementContent)
-      GStack.back().setInt(false);
-  }
 
   /// Returns `[Grammar, Cached]`.
   std::pair<BuiltinGrammar*, bool>
