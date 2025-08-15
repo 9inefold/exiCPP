@@ -62,7 +62,7 @@ static ExiError encodeHeaderImpl(const ExiHeader& Header, BitWriter& Strm) {
   }
 
   if (Header.HasCookie) {
-    Strm.writeString("$EXI");
+    Strm.writeAsciiString</*Validate=*/false>("$EXI");
     LOG_EXTRA("header has cookie.");
   }
 
@@ -122,7 +122,7 @@ ExiError ExiEncoder::compileHeader(Option<bool> IncludeOptions) {
   if (IncludeOptions)
     Header.HasOptions = *IncludeOptions;
 
-  SmallVec<char, 256> Buffer;
+  SmallVec<char, 64> Buffer;
   BitWriter Strm(Buffer);
   if (auto E = encodeHeaderImpl(Header, Strm)) {
     LOG_ERROR("Failed to compile header!");

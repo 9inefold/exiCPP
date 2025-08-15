@@ -226,7 +226,12 @@ ExiError ExiEncoder::EncoderFactory::encode(Serializer* S,
 ExiError ExiEncoder::EncoderFactory::go(Serializer* S) const {
   if EXI_UNLIKELY(!TheEncoder)
     return ErrorCode::kInvalidConfig;
-  return S->run(&*TheEncoder);
+  try {
+    return S->run(&*TheEncoder);
+  } catch (const exi::runtime_error& e) {
+    LOG_ERROR("Exception thrown: ", e.what());
+    return ExiError::kUnexpectedError;
+  }
 }
 
 #undef DEBUG_TYPE
