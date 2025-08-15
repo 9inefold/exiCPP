@@ -48,6 +48,7 @@ include_items(EXICPP_CORE "lib/core"
   Support/TokenizeCmd.cpp
   Support/VersionTuple.cpp
   Support/VirtualFilesystem.cpp
+  Support/WithColor.cpp
   Support/circular_raw_ostream.cpp
   Support/rapidhash.cpp
   Support/raw_ostream.cpp
