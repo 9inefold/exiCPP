@@ -141,7 +141,6 @@ public:
 private:
   void init() {
     /*DocContent:*/ {
-      LOG_EXTRA("DocContent:");
       auto C = createBIInfo();
       Terms.push_back(EventTerm::SE);
       BIBuilder::Inc(*C);
@@ -156,7 +155,6 @@ private:
     }
 
     /*DocEnd:*/ {
-      LOG_EXTRA("DocEnd:");
       auto C = createBIInfo();
       Terms.push_back(EventTerm::ED);
       BIBuilder::Inc(*C);
@@ -164,7 +162,6 @@ private:
     }
 
     /*StartTagContent:*/ {
-      LOG_EXTRA("StartTagContent:");
       auto C = createBIInfo();
       Terms.push_back(EventTerm::EE);
       Terms.push_back(EventTerm::AT);
@@ -185,7 +182,6 @@ private:
     }
 
     /*ElementContent:*/ {
-      LOG_EXTRA("ElementContent:");
       auto C = createBIInfo();
       Terms.push_back(EventTerm::EE);
       BIBuilder::Inc(*C, 2);
@@ -235,12 +231,12 @@ void BIBuilder::CalculateLog(SEventCode* EC) {
     return;
   
   auto& Data = EC->Data;
-  // If we have `[x.y.0]`, make it `[x.y].0`.
+  // If we have [x.y.0], make it [x.y].0.
   if (Length == 3 && !Data[2]) {
     Length -= 1;
   }
 
-  // If we have `[x.0.z]`, make it `[x.z].0`.
+  // If we have [x.0.z], make it [x.z].0.
   if (Length >= 2 && !Data[1]) {
     Data[1] = Data[2];
     Data[2] = 0;
