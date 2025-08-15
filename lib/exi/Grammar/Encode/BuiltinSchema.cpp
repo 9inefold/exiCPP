@@ -515,9 +515,10 @@ private:
     exi_invariant(!GStack.empty());
     auto* G = GStack.back();
     if (G->setEETerm<IsStart>(&Get::Writer(OE))) {
+      exi_invariant(IsStart, "Invalid EE!");
       // Must be StartTagContent.
       this->encodePrecomputedCode(OE,
-        TMap.mapStartTagContent(SimpleEventTerm::SE));
+        TMap.mapStartTagContent(SimpleEventTerm::EE));
       auto* EENode = new (*OE) gnode::EENode;
       G->addEETerm<IsStart>(EENode);
     }
