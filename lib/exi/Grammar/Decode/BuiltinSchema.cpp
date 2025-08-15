@@ -159,6 +159,7 @@ private:
   /// Add a template parameter to do this efficiently.
   MatchT createDecodedTerm(unsigned At) {
     const unsigned Offset = Info[Current].Offset;
+    exi_guard_invariant((Offset + At) < BaseT::size()); 
     const auto Term = BaseT::at(Offset + At);
     this->Event = EventUID::NewTerm(Term);
     return MatchT(Term);
@@ -182,11 +183,10 @@ private:
       At += Data;
 
       LOG_EXTRA("Code[{}]: @{}:{}", Ix, Bits, Data);
-      exi_invariant(Code.Data[Ix] != 0,
-        "EventCode node not pruned!");
+      exi_invariant(Code.Data[Ix] != 0, "EventCode node not pruned!");
 
       const u64 CData = Code.Data[Ix] - 1;
-      exi_invariant(Data <= CData);
+      exi_invariant(Data <= CData, "Event code out of range!");
       if (Data != CData)
         break;
     }
