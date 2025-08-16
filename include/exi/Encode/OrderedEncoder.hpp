@@ -416,14 +416,15 @@ public:
     }
 #endif
     if (PrefixEntry* PfxV = Strings.lookupPfx(ChPfx))
-      return encodePfx<StrmT>(PfxV);
+      return encodePfx<StrmT>(URI, PfxV);
     writer<StrmT>().encodeString(Pfx);
     PrefixEntry* PfxV = Strings.addPrefix(URI, ChPfx);
     LOG_INFO(">> PXNS @{}: \"{}\"", Strings.GetID(PfxV), Pfx);
     return PfxV;
   }
   template <typename StrmT>
-  PrefixEntry* encodePfx(PrefixEntry* Pfx) {
+  PrefixEntry* encodePfx(URIEntry* URI, PrefixEntry* Pfx) {
+    Strings.enterNamespace(URI, Pfx);
     if (unsigned Bits = Strings.getPfxLog(Pfx)) {
       unsigned ID = Strings.GetID(Pfx);
       writer<StrmT>().writeBits64(ID + 1, Bits);
