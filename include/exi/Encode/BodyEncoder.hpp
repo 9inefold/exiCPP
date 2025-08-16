@@ -179,6 +179,16 @@ public:
   /// Gets the type of the stream.
   virtual StreamBase::StreamKind streamKind() const = 0;
 
+  ////////////////////////////////////////////////////////////////////////
+  // Terms
+  
+  [[nodiscard]] static std::pair<StrRef, StrRef> SplitName(StrRef S) {
+    usize Idx = S.find(':');
+    if (Idx == StrRef::npos)
+      return std::make_pair(""_str, S);
+    return std::make_pair(S.slice(0, Idx), S.substr(Idx + 1));
+  }
+
 private:
   virtual void anchor();
 };

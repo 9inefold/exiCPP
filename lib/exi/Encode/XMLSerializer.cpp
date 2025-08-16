@@ -141,13 +141,6 @@ private:
     return true;
   }
 
-  [[nodiscard]] static std::pair<StrRef, StrRef> SplitName(StrRef S) {
-    usize Idx = S.find(':');
-    if (Idx == StrRef::npos)
-      return std::make_pair(StrRef(), S);
-    return std::make_pair(S.slice(0, Idx), S.substr(Idx + 1));
-  }
-
   ////////////////////////////////////////////////////////////////////////
   // PreParse
 
@@ -222,7 +215,7 @@ private:
   ExiError preparseNodeAttrs(XMLNode* const N, PPAttributeCtx& Ctx) {
     XMLAttribute* A = N->first_attribute();
     exi_assume(A != nullptr);
-    auto [Pfx, _] = SplitName(N->name());
+    auto [Pfx, _] = BodyEncoder::SplitName(N->name());
     while (A) {
       if (auto E = ppDispatchNodeAttr(A, Pfx, Ctx))
         return E;

@@ -229,12 +229,8 @@ public:
   using NameEntry   = encode::LocalNameInfo;
   using ValueEntry  = encode::STValueEntry;
 
-  [[nodiscard]] static std::pair<StrRef, StrRef> SplitName(StrRef S) {
-    usize Idx = S.find(':');
-    if (Idx == StrRef::npos)
-      return std::make_pair(StrRef(), S);
-    return std::make_pair(S.slice(0, Idx), S.substr(Idx + 1));
-  }
+  using BodyEncoder::SplitName;
+  
   static StrRef GetSEUriValue(const StartElemURIEvent& SE) {
     if EXI_LIKELY(SE.Tag == 1)
       return StrRef(SE.URI, SE.Extra);
