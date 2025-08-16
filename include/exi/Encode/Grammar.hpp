@@ -37,7 +37,7 @@
 #define DEBUG_TYPE "Grammar"
 
 namespace exi {
-class ExiEncoder;
+class BodyEncoder;
 
 namespace encode {
 
@@ -149,7 +149,10 @@ public:
   void addNewATTerm(Encoder* BE, LocalNameInfo* LN) {
     auto Code = IntCast<u32>(StartTag.size());
     auto* AT = new (*BE) gnode::ATQNameNode(Code, LN);
-    StartTag.InsertNode(AT);
+    //StartTag.InsertNode(AT);
+    auto* N = StartTag.GetOrInsertNode(AT);
+    if (hasDbgLogLevel(WARN) && AT != N)
+      BuiltinGrammar::LogDiscarded(LN);
     this->setLog(true);
   }
 
@@ -237,6 +240,8 @@ private:
     else
       return Element;
   }
+
+  static void LogDiscarded(LocalNameInfo* LN);
 };
 
 } // namespace encode

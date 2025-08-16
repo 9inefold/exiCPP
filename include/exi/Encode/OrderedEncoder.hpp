@@ -254,7 +254,7 @@ public:
   }
   std::pair<URIEntry*, NameEntry*> lookupAT(const AttrEvent& AT) {
     auto [Pfx, LN] = SplitName(AT[0]);
-    URIEntry* URIV = Strings.getURIFromPfx(Pfx);
+    URIEntry* URIV = Strings.getURIFromPfx</*IsAT=*/true>(Pfx);
     if (!URIV)
       return {nullptr, nullptr};
     return {URIV, Strings.lookupLocalName(URIV, LN).value_or(nullptr)};
@@ -273,7 +273,7 @@ public:
   ExiResult<NameEntry*> encodeAT(const AttrEvent& AT) {
     auto [Pfx, LN] = SplitName(AT[0]);
     encode::LocalNameInfo* LNV
-      = EXI_UNWRAP(encodeQName<StrmT>(Pfx, LN));
+      = EXI_UNWRAP((encodeQName<StrmT, /*IsAT=*/true>(Pfx, LN)));
     exi_guard_invariant(LNV != nullptr);
     exi_try_r(encodeValue<StrmT>(LNV, AT[1]));
     return LNV;
@@ -282,7 +282,7 @@ public:
   ExiError encodeATKnown(const AttrEvent& AT) {
     auto [Pfx, LN] = SplitName(AT[0]);
     encode::LocalNameInfo* LNV
-      = EXI_UNWRAP(encodeQName<StrmT>(Pfx, LN));
+      = EXI_UNWRAP((encodeQName<StrmT, /*IsAT=*/true>(Pfx, LN)));
     exi_guard_invariant(LNV != nullptr);
     return encodeValue<StrmT>(LNV, AT[1]);
   }
@@ -307,15 +307,15 @@ public:
   }
 
   /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.
-  template <typename StrmT>
+  template <typename StrmT, bool IsAT = false>
   ExiResult<NameEntry*> encodeQName(StrRef Name) {
     auto [Pfx, LN] = SplitName(Name);
-    return encodeQName<StrmT>(Pfx, LN);
+    return encodeQName<StrmT, IsAT>(Pfx, LN);
   }
   /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.
-  template <typename StrmT>
+  template <typename StrmT, bool IsAT = false>
   ExiResult<NameEntry*> encodeQName(StrRef Pfx, StrRef LN) {
-    PrefixEntry* PfxV = Strings.lookupPfx(Pfx);
+    PrefixEntry* PfxV = Strings.lookupPfx<IsAT>(Pfx);
     URIEntry* URIV = Strings.GetURIEntry(PfxV);
     if EXI_NEVER(URIV == nullptr) {
       LOG_ERROR("No URI bound to prefix '{}'", Pfx);

@@ -471,6 +471,9 @@ private:
   /// of searches required for that.
   IntrusiveLogCounter<ValueMapType> GValueMap;
 
+  PrefixEntry* AT_NIL  = nullptr; // Used for unprefixed attributes.
+  URIEntry* AT_NIL_URI = nullptr; // Used for unprefixed attributes.
+
   PrefixEntry* Pfx_NIL = nullptr; // xmlns="..."
   PrefixEntry* Pfx_xml = nullptr; // xmlns:xml="..."
   PrefixEntry* Pfx_xsi = nullptr; // xmlns:xsi="..."
@@ -727,6 +730,10 @@ public:
   NSContext enterNamespace(ImplicitHashStrRef Pfx, ImplicitHashStrRef URI) {
     return createURI(URI, Pfx);
   }
+  /// When adding a known mapping.
+  void enterNamespace(STURIEntry* URI, STPrefixEntry* Pfx) {
+    pushURIContext(X(Pfx), X(URI));
+  }
   /// When exiting a scoped namespace context.
   void exitNamespace(STPrefixEntry* Pfx) {
     exi_invariant(Pfx != nullptr);
@@ -738,9 +745,11 @@ public:
   // Getters
 
   /// Returns the `PrefixEntry` for `Pfx`, if it exists.
+  /// @tparam IsAttribute If the lookup is for an attribute.
+  template <bool IsAttribute = false>
   STPrefixEntry* lookupPfx(ImplicitHashStrRef Pfx) {
     if (Pfx == GetEmptyHashString())
-      return X(Pfx_NIL);
+      return X(IsAttribute ? AT_NIL : Pfx_NIL);
     auto It = PrefixMap.find(Pfx);
     if (It == PrefixMap.end())
       return nullptr;
@@ -754,7 +763,12 @@ public:
     return X(&*It);
   }
   /// Gets `URIEntry*` for a given Prefix.
+  /// @tparam IsAttribute If the lookup is for an attribute.
+  template <bool IsAttribute = false>
   STURIEntry* getURIFromPfx(ImplicitHashStrRef Pfx) {
+    if constexpr (IsAttribute)
+      if (Pfx == GetEmptyHashString())
+        return getUnprefixedATURI();
     auto It = PrefixMap.find(Pfx);
     exi_assert(It != PrefixMap.end());
     return It->second.Link;
@@ -768,6 +782,9 @@ public:
   /// global, or bound to the `LocalName` `LN`.
   std::pair<STValueEntry*, bool>
    lookupLocalValue(LocalNameInfo* LN, ImplicitHashStrRef Value);
+
+  STPrefixEntry* getUnprefixedATPrefix() const { return X(AT_NIL); }
+  STURIEntry* getUnprefixedATURI() const { return X(AT_NIL_URI); }
 
   ////////////////////////////////////////////////////////////////////////
   // Log Getters

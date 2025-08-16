@@ -113,6 +113,7 @@ include_items(EXICPP_ENCODE "lib/exi"
   Encode/BodyEncoder.cpp
   Encode/Event.cpp
   Encode/HeaderEncoder.cpp
+  Encode/Grammar.cpp
   Encode/OrderedEncoder.cpp
   Encode/NamespaceContextStack.cpp
   Encode/Serializer.cpp

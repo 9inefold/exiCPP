@@ -348,6 +348,11 @@ void StringTable::createInitialEntries(bool UsesSchema) {
   this->Pfx_xml = Xml.Pfx;
   this->Pfx_xsi = Xsi.Pfx;
 
+  // Create the prefix used for unprefixed AT events.
+  this->AT_NIL = PrefixEntry::create(""_str, Alloc);
+  this->AT_NIL_URI = Nil.URI;
+  AT_NIL->second = *VOf(Pfx_NIL);
+
   // D.3 - Initial Entries in LocalName Partitions
   appendLocalNames(Xml.URI, XML_InitialValues);
   appendLocalNames(Xsi.URI, XSI_InitialValues);

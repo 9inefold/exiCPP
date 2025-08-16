@@ -22,11 +22,15 @@
 //===----------------------------------------------------------------===//
 
 #include <exi/Encode/Grammar.hpp>
-#include <core/Support/raw_ostream.hpp>
-#include <exi/Basic/CompactID.hpp>
-#include <Grammar/Encode/SchemaGet.hpp>
+#include <core/Support/WithColor.hpp>
+#include <exi/Encode/StringTable.hpp>
 
 #define DEBUG_TYPE "Grammar"
 
 using namespace exi;
-using namespace exi::decode;
+using namespace exi::encode;
+
+void BuiltinGrammar::LogDiscarded(LocalNameInfo* LN) {
+  WithColor(dbgs(), raw_ostream::BRIGHT_YELLOW)
+    << "WARNING: Discarded " << LN->name() << '\n';
+}
