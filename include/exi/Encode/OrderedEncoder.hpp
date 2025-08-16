@@ -419,7 +419,7 @@ public:
       return encodePfx<StrmT>(URI, PfxV);
     writer<StrmT>().encodeString(Pfx);
     PrefixEntry* PfxV = Strings.addPrefix(URI, ChPfx);
-    LOG_INFO(">> PXNS @{}: \"{}\"", Strings.GetID(PfxV), Pfx);
+    LOG_INFO(">> PXNS (Miss) @{}: \"{}\"", Strings.GetID(PfxV), Pfx);
     return PfxV;
   }
   template <typename StrmT>
@@ -428,8 +428,10 @@ public:
     if (unsigned Bits = Strings.getPfxLog(Pfx)) {
       unsigned ID = Strings.GetID(Pfx);
       writer<StrmT>().writeBits64(ID + 1, Bits);
-      LOG_INFO(">> PXNS @{}: \"{}\"", ID, Strings.GetPfx(Pfx));
+      LOG_INFO(">> PXNS (Hit) @{}: \"{}\"", ID, Strings.GetPfx(Pfx));
+      return Pfx;
     }
+    LOG_INFO(">> PXNS (Hit) @0: \"{}\"", Strings.GetPfx(Pfx));
     return Pfx;
   }
 

@@ -465,11 +465,10 @@ ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
   CompactID PfxID = 0;
   const u64 NBits = Strings.getPrefixLog(URI);
 
-  if (NBits) {
+  if (NBits)
     LOG_POSITION(this);
-    LOG_EXTRA("PXNS Decoding <{}>", NBits);
-    exi_try_r(reader<StrmT>().readBits64(PfxID, NBits));
-  }
+  LOG_EXTRA("PXNS Decoding <{}>", NBits);
+  exi_try_r(reader<StrmT>().readBits64(PfxID, NBits));
 
   StrRef Pfx;
   if (PfxID != 0) {
@@ -479,6 +478,7 @@ ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
       return Err(ErrorCode::kInvalidEXIInput);
 #if EXI_LOGGING
     Pfx = Strings.getPrefix(URI, PfxID);
+    LOG_INFO(">> PXNS (Hit) @{}: \"{}\"", PfxID, Pfx);
 #endif
   } else {
     // Cache miss
@@ -486,9 +486,9 @@ ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
     LOG_POSITION(this);
     StrRef Str = EXI_UNWRAP(reader<StrmT>().decodeString(Data));
     std::tie(Pfx, PfxID) = Strings.addPrefix(URI, Str);
+    LOG_INFO(">> PXNS (Miss) @{}: \"{}\"", PfxID, Pfx);
   }
 
-  LOG_INFO(">> PXNS @{}: \"{}\"", PfxID, Pfx);
   return Ok(PfxID);
 }
 

@@ -45,7 +45,7 @@
 #endif
 
 #define DEBUG_TYPE "OrderedWriter"
-#define ORDEREDWRITER_DUMP 0
+#define ORDEREDWRITER_DUMP 1
 #define ORDEREDWRITER_ALTERNATE_WRITE 0
 
 #if ORDEREDWRITER_DUMP
@@ -127,6 +127,7 @@ protected:
   }
 
   void writeWord(word_t Val) {
+    this->dumpWord();
 #if ORDEREDWRITER_ALTERNATE_WRITE
     const usize Size = Buffer.size();
     Buffer.resize_for_overwrite(Size + sizeof(word_t));
@@ -273,18 +274,14 @@ public:
   }
 
 #if EXI_DEBUG || EXI_ENABLE_DUMP
-  EXI_DUMP_METHOD void dump() const;
-  EXI_DUMP_METHOD void dumpData() const;
-  EXI_DUMP_METHOD void dumpWord() const;
+  EXI_DUMP_METHOD void dump(bool Hex = true) const;
+  EXI_DUMP_METHOD void dumpData(bool Hex = true) const;
+  EXI_DUMP_METHOD void dumpWord(bool Hex = true) const;
 #endif
 
 protected:
   EXI_INLINE void printNBits(word_t Val, size_type Bits) {
 #if ORDEREDWRITER_DUMP && EXI_DEBUG
-    if (this->getStreamKind() != SK_Bit) {
-      exi_invariant(Bits == MakeByteAligned(Bits));
-      exi_invariant(BitsInStore == MakeByteAligned(BitsInStore));
-    }
     WithColor(errs())
       << raw_ostream::BRIGHT_WHITE << "Data["
       << raw_ostream::BRIGHT_YELLOW << "@" << Bits
@@ -297,7 +294,6 @@ protected:
   /// Writes a variable number of bits (max of 64).
   template <std::unsigned_integral IntT = u64>
   void writeNBits(IntT Val, size_type Bits) {
-    printNBits(Val, Bits);
     if (Bits + BitsInStore < kBitsPerWord) [[likely]] {
       Store |= word_t(Val) << (kBitsPerWord - (Bits + BitsInStore));
       BitsInStore += Bits;
@@ -308,6 +304,7 @@ protected:
     size_type NewShift = (Bits - Leftovers);
 
     Store |= word_t(Val) >> NewShift;
+    BitsInStore = 64;
     this->writeWord(Store);
 
     if (NewShift)
@@ -361,6 +358,7 @@ protected:
   EXI_FLATTEN void writeBits64Impl(u64 Val, size_type Bits) {
     exi_invariant(Bits <= kBitsPerWord,
       "Cannot write more than BitsPerWord bits!");
+    printNBits(Val, Bits);
     
     if (Bits == 0)
       // Do nothing...

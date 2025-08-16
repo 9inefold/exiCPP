@@ -61,23 +61,27 @@ void DeflateReader::anchor() {}
 }
 
 #if EXI_DEBUG || EXI_ENABLE_DUMP
-EXI_DUMP_METHOD void OrderedWriter::dump() const {
-  this->dumpWord();
-  this->dumpData();
+EXI_DUMP_METHOD void OrderedWriter::dump(bool Hex) const {
+  this->dumpWord(Hex);
+  this->dumpData(Hex);
 }
 
-EXI_DUMP_METHOD void OrderedWriter::dumpData() const {
+EXI_DUMP_METHOD void OrderedWriter::dumpData(bool Hex) const {
   if (Buffer.empty())
     return;
   errs() << "Data[" << Buffer.size() << "]:";
   for (usize Ix = 0; Ix < Buffer.size(); ++Ix) {
     if (Ix % 8 == 0)
       errs() << "\n  ";
-    errs() << format("{:08b} ", u8(Buffer[Ix]));
+    if (Hex)
+      errs() << format("{:02x} ", u8(Buffer[Ix]));
+    else
+      errs() << format("{:08b} ", u8(Buffer[Ix]));
   }
   errs() << '\n';
 }
 
+template <bool Hex>
 static void DumpWordImpl(const StreamBase::word_t Word, usize NBits) {
   unsigned Bits = NBits % 8;
   unsigned FullBytes = NBits / 8;
@@ -85,10 +89,17 @@ static void DumpWordImpl(const StreamBase::word_t Word, usize NBits) {
   for (; Ix <= FullBytes; ++Ix) {
     unsigned At = 8 - Ix;
     StreamBase::word_t V = Word >> (At * 8);
-    errs() << format("{:08b} ", (V & 0xFF));
+    if (Hex)
+      errs() << format("{:02x} ", (V & 0xFF));
+    else
+      errs() << format("{:08b} ", (V & 0xFF));
   }
 
-  if (Bits) {
+  if (Bits && Hex) {
+    unsigned At = 8 - Ix;
+    StreamBase::word_t V = Word >> (At * 8);
+    errs() << format("{:02x} ", (V & 0xFF));
+  } else if (Bits) {
     unsigned At = 8 - Ix;
     StreamBase::word_t V = Word >> ((At * 8) + (8 - Bits));
     V &= StreamBase::MakeNBitMask(Bits);
@@ -98,11 +109,14 @@ static void DumpWordImpl(const StreamBase::word_t Word, usize NBits) {
   errs() << '\n';
 }
 
-EXI_DUMP_METHOD void OrderedWriter::dumpWord() const {
+EXI_DUMP_METHOD void OrderedWriter::dumpWord(bool Hex) const {
   if (!BitsInStore)
     return;
-  errs() << "Word[@" << BitsInStore << "]:\n  ";
-  DumpWordImpl(Store, BitsInStore);
+  errs() << format("Word[@{}:{:#02x}]:\n  ", BitsInStore, Buffer.size());
+  if (Hex)
+    DumpWordImpl<true>(Store, BitsInStore);
+  else
+    DumpWordImpl<false>(Store, BitsInStore);
 }
 #endif
 
