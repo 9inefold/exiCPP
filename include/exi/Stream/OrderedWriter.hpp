@@ -286,7 +286,8 @@ protected:
       << raw_ostream::BRIGHT_WHITE << "Data["
       << raw_ostream::BRIGHT_YELLOW << "@" << Bits
       << format(":{:02}", BitsInStore)
-      << raw_ostream::BRIGHT_WHITE << format("]: {:0{}b}", Val, Bits)
+      << raw_ostream::BRIGHT_WHITE
+      << format("]: {:#02x} -> {:0{}b}", Val, Val, Bits)
       << '\n';
 #endif
   }

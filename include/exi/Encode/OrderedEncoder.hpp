@@ -415,10 +415,14 @@ public:
       return Err(ErrorCode::kInconsistentProcState);
     }
 #endif
-    if (PrefixEntry* PfxV = Strings.lookupPfx(ChPfx))
-      return encodePfx<StrmT>(URI, PfxV);
-    writer<StrmT>().encodeString(Pfx);
-    PrefixEntry* PfxV = Strings.addPrefix(URI, ChPfx);
+    /// Empty prefixes are always considered a "miss"
+    if (!Pfx.empty()) {
+      if (PrefixEntry* PfxV = Strings.lookupPfx(Pfx))
+        return encodePfx<StrmT>(URI, PfxV);
+      writer<StrmT>().encodeString(Pfx);
+    } else
+      writer<StrmT>().writeUInt(0);
+    PrefixEntry* PfxV = Strings.addPrefix(URI, Pfx);
     LOG_INFO(">> PXNS (Miss) @{}: \"{}\"", Strings.GetID(PfxV), Pfx);
     return PfxV;
   }
