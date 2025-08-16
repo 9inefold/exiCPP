@@ -297,6 +297,7 @@ public:
     exi_try_unwrap(PfxOrErr);
     if constexpr (!IsRoot)
       CtxStack.add(Strings, *PfxOrErr);
+    LOG_INFO(">> {}", NS.IsLocal ? "LOCAL" : "NON-LOCAL");
     writer<StrmT>().writeBit(NS.IsLocal);
     return ExiError::OK;
   }

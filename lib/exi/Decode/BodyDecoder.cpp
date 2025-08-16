@@ -367,9 +367,9 @@ ExiResult<EventUID> ExiDecoder::decodeNS() {
   const CompactID PfxID = EXI_UNWRAP(decodePfx<StrmT>(URI));
 
   bool IsLocal = false;
+  LOG_POSITION(this);
   exi_try_r(reader<StrmT>().readBit(IsLocal));
-  if (!IsLocal)
-    LOG_INFO(">> NONLOCAL");
+  LOG_INFO(">> {}", IsLocal ? "LOCAL" : "NON-LOCAL");
 
   auto QName = SmallQName::NewURI(URI);
   return Ok(EventUID::NewNS(QName, PfxID, IsLocal));
@@ -447,7 +447,7 @@ ExiResult<Option<CompactID>> ExiDecoder::decodePfxQ(CompactID URI) {
 
   if (NBits) {
     LOG_POSITION(this);
-    LOG_EXTRA("Decoding <{}>", NBits);
+    LOG_EXTRA("PXQ Decoding <{}>", NBits);
     exi_try_r(reader<StrmT>().readBits64(PfxID, NBits));
   }
 
@@ -465,9 +465,11 @@ ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
   CompactID PfxID = 0;
   const u64 NBits = Strings.getPrefixLog(URI);
 
-  LOG_POSITION(this);
-  LOG_EXTRA("Decoding <{}>", NBits);
-  exi_try_r(reader<StrmT>().readBits64(PfxID, NBits));
+  if (NBits) {
+    LOG_POSITION(this);
+    LOG_EXTRA("PXNS Decoding <{}>", NBits);
+    exi_try_r(reader<StrmT>().readBits64(PfxID, NBits));
+  }
 
   StrRef Pfx;
   if (PfxID != 0) {
@@ -481,6 +483,7 @@ ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
   } else {
     // Cache miss
     SmallStr<32> Data;
+    LOG_POSITION(this);
     StrRef Str = EXI_UNWRAP(reader<StrmT>().decodeString(Data));
     std::tie(Pfx, PfxID) = Strings.addPrefix(URI, Str);
   }
