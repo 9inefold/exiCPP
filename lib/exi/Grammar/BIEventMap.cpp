@@ -45,7 +45,7 @@ static_assert(i32(SC) == 0xB, "Invalid assumption: SC");
 
 #if EXI_DEBUG || EXI_ENABLE_DUMP
 static auto FormatTerm(SimpleEventTerm Term) {
-  return left_justify(get_event_fullname(Term), 10);
+  return left_justify(get_event_fullname(Term), 8);
 }
 
 //////////////////////////////////////////////////////////////////////////
