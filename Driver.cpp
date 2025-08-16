@@ -33,6 +33,7 @@
 #include <Support/Logging.hpp>
 #include <Support/MemoryBuffer.hpp>
 #include <Support/MemoryBufferRef.hpp>
+#include <Support/Path.hpp>
 #include <Support/Process.hpp>
 #include <Support/ScopedSave.hpp>
 #include <Support/Signals.hpp>
@@ -261,6 +262,7 @@ static int CalcSpacesSize(StrRef LHS, StrRef RHS) {
   return Log2_64_Ceil(Size) / 4 + 1;
 }
 
+/// Prints a pretty byte diff
 static void ByteDiffViewer(StrRef Original, StrRef Encoded,
                            usize BreakOn = 4, bool Hex = false,
                            bool LabelX = false) {
@@ -352,6 +354,29 @@ static void ByteDiffViewer(StrRef Original, StrRef Encoded,
       << center_justify("", BlockSize) << VSplit << '\n';
     PrintLine(u8" └─", u8"─┴─", u8"─┘ ");
   }
+}
+
+/// Writes contents to a file.
+Error WriteFile(StrRef File, StrRef Contents) {
+  std::string FileName = File.str();
+  if (!sys::path::is_absolute(File)) {
+    SmallStr<256> Path(File);
+    if (auto EC = sys::fs::make_absolute(Path))
+      return errorCodeToError(EC);
+    FileName = static_cast<std::string>(Path);
+  }
+  StrRef Parent = sys::path::parent_path(FileName);
+  if (auto EC = sys::fs::create_directories(Parent))
+    return errorCodeToError(EC);
+  
+  std::error_code EC;
+  raw_fd_ostream OS(FileName, EC,
+    sys::fs::CD_CreateAlways,
+    sys::fs::FA_Write, sys::fs::OF_None);
+  if (EC)
+    return errorCodeToError(EC); 
+  OS.write(Contents.data(), Contents.size());
+  return Error::success();
 }
 
 int main(int Argc, char* Argv[]) {
@@ -475,13 +500,20 @@ int main(int Argc, char* Argv[]) {
     SetLogLevel(LogLevel::WARN);
     WithColor(errs(), BRIGHT_GREEN)
       << "Encoding successful!\n\n";
+    
+    const StrRef FileOut = "examples/out/NamespaceNooptB.exi";
+    if (auto E = WriteFile(FileOut, EncodeBuf)) {
+      logAllUnhandledErrors(std::move(E), errs());
+      return 1;
+    }
   } /*Decoding, again*/ {
-    const StrRef File = "examples/Namespace.xml";
+    const StrRef File = "examples/out/NamespaceNooptB.exi";
     WithColor(errs(), BRIGHT_CYAN)
       << format("Decoding: \"{}\"", File) << '\n';
     
     //ByteDiffViewer(DecodeBuf.getBuffer(), EncodeBuf.str(), 8);
     ByteDiffViewer(DecodeBuf.getBuffer(), EncodeBuf.str(), 16, true, true);
+    (void) EncodeBuf.c_str();
     auto MB = MemoryBuffer::getMemBuffer(EncodeBuf.str(), File);
 
     ExiDecoder Decoder(Opts);
