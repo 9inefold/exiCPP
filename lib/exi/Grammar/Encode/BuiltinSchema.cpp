@@ -632,10 +632,10 @@ private:
   CC ExiError batchAT(ORDERED_BARGS) {
     auto* VArr = static_cast<const AttrEvent*>(Arr);
     for (usize Ix = 0; Ix < N - 1; ++Ix) {
-      this->logEventEx(VArr[Ix], K);
+      this->logEvent(K);
       exi_try(handleAT(OE, VArr[Ix]));
     }
-    this->logEventEx(VArr[N - 1], K);
+    this->logEvent(K);
     return handleAT(OE, VArr[N - 1]);
   }
 
@@ -643,26 +643,26 @@ private:
   CC ExiError batchNS(ORDERED_BARGS) {
     auto* VArr = static_cast<const NamespaceEvent*>(Arr);
     for (usize Ix = 0; Ix < N - 1; ++Ix) {
-      this->logEventEx(VArr[Ix], K);
+      this->logEvent(K);
       exi_try(handleNS<IsRoot>(OE, VArr[Ix]));
     }
-    this->logEventEx(VArr[N - 1], K);
+    this->logEvent(K);
     return handleNS<IsRoot>(OE, VArr[N - 1]);
   }
 
   CC ExiError batchCHElem(ORDERED_BARGS) {
     auto* VArr = static_cast<const CharEvent*>(Arr);
     for (usize Ix = 0; Ix < N - 1; ++Ix) {
-      this->logEventEx(VArr[Ix], K);
+      this->logEvent(K);
       exi_try(handleCH<false>(OE, VArr[Ix]));
     }
-    this->logEventEx(VArr[N - 1], K);
+    this->logEvent(K);
     return handleCH<false>(OE, VArr[N - 1]);
   }
 
   CC ExiError batchCHStart(ORDERED_BARGS) {
     auto* VArr = static_cast<const CharEvent*>(Arr);
-    this->logEventEx(*VArr, K);
+    this->logEvent(K);
     if (N <= 1)
       return handleCH<true>(OE, *VArr);
     exi_try(handleCH<true>(OE, *VArr));

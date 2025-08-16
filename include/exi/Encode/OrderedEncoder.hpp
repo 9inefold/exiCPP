@@ -230,7 +230,7 @@ public:
   using ValueEntry  = encode::STValueEntry;
 
   using BodyEncoder::SplitName;
-  
+
   static StrRef GetSEUriValue(const StartElemURIEvent& SE) {
     if EXI_LIKELY(SE.Tag == 1)
       return StrRef(SE.URI, SE.Extra);
@@ -353,6 +353,7 @@ public:
   URIEntry* encodeURI(URIEntry* URI) {
     auto [ID, Bits] = Strings.getURIIDAndLog(URI);
     writer<StrmT>().writeBits64(ID + 1, Bits);
+    LOG_INFO(">> URI(Hit) @{}: \"{}\"", ID, Strings.GetURI(URI));
     return URI;
   }
   /// Encodes a uri string.
@@ -361,7 +362,9 @@ public:
     u32 Bits = Strings.getURILog();
     writer<StrmT>().writeBits64(0, Bits);
     writer<StrmT>().encodeString(URI);
-    return Strings.addURI(URI);
+    URIEntry* URIV = Strings.addURI(URI);
+    LOG_INFO(">> URI(Miss) @{}: \"{}\"", Strings.GetID(URIV), URI);
+    return URIV;
   }
 
   template <typename StrmT>
@@ -376,12 +379,15 @@ public:
     }
     writer<StrmT>().writeUInt(LN.size() + 1);
     writer<StrmT>().writeString(LN);
-    return Strings.addLocalName(URI, LN, IP);
+    NameEntry* LNV = Strings.addLocalName(URI, LN, IP);
+    LOG_INFO(">> LN @{}: \"{}\"", LNV->id(), LN);
+    return LNV;
   }
   template <typename StrmT>
   ExiResult<NameEntry*> encodeName(URIEntry* URI, NameEntry* LN) {
     u32 Bits = Strings.getLocalNameLog(URI);
     writer<StrmT>().writeBits64(LN->id(), Bits);
+    LOG_INFO(">> LN @{}: \"{}\"", LN->id(), LN->name());
     return LN;
   }
 
@@ -395,6 +401,7 @@ public:
     }
     auto [ID, Bits] = Strings.getPfxIDAndLogQ(Pfx);
     writer<StrmT>().writeBits64(ID, Bits);
+    LOG_INFO(">> PXQ @{}: \"{}\"", ID, Strings.GetPfx(Pfx));
     return ExiError::OK;
   }
 
@@ -410,13 +417,16 @@ public:
     if (PrefixEntry* PfxV = Strings.lookupPfx(ChPfx))
       return encodePfx<StrmT>(PfxV);
     writer<StrmT>().encodeString(Pfx);
-    return Strings.addPrefix(URI, ChPfx);
+    PrefixEntry* PfxV = Strings.addPrefix(URI, ChPfx);
+    LOG_INFO(">> PXNS @{}: \"{}\"", Strings.GetID(PfxV), Pfx);
+    return PfxV;
   }
   template <typename StrmT>
   PrefixEntry* encodePfx(PrefixEntry* Pfx) {
     if (unsigned Bits = Strings.getPfxLog(Pfx)) {
       unsigned ID = Strings.GetID(Pfx);
       writer<StrmT>().writeBits64(ID + 1, Bits);
+      LOG_INFO(">> PXNS @{}: \"{}\"", ID, Strings.GetPfx(Pfx));
     }
     return Pfx;
   }
