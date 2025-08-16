@@ -113,9 +113,13 @@ public:
         writeFoundCode<true>(Writer, StartTagEE);
         return false;
       }
+      writeFallbackCode<true>(Writer);
+      return true;
     }
-    writeFallbackCode<true>(Writer);
-    return IsStart;
+    u64 Code = Element.size();
+    LOG_EXTRA("Code[0]:   @{}:{}", ElementLog, Code);
+    Writer->writeBits64(Code, ElementLog);
+    return false;
   }
 
   /// Writes a first-level CH term to the stream.
