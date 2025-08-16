@@ -44,6 +44,7 @@
 #include <exi/Basic/XMLManager.hpp>
 #include <exi/Basic/XMLContainer.hpp>
 #include <exi/Stream/OrderedReader.hpp>
+#include <exi/Stream/OrderedWriter.hpp>
 
 #include <exi/Encode/BodyEncoder.hpp>
 #include <exi/Encode/NamespaceContextStack.hpp>
@@ -255,6 +256,104 @@ EXI_INLINE static constexpr bool CheckIters(int& NIters) {
 
 static int TestSchemalessDecoding(XMLManagerRef SharedMgr);
 
+static int CalcSpacesSize(StrRef LHS, StrRef RHS) {
+  usize Size = std::min(LHS.size(), RHS.size());
+  return Log2_64_Ceil(Size) / 4 + 1;
+}
+
+static void ByteDiffViewer(StrRef Original, StrRef Encoded,
+                           usize BreakOn = 4, bool Hex = false,
+                           bool LabelX = false) {
+  using enum raw_ostream::Colors;
+  static constexpr StrRef VSplit = " \xE2\x94\x82 "_str;
+  const usize BreakOnX = (BreakOn > 0) ? BreakOn : 1;
+  usize Width = Hex ? 2 : 8;
+  usize BlockSize = (BreakOnX * (Width + 1)) - 1;
+  const int Padding = CalcSpacesSize(Original, Encoded);
+  usize Count = 0, Ix = 0;
+
+  SmallStr<0> LHS, RHS;
+  raw_svector_ostream LOS(LHS), ROS(RHS);
+  LOS.enable_colors(true); ROS.enable_colors(true);
+  auto WriteByte = [Hex](raw_ostream& OS, char Byte) {
+    if (!Hex)
+      OS << format("{:08b} ", Byte);
+    else
+      OS << format("{:02x} ", Byte);
+  };
+
+  WithColor OS(errs(), BRIGHT_WHITE);
+  auto DumpData = [&, BreakOnX, Padding](){
+    OS << format("0x{:0{}x}", (Count * BreakOnX), Padding)
+       << VSplit
+       << LHS << BRIGHT_WHITE << VSplit
+       << RHS << BRIGHT_WHITE << VSplit << '\n';
+    LHS.clear(); RHS.clear();
+    ++Count; Ix = 0;
+  };
+
+  SmallStr<64> CenterString;
+  CenterString.reserve((BlockSize + 1) * 3);
+  for (usize N = 0; N < BreakOnX; ++N)
+    CenterString.append(Hex ? u8"───"_str : u8"─────────"_str);
+  CenterString.pop_back_n(3);
+
+  auto PrintLine = [&] (StrRef LS, StrRef C, StrRef RS) {
+    OS << right_justify("", 2 + Padding)
+       << LS << CenterString
+       << C  << CenterString
+       << RS << '\n';
+  };
+
+  /*Print Top*/ {
+    PrintLine(u8" ┌─", u8"─┬─", u8"─┐ ");
+    OS << right_justify("", 2 + Padding) << VSplit
+      << center_justify("Original", BlockSize) << VSplit
+      << center_justify("Encoded", BlockSize) << VSplit << '\n';
+    PrintLine(u8" ├─", u8"─┼─", u8"─┤ ");
+  } if (LabelX) {
+    OS << right_justify("", 2 + Padding);
+    for (int Groups = 0; Groups < 2; ++Groups) {
+      OS << VSplit << left_justify("00", Width);
+      for (usize I = 1; I < BreakOn; ++I) {
+        auto N = fmt::format("{:02x}", I);
+        OS << ' ' << left_justify(N, Width);
+      }
+    }
+    OS << VSplit << '\n';
+    // Empty line
+    OS << right_justify("", 2 + Padding) << VSplit
+      << right_justify("", BlockSize) << VSplit
+      << right_justify("", BlockSize) << VSplit << '\n';
+  }
+
+  for (auto [O, E] : exi::zip(Original, Encoded)) {
+    auto Color = (O == E) ? BRIGHT_GREEN : BRIGHT_RED;
+    WriteByte(LOS << Color, O);
+    WriteByte(ROS << Color, E);
+    if (++Ix >= BreakOnX) {
+      LHS.pop_back(); RHS.pop_back();
+      DumpData();
+      OS << BRIGHT_WHITE;
+    }
+  }
+
+  if (!LHS.empty()) {
+    usize Remaining = BreakOnX - Ix;
+    usize Spaces = (Remaining * (Width + 1)) - 1;
+    LHS.append(Spaces, ' ');
+    RHS.append(Spaces, ' ');
+    DumpData();
+  }
+
+  /*Print Bottom*/ {
+    OS << right_justify("", 2 + Padding) << VSplit
+      << center_justify("", BlockSize) << VSplit
+      << center_justify("", BlockSize) << VSplit << '\n';
+    PrintLine(u8" └─", u8"─┴─", u8"─┘ ");
+  }
+}
+
 int main(int Argc, char* Argv[]) {
   using enum raw_ostream::Colors;
   SetLogLevel(LogLevel::WARN);
@@ -290,9 +389,19 @@ int main(int Argc, char* Argv[]) {
     .SchemaID = Some(nullptr)
   };
   root::DumpOptions DO {.Conforming = true};
+  constexpr auto CoderLogLevel = LogLevel::WARN;
 
   MemoryBufferRef DecodeBuf;
   SmallStr<0> EncodeBuf;
+
+  //SmallStr<0> S;
+  //ByteWriter W(EncodeBuf);
+  //for (usize I = 0; I <= 255; ++I)
+  //  S.push_back(char(u8(I)));
+  //for (u8 C : S)
+  //  W.writeByte(C);
+  //ByteDiffViewer(S, EncodeBuf.str(), 8);
+  //return 0;
 
   /*Decoding*/ {
     const StrRef File = "examples/NamespaceNooptB.exi";
@@ -308,12 +417,14 @@ int main(int Argc, char* Argv[]) {
     ExiDecoder Decoder(Opts);
     XMLDeserializer S;
 
+    SetLogLevel(LogLevel::VERBOSE);
     if (int Ret = Decode(Decoder, MB, &S)) {
       WithColor(errs(), BRIGHT_RED)
         << "Decoding failed.\n";
       return Ret;
     }
 
+    SetLogLevel(LogLevel::WARN);
     WithColor(errs(), BRIGHT_GREEN)
       << "Decoding successful!\n\n";
   } /*Encoding*/ {
@@ -336,9 +447,12 @@ int main(int Argc, char* Argv[]) {
 
     ExiEncoder Encoder = std::move(*EncoderOrErr);
     XMLSerializer S(&Xml);
+    Encoder.hdrHasCookie(false)
+      .expect("Options already compiled??");
     Encoder.hdrHasOptions(false)
       .expect("Options already compiled??");
 
+    SetLogLevel(LogLevel::EXTRA);
     LOG_INFO("Compiling header...");
     Result Factory = Encoder.setup();
     if (!Factory) {
@@ -348,7 +462,7 @@ int main(int Argc, char* Argv[]) {
       return 1;
     }
 
-    //SetLogLevel(LogLevel::VERBOSE);
+    //SetLogLevel(CoderLogLevel);
     LOG_INFO("Encoding body...");
     if (auto E = Factory->encode(&S, EncodeBuf)) {
       errs() << E << '\n';
@@ -358,13 +472,17 @@ int main(int Argc, char* Argv[]) {
     }
 
     INFO_ONLY(dbgs() << '\n');
+    SetLogLevel(LogLevel::WARN);
     WithColor(errs(), BRIGHT_GREEN)
       << "Encoding successful!\n\n";
   } /*Decoding, again*/ {
     const StrRef File = "examples/Namespace.xml";
     WithColor(errs(), BRIGHT_CYAN)
       << format("Decoding: \"{}\"", File) << '\n';
-    auto MB = MemoryBuffer::getMemBuffer(EncodeBuf.str());
+    
+    //ByteDiffViewer(DecodeBuf.getBuffer(), EncodeBuf.str(), 8);
+    ByteDiffViewer(DecodeBuf.getBuffer(), EncodeBuf.str(), 16, true, true);
+    auto MB = MemoryBuffer::getMemBuffer(EncodeBuf.str(), File);
 
     ExiDecoder Decoder(Opts);
     XMLDeserializer S;
