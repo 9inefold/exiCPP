@@ -274,7 +274,16 @@ public:
   }
 
   template <typename StrmT>
-  ExiError encodeAT(const AttrEvent& AT) {
+  ExiResult<NameEntry*> encodeAT(const AttrEvent& AT) {
+    auto [Pfx, LN] = SplitName(AT[0]);
+    encode::LocalNameInfo* LNV
+      = EXI_UNWRAP(encodeQName<StrmT>(Pfx, LN));
+    exi_guard_invariant(LNV != nullptr);
+    exi_try_r(encodeValue<StrmT>(LNV, AT[1]));
+    return LNV;
+  }
+  template <typename StrmT>
+  ExiError encodeATKnown(const AttrEvent& AT) {
     auto [Pfx, LN] = SplitName(AT[0]);
     encode::LocalNameInfo* LNV
       = EXI_UNWRAP(encodeQName<StrmT>(Pfx, LN));
@@ -396,10 +405,12 @@ public:
   template <typename StrmT>
   ExiResult<PrefixEntry*> encodePfx(URIEntry* URI, StrRef Pfx) {
     CachedHashStrRef ChPfx = Strings.prehash(Pfx);
+#if EXI_DEBUG
     if (!this->PreservePrefixes()) {
       LOG_ERROR("Encoded NS prefix with prefixes disabled!");
       return Err(ErrorCode::kInconsistentProcState);
     }
+#endif
     if (PrefixEntry* PfxV = Strings.lookupPfx(ChPfx))
       return encodePfx<StrmT>(PfxV);
     writer<StrmT>().encodeString(Pfx);

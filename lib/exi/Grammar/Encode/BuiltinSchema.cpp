@@ -211,17 +211,17 @@ private:
   ALWAYS_INLINE CC void encodePrecomputedCode(OrderedEncoder* OE,
                                               FullEventCode EC) {
     if constexpr (std::same_as<StrmT, BitWriter>)
-      LOG_EXTRA(">> Code: 0b{:0{}b}", EC.Data, EC.Bits);
+      LOG_EXTRA("Code[0:2]: @{}:0b{:0{}b}", EC.Bits, EC.Data, EC.Bits);
     else
-      LOG_EXTRA(">> Code: 0x{:0{}x}", EC.Data, (EC.Bits / 8));
+      LOG_EXTRA("Code[0:2]: @{}:0x{:0{}x}", EC.Bits, EC.Data, (EC.Bits / 8));
     Get::Writer(OE).writeBits64(EC.Data, EC.Bits);
   }
   ALWAYS_INLINE CC void encodePrecomputedCode(OrderedEncoder* OE,
                                               SecondLevelEventCode EC) {
     if constexpr (std::same_as<StrmT, BitWriter>)
-      LOG_EXTRA(">> S-Code: 0b{:0{}b}", EC.Data, EC.Bits);
+      LOG_EXTRA("Code[1:2]: @{}:0b{:0{}b}", EC.Bits, EC.Data, EC.Bits);
     else
-      LOG_EXTRA(">> S-Code: 0x{:0{}x}", EC.Data, (EC.Bits / 8));
+      LOG_EXTRA("Code[1:2]: @{}:0x{:0{}x}", EC.Bits, EC.Data, (EC.Bits / 8));
     Get::Writer(OE).writeBits64(EC.Data, EC.Bits);
   }
 
@@ -541,14 +541,16 @@ private:
     if (LN == nullptr) {
       G->writeFallbackCode<true>(&Get::Writer(OE));
       this->encodeSLCode<true, SimpleEventTerm::AT>(OE);
-      return OE->encodeAT<StrmT>(AT);
+      LN = EXI_UNWRAP(OE->encodeAT<StrmT>(AT));
+      G->addNewATTerm(OE, LN);
+      return ExiError::OK;
     }
     // LocalName does exist.
     if (void* IP = G->setATTerm(&Get::Writer(OE), LN)) {
       this->encodeSLCode<true, SimpleEventTerm::AT>(OE);
       G->addATTerm(OE, LN, IP);
     }
-    return OE->encodeAT<StrmT>(AT);
+    return OE->encodeATKnown<StrmT>(AT);
   }
 
   template <bool IsRoot = false>

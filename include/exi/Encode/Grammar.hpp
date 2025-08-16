@@ -114,7 +114,7 @@ public:
         return false;
       }
     }
-    writeFallbackCode<IsStart>(Writer);
+    writeFallbackCode<true>(Writer);
     return IsStart;
   }
 
@@ -138,7 +138,15 @@ public:
   template <class Encoder>
   void addATTerm(Encoder* BE, LocalNameInfo* LN, void* IP) {
     // AT terms are always StartTagContent.
-    tail_return this->addSEOrATTerm<gnode::SEQNameNode, true>(BE, LN, IP);
+    tail_return this->addSEOrATTerm<gnode::ATQNameNode, true>(BE, LN, IP);
+  }
+  /// Adds an AT code that can't have been seen.
+  template <class Encoder>
+  void addNewATTerm(Encoder* BE, LocalNameInfo* LN) {
+    auto Code = IntCast<u32>(StartTag.size());
+    auto* AT = new (*BE) gnode::ATQNameNode(Code, LN);
+    StartTag.InsertNode(AT);
+    this->setLog(true);
   }
 
   template <bool IsStart>
@@ -166,6 +174,7 @@ public:
   void writeFallbackCode(StrmT* Writer) {
     const u64 Size = getElts<IsStart>().size();
     u64 Code = IsStart ? Size : Size + 1;
+    LOG_EXTRA("Code[0]:   @{}:{}", getLog<IsStart>(), Code);
     Writer->writeBits64(Code, getLog<IsStart>());
   }
 
@@ -187,6 +196,7 @@ private:
     const u64 Size = getElts<IsStart>().size();
     exi_invariant(OGCode < Size && OGCode != kInvalidFLProd);
     u64 Code = (Size - 1) - OGCode;
+    LOG_EXTRA("Code[0]:   @{}:{}", getLog<IsStart>(), Code);
     Writer->writeBits64(Code, getLog<IsStart>());
   }
 
@@ -207,10 +217,10 @@ private:
 
   void setLog(bool IsStart) {
     if (IsStart) {
-      const u32 Log = getStartTagCount();
+      const u32 Log = StartTag.size() + 1;
       StartTagLog = ID_Log2(Log);
     } else {
-      const u32 Log = getElementCount();
+      const u32 Log = Element.size() + 2;
       ElementLog = ID_Log2(Log);
     }
   }
@@ -222,13 +232,6 @@ private:
       return StartTag;
     else
       return Element;
-  }
-
-  usize getStartTagCount() const {
-    return StartTag.size() + 1;
-  }
-  usize getElementCount() const {
-    return Element.size() + 2;
   }
 };
 
