@@ -44,9 +44,15 @@
 # include <fmt/ranges.h>
 #endif
 
-namespace exi {
-
 #define DEBUG_TYPE "OrderedWriter"
+#define ORDEREDWRITER_DUMP 0
+#define ORDEREDWRITER_ALTERNATE_WRITE 0
+
+#if ORDEREDWRITER_DUMP
+# include <core/Support/WithColor.hpp>
+#endif
+
+namespace exi {
 
 /// The bases for BitWriter/ByteWriter, which consume data in the order it
 /// appears. This allows for a much simpler implementation.
@@ -121,17 +127,31 @@ protected:
   }
 
   void writeWord(word_t Val) {
-    Val = support::endian::byte_swap<word_t, endianness::little>(Val);
+#if ORDEREDWRITER_ALTERNATE_WRITE
+    const usize Size = Buffer.size();
+    Buffer.resize_for_overwrite(Size + sizeof(word_t));
+    support::endian::write<word_t, endianness::big>(Buffer.data() + Size, Val);
+#else
+    Val = support::endian::byte_swap<word_t, endianness::big>(Val);
     Buffer.append(reinterpret_cast<const char*>(&Val),
                   reinterpret_cast<const char*>(&Val + 1));
+#endif
   }
 
   /// Will only be used when copying by proxy.
   void writePartialWord(word_t Val, usize N) {
-    Val = support::endian::byte_swap<word_t, endianness::little>(Val);
-    const char* Ptr = reinterpret_cast<const char*>(&Val);
+    Val = support::endian::byte_swap<word_t, endianness::big>(Val);
     N = std::min(N, sizeof(word_t));
+#if ORDEREDWRITER_ALTERNATE_WRITE
+    for (usize Ix = N; Ix != 0; --Ix) {
+      const usize Off = Ix - 1;
+      auto Byte = Val >> (Off * 8);
+      Buffer.push_back(char(Byte & 0xFF));
+    }
+#else
+    const char* Ptr = reinterpret_cast<const char*>(&Val);
     Buffer.append(Ptr, Ptr + N);
+#endif
   }
 
   void writeBytes(ArrayRef<char> Bytes) {
@@ -189,10 +209,7 @@ public:
   void flushToWord() {
     if EXI_UNLIKELY(!BitsInStore)
       return;
-    
-    // Switch to "big endian".
-    // TODO: Update this for big endian systems.
-    writeWord(exi::byteswap(Store));
+    writeWord(Store);
     BitsInStore = 0;
     Store = 0;
   }
@@ -204,13 +221,13 @@ public:
   // Implementation
 
   /// Writes a single byte. Same in both versions.
-  void writeByte(u8 Val) override final {
+  EXI_FLATTEN void writeByte(u8 Val) override final {
     this->writeNBits(Val, 8);
   }
 
   /// Writes an `Unsigned Integer` with a maximum of 8 octets.
   /// See https://www.w3.org/TR/exi/#encodingUnsignedInteger.
-  void writeUInt(u64 Val) override final {
+  EXI_FLATTEN void writeUInt(u64 Val) override final {
     this->writeNByteUInt<8>(Val);
   }
 
@@ -221,8 +238,8 @@ public:
     tail_return this->writeString(Str);
   }
 
-  /// Writes a unicode string to the buffer.
-  void writeString(StrRef Str) {
+  /// Writes a unicode string to the buffer (no size).
+  EXI_FLATTEN void writeString(StrRef Str) {
     if (Str.empty())
       return;
     
@@ -233,10 +250,16 @@ public:
     }
   }
 
-  /// Writes a static number of bits (max of 64).
-  template <unsigned Bits>
-  void writeBits(ubit<Bits> Val) {
-    this->writeNBits<u64>(Val, Bits);
+  /// Writes a unicode string to the buffer (no size).
+  template <bool Validate = true>
+  EXI_FLATTEN void writeAsciiString(StrRef Str) {
+    for (char Val : Str) {
+      if constexpr (Validate)
+        if EXI_NEVER(u8(Val) >= (1u << 7))
+          this->failUInt<1>();
+      LOG_EXTRA(">>> {}: 0x{:02X}", Val, u8(Val));
+      this->writeNBits(u8(Val), 8);
+    }
   }
 
   /// Writes a `BitBuffer`.
@@ -249,23 +272,49 @@ public:
       writeNBits(Val.partial(), Val.bits());
   }
 
+#if EXI_DEBUG || EXI_ENABLE_DUMP
+  EXI_DUMP_METHOD void dump() const;
+  EXI_DUMP_METHOD void dumpData() const;
+  EXI_DUMP_METHOD void dumpWord() const;
+#endif
+
 protected:
+  EXI_INLINE void printNBits(word_t Val, size_type Bits) {
+#if ORDEREDWRITER_DUMP && EXI_DEBUG
+    if (this->getStreamKind() != SK_Bit) {
+      exi_invariant(Bits == MakeByteAligned(Bits));
+      exi_invariant(BitsInStore == MakeByteAligned(BitsInStore));
+    }
+    WithColor(errs())
+      << raw_ostream::BRIGHT_WHITE << "Data["
+      << raw_ostream::BRIGHT_YELLOW << "@" << Bits
+      << format(":{:02}", BitsInStore)
+      << raw_ostream::BRIGHT_WHITE << format("]: {:0{}b}", Val, Bits)
+      << '\n';
+#endif
+  }
+
   /// Writes a variable number of bits (max of 64).
-  template <typename IntT = u64>
-  ALWAYS_INLINE void writeNBits(IntT Val, size_type Bits) {
-    Store |= Val << BitsInStore;
-    if (Bits + BitsInStore < kBitsPerWord) {
+  template <std::unsigned_integral IntT = u64>
+  void writeNBits(IntT Val, size_type Bits) {
+    printNBits(Val, Bits);
+    if (Bits + BitsInStore < kBitsPerWord) [[likely]] {
+      Store |= word_t(Val) << (kBitsPerWord - (Bits + BitsInStore));
       BitsInStore += Bits;
       return;
     }
 
+    size_type Leftovers = (kBitsPerWord - BitsInStore);
+    size_type NewShift = (Bits - Leftovers);
+
+    Store |= word_t(Val) >> NewShift;
     this->writeWord(Store);
 
-    if (BitsInStore)
-      Store = Val >> (kBitsPerWord - BitsInStore);
+    if (NewShift)
+      Store = word_t(Val) << (kBitsPerWord - NewShift);
     else
       Store = 0;
-    BitsInStore = (BitsInStore + Bits) & ShiftMask;
+    BitsInStore = NewShift;
   }
 
   template <size_type Bytes = 8>
@@ -273,7 +322,7 @@ protected:
     static_assert(Bytes <= sizeof(word_t), "Read is too large!");
 
     for (isize N = 0; N < isize(Bytes); ++N) {
-      if (Val < (1 << 7)) {
+      if (Val < (1u << 7)) {
         this->writeByte(Val);
         return;
       }
@@ -300,7 +349,7 @@ protected:
 
   /// Unified implementation for `writeBit`.
   template <StreamKind Kind>
-  ALWAYS_INLINE void writeBitImpl(bool Val) {
+  EXI_FLATTEN void writeBitImpl(bool Val) {
     if constexpr (IsBitPacked<Kind>())
       this->writeNBits(Val, 1);
     else
@@ -309,7 +358,7 @@ protected:
 
   /// Unified implementation for `writeBits64`.
   template <StreamKind Kind>
-  ALWAYS_INLINE void writeBits64Impl(u64 Val, size_type Bits) {
+  EXI_FLATTEN void writeBits64Impl(u64 Val, size_type Bits) {
     exi_invariant(Bits <= kBitsPerWord,
       "Cannot write more than BitsPerWord bits!");
     
@@ -317,10 +366,11 @@ protected:
       // Do nothing...
       return;
     
+    Val &= MakeNBitMask<u64>(Bits);
     if constexpr (IsBitPacked<Kind>())
       this->writeNBits(Val, Bits);
     else
-      this->writeNBits(Val, MakeByteCount(Bits));
+      this->writeNBits(Val, MakeByteAligned(Bits));
   }
 
   /// Sets the stream in an invalid state.
@@ -334,8 +384,8 @@ private:
   template <size_type Bytes = 8>
   EXI_ERROR_CC void failUInt() {
     // TODO: Add NO_INLINE?
-    LOG_WARN("uint exceeded {} octets.\n", Bytes);
-    //return Err(ErrorCode::kInvalidEXIInput);
+    LOG_WARN("uint exceeded {} octet{}.\n",
+      Bytes, (Bytes != 1) ? "s"_str : ""_str);
   }
 
   virtual void invalidate() = 0;
@@ -359,13 +409,19 @@ public:
   BitWriter(const Strm& O) = delete;
 
   /// Writes a single bit.
-  void writeBit(bool Val) override {
+  EXI_FLATTEN void writeBit(bool Val) override {
     BaseT::writeBitImpl<SK_Bit>(Val);
   }
 
   /// Writes a variable number of bits (max of 64).
-  void writeBits64(u64 Val, size_type Bits) override {
+  EXI_FLATTEN void writeBits64(u64 Val, size_type Bits) override {
     BaseT::writeBits64Impl<SK_Bit>(Val, Bits);
+  }
+
+  /// Writes a static number of bits (max of 64).
+  template <unsigned Bits>
+  ALWAYS_INLINE void writeBits(ubit<Bits> Val) {
+    this->writeBits64(Val, Bits);
   }
 
   // Expose alignment for bit packing.
@@ -403,13 +459,19 @@ public:
   ByteWriter(BitWriter&& O)  : OrderedWriter(AlignForMove(std::move(O))) {}
 
   /// Writes a single bit.
-  void writeBit(bool Val) override {
+  EXI_FLATTEN void writeBit(bool Val) override {
     BaseT::writeBitImpl<SK_Byte>(Val);
   }
 
   /// Writes a variable number of bits (max of 64).
-  void writeBits64(u64 Val, size_type Bits) override {
+  EXI_FLATTEN void writeBits64(u64 Val, size_type Bits) override {
     BaseT::writeBits64Impl<SK_Byte>(Val, Bits);
+  }
+
+  /// Writes a static number of bits (max of 64).
+  template <unsigned Bits>
+  ALWAYS_INLINE void writeBits(ubit<Bits> Val) {
+    this->writeBits64(Val, Bits);
   }
 
   StreamKind getStreamKind() const override {

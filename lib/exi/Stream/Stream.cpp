@@ -60,4 +60,50 @@ void DeflateReader::anchor() {}
   ThrowDyn<runtime_error>(Msg);
 }
 
+#if EXI_DEBUG || EXI_ENABLE_DUMP
+EXI_DUMP_METHOD void OrderedWriter::dump() const {
+  this->dumpWord();
+  this->dumpData();
+}
+
+EXI_DUMP_METHOD void OrderedWriter::dumpData() const {
+  if (Buffer.empty())
+    return;
+  errs() << "Data[" << Buffer.size() << "]:";
+  for (usize Ix = 0; Ix < Buffer.size(); ++Ix) {
+    if (Ix % 8 == 0)
+      errs() << "\n  ";
+    errs() << format("{:08b} ", u8(Buffer[Ix]));
+  }
+  errs() << '\n';
+}
+
+static void DumpWordImpl(const StreamBase::word_t Word, usize NBits) {
+  unsigned Bits = NBits % 8;
+  unsigned FullBytes = NBits / 8;
+  unsigned Ix = 1;
+  for (; Ix <= FullBytes; ++Ix) {
+    unsigned At = 8 - Ix;
+    StreamBase::word_t V = Word >> (At * 8);
+    errs() << format("{:08b} ", (V & 0xFF));
+  }
+
+  if (Bits) {
+    unsigned At = 8 - Ix;
+    StreamBase::word_t V = Word >> ((At * 8) + (8 - Bits));
+    V &= StreamBase::MakeNBitMask(Bits);
+    errs() << format("{:0{}b} ", V, Bits);
+  }
+
+  errs() << '\n';
+}
+
+EXI_DUMP_METHOD void OrderedWriter::dumpWord() const {
+  if (!BitsInStore)
+    return;
+  errs() << "Word[@" << BitsInStore << "]:\n  ";
+  DumpWordImpl(Store, BitsInStore);
+}
+#endif
+
 } // namespace exi
