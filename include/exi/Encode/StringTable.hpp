@@ -90,12 +90,12 @@ struct PrefixInfo {
   u32 WithURI = max_v<u32>;
   /// The ID of the prefix.
   u16 Pfx = max_v<u16>;
-  /// The cached prefix log.
-  u16 PfxLog = 0;
+  /// The cached qname prefix log.
+  u16 PfxLogQ = 0;
 public:
   /// Checked if the Prefix is synced with `Link`.
   inline bool isSyncedWithURI() const;
-  /// Syncs `PfxLog` with `Link->PfxMap`s size.
+  /// Syncs `PfxLogQ` with `Link->PfxMap`s size.
   inline void syncWithURI();
   /// Returns URI if valid.
   u32 uri() const {
@@ -192,6 +192,7 @@ public:
   static constexpr u32 kURIMax = 0xFFFFFF;
   static constexpr u32 kURIUninit = max_v<u32>;
   /// Contains URI's ID and reverse mappings for prefixes.
+  /// TODO: Handle Prefix unbinding!
   struct URIInfo {
     u32 URI = kURIUninit;
     /// The number of associated LocalNames.
@@ -199,26 +200,28 @@ public:
     /// Iterate while recording the index to find the PfxID.
     SmallVec<PrefixInfo*, 2> PfxMap;
 
-    static u16 Log2(unsigned ID) {
-      return ID_AddOffsetLog2<1>(ID);
+    static u16 Log2Q(unsigned ID) {
+      return ID_AddOffsetLog2<0>(ID);
     }
-    static bool NeedsBroadcast(unsigned ID) {
-      /// TODO: Verify this! I'm tired
-      return ((ID + 1u) & ID) == 0;
+    static bool NeedsBroadcast(unsigned NewID) {
+      // Changes up the normal is_pow2 trick, as the newest ID is the old size
+      // of the prefix array. Since size is always `NewestID + 1`, I tweaked it
+      // to handle that.
+      return ((NewID + 1u) & NewID) == 0;
     }
 
   private:
     ALWAYS_INLINE void bindPfx(PrefixInfo* Pfx, u16 ID, unsigned Size) const {
       Pfx->Link     = XUnmap(const_cast<URIInfo*>(this));
       Pfx->Pfx      = ID;
-      Pfx->PfxLog   = Log2(Size);
+      Pfx->PfxLogQ  = Log2Q(Size);
       Pfx->WithURI  = uri();
     }
     template <bool BindToThis>
     inline void bindNewPfx(PrefixInfo* Pfx, u16 ID) const {
       if constexpr (BindToThis) {
         exi_invariant(Pfx == PfxMap.back());
-        this->bindPfx(Pfx, ID, ID + 1u);
+        this->bindPfx(Pfx, ID, static_cast<unsigned>(ID));
       }
     }
     template <bool BindToThis>
@@ -233,7 +236,7 @@ public:
       for (PrefixInfo* PI : PfxMap) {
         // Skips over any prefixes not currently mapped to this URI.
         if EXI_LIKELY(PI->Link == self)
-          PI->PfxLog = Log;
+          PI->PfxLogQ = Log;
       }
     }
     // FIXME: Consider what happens when inserting empty.
@@ -247,15 +250,12 @@ public:
       PfxMap.emplace_back(Pfx);
       bindNewPfx<BindToThis>(Pfx, ID);
       // Only happens once, quite unlikely.
-      if EXI_UNLIKELY(ID == 0) {
-        // TODO: If wrapping occurs, Throw(...)
+      if EXI_UNLIKELY(ID == 0)
         return 0;
-      }
       // Check if update broadcast is required.
-      // Add 1 so it matches the current size.
       // This gets less likely the more prefixes are added.
-      if EXI_UNLIKELY(NeedsBroadcast(ID + 1u))
-        this->broadcastLog(Log2(ID + 1u));
+      if EXI_UNLIKELY(NeedsBroadcast(ID))
+        this->broadcastLog(Log2Q(ID));
       return ID;
     }
     template <bool BindToThis = false>
@@ -282,7 +282,7 @@ public:
     }
 
     EXI_COLD void recalculateLog() {
-      this->broadcastLog(Log2(PfxMap.size()));
+      this->broadcastLog(Log2Q(PfxMap.size()));
     }
 
     bool contains(const PrefixInfo* Pfx) const {
@@ -292,11 +292,17 @@ public:
       }
       return false;
     }
+    ALWAYS_INLINE bool contains(const STPrefixEntry* Pfx) const {
+      return contains(VOfX(Pfx));
+    }
     unsigned numMappedPrefixes() const {
       return PfxMap.size();
     }
+    u16 pfxLogQ() const {
+      return Log2Q(numMappedPrefixes());
+    }
     u16 pfxLog() const {
-      return Log2(numMappedPrefixes());
+      return ID_AddOffsetLog2<1>(numMappedPrefixes());
     }
     u32 uri() const {
       if EXI_NEVER(URI == kURIUninit)
@@ -755,6 +761,18 @@ public:
       return nullptr;
     return X(&*It);
   }
+  /// Returns the `PrefixEntry` for `Pfx`, if it exists.
+  /// @tparam IsAttribute If the lookup is for an attribute.
+  template <bool IsAttribute = false>
+  STPrefixEntry* lookupPfxForURI(STURIEntry* URI, ImplicitHashStrRef Pfx) {
+    if (auto* PfxV = lookupPfx<IsAttribute>(Pfx)) {
+      if (VOfX(PfxV)->Link == URI)
+        return PfxV;
+      else if (VOfX(URI)->contains(PfxV))
+        return PfxV;
+    }
+    return nullptr;
+  }
   /// Returns the `URIEntry` for `URI`, if it exists.
   STURIEntry* lookupURI(ImplicitHashStrRef URI) {
     auto It = URIMap->find(URI);
@@ -789,26 +807,36 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Log Getters
 
-  /// Returns the number of bits needed for the given Prefix.
-  unsigned getPfxLog(STPrefixEntry* Pfx) const {
-    return VOfX(Pfx)->PfxLog;
+  /// Returns the number of bits needed for Prefixes of the given URI.
+  static unsigned getPfxLog(STURIEntry* URI) {
+    return VOfX(URI)->pfxLog();
   }
   /// Returns the number of bits needed for the given Prefix.
-  unsigned getPfxLogQ(STPrefixEntry* Pfx) const {
-    STURIEntry* URI = VOfX(Pfx)->Link;
-    if EXI_NEVER(!URI)
-      return 0;
-    auto Count = IntCast<unsigned>(GetPfxCount(URI));
-    if (Count == 0)
-      return 0;
-    return ID_Log2(Count - 1);
+  static unsigned getPfxLog(STPrefixEntry* Pfx) {
+    if (auto* URI = VOfX(Pfx)->Link)
+      return getPfxLog(URI);
+    return 0;
+  }
+  /// Returns the number of bits needed for Prefix of the given URI.
+  static unsigned getPfxLogQ(STURIEntry* URI) {
+    exi_invariant(URI != nullptr, "Invalid URI!");
+    return VOfX(URI)->pfxLogQ();
+  }
+  /// Returns the number of bits needed for the given Prefix.
+  static unsigned getPfxLogQ(STPrefixEntry* Pfx) {
+    auto* PfxV = VOfX(Pfx);
+    if (auto* URI = PfxV->Link) {
+      exi_invariant(PfxV->isSyncedWithURI());
+      return PfxV->PfxLogQ;
+    }
+    return 0;
   }
   /// Returns an `(ID, Log)` pair for a Prefix.
-  std::pair<u32, u32> getPfxIDAndLog(STPrefixEntry* Pfx) const {
+  static std::pair<u32, u32> getPfxIDAndLog(STPrefixEntry* Pfx) {
     return {GetID(Pfx), getPfxLog(Pfx)};
   }
   /// Returns an `(ID, Log)` pair for a Prefix.
-  std::pair<u32, u32> getPfxIDAndLogQ(STPrefixEntry* Pfx) const {
+  static std::pair<u32, u32> getPfxIDAndLogQ(STPrefixEntry* Pfx) {
     return {GetID(Pfx), getPfxLogQ(Pfx)};
   }
 
@@ -933,15 +961,14 @@ bool PrefixInfo::isSyncedWithURI() const {
     Throw<uninit_error>("Prefix::Link is uninitialized!");
   auto* UI = StringTable::VOfX(Link);
   return WithURI == UI->uri()
-      && PfxLog  == UI->pfxLog()
+      && PfxLogQ == UI->pfxLogQ()
       && UI->contains(this);
 }
 
 void PrefixInfo::syncWithURI() {
   if EXI_NEVER(Link == nullptr)
     Throw<uninit_error>("Prefix::Link is uninitialized!");
-  // exi_relassert(Link != nullptr);
-  PfxLog = StringTable::VOfX(Link)->pfxLog();
+  PfxLogQ = StringTable::VOfX(Link)->pfxLogQ();
 }
 
 inline unsigned LocalNameInfo::CheckURI(STURIEntry* ID) {

@@ -321,14 +321,18 @@ public:
   template <typename StrmT, bool IsAT = false>
   ExiResult<NameEntry*> encodeQName(StrRef Pfx, StrRef LN) {
     PrefixEntry* PfxV = Strings.lookupPfx<IsAT>(Pfx);
+    if EXI_NEVER(PfxV == nullptr) {
+      LOG_ERROR("No prefix '{}'", Pfx);
+      return Err(ErrorCode::kNullptrRef);
+    }
     URIEntry* URIV = Strings.GetURIEntry(PfxV);
     if EXI_NEVER(URIV == nullptr) {
       LOG_ERROR("No URI bound to prefix '{}'", Pfx);
       return Err(ErrorCode::kNullptrRef);
     }
-    (void) encodeURI<StrmT>(URIV);
+    (void) encodeURIID<StrmT>(URIV);
     NameEntry* LNV = EXI_UNWRAP(encodeName<StrmT>(URIV, LN));
-    exi_try_r(encodePfxQ<StrmT>(PfxV));
+    exi_try_r(encodePfxQ<StrmT>(URIV, PfxV));
     return LNV;
   }
   /// Encodes a `*:local-name` with a late-bound prefix mapping.
@@ -342,8 +346,7 @@ public:
     }
 
     NameEntry* LNV = EXI_UNWRAP(encodeName<StrmT>(URIV, LN));
-    if (auto* PfxV = Strings.GetAnyPfx(URIV))
-      exi_try_r(encodePfxQ<StrmT>(PfxV));
+    exi_try_r(encodePfxQ<StrmT>(URIV, Pfx));
     return LNV;
   }
 
@@ -351,12 +354,12 @@ public:
   template <typename StrmT>
   URIEntry* encodeURI(StrRef URI) {
     if (auto* URIV = Strings.lookupURI(URI))
-      return encodeURI<StrmT>(URIV);
+      return encodeURIID<StrmT>(URIV);
     return encodeURIStr<StrmT>(URI);
   }
   /// Encodes a given `URIEntry`.
   template <typename StrmT>
-  URIEntry* encodeURI(URIEntry* URI) {
+  URIEntry* encodeURIID(URIEntry* URI) {
     auto [ID, Bits] = Strings.getURIIDAndLog(URI);
     writer<StrmT>().writeBits64(ID + 1, Bits);
     LOG_INFO(">> URI(Hit) @{}: \"{}\"", ID, Strings.GetURI(URI));
@@ -398,20 +401,62 @@ public:
     return LN;
   }
 
+  /// Encodes a QName prefix.
   template <typename StrmT>
-  ExiError encodePfxQ(PrefixEntry* Pfx) {
-    if (!this->PreservePrefixes())
+  ExiError encodePfxQ(URIEntry* URI, StrRef Pfx) {
+    if (shouldPfxQEarlyReturn(URI))
       return ExiError::OK;
-    if EXI_UNLIKELY(!Pfx) {
-      LOG_WARN("Pfx is null.");
-      return ExiError::OK;
+    // By this point we know the URI isn't null.
+    if (auto* PfxV = Strings.lookupPfxForURI(URI, Pfx))
+      return encodePfxQID<StrmT>(URI, PfxV);
+    // Check if encoding is even required.
+    if (usize N = Strings.GetPfxCount(URI); N > 1) {
+      unsigned Bits = ID_Log2</*NeverZero=*/true>(N);
+      writer<StrmT>().writeBits64(0, Bits);
     }
-    auto [ID, Bits] = Strings.getPfxIDAndLogQ(Pfx);
-    writer<StrmT>().writeBits64(ID, Bits);
-    LOG_INFO(">> PXQ @{}: \"{}\"", ID, Strings.GetPfx(Pfx));
+    LOG_INFO(">> PXQ (Miss)");
     return ExiError::OK;
   }
+  /// Encodes a QName with a known prefix.
+  template <typename StrmT>
+  ExiError encodePfxQ(URIEntry* URI, PrefixEntry* Pfx) {
+    if (shouldPfxQEarlyReturn(URI, Pfx))
+      return ExiError::OK;
+    tail_return encodePfxQID<StrmT>(URI, Pfx);
+  }
+  template <typename StrmT>
+  ExiError encodePfxQID(URIEntry* URI, PrefixEntry* Pfx) {
+    exi_invariant(URI && Pfx && this->PreservePrefixes());
+    auto [ID, Bits] = Strings.getPfxIDAndLogQ(Pfx);
+    writer<StrmT>().writeBits64(ID, Bits);
+    LOG_INFO(">> PXQ (Hit) @{}: \"{}\"", ID, Strings.GetPfx(Pfx));
+    return ExiError::OK;
+  }
+  /// Checks the conditions for returning early for the URI and Prefix.
+  EXI_INLINE bool shouldPfxQEarlyReturn(URIEntry* URI, PrefixEntry* Pfx) {
+    if (shouldPfxQEarlyReturn(URI))
+      return true;
+    if EXI_UNLIKELY(!Pfx) {
+      LOG_WARN(">> PXQ (null)");
+      return true;
+    }
+    return false;
+  }
+  /// Checks the conditions for returning early solely for the URI.
+  EXI_INLINE bool shouldPfxQEarlyReturn(URIEntry* URI) {
+    exi_invariant(URI != nullptr,
+                 "URI should be validated before this point!");
+    if (!this->PreservePrefixes())
+      return true;
+    if (Strings.GetID(URI) == 0) {
+      // Skip encoding the null URI ("").
+      LOG_INFO(">> PXQ (Nil) @*: \"\"");
+      return true;
+    }
+    return false;
+  }
 
+  /// Encodes a NS event prefix.
   template <typename StrmT>
   ExiResult<PrefixEntry*> encodePfx(URIEntry* URI, StrRef Pfx) {
     CachedHashStrRef ChPfx = Strings.prehash(Pfx);
@@ -421,19 +466,18 @@ public:
       return Err(ErrorCode::kInconsistentProcState);
     }
 #endif
-    /// Empty prefixes are always considered a "miss"
-    if (!Pfx.empty()) {
-      if (PrefixEntry* PfxV = Strings.lookupPfx(Pfx))
-        return encodePfx<StrmT>(URI, PfxV);
-      writer<StrmT>().encodeString(Pfx);
-    } else
-      writer<StrmT>().writeUInt(0);
+    if (PrefixEntry* PfxV = Strings.lookupPfxForURI(URI, Pfx))
+      return encodePfxID<StrmT>(URI, PfxV);
+    unsigned Bits = Strings.getPfxLog(URI);
+    writer<StrmT>().writeBits64(0, Bits);
+    writer<StrmT>().encodeString(Pfx);
     PrefixEntry* PfxV = Strings.addPrefix(URI, Pfx);
+    Strings.enterNamespace(URI, PfxV);
     LOG_INFO(">> PXNS (Miss) @{}: \"{}\"", Strings.GetID(PfxV), Pfx);
     return PfxV;
   }
   template <typename StrmT>
-  PrefixEntry* encodePfx(URIEntry* URI, PrefixEntry* Pfx) {
+  PrefixEntry* encodePfxID(URIEntry* URI, PrefixEntry* Pfx) {
     Strings.enterNamespace(URI, Pfx);
     if (unsigned Bits = Strings.getPfxLog(Pfx)) {
       unsigned ID = Strings.GetID(Pfx);
@@ -530,3 +574,4 @@ inline void operator delete[](void* Ptr, const exi::OrderedEncoder& OE, usize) {
 }
 
 #undef DEBUG_TYPE
+#undef LOG_POSITION
