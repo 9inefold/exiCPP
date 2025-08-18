@@ -387,6 +387,7 @@ public:
   template <typename StrmT>
   ExiResult<NameEntry*> encodeName(URIEntry* URI, NameEntry* LN) {
     u32 Bits = Strings.getLocalNameLog(URI);
+    writer<StrmT>().writeUInt(0);
     writer<StrmT>().writeBits64(LN->id(), Bits);
     LOG_INFO(">> LN @{}: \"{}\"", LN->id(), LN->name());
     return LN;
