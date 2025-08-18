@@ -35,9 +35,9 @@
 #include <exi/Decode/UnifyBuffer.hpp>
 #include <exi/Grammar/DecoderSchema.hpp>
 #include <exi/Stream/OrderedReader.hpp>
+#include <exi/Basic/D/LogPosition.mac>
 
 #define DEBUG_TYPE "BodyDecoder"
-#define DECODER_LOG_POSITIONS 1
 
 #ifndef EXI_DECODER_ALLOW_COMPUTED_GOTO
 // Temporary measures.
@@ -59,14 +59,6 @@
 # endif
 #endif
 #endif // EXI_DECODER_COMPUTED_GOTO
-
-#if DECODER_LOG_POSITIONS
-// FIXME: Update if needed...
-# define LOG_POSITION(...)                                                    \
-  LOG_EXTRA("@[{:#02x}]:", ((__VA_ARGS__)->Reader->bitPos() / 8))
-#else
-# define LOG_POSITION(...) ((void)(0))
-#endif
 
 namespace exi {
 
@@ -112,6 +104,8 @@ public:
   DecoderFlags flags() const { return Flags; }
   /// Returns if the header was successfully decoded.
   bool didHeader() const { return Flags.DidHeader; }
+  /// Returns the bit position of the reader.
+  EXI_FLATTEN usize bitPos() const { return Reader->bitPos(); }
 
   ////////////////////////////////////////////////////////////////////////
   // Initialization
@@ -526,3 +520,4 @@ EXI_INSTANTIATE_DECODER_FUNCS(DECLARE_FUNCS)
 
 #undef DEBUG_TYPE
 #undef LABEL_ANNOTATE
+#undef LOG_POSITION

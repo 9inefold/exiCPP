@@ -29,6 +29,7 @@
 #include <core/Support/Format.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/D/InternalMacros.hpp>
+#include <exi/Basic/D/LogPosition.mac>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/Runes.hpp>
 #include <exi/Decode/Deserializer.hpp>
@@ -36,7 +37,7 @@
 
 #define DEBUG_TYPE "BodyDecoder"
 
-#if DECODER_LOG_POSITIONS
+#if EXI_LOG_POSITION
 # define LOG_META(...) LOG_EXTRA(__VA_ARGS__)
 #else
 # define LOG_META(...) ((void)(0))

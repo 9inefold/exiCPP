@@ -31,6 +31,7 @@
 #include <exi/Encode/BodyEncoderAlloc.hpp>
 #include <exi/Grammar/EncoderSchema.hpp>
 #include <exi/Stream/OrderedWriter.hpp>
+#include <exi/Basic/D/LogPosition.mac>
 
 #define DEBUG_TYPE "OrderedEncoder"
 
@@ -96,6 +97,10 @@ public:
 
   static bool classof(const BodyEncoder* BE) {
     return BE->kind() == EncoderKind::EK_Ordered;
+  }
+
+  EXI_FLATTEN usize bitPos() const {
+    return Writer->bitPos();
   }
 
   ////////////////////////////////////////////////////////////////////////

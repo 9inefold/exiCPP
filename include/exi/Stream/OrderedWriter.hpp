@@ -217,6 +217,7 @@ public:
 
   usize size() const { return Buffer.size(); }
   usize bitsInStore() const { return BitsInStore; }
+  usize bitPos() const { return size() * 8 + BitsInStore; }
 
   ////////////////////////////////////////////////////////////////////////
   // Implementation
