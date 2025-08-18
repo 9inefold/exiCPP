@@ -263,9 +263,9 @@ static int CalcSpacesSize(StrRef LHS, StrRef RHS) {
 }
 
 /// Prints a pretty byte diff
-static void ByteDiffViewer(StrRef Original, StrRef Encoded,
-                           usize BreakOn = 4, bool Hex = false,
-                           bool LabelX = false) {
+static void ByteDiffViewerImpl(StrRef Original, StrRef Encoded,
+                               usize BreakOn = 4, bool Hex = false,
+                               bool LabelX = false) {
   using enum raw_ostream::Colors;
   static constexpr StrRef VSplit = " \xE2\x94\x82 "_str;
   const usize BreakOnX = (BreakOn > 0) ? BreakOn : 1;
@@ -354,6 +354,18 @@ static void ByteDiffViewer(StrRef Original, StrRef Encoded,
       << center_justify("", BlockSize) << VSplit << '\n';
     PrintLine(u8" └─", u8"─┴─", u8"─┘ ");
   }
+}
+
+static void ByteDiffViewer(StrRef Original, StrRef Encoded,
+                           usize BreakOn = 4, bool Hex = false,
+                           bool LabelX = false) {
+  if (Original.size() > Encoded.size()) {
+    std::string E(Encoded.data(), Encoded.size());
+    E.resize(Original.size(), '\xAB');
+    StrRef EData(E.data(), E.size());
+    return ByteDiffViewerImpl(Original, EData, BreakOn, Hex, LabelX);
+  }
+  return ByteDiffViewerImpl(Original, Encoded, BreakOn, Hex, LabelX);
 }
 
 /// Writes contents to a file.
