@@ -29,10 +29,10 @@
 #include <core/Support/Format.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/D/InternalMacros.hpp>
-#include <exi/Basic/D/LogPosition.mac>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/Runes.hpp>
 #include <exi/Decode/Deserializer.hpp>
+#include <exi/Basic/D/LogPosition.mac>
 #include <fmt/ranges.h>
 
 #define DEBUG_TYPE "BodyDecoder"

@@ -27,6 +27,7 @@
 #include <exi/Grammar/EncoderSchema.hpp>
 //#include <exi/Encode/ChannelEncoder.hpp>
 #include <exi/Encode/OrderedEncoder.hpp>
+#include <exi/Basic/D/LogPosition.mac>
 
 namespace exi::encode {
 

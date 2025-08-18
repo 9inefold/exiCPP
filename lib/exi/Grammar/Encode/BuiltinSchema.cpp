@@ -254,6 +254,7 @@ private:
 
   /// ENTRY POINT - Dispatches common events.
   CC_INLINE ExiError setEventImpl(ORDERED_ARGS) {
+    LOG_POSITION(OE);
     this->logCurrentGrammar();
     this->logEvent(K);
     switch (Current) {
@@ -285,6 +286,7 @@ private:
   /// ENTRY POINT - Dispatches common batch events.
   template <bool IsRoot = false>
   CC_INLINE ExiError batchEventsImpl(ORDERED_BARGS) {
+    LOG_POSITION(OE);
     this->logCurrentGrammar();
     this->logEventEx(Arr, N, K);
     switch (Current) {

@@ -297,11 +297,14 @@ public:
     StrRef URI(NS.UriData, NS.UriSize);
     URIEntry* URIV = encodeURI<StrmT>(URI);
     exi_assert(URIV != nullptr);
+
     StrRef Pfx(NS.PfxData, NS.PfxSize);
     Result PfxOrErr = encodePfx<StrmT>(URIV, Pfx);
     exi_try_unwrap(PfxOrErr);
     if constexpr (!IsRoot)
       CtxStack.add(Strings, *PfxOrErr);
+    
+    LOG_POSITION(this);
     LOG_INFO(">> {}", NS.IsLocal ? "LOCAL" : "NON-LOCAL");
     writer<StrmT>().writeBit(NS.IsLocal);
     return ExiError::OK;
@@ -360,6 +363,7 @@ public:
   /// Encodes a given `URIEntry`.
   template <typename StrmT>
   URIEntry* encodeURIID(URIEntry* URI) {
+    LOG_POSITION(this);
     auto [ID, Bits] = Strings.getURIIDAndLog(URI);
     writer<StrmT>().writeBits64(ID + 1, Bits);
     LOG_INFO(">> URI(Hit) @{}: \"{}\"", ID, Strings.GetURI(URI));
@@ -368,6 +372,7 @@ public:
   /// Encodes a uri string.
   template <typename StrmT>
   URIEntry* encodeURIStr(StrRef URI) {
+    LOG_POSITION(this);
     u32 Bits = Strings.getURILog();
     writer<StrmT>().writeBits64(0, Bits);
     writer<StrmT>().encodeString(URI);
@@ -386,7 +391,9 @@ public:
       LOG_ERROR("InsertionPoint cannot be null!");
       return Err(ErrorCode::kNullptrRef);
     }
+    LOG_POSITION(this);
     writer<StrmT>().writeUInt(LN.size() + 1);
+    LOG_POSITION(this);
     writer<StrmT>().writeString(LN);
     NameEntry* LNV = Strings.addLocalName(URI, LN, IP);
     LOG_INFO(">> LN @{}: \"{}\"", LNV->id(), LN);
@@ -394,6 +401,7 @@ public:
   }
   template <typename StrmT>
   ExiResult<NameEntry*> encodeName(URIEntry* URI, NameEntry* LN) {
+    LOG_POSITION(this);
     u32 Bits = Strings.getLocalNameLog(URI);
     writer<StrmT>().writeUInt(0);
     writer<StrmT>().writeBits64(LN->id(), Bits);
@@ -411,6 +419,7 @@ public:
       return encodePfxQID<StrmT>(URI, PfxV);
     // Check if encoding is even required.
     if (usize N = Strings.GetPfxCount(URI); N > 1) {
+      LOG_POSITION(this);
       unsigned Bits = ID_Log2</*NeverZero=*/true>(N);
       writer<StrmT>().writeBits64(0, Bits);
     }
@@ -428,7 +437,10 @@ public:
   ExiError encodePfxQID(URIEntry* URI, PrefixEntry* Pfx) {
     exi_invariant(URI && Pfx && this->PreservePrefixes());
     auto [ID, Bits] = Strings.getPfxIDAndLogQ(Pfx);
-    writer<StrmT>().writeBits64(ID, Bits);
+    if (Bits) {
+      LOG_POSITION(this);
+      writer<StrmT>().writeBits64(ID, Bits);
+    }
     LOG_INFO(">> PXQ (Hit) @{}: \"{}\"", ID, Strings.GetPfx(Pfx));
     return ExiError::OK;
   }
@@ -468,6 +480,7 @@ public:
 #endif
     if (PrefixEntry* PfxV = Strings.lookupPfxForURI(URI, Pfx))
       return encodePfxID<StrmT>(URI, PfxV);
+    LOG_POSITION(this);
     unsigned Bits = Strings.getPfxLog(URI);
     writer<StrmT>().writeBits64(0, Bits);
     writer<StrmT>().encodeString(Pfx);
@@ -480,6 +493,7 @@ public:
   PrefixEntry* encodePfxID(URIEntry* URI, PrefixEntry* Pfx) {
     Strings.enterNamespace(URI, Pfx);
     if (unsigned Bits = Strings.getPfxLog(Pfx)) {
+      LOG_POSITION(this);
       unsigned ID = Strings.GetID(Pfx);
       writer<StrmT>().writeBits64(ID + 1, Bits);
       LOG_INFO(">> PXNS (Hit) @{}: \"{}\"", ID, Strings.GetPfx(Pfx));
@@ -491,6 +505,7 @@ public:
 
   template <typename StrmT>
   ExiError encodeValue(NameEntry* LN, StrRef Value) {
+    LOG_POSITION(this);
     CachedHashStrRef ChValue = Strings.prehash(Value);
     auto [GV, IsLocal] = Strings.lookupLocalValue(LN, ChValue);
     if (IsLocal && GV) /*TODO: Assert GV*/ {
