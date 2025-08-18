@@ -238,7 +238,7 @@ private:
     encodePrecomputedCode(OE, TMap.mapDocContent<Term>());
     // TODO: Handle top-level SE
     if constexpr (Term != SimpleEventTerm::SE)
-      return this->encodeEventS(
+      return this->encodeEventSimple(
         OE, event_cast<Term>(Event, K));
     else
       // TODO: Make this its own thing...
@@ -248,7 +248,7 @@ private:
   template <SimpleEventTerm Term>
   CC ExiError encodeDocEnd(ORDERED_ARGS) {
     encodePrecomputedCode(OE, TMap.mapDocEnd<Term>());
-    return this->encodeEventS(
+    return this->encodeEventSimple(
       OE, event_cast<Term>(Event, K));
   }
 
@@ -613,13 +613,13 @@ private:
     using enum SimpleEventTerm;
     switch (K) {
     case SimpleEventTerm::CM:
-      return this->encodeEventS(
+      return this->encodeEventSimple(
         OE, event_cast<SimpleEventTerm::CM>(Event));
     case SimpleEventTerm::PI:
-      return this->encodeEventS(
+      return this->encodeEventSimple(
         OE, event_cast<SimpleEventTerm::PI>(Event));
     case SimpleEventTerm::DT:
-      return this->encodeEventS(
+      return this->encodeEventSimple(
         OE, event_cast<SimpleEventTerm::DT>(Event));
     default:
       exi_guardrail("uncommon type not in {CH,PI,ER}");
@@ -673,27 +673,27 @@ private:
   // Value Encoding
 
   /// Encodes a simple event - can be {SD, ED}.
-  CC ExiError encodeEventS(OrderedEncoder*, const NoEventData&) {
+  CC ExiError encodeEventSimple(OrderedEncoder*, const NoEventData&) {
     return ExiError::OK;
   }
   /// Encodes a simple event - can be {CM, ER}.
-  CC ExiError encodeEventS(OrderedEncoder* OE,
-                           const StringEventData& Event) {
+  CC ExiError encodeEventSimple(OrderedEncoder* OE,
+                                const StringEventData& Event) {
     Get::Writer(OE).encodeString(
       StrRef(Event.Data, Event.Size));
     return ExiError::OK;
   }
   /// Encodes a simple event - can be {PI}.
-  CC ExiError encodeEventS(OrderedEncoder* OE,
-                           const ProcInstrEvent& Event) {
+  CC ExiError encodeEventSimple(OrderedEncoder* OE,
+                                const ProcInstrEvent& Event) {
     StrmT& Strm = Get::Writer(OE);
     Strm.encodeString(Event[0]);
     Strm.encodeString(Event[1]);
     return ExiError::OK;
   }
   /// Encodes a simple event - can be {DT}.
-  inline CC ExiError encodeEventS(OrderedEncoder* OE,
-                                  const DoctypeEvent& Event);
+  inline CC ExiError encodeEventSimple(OrderedEncoder* OE,
+                                       const DoctypeEvent& Event);
 
   ////////////////////////////////////////////////////////////////////////
   // Grammar
@@ -740,7 +740,7 @@ private:
 };
 
 template <is_ordwriter_stream StrmT>
-CC ExiError OrderedBuiltinSchema<StrmT>::encodeEventS(
+CC ExiError OrderedBuiltinSchema<StrmT>::encodeEventSimple(
  OrderedEncoder* OE, const DoctypeEvent& Event) {
   StrmT& Strm = Get::Writer(OE);
   switch (Event.Kind) {
