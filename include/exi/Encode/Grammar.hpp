@@ -77,8 +77,20 @@ class BuiltinGrammar final : public Grammar {
     exi_invariant(IP != nullptr, "Invalid SE/AT insertion point!");
     auto& Elts = getElts<IsStart>();
     auto Code = IntCast<u32>(Elts.size());
-    auto* SE = new (*BE) NodeT(Code, LN);
-    Elts.InsertNode(SE, IP);
+    auto* SEOrAT = new (*BE) NodeT(Code, LN);
+    Elts.InsertNode(SEOrAT, IP);
+    this->setLog(IsStart);
+  }
+
+  template <class NodeT, bool IsStart, class Encoder>
+  void addNewSEOrATTerm(Encoder* BE, LocalNameInfo* LN) {
+    auto& Elts = getElts<IsStart>();
+    auto Code = IntCast<u32>(Elts.size());
+    auto* SEOrAT = new (*BE) NodeT(Code, LN);
+    Elts.InsertNode(SEOrAT);
+    //auto* N = Elts.GetOrInsertNode(SEOrAT);
+    //if (hasDbgLogLevel(WARN) && SEOrAT != N)
+    //  BuiltinGrammar::LogDiscarded(LN);
     this->setLog(IsStart);
   }
 
@@ -144,16 +156,15 @@ public:
     // AT terms are always StartTagContent.
     tail_return this->addSEOrATTerm<gnode::ATQNameNode, true>(BE, LN, IP);
   }
+  /// Adds an SE code that can't have been seen.
+  template <bool IsStart, class Encoder>
+  void addNewSETerm(Encoder* BE, LocalNameInfo* LN) {
+    tail_return this->addNewSEOrATTerm<gnode::SEQNameNode, IsStart>(BE, LN);
+  }
   /// Adds an AT code that can't have been seen.
   template <class Encoder>
   void addNewATTerm(Encoder* BE, LocalNameInfo* LN) {
-    auto Code = IntCast<u32>(StartTag.size());
-    auto* AT = new (*BE) gnode::ATQNameNode(Code, LN);
-    //StartTag.InsertNode(AT);
-    auto* N = StartTag.GetOrInsertNode(AT);
-    if (hasDbgLogLevel(WARN) && AT != N)
-      BuiltinGrammar::LogDiscarded(LN);
-    this->setLog(true);
+    tail_return this->addNewSEOrATTerm<gnode::ATQNameNode, true>(BE, LN);
   }
 
   template <bool IsStart>

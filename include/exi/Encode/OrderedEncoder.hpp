@@ -408,7 +408,7 @@ public:
       return Err(ErrorCode::kNullptrRef);
     }
     LOG_POSITION(this);
-    writer<StrmT>().writeUInt(LN.size() + 1);
+    encodeUInt<StrmT>(LN.size() + 1);
     LOG_POSITION(this);
     writer<StrmT>().writeString(LN);
     NameEntry* LNV = Strings.addLocalName(URI, LN, IP);
@@ -419,7 +419,8 @@ public:
   ExiResult<NameEntry*> encodeName(URIEntry* URI, NameEntry* LN) {
     LOG_POSITION(this);
     u32 Bits = Strings.getLocalNameLog(URI);
-    writer<StrmT>().writeUInt(0);
+    encodeUInt<StrmT>(0);
+    LOG_POSITION(this);
     writer<StrmT>().writeBits64(LN->id(), Bits);
     LOG_INFO(">> LN @{}: \"{}\"", LN->id(), LN->name());
     return LN;
@@ -525,28 +526,30 @@ public:
     CachedHashStrRef ChValue = Strings.prehash(Value);
     auto [GV, IsLocal] = Strings.lookupLocalValue(LN, ChValue);
     if (IsLocal && GV) /*TODO: Assert GV*/ {
-      encodeValueUInt<StrmT>(0);
+      encodeUInt<StrmT>(0);
       unsigned Bits = LN->log();
       unsigned ID = Strings.GetLocalID(GV);
       writer<StrmT>().writeBits64(ID, Bits);
       LOG_INFO(">> LV (hit): @{} <{}>", ID, Bits);
     } else if (GV) {
-      encodeValueUInt<StrmT>(1);
+      encodeUInt<StrmT>(1);
       unsigned Bits = Strings.getGlobalValueLog();
       unsigned ID = Strings.GetGlobalID(GV);
       writer<StrmT>().writeBits64(ID, Bits);
       Strings.addLocalValue(LN, GV);
       LOG_INFO(">> GV (hit): @{} <{}>", ID, Bits);
     } else {
-      encodeValueUInt<StrmT>(Value.size() + 2);
+      encodeUInt<StrmT>(Value.size() + 2);
       writer<StrmT>().writeString(Value);
       Strings.addValue(LN, ChValue);
       LOG_INFO(">> LV (miss)");
     }
     return ExiError::OK;
   }
+
+  // Simply writes a UInt with logging.
   template <typename StrmT>
-  EXI_INLINE void encodeValueUInt(u64 Value) {
+  EXI_INLINE void encodeUInt(u64 Value) {
     LOG_EXTRA("Encoding UInt");
     LOG_EXTRA(">>> UInt {}", Value);
     writer<StrmT>().writeUInt(Value);

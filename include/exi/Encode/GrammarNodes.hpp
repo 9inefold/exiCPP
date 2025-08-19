@@ -195,9 +195,9 @@ public:
       : SENode(kTerm, Code), Name(Name) {}
   void Profile(FoldingSetNodeID& ID) const { ProfileImpl(ID, Name); }
   static void ProfileImpl(FoldingSetNodeID& ID, LocalNameInfo* Name) {
+    exi_invariant(Name != nullptr);
     ID.AddInteger(unsigned(kTerm));
-    if (Name)
-      ID.AddPointer(Name);
+    ID.AddPointer(Name);
   }
 };
 
@@ -229,9 +229,9 @@ public:
       : ATNode(kTerm, Code), Name(Name) {}
   void Profile(FoldingSetNodeID& ID) const { ProfileImpl(ID, Name); }
   static void ProfileImpl(FoldingSetNodeID& ID, LocalNameInfo* Name) {
+    exi_invariant(Name != nullptr);
     ID.AddInteger(unsigned(kTerm));
-    if (Name)
-      ID.AddPointer(Name);
+    ID.AddPointer(Name);
   }
 };
 

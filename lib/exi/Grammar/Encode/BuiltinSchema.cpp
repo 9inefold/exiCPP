@@ -46,6 +46,12 @@ using namespace exi::encode;
 
 #define DEBUG_TYPE "BuiltinSchema"
 
+#if EXI_LOG_POSITION
+# define LOG_META(...) LOG_EXTRA(__VA_ARGS__)
+#else
+# define LOG_META(...) ((void)0)
+#endif
+
 /// Emits diagnostic for an error.
 EXI_ERROR_CC static void Diagnose(const ExiError& E) {
   if (E != ExiError::OK)
@@ -372,24 +378,6 @@ private:
     }
   }
 
-  /// Events shared between StartTag and Element.
-  template <bool IsStart>
-  CC ExiError handleSharedContent(ORDERED_ARGS) {
-    switch (K) {
-    case SimpleEventTerm::EE:
-      tail_return this->handleEE(ORDERED_NEXT);
-    /*
-    case SEQName:
-      // SE(qname) events are cached.
-      tail_return this->handleSEQName(D);
-    case CHExtern:
-      tail_return this->handleCH<true>(D);
-    */
-    default:
-      tail_return this->handleChildContent<IsStart>(ORDERED_NEXT);
-    }
-  }
-
   /// Events under the ChildContentItems macro.
   template <bool IsStart>
   CC_INLINE ExiError handleChildContent(ORDERED_ARGS) {
@@ -444,10 +432,8 @@ private:
       G->addSETerm<IsStart>(OE, LN, IP);
     }
   }
-  template <State S>
+  template <bool IsStart>
   void handleSEDefaultCode(OrderedEncoder* OE) {
-    static constexpr bool IsStart = (S == StartTagContent);
-    static_assert(S != DocContent);
     auto* G = GStack.back();
     G->writeFallbackCode<IsStart>(&Get::Writer(OE));
     this->encodeSLCode<IsStart, SimpleEventTerm::SE>(OE);
@@ -466,45 +452,51 @@ private:
   }
   template <State S>
   CC ExiError handleSE(OrderedEncoder* OE, const StartElemEvent& SE) {
-    if EXI_UNLIKELY(SE.Tag != 0)
+    if (SE.Tag != 0)
       tail_return this->handleSEUri<S>(OE, SE);
     if constexpr (S != DocContent) {
+      static constexpr bool IsStart = (S != ElementContent);
       auto [URIV, LN] = OE->lookupSE(SE);
       if (LN != nullptr)
-        return this->handlePrevSE<S>(OE, SE, LN);
-      this->handleSEDefaultCode<S>(OE);
+        return this->handlePrevSE<IsStart>(OE, SE, LN);
+      this->handleSEDefaultCode<IsStart>(OE);
     }
     LocalNameInfo* LN = EXI_UNWRAP(OE->encodeSE<StrmT>(SE));
-    return this->loadSEGrammar(OE, LN);
+    return this->handleNewSE<S>(OE, LN);
   }
   template <State S>
   CC ExiError handleSEUri(OrderedEncoder* OE, const StartElemEvent& SE) {
+    static constexpr bool IsStart = (S != ElementContent);
     auto& SEUri = static_cast<const StartElemURIEvent&>(SE);
     if constexpr (S != DocContent) {
       auto [URIV, LN] = OE->lookupSEUri(SEUri);
       if (LN != nullptr)
-        return this->handlePrevSEUri<S>(OE, SEUri, LN);
-      this->handleSEDefaultCode<S>(OE);
+        return this->handlePrevSEUri<IsStart>(OE, SEUri, LN);
+      this->handleSEDefaultCode<IsStart>(OE);
     }
     LocalNameInfo* LN = EXI_UNWRAP(OE->encodeSEUri<StrmT>(SEUri));
-    return this->loadSEGrammar(OE, LN);
+    return this->handleNewSE<S>(OE, LN);
   }
   template <State S>
+  CC ExiError handleNewSE(OrderedEncoder* OE, LocalNameInfo* LN) {
+    if constexpr (S != DocContent) {
+      static constexpr bool IsStart = (S != ElementContent);
+      GStack.back()->addNewSETerm<IsStart>(OE, LN);
+    }
+    return this->loadSEGrammar(OE, LN);
+  }
+  template <bool IsStart>
   CC ExiError handlePrevSE(OrderedEncoder* OE,
                            const StartElemEvent& SE, LocalNameInfo* LN) {
-    static constexpr bool IsStart = (S == StartTagContent);
     this->handlePrevSEGrammar<IsStart>(OE, LN);
-    // TODO: Encode previous!
     auto* LN2 = EXI_UNWRAP(OE->encodeSE<StrmT>(SE));
     exi_invariant(LN2 == LN);
     return this->loadSEGrammar(OE, LN);
   }
-  template <State S>
+  template <bool IsStart>
   CC ExiError handlePrevSEUri(OrderedEncoder* OE,
                               const StartElemURIEvent& SE, LocalNameInfo* LN) {
-    static constexpr bool IsStart = (S == StartTagContent);
     this->handlePrevSEGrammar<IsStart>(OE, LN);
-    // TODO: Encode previous!
     auto* LN2 = EXI_UNWRAP(OE->encodeSEUri<StrmT>(SE));
     exi_invariant(LN2 == LN);
     return this->loadSEGrammar(OE, LN);
