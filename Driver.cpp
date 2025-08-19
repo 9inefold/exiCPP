@@ -368,8 +368,42 @@ static void PadByteDiffViewer(StrRef Original, StrRef Encoded,
   return ByteDiffViewer(Original, Encoded, BreakOn, Hex, LabelX);
 }
 
+//////////////////////////////////////////////////////////////////////////
+// Encode/Decode
+
+namespace {
+class ECDCTestRunner {
+  XMLManagerRef Mgr;
+  StrRef ExamplePath = "examples";
+  mutable ExiOptions Opts;
+
+public:
+  ECDCTestRunner(XMLManagerRef Mgr, StrRef Folder,
+                 AlignKind K, ExiOptions::PreserveOpts P)
+   : Mgr(std::move(Mgr)), Opts{
+      .Alignment = K, .Preserve = P,
+      .SchemaID = Some(nullptr)} {
+  }
+
+  ECDCTestRunner(XMLManagerRef Mgr, AlignKind K, ExiOptions::PreserveOpts P)
+   : ECDCTestRunner(std::move(Mgr), "examples", K, P) {
+  }
+
+  /// Runs Decoder -> Encoder -> Decoder.
+  int runWithRet(StrRef ExiFile, StrRef XmlFile) const;
+  /// Invokes run, exits on failure.
+  void run(StrRef ExiFile, StrRef XmlFile) const {
+    if (int Ret = runWithRet(ExiFile, XmlFile))
+      std::exit(Ret);
+  }
+
+  ExiOptions* operator->() { return &Opts; }
+  const ExiOptions* operator->() const { return &Opts; }
+};
+} // namespace `anonymous`
+
 /// Writes contents to a file.
-Error WriteFile(StrRef File, StrRef Contents) {
+static Error WriteFile(StrRef File, StrRef Contents) {
   std::string FileName = File.str();
   if (!sys::path::is_absolute(File)) {
     SmallStr<256> Path(File);
@@ -390,6 +424,154 @@ Error WriteFile(StrRef File, StrRef Contents) {
   OS.write(Contents.data(), Contents.size());
   return Error::success();
 }
+
+static StrRef GetOutPath(SmallVecImpl<char>& Path, StrRef Parent, StrRef ExiFile) {
+  sys::path::append(Path, Parent, "out", ExiFile);
+  StrRef Out(Path.begin(), Path.size());
+  outs() << "Filename: " << Out << '\n';
+  return StrRef(Path.begin(), Path.size());
+}
+
+int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile) const {
+  using enum raw_ostream::Colors;
+  const auto CoderLogLevel = exi::DebugFlag;
+  root::DumpOptions DO {.Conforming = true};
+#if EXI_LOGGING
+  ScopedSave LogLevelRestore(exi::DebugFlag, LogLevel::WARN);
+#endif
+
+  SmallStr<80> FilenameStore;
+  StrRef OutExiFile = GetOutPath(FilenameStore, ExamplePath, ExiFile);
+
+  MemoryBufferRef DecodeBuf;
+  SmallStr<0> EncodeBuf;
+
+  auto PrintHexDiff = [](StrRef Original, StrRef Encoded) {
+    PadByteDiffViewer(Original, Encoded,
+                      /*Width=*/16, /*Hex=*/true, /*LabelX=*/true);
+  };
+
+  bool HasCookie = false;
+  const bool HasOptions = false;
+
+  /*Decoding*/ {
+    SmallStr<80> File;
+    sys::path::append(File, ExamplePath, ExiFile);
+    WithColor(errs(), BRIGHT_CYAN)
+      << format("Decoding: \"{}\"", File.str()) << '\n';
+
+    XMLContainerRef Exi
+      = Mgr->getOptXMLRef(File.str(), errs())
+        .expect("could not locate file!");
+    auto MB = Exi.getBufferRef();
+    DecodeBuf = MB;
+
+    SetLogLevel(LogLevel::WARN);
+    ExiDecoder Decoder(Opts);
+    XMLDeserializer S;
+
+    SetLogLevel(CoderLogLevel);
+    if (int Ret = Decode(Decoder, MB, &S)) {
+      WithColor(errs(), BRIGHT_RED)
+        << "Decoding failed.\n";
+      return Ret;
+    }
+
+    HasCookie = Decoder.hasCookie();
+    SetLogLevel(LogLevel::WARN);
+    WithColor(errs(), BRIGHT_GREEN)
+      << "Decoding successful!\n\n";
+  } /*Encoding*/ {
+    SmallStr<80> File;
+    sys::path::append(File, ExamplePath, XmlFile);
+    WithColor(errs(), BRIGHT_CYAN)
+      << format("Encoding: \"{}\"", File.str()) << '\n';
+
+    auto& Xml
+      = Mgr->getOptXMLDocument(File.str(), errs())
+        .expect("could not locate file!");
+    
+    SetLogLevel(LogLevel::WARN);
+    Result EncoderOrErr = ExiEncoder::New(Opts);
+    if (!EncoderOrErr) {
+      errs() << EncoderOrErr.error() << '\n';
+      WithColor(errs(), BRIGHT_RED)
+        << "Encoding failed.\n";
+      return 1;
+    }
+
+    ExiEncoder Encoder = std::move(*EncoderOrErr);
+    XMLSerializer S(&Xml);
+    Encoder.hdrHasCookie(HasCookie)
+      .expect("Options already compiled??");
+    Encoder.hdrHasOptions(HasOptions)
+      .expect("Options already compiled??");
+
+    SetLogLevel(CoderLogLevel);
+    LOG_INFO("Compiling header...");
+    SetLogLevel(LogLevel::INFO);
+    Result Factory = Encoder.setup();
+    if (!Factory) {
+      errs() << Factory.error() << '\n';
+      WithColor(errs(), BRIGHT_RED)
+        << "Encoding failed.\n";
+      return 1;
+    }
+
+    SetLogLevel(CoderLogLevel);
+    LOG_INFO("Encoding body...");
+    if (auto E = Factory->encode(&S, EncodeBuf)) {
+      errs() << E << '\n';
+      WithColor(errs(), BRIGHT_RED)
+        << "Encoding failed.\n";
+      return 1;
+    }
+
+    INFO_ONLY(dbgs() << '\n');
+    SetLogLevel(LogLevel::WARN);
+    WithColor(errs(), BRIGHT_GREEN)
+      << "Encoding successful!\n\n";
+
+    if (auto E = WriteFile(OutExiFile, EncodeBuf)) {
+      logAllUnhandledErrors(std::move(E), errs());
+      return 1;
+    }
+  } /*Decoding, again*/ {
+    WithColor(errs(), BRIGHT_CYAN)
+      << format("Decoding: \"{}\"", OutExiFile) << '\n';
+    
+    PrintHexDiff(DecodeBuf.getBuffer(), EncodeBuf.str());
+    (void) EncodeBuf.c_str();
+    auto MB = MemoryBuffer::getMemBuffer(EncodeBuf.str(), OutExiFile);
+
+    SetLogLevel(LogLevel::WARN);
+    ExiDecoder Decoder(Opts);
+    XMLDeserializer S;
+
+    SetLogLevel(CoderLogLevel);
+    if (int Ret = Decode(Decoder, MB->getMemBufferRef(), &S)) {
+      WithColor(errs(), BRIGHT_RED)
+        << "Decoding failed.\n";
+      return Ret;
+    }
+
+    SetLogLevel(LogLevel::WARN);
+    WithColor(errs(), BRIGHT_GREEN)
+      << "Decoding (again) successful!\n\n";
+  }
+  
+  return 0;
+}
+
+#define MAKE_TEST_RUNNER(KIND, FOLDER, ...) [&Mgr] () -> ECDCTestRunner {     \
+  using enum exi::PreserveKind;                                               \
+  const auto TheOpts = exi::make_preserve_opts(__VA_ARGS__);                  \
+  return ECDCTestRunner(Mgr, FOLDER, KIND, TheOpts);                          \
+}
+
+/// Makes a test runner for "example".
+#define MAKE_EXTEST_RUNNER(KIND, ...)                                         \
+  MAKE_TEST_RUNNER(KIND, "example", ##__VA_ARGS__)
 
 int main(int Argc, char* Argv[]) {
   using enum raw_ostream::Colors;
@@ -418,134 +600,29 @@ int main(int Argc, char* Argv[]) {
 
   // Add https://www.w3.org/TR/xmlschema-0/#ipo.xsd
 
-  using enum exi::PreserveKind;
-  const auto Preserve = exi::make_preserve_opts(All & ~LexicalValues);
-  ExiOptions Opts {
-    .Alignment = AlignKind::BytePacked,
-    .Preserve = Preserve,
-    .SchemaID = Some(nullptr)
-  };
-  root::DumpOptions DO {.Conforming = true};
-  constexpr auto CoderLogLevel = LogLevel::WARN;
-
-  MemoryBufferRef DecodeBuf;
-  SmallStr<0> EncodeBuf;
-
-  auto PrintHexDiff = [](StrRef Original, StrRef Encoded) {
-    PadByteDiffViewer(Original, Encoded,
-                      /*Width=*/16, /*Hex=*/true, /*LabelX=*/true);
-  };
-
-  //SmallStr<0> S;
-  //ByteWriter W(EncodeBuf);
-  //for (usize I = 0; I <= 255; ++I)
-  //  S.push_back(char(u8(I)));
-  //for (u8 C : S)
-  //  W.writeByte(C);
-  //ByteDiffViewer(S, EncodeBuf.str(), 8);
-  //return 0;
-
-  /*Decoding*/ {
-    const StrRef File = "examples/NamespaceNooptB.exi";
-    WithColor(errs(), BRIGHT_CYAN)
-      << format("Decoding: \"{}\"", File) << '\n';
-
-    XMLContainerRef Exi
-      = Mgr->getOptXMLRef(File, errs())
-        .expect("could not locate file!");
-    auto MB = Exi.getBufferRef();
-    DecodeBuf = MB;
-
-    ExiDecoder Decoder(Opts);
-    XMLDeserializer S;
-
-    SetLogLevel(LogLevel::VERBOSE);
-    if (int Ret = Decode(Decoder, MB, &S)) {
-      WithColor(errs(), BRIGHT_RED)
-        << "Decoding failed.\n";
-      return Ret;
-    }
-
+  /*BytePacked*/ {
+    auto Zil = MAKE_EXTEST_RUNNER(AlignKind::BytePacked);
+    auto Pfx = MAKE_EXTEST_RUNNER(AlignKind::BytePacked, Prefixes);
+    auto All = MAKE_EXTEST_RUNNER(AlignKind::BytePacked, All & ~LexicalValues);
     SetLogLevel(LogLevel::WARN);
-    WithColor(errs(), BRIGHT_GREEN)
-      << "Decoding successful!\n\n";
-  } /*Encoding*/ {
-    const StrRef File = "examples/Namespace.xml";
-    WithColor(errs(), BRIGHT_CYAN)
-      << format("Encoding: \"{}\"", File) << '\n';
-
-    auto& Xml
-      = Mgr->getOptXMLDocument(File, errs())
-        .expect("could not locate file!");
-    
-    SetLogLevel(LogLevel::INFO);
-    Result EncoderOrErr = ExiEncoder::New(Opts);
-    if (!EncoderOrErr) {
-      errs() << EncoderOrErr.error() << '\n';
-      WithColor(errs(), BRIGHT_RED)
-        << "Encoding failed.\n";
-      return 1;
-    }
-
-    ExiEncoder Encoder = std::move(*EncoderOrErr);
-    XMLSerializer S(&Xml);
-    Encoder.hdrHasCookie(false)
-      .expect("Options already compiled??");
-    Encoder.hdrHasOptions(false)
-      .expect("Options already compiled??");
-
-    SetLogLevel(LogLevel::EXTRA);
-    LOG_INFO("Compiling header...");
-    Result Factory = Encoder.setup();
-    if (!Factory) {
-      errs() << Factory.error() << '\n';
-      WithColor(errs(), BRIGHT_RED)
-        << "Encoding failed.\n";
-      return 1;
-    }
-
-    //SetLogLevel(CoderLogLevel);
-    LOG_INFO("Encoding body...");
-    if (auto E = Factory->encode(&S, EncodeBuf)) {
-      errs() << E << '\n';
-      WithColor(errs(), BRIGHT_RED)
-        << "Encoding failed.\n";
-      return 1;
-    }
-
-    INFO_ONLY(dbgs() << '\n');
-    SetLogLevel(LogLevel::WARN);
-    WithColor(errs(), BRIGHT_GREEN)
-      << "Encoding successful!\n\n";
-    
-    const StrRef FileOut = "examples/out/NamespaceNooptB.exi";
-    if (auto E = WriteFile(FileOut, EncodeBuf)) {
-      logAllUnhandledErrors(std::move(E), errs());
-      return 1;
-    }
-  } /*Decoding, again*/ {
-    const StrRef File = "examples/out/NamespaceNooptB.exi";
-    WithColor(errs(), BRIGHT_CYAN)
-      << format("Decoding: \"{}\"", File) << '\n';
-    
-    //ByteDiffViewer(DecodeBuf.getBuffer(), EncodeBuf.str(), 8);
-    PrintHexDiff(DecodeBuf.getBuffer(), EncodeBuf.str());
-    (void) EncodeBuf.c_str();
-    auto MB = MemoryBuffer::getMemBuffer(EncodeBuf.str(), File);
-
-    ExiDecoder Decoder(Opts);
-    XMLDeserializer S;
-
+    Zil().run("SpecExampleB.exi",     "SpecExample.xml");
+    Zil().run("BasicNooptB.exi",      "Basic.xml");
+    Pfx().run("CustomersNooptB.exi",  "Customers.xml");
     SetLogLevel(LogLevel::VERBOSE);
-    if (int Ret = Decode(Decoder, MB->getMemBufferRef(), &S)) {
-      WithColor(errs(), BRIGHT_RED)
-        << "Decoding failed.\n";
-      return Ret;
-    }
-
-    WithColor(errs(), BRIGHT_GREEN)
-      << "Decoding successful!\n\n";
-  } 
+    Zil().run("ThaiNooptB.exi",       "Thai.xml");
+    SetLogLevel(LogLevel::WARN);
+    All().run("NamespaceNooptB.exi",  "Namespace.xml");
+  }
+  /*BitPacked*/ if (false) {
+    auto Zil = MAKE_EXTEST_RUNNER(AlignKind::BitPacked);
+    auto Pfx = MAKE_EXTEST_RUNNER(AlignKind::BitPacked, Prefixes);
+    auto All = MAKE_EXTEST_RUNNER(AlignKind::BitPacked, All & ~LexicalValues);
+    Zil().run("SpecExample.exi",      "SpecExample.xml");
+    Zil().run("BasicNoopt.exi",       "Basic.xml");
+    Pfx().run("CustomersNoopt.exi",   "Customers.xml");
+    Zil().run("ThaiNoopt.exi",        "Thai.xml");
+    All().run("NamespaceNoopt.exi",   "Namespace.xml");
+  }
 
 #endif
 }
@@ -616,12 +693,13 @@ static int TestSchemalessDecoding(XMLManagerRef SharedMgr) {
     DECODE_ORD_BYTES("CustomersNooptB.exi", Prefixes);
   }
 
-  SetLogLevel(LogLevel::INFO);
+  SetLogLevel(LogLevel::VERBOSE);
   // Thai.xml with default settings and no options.
   // Unicode string example.
   DECODE_ORD_BITS("ThaiNoopt.exi");
   DECODE_ORD_BYTES("ThaiNooptB.exi");
 
+  SetLogLevel(LogLevel::INFO);
   // Namespace.xml with all content and no options.
   // All features (minus lexical values) tested.
   DECODE_ORD_BITS("NamespaceNoopt.exi",   All & ~LexicalValues);

@@ -127,7 +127,10 @@ protected:
   }
 
   void writeWord(word_t Val) {
-    this->dumpWord();
+#if ORDEREDWRITER_DUMP
+    if (hasDbgLogLevel(INFO))
+      this->dumpWord();
+#endif
 #if ORDEREDWRITER_ALTERNATE_WRITE
     const usize Size = Buffer.size();
     Buffer.resize_for_overwrite(Size + sizeof(word_t));
@@ -283,6 +286,8 @@ public:
 protected:
   EXI_INLINE void printNBits(word_t Val, size_type Bits) {
 #if ORDEREDWRITER_DUMP && EXI_DEBUG
+    if (!hasDbgLogLevel(VERBOSE))
+      return;
     WithColor(errs())
       << raw_ostream::BRIGHT_WHITE << "Data["
       << raw_ostream::BRIGHT_YELLOW << "@" << Bits
