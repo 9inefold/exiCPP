@@ -423,28 +423,6 @@ private:
   ////////////////////////////////////////////////////////////////////////
   // Event Handling
 
-  template <bool IsStart>
-  ALWAYS_INLINE CC void handlePrevSEGrammar(OrderedEncoder* OE, LocalNameInfo* LN) {
-    exi_invariant(!GStack.empty());
-    auto* G = GStack.back();
-    if (void* IP = G->setSETerm<IsStart>(&Get::Writer(OE), LN)) {
-      this->encodeSLCode<IsStart, SimpleEventTerm::SE>(OE);
-      G->addSETerm<IsStart>(OE, LN, IP);
-    }
-  }
-  template <bool IsStart>
-  void handleSEDefaultCode(OrderedEncoder* OE) {
-    auto* G = GStack.back();
-    G->writeFallbackCode<IsStart>(&Get::Writer(OE));
-    this->encodeSLCode<IsStart, SimpleEventTerm::SE>(OE);
-  }
-  CC ExiError loadSEGrammar(OrderedEncoder* OE, LocalNameInfo* LN) {
-    this->transition(StartTagContent);
-    auto [G, Cached] = loadGrammar(OE, LN);
-    GStack.push_back(G);
-    return ExiError::OK;
-  }
-
   template <State S>
   EXI_FLATTEN CC ExiError handleSE(ORDERED_ARGS) {
     return this->handleSE<S>(OE,
@@ -488,17 +466,21 @@ private:
   template <bool IsStart>
   CC ExiError handlePrevSE(OrderedEncoder* OE,
                            const StartElemEvent& SE, LocalNameInfo* LN) {
-    this->handlePrevSEGrammar<IsStart>(OE, LN);
-    auto* LN2 = EXI_UNWRAP(OE->encodeSE<StrmT>(SE));
-    exi_invariant(LN2 == LN);
+    if (this->handlePrevSEGrammar<IsStart>(OE, LN)) {
+      [[maybe_unused]] auto* LN2
+        = EXI_UNWRAP(OE->encodeSE<StrmT>(SE));
+      exi_invariant(LN2 == LN);
+    }
     return this->loadSEGrammar(OE, LN);
   }
   template <bool IsStart>
   CC ExiError handlePrevSEUri(OrderedEncoder* OE,
                               const StartElemURIEvent& SE, LocalNameInfo* LN) {
-    this->handlePrevSEGrammar<IsStart>(OE, LN);
-    auto* LN2 = EXI_UNWRAP(OE->encodeSEUri<StrmT>(SE));
-    exi_invariant(LN2 == LN);
+    if (this->handlePrevSEGrammar<IsStart>(OE, LN)) {
+      [[maybe_unused]] auto* LN2
+        = EXI_UNWRAP(OE->encodeSEUri<StrmT>(SE));
+      exi_invariant(LN2 == LN);
+    }
     return this->loadSEGrammar(OE, LN);
   }
 
@@ -704,6 +686,31 @@ private:
   // Grammar
 
   ALWAYS_INLINE CC void transition(State New) { Current = New; }
+
+  template <bool IsStart>
+  ALWAYS_INLINE CC bool handlePrevSEGrammar(OrderedEncoder* OE, LocalNameInfo* LN) {
+    exi_invariant(!GStack.empty());
+    auto* G = GStack.back();
+    if (void* IP = G->setSETerm<IsStart>(&Get::Writer(OE), LN)) {
+      this->encodeSLCode<IsStart, SimpleEventTerm::SE>(OE);
+      G->addSETerm<IsStart>(OE, LN, IP);
+      return true;
+    }
+    LOG_EXTRA("Grammar hit");
+    return false;
+  }
+  template <bool IsStart>
+  void handleSEDefaultCode(OrderedEncoder* OE) {
+    auto* G = GStack.back();
+    G->writeFallbackCode<IsStart>(&Get::Writer(OE));
+    this->encodeSLCode<IsStart, SimpleEventTerm::SE>(OE);
+  }
+  CC ExiError loadSEGrammar(OrderedEncoder* OE, LocalNameInfo* LN) {
+    this->transition(StartTagContent);
+    auto [G, Cached] = loadGrammar(OE, LN);
+    GStack.push_back(G);
+    return ExiError::OK;
+  }
 
   /// Returns `[Grammar, Cached]`.
   std::pair<BuiltinGrammar*, bool>
