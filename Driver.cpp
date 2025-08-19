@@ -263,9 +263,9 @@ static int CalcSpacesSize(StrRef LHS, StrRef RHS) {
 }
 
 /// Prints a pretty byte diff
-static void ByteDiffViewerImpl(StrRef Original, StrRef Encoded,
-                               usize BreakOn = 4, bool Hex = false,
-                               bool LabelX = false) {
+static void ByteDiffViewer(StrRef Original, StrRef Encoded,
+                           usize BreakOn = 4, bool Hex = false,
+                           bool LabelX = false) {
   using enum raw_ostream::Colors;
   static constexpr StrRef VSplit = " \xE2\x94\x82 "_str;
   const usize BreakOnX = (BreakOn > 0) ? BreakOn : 1;
@@ -356,16 +356,16 @@ static void ByteDiffViewerImpl(StrRef Original, StrRef Encoded,
   }
 }
 
-static void ByteDiffViewer(StrRef Original, StrRef Encoded,
-                           usize BreakOn = 4, bool Hex = false,
-                           bool LabelX = false) {
+static void PadByteDiffViewer(StrRef Original, StrRef Encoded,
+                              usize BreakOn = 4, bool Hex = false,
+                              bool LabelX = false) {
   if (Original.size() > Encoded.size()) {
     std::string E(Encoded.data(), Encoded.size());
-    E.resize(Original.size(), '\xAB');
+    E.resize(Original.size(), '\0');
     StrRef EData(E.data(), E.size());
-    return ByteDiffViewerImpl(Original, EData, BreakOn, Hex, LabelX);
+    return ByteDiffViewer(Original, EData, BreakOn, Hex, LabelX);
   }
-  return ByteDiffViewerImpl(Original, Encoded, BreakOn, Hex, LabelX);
+  return ByteDiffViewer(Original, Encoded, BreakOn, Hex, LabelX);
 }
 
 /// Writes contents to a file.
@@ -430,6 +430,11 @@ int main(int Argc, char* Argv[]) {
 
   MemoryBufferRef DecodeBuf;
   SmallStr<0> EncodeBuf;
+
+  auto PrintHexDiff = [](StrRef Original, StrRef Encoded) {
+    PadByteDiffViewer(Original, Encoded,
+                      /*Width=*/16, /*Hex=*/true, /*LabelX=*/true);
+  };
 
   //SmallStr<0> S;
   //ByteWriter W(EncodeBuf);
@@ -524,7 +529,7 @@ int main(int Argc, char* Argv[]) {
       << format("Decoding: \"{}\"", File) << '\n';
     
     //ByteDiffViewer(DecodeBuf.getBuffer(), EncodeBuf.str(), 8);
-    ByteDiffViewer(DecodeBuf.getBuffer(), EncodeBuf.str(), 16, true, true);
+    PrintHexDiff(DecodeBuf.getBuffer(), EncodeBuf.str());
     (void) EncodeBuf.c_str();
     auto MB = MemoryBuffer::getMemBuffer(EncodeBuf.str(), File);
 
