@@ -33,7 +33,7 @@ inline constexpr u32 kCurrentExiVersion = 1;
 struct ExiHeader {
   EXI_PREFER_TYPE(bool)
   /// If the file begins with "$EXI".
-  u32 HasCookie : 1 = true;
+  u32 HasCookie : 1 = false;
 
   EXI_PREFER_TYPE(bool)
   /// If the header has options.
