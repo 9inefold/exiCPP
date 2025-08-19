@@ -537,18 +537,21 @@ private:
       event_cast<SimpleEventTerm::AT>(Event, K));
   }
   CC ExiError handleAT(OrderedEncoder* OE, const AttrEvent& AT) {
-    exi_invariant(!GStack.empty() && GStack.back());
+    exi_invariant(Current == StartTagContent
+              && !GStack.empty() && GStack.back());
     auto* G = GStack.back();
     auto [URIV, LN] = OE->lookupAT(AT);
     if (LN == nullptr) {
+      LOG_META(">>> No LN for '{}'", AT[0]);
       G->writeFallbackCode<true>(&Get::Writer(OE));
       this->encodeSLCode<true, SimpleEventTerm::AT>(OE);
       LN = EXI_UNWRAP(OE->encodeAT<StrmT>(AT));
       G->addNewATTerm(OE, LN);
       return ExiError::OK;
     }
-    // LocalName does exist.
     if (void* IP = G->setATTerm(&Get::Writer(OE), LN)) {
+      // LocalName does exist.
+      LOG_META(">>> No LN for '{}' in grammar", AT[0]);
       this->encodeSLCode<true, SimpleEventTerm::AT>(OE);
       G->addATTerm(OE, LN, IP);
     }
@@ -634,9 +637,11 @@ private:
   CC ExiError batchAT(ORDERED_BARGS) {
     auto* VArr = static_cast<const AttrEvent*>(Arr);
     for (usize Ix = 0; Ix < N - 1; ++Ix) {
+      LOG_POSITION(OE);
       this->logEvent(K);
       exi_try(handleAT(OE, VArr[Ix]));
     }
+    LOG_POSITION(OE);
     this->logEvent(K);
     return handleAT(OE, VArr[N - 1]);
   }
@@ -645,9 +650,11 @@ private:
   CC ExiError batchNS(ORDERED_BARGS) {
     auto* VArr = static_cast<const NamespaceEvent*>(Arr);
     for (usize Ix = 0; Ix < N - 1; ++Ix) {
+      LOG_POSITION(OE);
       this->logEvent(K);
       exi_try(handleNS<IsRoot>(OE, VArr[Ix]));
     }
+    LOG_POSITION(OE);
     this->logEvent(K);
     return handleNS<IsRoot>(OE, VArr[N - 1]);
   }
@@ -655,15 +662,18 @@ private:
   CC ExiError batchCHElem(ORDERED_BARGS) {
     auto* VArr = static_cast<const CharEvent*>(Arr);
     for (usize Ix = 0; Ix < N - 1; ++Ix) {
+      LOG_POSITION(OE);
       this->logEvent(K);
       exi_try(handleCH<false>(OE, VArr[Ix]));
     }
+    LOG_POSITION(OE);
     this->logEvent(K);
     return handleCH<false>(OE, VArr[N - 1]);
   }
 
   CC ExiError batchCHStart(ORDERED_BARGS) {
     auto* VArr = static_cast<const CharEvent*>(Arr);
+    LOG_POSITION(OE);
     this->logEvent(K);
     if (N <= 1)
       return handleCH<true>(OE, *VArr);

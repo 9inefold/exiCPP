@@ -287,7 +287,7 @@ public:
   ExiError encodeATKnown(const AttrEvent& AT) {
     auto [Pfx, LN] = SplitName(AT[0]);
     encode::LocalNameInfo* LNV
-      = EXI_UNWRAP((encodeQName<StrmT, /*IsAT=*/true>(Pfx, LN)));
+      = EXI_UNWRAP((onlyGetKnownQName<StrmT, /*IsAT=*/true>(Pfx, LN)));
     exi_guard_invariant(LNV != nullptr);
     return encodeValue<StrmT>(LNV, AT[1]);
   }
@@ -351,6 +351,22 @@ public:
     NameEntry* LNV = EXI_UNWRAP(encodeName<StrmT>(URIV, LN));
     exi_try_r(encodePfxQ<StrmT>(URIV, Pfx));
     return LNV;
+  }
+  /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.
+  template <typename StrmT, bool IsAT = false>
+  ExiResult<NameEntry*> onlyGetKnownQName(StrRef Pfx, StrRef LN) {
+    PrefixEntry* PfxV = Strings.lookupPfx<IsAT>(Pfx);
+    if EXI_NEVER(PfxV == nullptr) {
+      LOG_ERROR("No prefix '{}'", Pfx);
+      return Err(ErrorCode::kNullptrRef);
+    }
+    URIEntry* URIV = Strings.GetURIEntry(PfxV);
+    if EXI_NEVER(URIV == nullptr) {
+      LOG_ERROR("No URI bound to prefix '{}'", Pfx);
+      return Err(ErrorCode::kNullptrRef);
+    }
+    Result LNOrIP = Strings.lookupLocalName(URIV, LN);
+    return LNOrIP.expect("LN should exist for an SE/AT(qname) event.");
   }
 
   /// Encodes a uri.
@@ -509,25 +525,31 @@ public:
     CachedHashStrRef ChValue = Strings.prehash(Value);
     auto [GV, IsLocal] = Strings.lookupLocalValue(LN, ChValue);
     if (IsLocal && GV) /*TODO: Assert GV*/ {
-      writer<StrmT>().writeUInt(0);
+      encodeValueUInt<StrmT>(0);
       unsigned Bits = LN->log();
       unsigned ID = Strings.GetLocalID(GV);
       writer<StrmT>().writeBits64(ID, Bits);
       LOG_INFO(">> LV (hit): @{} <{}>", ID, Bits);
     } else if (GV) {
-      writer<StrmT>().writeUInt(1);
+      encodeValueUInt<StrmT>(1);
       unsigned Bits = Strings.getGlobalValueLog();
       unsigned ID = Strings.GetGlobalID(GV);
       writer<StrmT>().writeBits64(ID, Bits);
       Strings.addLocalValue(LN, GV);
       LOG_INFO(">> GV (hit): @{} <{}>", ID, Bits);
     } else {
-      writer<StrmT>().writeUInt(Value.size() + 2);
+      encodeValueUInt<StrmT>(Value.size() + 2);
       writer<StrmT>().writeString(Value);
       Strings.addValue(LN, ChValue);
       LOG_INFO(">> LV (miss)");
     }
     return ExiError::OK;
+  }
+  template <typename StrmT>
+  EXI_INLINE void encodeValueUInt(u64 Value) {
+    LOG_EXTRA("Encoding UInt");
+    LOG_EXTRA(">>> UInt {}", Value);
+    writer<StrmT>().writeUInt(Value);
   }
 };
 

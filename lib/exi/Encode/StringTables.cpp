@@ -323,6 +323,7 @@ LocalNameInfo* StringTable::addLocalName(
 STValueEntry* StringTable::addLocalValue(LocalNameInfo* LN, STValueEntry* GV) {
   exi_invariant(LN && GV);
   auto [LVID, DidInsert] = LN->addEntry(GV);
+  VOfX(GV)->RecentLV = {LN, LVID};
   return GV;
 }
 
@@ -330,7 +331,8 @@ STValueEntry* StringTable::addValue(LocalNameInfo* LN, CachedHashStrRef Value) {
   exi_invariant(LN != nullptr);
   const CompactID GID = GValueMap->size();
   auto [It, DidInsert] = GValueMap->try_emplace(Value, GID);
-  GValueMap.recalculateLog();
+  if (DidInsert)
+    GValueMap.recalculateLog();
   return this->addLocalValue(LN, X(&*It));
 }
 

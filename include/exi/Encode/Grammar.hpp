@@ -194,7 +194,8 @@ private:
     FoldingSetNodeID ID;
     NodeT::ProfileImpl(ID, Args...);
     void* InsertPos;
-    gnode::BaseNode* Val = Element.FindNodeOrInsertPos(ID, InsertPos);
+    gnode::BaseNode* Val = getElts<IsStart>()
+        .FindNodeOrInsertPos(ID, InsertPos);
     return {cast_if_present<NodeT>(Val), InsertPos};
   }
 
