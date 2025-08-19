@@ -17,22 +17,24 @@ This is a TODO list for the C++ version of exiCPP.
 - `DenseMap` and friends
 - Add more info to rapidxml nodes
 - Update rapidxml allocator
+- Fix copying between streams, currently super wonky
+- `encode::StringTable`
+- Produce event codes - set up `ExiEncoder`
 
 ## In Progress
 
-- `encode::StringTable`
-- Produce event codes - set up `ExiEncoder`
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense
+- Real tests for `core`
+- `exi` example test suite
 - Update `ABIBreak.*` for next version
 - Prepare for doxygen support
 - Update rapidxml
-- Fix copying between streams, currently super wonky
 - `ErrorCode` customization
 - Implement `Throw<Ex>(...)`, handle some exceptional cases...
 - Remove tabs added with broken vscode
 - Remove EXIP, merge `NewLib`
 - Add `EXI_GUARDRAILS` to handle invalid assumptions in release
-- Fix weird `__FILE__` normalization on windows.
+- Fix weird `__FILE__` normalization on windows
 
 ## Not Started
 
@@ -48,8 +50,6 @@ This is a TODO list for the C++ version of exiCPP.
 - `CrashRecoveryContext` and `cpptrace`
 - Add permissive mode for things like relaxed versioning and validation order?
 - Merge the concepts/traits I have lying around everywhere
-- Real tests for `core`
-- `exi` example test suite
 - Schema parser
 - `source_location` with Clang support
 - `Option<Unchecked<T>>` + `UncheckedOption`

@@ -3,6 +3,8 @@
 A C++ implementation of for the Efficient XML Interchange (EXI) format.
 Originally a wrapper for the EXIP library.
 
+Reading and writing are now (nearly) complete for "schemaless" bit/byte streams.
+
 ## Background
 
 While doing research for my website, I fell down the rabbithole
