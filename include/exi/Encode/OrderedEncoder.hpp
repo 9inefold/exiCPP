@@ -529,20 +529,27 @@ public:
       encodeUInt<StrmT>(0);
       unsigned Bits = LN->log();
       unsigned ID = Strings.GetLocalID(GV);
+      LOG_EXTRA("Encoding <{}>", Bits);
       writer<StrmT>().writeBits64(ID, Bits);
-      LOG_INFO(">> LV (hit): @{} <{}>", ID, Bits);
+      LOG_INFO(">> LV (hit) @[{}:{}]:{}: \"{}\"",
+        LN->uri(), LN->id(), ID, Value);
     } else if (GV) {
       encodeUInt<StrmT>(1);
       unsigned Bits = Strings.getGlobalValueLog();
       unsigned ID = Strings.GetGlobalID(GV);
+      LOG_EXTRA("Encoding <{}>", Bits);
       writer<StrmT>().writeBits64(ID, Bits);
       Strings.addLocalValue(LN, GV);
-      LOG_INFO(">> GV (hit): @{} <{}>", ID, Bits);
+      LOG_INFO(">> GV (hit) @{}: \"{}\"", ID, Value);
     } else {
       encodeUInt<StrmT>(Value.size() + 2);
       writer<StrmT>().writeString(Value);
-      Strings.addValue(LN, ChValue);
-      LOG_INFO(">> LV (miss)");
+      GV = Strings.addValue(LN, ChValue);
+#if EXI_LOGGING
+      unsigned ID = Strings.GetLocalID(GV);
+      LOG_INFO(">> LV (miss) @[{}:{}]:{}: \"{}\"",
+        LN->uri(), LN->id(), ID, Value);
+#endif
     }
     return ExiError::OK;
   }

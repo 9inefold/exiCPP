@@ -546,6 +546,7 @@ private:
       LOG_META(">>> No LN for '{}' in grammar", AT[0]);
       this->encodeSLCode<true, SimpleEventTerm::AT>(OE);
       G->addATTerm(OE, LN, IP);
+      return OE->encodeAT<StrmT>(AT).error_or(ExiError::OK);
     }
     return OE->encodeATKnown<StrmT>(AT);
   }

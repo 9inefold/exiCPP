@@ -513,7 +513,7 @@ ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
 #if EXI_LOGGING
     auto [URI, LocalName] = Strings.getQName(Name);
     StrRef LocalVal = Strings.getLocalValue(Name, ValID);
-    LOG_INFO(">> LV @[{}:{}]:{}: \"{}\"",
+    LOG_INFO(">> LV (hit) @[{}:{}]:{}: \"{}\"",
       URI, LocalName, ValID, LocalVal);
 #endif
     // Create unbound LocalValue.
@@ -527,7 +527,7 @@ ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
 
 #if EXI_LOGGING
     StrRef GlobalVal = Strings.getGlobalValue(ValID);
-    LOG_INFO(">> GV @{}: \"{}\"", ValID, GlobalVal);
+    LOG_INFO(">> GV (hit) @{}: \"{}\"", ValID, GlobalVal);
 #endif
     // Create unbound GlobalValue.
     return EventUID::NewGlobalValue(ValID);
@@ -540,7 +540,7 @@ ExiResult<EventUID> ExiDecoder::decodeValue(SmallQName Name) {
 
 #if EXI_LOGGING
     auto [URI, LocalName] = Strings.getQName(Name);
-    LOG_INFO(">> LV @[{}:{}]:{}: \"{}\"",
+    LOG_INFO(">> LV (miss) @[{}:{}]:{}: \"{}\"",
       URI, LocalName, LnID, Value);
 #endif
     // Newly created values are always returned as locals.
