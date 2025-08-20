@@ -367,6 +367,17 @@ public:
   }
 };
 
+/// Counts the number of codepoints.
+/// TODO: Improve this.
+inline usize countRunes(RuneDecoder Decoder) {
+  usize Count = 0;
+  while (Decoder) {
+    ++Count;
+    (void) Decoder.decodeUnchecked();
+  }
+  return Count;
+}
+
 /// Safely decodes codepoints from the input and inserts them into `Runes`.
 /// @returns Whether the decoding was successful.
 bool decodeRunes(RuneDecoder Decoder, SmallVecImpl<Rune>& Runes);

@@ -408,7 +408,7 @@ public:
       return Err(ErrorCode::kNullptrRef);
     }
     LOG_POSITION(this);
-    encodeUInt<StrmT>(LN.size() + 1);
+    encodeUInt<StrmT>(countRunes(LN) + 1);
     LOG_POSITION(this);
     writer<StrmT>().writeString(LN);
     NameEntry* LNV = Strings.addLocalName(URI, LN, IP);
@@ -542,7 +542,7 @@ public:
       Strings.addLocalValue(LN, GV);
       LOG_INFO(">> GV (hit) @{}: \"{}\"", ID, Value);
     } else {
-      encodeUInt<StrmT>(Value.size() + 2);
+      encodeUInt<StrmT>(countRunes(Value) + 2);
       writer<StrmT>().writeString(Value);
       GV = Strings.addValue(LN, ChValue);
 #if EXI_LOGGING

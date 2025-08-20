@@ -239,6 +239,14 @@ public:
   /// Decodes a UInt size, then writes a unicode string to the buffer.
   /// Should only be used for URIs and Prefixes.
   void encodeString(StrRef Str) {
+    this->writeUInt(countRunes(Str));
+    tail_return this->writeString(Str);
+  }
+
+  /// Decodes a UInt size, then writes an ASCII string to the buffer.
+  /// Should only be used for URIs and Prefixes.
+  void encodeAsciiString(StrRef Str) {
+    exi_invariant(Str.size() == countRunes(Str));
     this->writeUInt(Str.size());
     tail_return this->writeString(Str);
   }
