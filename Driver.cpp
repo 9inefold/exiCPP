@@ -418,6 +418,37 @@ static void PadByteDiffViewer(StrRef Original, StrRef Encoded,
   return ByteDiffViewer(Original, Encoded, BreakOn, Hex, LabelX, SkipY);
 }
 
+static void PrintByteCompareStrings(bool Val) {
+  if (Val) {
+    WithColor(errs(), raw_ostream::BRIGHT_GREEN)
+      << "Encoded files are the same!\n";
+  } else {
+    WithColor(errs(), raw_ostream::BRIGHT_RED)
+      << "Encoded files are NOT the same.\n";
+  }
+}
+
+static void ByteCompareStrings(StrRef Original, StrRef Encoded) {
+  auto AllZeros = [] (StrRef S) -> bool {
+    for (char C : S)
+      if (C != 0)
+        return false;
+    return true;
+  };
+  usize OSize = Original.size(), ESize = Encoded.size();
+  if (OSize > ESize) {
+    bool SameFront = (Original.take_front(ESize) == Encoded);
+    PrintByteCompareStrings(SameFront
+      && AllZeros(Original.take_back(OSize - ESize)));
+  } else if (OSize < ESize) {
+    bool SameFront = (Original == Encoded.take_front(OSize));
+    PrintByteCompareStrings(SameFront
+      && AllZeros(Encoded.take_back(ESize - OSize)));
+  } else {
+    PrintByteCompareStrings(Original == Encoded);
+  }
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Encode/Decode
 
@@ -445,9 +476,11 @@ public:
   }
 
   /// Runs Decoder -> Encoder -> Decoder.
-  int runWithRet(StrRef ExiFile, StrRef XmlFile, bool Diff = true) const;
+  int runWithRet(StrRef ExiFile, StrRef XmlFile,
+                 bool Diff = true, usize Skip = 0) const;
   /// Invokes run, exits on failure.
-  void run(StrRef ExiFile, StrRef XmlFile, bool Diff = true) const;
+  void run(StrRef ExiFile, StrRef XmlFile,
+           bool Diff = true, usize Skip = 0) const;
 
   ExiOptions* operator->() { return &Opts; }
   const ExiOptions* operator->() const { return &Opts; }
@@ -498,7 +531,7 @@ static Error WriteCmdsToFile(StrRef File, const Vec<String>& Contents) {
     sys::fs::CD_CreateAlways,
     sys::fs::FA_Write, sys::fs::OF_None);
   if (EC)
-    return errorCodeToError(EC); 
+    return errorCodeToError(EC);
 #if EXI_ON_WIN32
   OS << "@echo off\n\n";
 #endif
@@ -519,14 +552,8 @@ static void WriteExificientCmds(const Vec<String>& Contents) {
   logAllUnhandledErrors(std::move(E), errs(), "Errors creating ExificientCmds");
 }
 
-static StrRef GetOutPath(SmallVecImpl<char>& Path, StrRef Parent, StrRef ExiFile) {
-  sys::path::append(Path, Parent, "out", ExiFile);
-  StrRef Out(Path.begin(), Path.size());
-  outs() << "Filename: " << Out << '\n';
-  return StrRef(Path.begin(), Path.size());
-}
-
-int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile, bool Diff) const {
+int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
+                               bool Diff, usize Skip) const {
   using enum raw_ostream::Colors;
   const auto CoderLogLevel = exi::DebugFlag;
   root::DumpOptions DO {.Conforming = true};
@@ -534,21 +561,41 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile, bool Diff) const 
   ScopedSave LogLevelRestore(exi::DebugFlag, LogLevel::WARN);
 #endif
 
+  auto CreateOutPath = [&, this] (SmallVecImpl<char>& Path) -> StrRef {
+    if (!ExiFile.empty()) {
+      sys::path::append(Path, ExamplePath, "out", ExiFile);
+      return StrRef(Path.begin(), Path.size());
+    }
+
+    sys::path::append(Path, ExamplePath, "out", sys::path::stem(XmlFile));
+    Path.append({'N','o','o','p','t'});
+    if (this->Opts.Alignment == AlignKind::BytePacked)
+      Path.push_back('B');
+    sys::path::replace_extension(Path, ".exi");
+    return StrRef(Path.begin(), Path.size());
+  };
+
   SmallStr<80> FilenameStore;
-  StrRef OutExiFile = GetOutPath(FilenameStore, ExamplePath, ExiFile);
+  StrRef OutExiFile = CreateOutPath(FilenameStore);
 
   MemoryBufferRef DecodeBuf;
   SmallStr<0> EncodeBuf;
 
-  auto PrintHexDiff = [](StrRef Original, StrRef Encoded) {
-    PadByteDiffViewer(Original, Encoded,
-                      /*Width=*/16, /*Hex=*/true, /*LabelX=*/true);
+  auto PrintHexDiff = [Skip] (StrRef Original, StrRef Encoded) {
+    PadByteDiffViewer(Original, Encoded, /*Width=*/16, /*Hex=*/true,
+                      /*LabelX=*/true, /*SkipY=*/Skip);
+  };
+  auto PrintDiffOrCmp = [&, Diff] (StrRef Original, StrRef Encoded) {
+    if (Diff)
+      PrintHexDiff(Original, Encoded);
+    else
+      ByteCompareStrings(Original, Encoded);
   };
 
   bool HasCookie = false;
   const bool HasOptions = false;
 
-  /*Decoding*/ {
+  if (!ExiFile.empty()) {
     SmallStr<80> File;
     sys::path::append(File, ExamplePath, ExiFile);
     WithColor(errs(), BRIGHT_CYAN)
@@ -631,10 +678,10 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile, bool Diff) const 
     WithColor(errs(), BRIGHT_CYAN)
       << format("Decoding: \"{}\"", OutExiFile) << '\n';
     
-    if (Diff)
-      PrintHexDiff(DecodeBuf.getBuffer(), EncodeBuf.str());
-    (void) EncodeBuf.c_str();
-    auto MB = MemoryBuffer::getMemBuffer(EncodeBuf.str(), OutExiFile);
+    if (!ExiFile.empty())
+      PrintDiffOrCmp(DecodeBuf.getBuffer(), EncodeBuf.str());
+    auto MB = MemoryBuffer::getMemBuffer(EncodeBuf.str(), OutExiFile,
+                                         /*RequiresNullTerminator=*/false);
 
     SetLogLevel(LogLevel::WARN);
     ExiDecoder Decoder(Opts);
@@ -678,8 +725,9 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile, bool Diff) const 
   return 0;
 }
 
-void ECDCTestRunner::run(StrRef ExiFile, StrRef XmlFile, bool Diff) const {
-  if (int Ret = runWithRet(ExiFile, XmlFile, Diff)) {
+void ECDCTestRunner::run(StrRef ExiFile, StrRef XmlFile,
+                         bool Diff, usize Skip) const {
+  if (int Ret = runWithRet(ExiFile, XmlFile, Diff, Skip)) {
     if (Cmds)
       WriteExificientCmds(*Cmds);
     std::exit(Ret);
@@ -754,8 +802,8 @@ int main(int Argc, char* Argv[]) {
     Pfx().run("CustomersNoopt.exi",   "Customers.xml");
     Zil().run("ThaiNoopt.exi",        "Thai.xml");
     All().run("NamespaceNoopt.exi",   "Namespace.xml");
-#if TEST_LARGE_EXAMPLES
     Pfx().run("OrdersSmall.exi",      "OrdersSmall.xml");
+#if TEST_LARGE_EXAMPLES
     SetLogLevel(LogLevel::WARN);
     Pfx().run("Orders.exi", "Orders.xml", /*Diff=*/false);
 #endif
@@ -763,6 +811,15 @@ int main(int Argc, char* Argv[]) {
 
   if (EXIFICIENT_DIR.has_value()) {
     WriteExificientCmds(ExificientFileData);
+    errs() << "Running exificient...\n";
+    /// HACK: This isn't great, replace it with better impl.
+#if EXI_ON_WIN32
+    std::system(".\\examples\\out\\ExificientCmds.bat "
+             "2> .\\examples\\out\\ExificientCmds.log");
+#else
+    std::system("./examples/out/ExificientCmds.sh "
+             "2> ./examples/out/ExificientCmds.log");
+#endif
     WithColor(errs(), BRIGHT_GREEN)
       << "Wrote to 'examples/out/ExificientCmds.*'\n\n";
   }
