@@ -22,8 +22,13 @@
 #undef LOG_POSITION
 #if EXI_LOG_POSITION
 // FIXME: Update if needed...
-# define LOG_POSITION(...)                                                    \
-  LOG_EXTRA("@[{:#02x}]:", ((__VA_ARGS__)->bitPos() / 8))
+# define LOG_POSITION(...) do {                                               \
+  if (hasDbgLogLevel(VERBOSE)) {                                              \
+    const auto BitPos = ((__VA_ARGS__)->bitPos() / 8);                        \
+    const auto BitOff = ((__VA_ARGS__)->bitPos() % 8);                        \
+    LOG_EXTRA("@[0x{:02x}:{}]:", BitPos, BitOff);                             \
+  }                                                                           \
+} while(0)
 #else
 // FIXME: Update if needed...
 # define LOG_POSITION(...) ((void)0)
