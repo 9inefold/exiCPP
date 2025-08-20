@@ -63,6 +63,37 @@
 
 using namespace exi;
 
+static constinit Option<String> EXIFICIENT_DIR = std::nullopt;
+
+static void AddExificientCmdOpts(raw_ostream& OS, const ExiOptions& Opts) {
+  if (!Opts.SchemaID || !*Opts.SchemaID)
+    OS << "-noSchema ";
+  else
+    OS << "-schema " << *Opts.SchemaID->get() << ' ';
+  
+  if (Opts.Strict)
+    OS << "-strict ";
+  if (Opts.Preserve.Prefixes)
+    OS << "-preservePrefixes ";
+  if (Opts.Preserve.Comments)
+    OS << "-preserveComments ";
+  if (Opts.Preserve.PIs)
+    OS << "-preservePIs ";
+  if (Opts.Preserve.DTDs)
+    OS << "-preserveDTDs ";
+  if (Opts.Preserve.LexicalValues)
+    OS << "-preserveLexicalValues ";
+  
+  if (Opts.Alignment != AlignKind::BitPacked) {
+    if (Opts.Alignment == AlignKind::BytePacked)
+      OS << "-bytePacked ";
+    else if (!Opts.Compression)
+      OS << "-preCompression ";
+    else
+      OS << "-compression ";
+  }
+}
+
 ALWAYS_INLINE static constexpr 
  void SetLogLevel([[maybe_unused]] LogLevelType NewLevel) {
 #if EXI_LOGGING
@@ -364,6 +395,11 @@ static void PadByteDiffViewer(StrRef Original, StrRef Encoded,
     E.resize(Original.size(), '\0');
     StrRef EData(E.data(), E.size());
     return ByteDiffViewer(Original, EData, BreakOn, Hex, LabelX);
+  } else if (Original.size() < Encoded.size()) {
+    std::string O(Original.data(), Original.size());
+    O.resize(Encoded.size(), '\0');
+    StrRef OData(O.data(), O.size());
+    return ByteDiffViewer(OData, Encoded, BreakOn, Hex, LabelX);
   }
   return ByteDiffViewer(Original, Encoded, BreakOn, Hex, LabelX);
 }
@@ -376,34 +412,35 @@ class ECDCTestRunner {
   XMLManagerRef Mgr;
   StrRef ExamplePath = "examples";
   mutable ExiOptions Opts;
+  Vec<String>* Cmds = nullptr;
 
 public:
   ECDCTestRunner(XMLManagerRef Mgr, StrRef Folder,
-                 AlignKind K, ExiOptions::PreserveOpts P)
+                 AlignKind K, ExiOptions::PreserveOpts P,
+                 Vec<String>* Cmds = nullptr)
    : Mgr(std::move(Mgr)), Opts{
       .Alignment = K, .Preserve = P,
-      .SchemaID = Some(nullptr)} {
+      .SchemaID = Some(nullptr)},
+     Cmds(Cmds) {
   }
 
-  ECDCTestRunner(XMLManagerRef Mgr, AlignKind K, ExiOptions::PreserveOpts P)
-   : ECDCTestRunner(std::move(Mgr), "examples", K, P) {
+  ECDCTestRunner(XMLManagerRef Mgr,
+                 AlignKind K, ExiOptions::PreserveOpts P,
+                 Vec<String>* Cmds = nullptr)
+   : ECDCTestRunner(std::move(Mgr), "examples", K, P, Cmds) {
   }
 
   /// Runs Decoder -> Encoder -> Decoder.
-  int runWithRet(StrRef ExiFile, StrRef XmlFile) const;
+  int runWithRet(StrRef ExiFile, StrRef XmlFile, bool Diff = true) const;
   /// Invokes run, exits on failure.
-  void run(StrRef ExiFile, StrRef XmlFile) const {
-    if (int Ret = runWithRet(ExiFile, XmlFile))
-      std::exit(Ret);
-  }
+  void run(StrRef ExiFile, StrRef XmlFile, bool Diff = true) const;
 
   ExiOptions* operator->() { return &Opts; }
   const ExiOptions* operator->() const { return &Opts; }
 };
 } // namespace `anonymous`
 
-/// Writes contents to a file.
-static Error WriteFile(StrRef File, StrRef Contents) {
+static Expected<std::string> GetAbsoluteFilename(StrRef File) {
   std::string FileName = File.str();
   if (!sys::path::is_absolute(File)) {
     SmallStr<256> Path(File);
@@ -414,6 +451,16 @@ static Error WriteFile(StrRef File, StrRef Contents) {
   StrRef Parent = sys::path::parent_path(FileName);
   if (auto EC = sys::fs::create_directories(Parent))
     return errorCodeToError(EC);
+  return FileName;
+}
+
+/// Writes contents to a file.
+static Error WriteFile(StrRef File, StrRef Contents) {
+  Expected<std::string> ErrOrFileName
+    = GetAbsoluteFilename(File);
+  if (!ErrOrFileName)
+    return ErrOrFileName.takeError();
+  std::string FileName = std::move(ErrOrFileName.get());
   
   std::error_code EC;
   raw_fd_ostream OS(FileName, EC,
@@ -425,6 +472,39 @@ static Error WriteFile(StrRef File, StrRef Contents) {
   return Error::success();
 }
 
+static Error WriteCmdsToFile(StrRef File, const Vec<String>& Contents) {
+  Expected<std::string> ErrOrFileName
+    = GetAbsoluteFilename(File);
+  if (!ErrOrFileName)
+    return ErrOrFileName.takeError();
+  std::string FileName = std::move(ErrOrFileName.get());
+
+  std::error_code EC;
+  raw_fd_ostream OS(FileName, EC,
+    sys::fs::CD_CreateAlways,
+    sys::fs::FA_Write, sys::fs::OF_None);
+  if (EC)
+    return errorCodeToError(EC); 
+#if EXI_ON_WIN32
+  OS << "@echo off\n\n";
+#endif
+  for (const String& Line : Contents)
+    OS.write(Line.data(), Line.size()) << '\n';
+  OS.flush();
+  return Error::success();
+}
+
+static void WriteExificientCmds(const Vec<String>& Contents) {
+  constexpr StrRef OutputFile = 
+#if EXI_ON_WIN32
+    "examples/out/ExificientCmds.bat";
+#else
+    "examples/out/ExificientCmds.sh";
+#endif
+  Error E = WriteCmdsToFile(OutputFile, Contents);
+  logAllUnhandledErrors(std::move(E), errs(), "Errors creating ExificientCmds");
+}
+
 static StrRef GetOutPath(SmallVecImpl<char>& Path, StrRef Parent, StrRef ExiFile) {
   sys::path::append(Path, Parent, "out", ExiFile);
   StrRef Out(Path.begin(), Path.size());
@@ -432,7 +512,7 @@ static StrRef GetOutPath(SmallVecImpl<char>& Path, StrRef Parent, StrRef ExiFile
   return StrRef(Path.begin(), Path.size());
 }
 
-int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile) const {
+int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile, bool Diff) const {
   using enum raw_ostream::Colors;
   const auto CoderLogLevel = exi::DebugFlag;
   root::DumpOptions DO {.Conforming = true};
@@ -481,7 +561,8 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile) const {
     SetLogLevel(LogLevel::WARN);
     WithColor(errs(), BRIGHT_GREEN)
       << "Decoding successful!\n\n";
-  } /*Encoding*/ {
+  }
+  /*Encoding*/ {
     SmallStr<80> File;
     sys::path::append(File, ExamplePath, XmlFile);
     WithColor(errs(), BRIGHT_CYAN)
@@ -531,16 +612,13 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile) const {
     SetLogLevel(LogLevel::WARN);
     WithColor(errs(), BRIGHT_GREEN)
       << "Encoding successful!\n\n";
-
-    if (auto E = WriteFile(OutExiFile, EncodeBuf)) {
-      logAllUnhandledErrors(std::move(E), errs());
-      return 1;
-    }
-  } /*Decoding, again*/ {
+  }
+  /*Decoding, again*/ {
     WithColor(errs(), BRIGHT_CYAN)
       << format("Decoding: \"{}\"", OutExiFile) << '\n';
     
-    PrintHexDiff(DecodeBuf.getBuffer(), EncodeBuf.str());
+    if (Diff)
+      PrintHexDiff(DecodeBuf.getBuffer(), EncodeBuf.str());
     (void) EncodeBuf.c_str();
     auto MB = MemoryBuffer::getMemBuffer(EncodeBuf.str(), OutExiFile);
 
@@ -559,14 +637,46 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile) const {
     WithColor(errs(), BRIGHT_GREEN)
       << "Decoding (again) successful!\n\n";
   }
+
+  if (auto E = WriteFile(OutExiFile, EncodeBuf)) {
+    logAllUnhandledErrors(std::move(E), errs());
+    return 1;
+  }
+
+  if (Cmds && EXIFICIENT_DIR) {
+    std::string Cmd;
+    Cmd.reserve(120);
+    raw_string_ostream OS(Cmd);
+
+    constexpr StrRef JarName = "exificient-jar-with-dependencies.jar";
+    OS << format("java -jar {}/{} -decode ", *EXIFICIENT_DIR, JarName.str());
+    if (HasCookie)
+      OS << "-includeCookie ";
+    if (HasOptions)
+      OS << "-includeOptions ";
+    AddExificientCmdOpts(OS, Opts);
+    sys::fs::make_absolute(FilenameStore);
+    OS << format("-i \"{0}\" -o \"{0}.xml\"", FilenameStore.str());
+
+    Cmds->emplace_back(std::move(Cmd));
+  }
   
   return 0;
 }
 
-#define MAKE_TEST_RUNNER(KIND, FOLDER, ...) [&Mgr] () -> ECDCTestRunner {     \
+void ECDCTestRunner::run(StrRef ExiFile, StrRef XmlFile, bool Diff) const {
+  if (int Ret = runWithRet(ExiFile, XmlFile, Diff)) {
+    if (Cmds)
+      WriteExificientCmds(*Cmds);
+    std::exit(Ret);
+  }
+}
+
+#define MAKE_TEST_RUNNER(KIND, FOLDER, ...)                                   \
+[&Mgr, &ExificientFileData] () -> ECDCTestRunner {                            \
   using enum exi::PreserveKind;                                               \
   const auto TheOpts = exi::make_preserve_opts(__VA_ARGS__);                  \
-  return ECDCTestRunner(Mgr, FOLDER, KIND, TheOpts);                          \
+  return ECDCTestRunner(Mgr, FOLDER, KIND, TheOpts, &ExificientFileData);     \
 }
 
 /// Makes a test runner for "example".
@@ -600,20 +710,28 @@ int main(int Argc, char* Argv[]) {
 
   // Add https://www.w3.org/TR/xmlschema-0/#ipo.xsd
 
+  Vec<String> ExificientFileData;
+  if (auto Dir = sys::Process::GetEnv("EXIFICIENT_DIR")) {
+    SmallStr<80> FullPath;
+    sys::path::append(FullPath, *Dir, "exificient-jar-with-dependencies.jar");
+    if (sys::fs::exists(FullPath.str())) {
+      EXIFICIENT_DIR = std::move(Dir);
+      ExificientFileData.reserve(32);
+    }
+  }
+
   /*BytePacked*/ {
     auto Zil = MAKE_EXTEST_RUNNER(AlignKind::BytePacked);
     auto Pfx = MAKE_EXTEST_RUNNER(AlignKind::BytePacked, Prefixes);
     auto All = MAKE_EXTEST_RUNNER(AlignKind::BytePacked, All & ~LexicalValues);
-    SetLogLevel(LogLevel::WARN);
     Zil().run("SpecExampleB.exi",     "SpecExample.xml");
     Zil().run("BasicNooptB.exi",      "Basic.xml");
     Pfx().run("CustomersNooptB.exi",  "Customers.xml");
-    SetLogLevel(LogLevel::VERBOSE);
     Zil().run("ThaiNooptB.exi",       "Thai.xml");
-    SetLogLevel(LogLevel::WARN);
     All().run("NamespaceNooptB.exi",  "Namespace.xml");
   }
-  /*BitPacked*/ if (false) {
+  ExificientFileData.push_back("");
+  /*BitPacked*/ {
     auto Zil = MAKE_EXTEST_RUNNER(AlignKind::BitPacked);
     auto Pfx = MAKE_EXTEST_RUNNER(AlignKind::BitPacked, Prefixes);
     auto All = MAKE_EXTEST_RUNNER(AlignKind::BitPacked, All & ~LexicalValues);
@@ -622,6 +740,16 @@ int main(int Argc, char* Argv[]) {
     Pfx().run("CustomersNoopt.exi",   "Customers.xml");
     Zil().run("ThaiNoopt.exi",        "Thai.xml");
     All().run("NamespaceNoopt.exi",   "Namespace.xml");
+#if TEST_LARGE_EXAMPLES
+    SetLogLevel(LogLevel::WARN);
+    Pfx().run("Orders.exi", "Orders.xml", /*Diff=*/false);
+#endif
+  }
+
+  if (EXIFICIENT_DIR.has_value()) {
+    WriteExificientCmds(ExificientFileData);
+    WithColor(errs(), BRIGHT_GREEN)
+      << "Wrote to 'examples/out/ExificientCmds.*'\n\n";
   }
 
 #endif
