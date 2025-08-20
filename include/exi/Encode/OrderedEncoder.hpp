@@ -539,7 +539,6 @@ public:
       unsigned ID = Strings.GetGlobalID(GV);
       LOG_EXTRA("Encoding <{}>", Bits);
       writer<StrmT>().writeBits64(ID, Bits);
-      Strings.addLocalValue(LN, GV);
       LOG_INFO(">> GV (hit) @{}: \"{}\"", ID, Value);
     } else {
       encodeUInt<StrmT>(countRunes(Value) + 2);
