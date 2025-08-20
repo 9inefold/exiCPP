@@ -78,14 +78,14 @@ constexpr bool is_style_windows(Style S) { return !is_style_posix(S); }
 /// Traversing backwards is possible with \a reverse_iterator
 ///
 /// Iteration examples. Each component is separated by ',':
-/// @code
-///   /          => /
-///   /foo       => /,foo
-///   foo/       => foo,.
-///   /foo/bar   => /,foo,bar
-///   ../        => ..,.
-///   C:\foo\bar => C:,\,foo,bar
-/// @endcode
+/// ```
+//!   /          => /
+//!   /foo       => /,foo
+//!   foo/       => foo,.
+//!   /foo/bar   => /,foo,bar
+//!   ../        => ..,.
+//!   C:\foo\bar => C:,\,foo,bar
+/// ```
 class const_iterator
     : public iterator_facade_base<const_iterator, std::input_iterator_tag,
                                   const StrRef> {
@@ -160,23 +160,23 @@ reverse_iterator rend(StrRef path);
 ///
 /// Similar to the POSIX "dirname" utility.
 ///
-/// @code
-///   directory/filename.cpp => directory/
-///   directory/             => directory
-///   filename.cpp           => <empty>
-///   /                      => /
-/// @endcode
+/// ```
+//!   directory/filename.cpp => directory/
+//!   directory/             => directory
+//!   filename.cpp           => <empty>
+//!   /                      => /
+/// ```
 ///
 /// @param path A path that is modified to not have a file component.
 void remove_filename(SmallVecImpl<char> &path, Style style = Style::native);
 
 /// Replace the file extension of \a path with \a extension.
 ///
-/// @code
-///   ./filename.cpp => ./filename.extension
-///   ./filename     => ./filename.extension
-///   ./             => ./.extension
-/// @endcode
+/// ```
+//!   ./filename.cpp => ./filename.extension
+//!   ./filename     => ./filename.extension
+//!   ./             => ./.extension
+/// ```
 ///
 /// @param path A path that has its extension replaced with \a extension.
 /// @param extension The extension to be added. It may be empty. It may also
@@ -187,18 +187,18 @@ void replace_extension(SmallVecImpl<char> &path, const Twine &extension,
 
 /// Replace matching path prefix with another path.
 ///
-/// @code
-///   /foo, /old, /new => /foo
-///   /old, /old, /new => /new
-///   /old, /old/, /new => /old
-///   /old/foo, /old, /new => /new/foo
-///   /old/foo, /old/, /new => /new/foo
-///   /old/foo, /old/, /new/ => /new/foo
-///   /oldfoo, /old, /new => /oldfoo
-///   /foo, <empty>, /new => /new/foo
-///   /foo, <empty>, new => new/foo
-///   /old/foo, /old, <empty> => /foo
-/// @endcode
+/// ```
+//!   /foo, /old, /new => /foo
+//!   /old, /old, /new => /new
+//!   /old, /old/, /new => /old
+//!   /old/foo, /old, /new => /new/foo
+//!   /old/foo, /old/, /new => /new/foo
+//!   /old/foo, /old/, /new/ => /new/foo
+//!   /oldfoo, /old, /new => /oldfoo
+//!   /foo, <empty>, /new => /new/foo
+//!   /foo, <empty>, new => new/foo
+//!   /old/foo, /old, <empty> => /foo
+/// ```
 ///
 /// @param Path If \a Path starts with \a OldPrefix modify to instead
 ///        start with \a NewPrefix.
@@ -228,11 +228,11 @@ bool remove_dots(SmallVecImpl<char> &path, bool remove_dot_dot = false,
 
 /// Append to path.
 ///
-/// @code
-///   /foo  + bar/f => /foo/bar/f
-///   /foo/ + bar/f => /foo/bar/f
-///   foo   + bar/f => foo/bar/f
-/// @endcode
+/// ```
+//!   /foo  + bar/f => /foo/bar/f
+//!   /foo/ + bar/f => /foo/bar/f
+//!   foo   + bar/f => foo/bar/f
+/// ```
 ///
 /// @param path Set to \a path + \a component.
 /// @param a The component to be appended to \a path.
@@ -246,11 +246,11 @@ void append(SmallVecImpl<char> &path, Style style, const Twine &a,
 
 /// Append to path.
 ///
-/// @code
-///   /foo  + [bar,f] => /foo/bar/f
-///   /foo/ + [bar,f] => /foo/bar/f
-///   foo   + [bar,f] => foo/bar/f
-/// @endcode
+/// ```
+//!   /foo  + [bar,f] => /foo/bar/f
+//!   /foo/ + [bar,f] => /foo/bar/f
+//!   foo   + [bar,f] => foo/bar/f
+/// ```
 ///
 /// @param path Set to \a path + [\a begin, \a end).
 /// @param begin Start of components to append.
@@ -303,11 +303,11 @@ String convert_to_slash(StrRef path, Style style = Style::native);
 
 /// Get root name.
 ///
-/// @code
-///   //net/hello => //net
-///   c:/hello    => c: (on Windows, on other platforms nothing)
-///   /hello      => <empty>
-/// @endcode
+/// ```
+//!   //net/hello => //net
+//!   c:/hello    => c: (on Windows, on other platforms nothing)
+//!   /hello      => <empty>
+/// ```
 ///
 /// @param path Input path.
 /// @result The root name of \a path if it has one, otherwise "".
@@ -315,11 +315,11 @@ StrRef root_name(StrRef path, Style style = Style::native);
 
 /// Get root directory.
 ///
-/// @code
-///   /goo/hello => /
-///   c:/hello   => /
-///   d/file.txt => <empty>
-/// @endcode
+/// ```
+//!   /goo/hello => /
+//!   c:/hello   => /
+//!   d/file.txt => <empty>
+/// ```
 ///
 /// @param path Input path.
 /// @result The root directory of \a path if it has one, otherwise
@@ -336,11 +336,11 @@ StrRef root_path(StrRef path, Style style = Style::native);
 
 /// Get relative path.
 ///
-/// @code
-///   C:\hello\world => hello\world
-///   foo/bar        => foo/bar
-///   /foo/bar       => foo/bar
-/// @endcode
+/// ```
+//!   C:\hello\world => hello\world
+//!   foo/bar        => foo/bar
+//!   /foo/bar       => foo/bar
+/// ```
 ///
 /// @param path Input path.
 /// @result The path starting after root_path if one exists, otherwise "".
@@ -348,11 +348,11 @@ StrRef relative_path(StrRef path, Style style = Style::native);
 
 /// Get parent path.
 ///
-/// @code
-///   /          => <empty>
-///   /foo       => /
-///   foo/../bar => foo/..
-/// @endcode
+/// ```
+//!   /          => <empty>
+//!   /foo       => /
+//!   foo/../bar => foo/..
+/// ```
 ///
 /// @param path Input path.
 /// @result The parent path of \a path if one exists, otherwise "".
@@ -360,12 +360,12 @@ StrRef parent_path(StrRef path, Style style = Style::native);
 
 /// Get filename.
 ///
-/// @code
-///   /foo.txt    => foo.txt
-///   .          => .
-///   ..         => ..
-///   /          => /
-/// @endcode
+/// ```
+//!   /foo.txt   => foo.txt
+//!   .          => .
+//!   ..         => ..
+//!   /          => /
+/// ```
 ///
 /// @param path Input path.
 /// @result The filename part of \a path. This is defined as the last component
@@ -378,13 +378,13 @@ StrRef filename(StrRef path, Style style = Style::native);
 /// substring of filename ending at (but not including) the last dot. Otherwise
 /// it is filename.
 ///
-/// @code
-///   /foo/bar.txt => bar
-///   /foo/bar     => bar
-///   /foo/.txt    => <empty>
-///   /foo/.       => .
-///   /foo/..      => ..
-/// @endcode
+/// ```
+//!   /foo/bar.txt => bar
+//!   /foo/bar     => bar
+//!   /foo/.txt    => <empty>
+//!   /foo/.       => .
+//!   /foo/..      => ..
+/// ```
 ///
 /// @param path Input path.
 /// @result The stem of \a path.
@@ -396,11 +396,11 @@ StrRef stem(StrRef path, Style style = Style::native);
 /// substring of filename starting at (and including) the last dot, and ending
 /// at the end of \a path. Otherwise "".
 ///
-/// @code
-///   /foo/bar.txt => .txt
-///   /foo/bar     => <empty>
-///   /foo/.txt    => .txt
-/// @endcode
+/// ```
+//!   /foo/bar.txt => .txt
+//!   /foo/bar     => <empty>
+//!   /foo/.txt    => .txt
+/// ```
 ///
 /// @param path Input path.
 /// @result The extension of \a path.
