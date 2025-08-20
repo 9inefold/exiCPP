@@ -288,6 +288,9 @@ EXI_INLINE static constexpr bool CheckIters(int& NIters) {
 
 static int TestSchemalessDecoding(XMLManagerRef SharedMgr);
 
+//////////////////////////////////////////////////////////////////////////
+// Diff
+
 static int CalcSpacesSize(StrRef LHS, StrRef RHS) {
   usize Size = std::min(LHS.size(), RHS.size());
   return Log2_64_Ceil(Size) / 4 + 1;
@@ -296,14 +299,23 @@ static int CalcSpacesSize(StrRef LHS, StrRef RHS) {
 /// Prints a pretty byte diff
 static void ByteDiffViewer(StrRef Original, StrRef Encoded,
                            usize BreakOn = 4, bool Hex = false,
-                           bool LabelX = false) {
+                           bool LabelX = false, usize SkipY = 0) {
   using enum raw_ostream::Colors;
   static constexpr StrRef VSplit = " \xE2\x94\x82 "_str;
   const usize BreakOnX = (BreakOn > 0) ? BreakOn : 1;
   usize Width = Hex ? 2 : 8;
   usize BlockSize = (BreakOnX * (Width + 1)) - 1;
   const int Padding = CalcSpacesSize(Original, Encoded);
-  usize Count = 0, Ix = 0;
+  usize Count = SkipY, Ix = 0;
+
+  if (SkipY > 0) {
+    if (SkipY > (Original.size() / BreakOnX) + 1) {
+      LOG_WARN("SkipY of {} is larger than the buffer!", SkipY);
+      return;
+    }
+    Original = Original.drop_front(SkipY * BreakOnX);
+    Encoded = Encoded.drop_front(SkipY * BreakOnX);
+  }
 
   SmallStr<0> LHS, RHS;
   raw_svector_ostream LOS(LHS), ROS(RHS);
@@ -332,20 +344,26 @@ static void ByteDiffViewer(StrRef Original, StrRef Encoded,
   CenterString.pop_back_n(3);
 
   auto PrintLine = [&] (StrRef LS, StrRef C, StrRef RS) {
-    OS << right_justify("", 2 + Padding)
+    OS << indent(2 + Padding)
        << LS << CenterString
        << C  << CenterString
        << RS << '\n';
   };
+  auto PrintEmptyLine = [&] (StrRef S = "") {
+    exi_invariant(S.size() <= 5, "This may break formatting!");
+    OS << left_justify(S, 2 + Padding) << VSplit
+       << indent(BlockSize) << VSplit
+       << indent(BlockSize) << VSplit << '\n';
+  };
 
   /*Print Top*/ {
     PrintLine(u8" ┌─", u8"─┬─", u8"─┐ ");
-    OS << right_justify("", 2 + Padding) << VSplit
+    OS << indent(2 + Padding) << VSplit
       << center_justify("Original", BlockSize) << VSplit
       << center_justify("Encoded", BlockSize) << VSplit << '\n';
     PrintLine(u8" ├─", u8"─┼─", u8"─┤ ");
   } if (LabelX) {
-    OS << right_justify("", 2 + Padding);
+    OS << indent(2 + Padding);
     for (int Groups = 0; Groups < 2; ++Groups) {
       OS << VSplit << left_justify("00", Width);
       for (usize I = 1; I < BreakOn; ++I) {
@@ -355,9 +373,7 @@ static void ByteDiffViewer(StrRef Original, StrRef Encoded,
     }
     OS << VSplit << '\n';
     // Empty line
-    OS << right_justify("", 2 + Padding) << VSplit
-      << right_justify("", BlockSize) << VSplit
-      << right_justify("", BlockSize) << VSplit << '\n';
+    PrintEmptyLine(SkipY > 0 ? "..." : "");
   }
 
   for (auto [O, E] : exi::zip(Original, Encoded)) {
@@ -380,28 +396,26 @@ static void ByteDiffViewer(StrRef Original, StrRef Encoded,
   }
 
   /*Print Bottom*/ {
-    OS << right_justify("", 2 + Padding) << VSplit
-      << center_justify("", BlockSize) << VSplit
-      << center_justify("", BlockSize) << VSplit << '\n';
+    PrintEmptyLine();
     PrintLine(u8" └─", u8"─┴─", u8"─┘ ");
   }
 }
 
 static void PadByteDiffViewer(StrRef Original, StrRef Encoded,
                               usize BreakOn = 4, bool Hex = false,
-                              bool LabelX = false) {
+                              bool LabelX = false, usize SkipY = 0) {
   if (Original.size() > Encoded.size()) {
     std::string E(Encoded.data(), Encoded.size());
     E.resize(Original.size(), '\0');
     StrRef EData(E.data(), E.size());
-    return ByteDiffViewer(Original, EData, BreakOn, Hex, LabelX);
+    return ByteDiffViewer(Original, EData, BreakOn, Hex, LabelX, SkipY);
   } else if (Original.size() < Encoded.size()) {
     std::string O(Original.data(), Original.size());
     O.resize(Encoded.size(), '\0');
     StrRef OData(O.data(), O.size());
-    return ByteDiffViewer(OData, Encoded, BreakOn, Hex, LabelX);
+    return ByteDiffViewer(OData, Encoded, BreakOn, Hex, LabelX, SkipY);
   }
-  return ByteDiffViewer(Original, Encoded, BreakOn, Hex, LabelX);
+  return ByteDiffViewer(Original, Encoded, BreakOn, Hex, LabelX, SkipY);
 }
 
 //////////////////////////////////////////////////////////////////////////

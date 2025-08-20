@@ -74,6 +74,7 @@ public:
 
   raw_ostream& get() { return OS; }
   operator raw_ostream&() { return OS; }
+  raw_ostream* operator->() { return &OS; }
 
   template <typename T> WithColor& operator<<(T& O) {
     OS << O;
