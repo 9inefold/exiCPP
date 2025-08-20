@@ -741,6 +741,7 @@ int main(int Argc, char* Argv[]) {
     Zil().run("ThaiNoopt.exi",        "Thai.xml");
     All().run("NamespaceNoopt.exi",   "Namespace.xml");
 #if TEST_LARGE_EXAMPLES
+    Pfx().run("OrdersSmall.exi",      "OrdersSmall.xml");
     SetLogLevel(LogLevel::WARN);
     Pfx().run("Orders.exi", "Orders.xml", /*Diff=*/false);
 #endif

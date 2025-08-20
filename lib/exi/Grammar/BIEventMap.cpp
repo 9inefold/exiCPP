@@ -23,6 +23,7 @@
 
 #include <exi/Grammar/BIEventMap.hpp>
 #include <core/Support/Format.hpp>
+#include <core/Support/WithColor.hpp>
 #include <exi/Encode/BodyEncoder.hpp>
 
 #define DEBUG_TYPE "BuiltinSchema"
@@ -122,7 +123,9 @@ inline void BIEventMap::dumpNonPacked(const ExiOptions& Opts) const {
 inline void BIEventMap::dumpPacked(const ExiOptions& Opts) const {
   ExiOptions::PreserveOpts Preserve = Opts.Preserve;
   errs() << "Document:\n  " << FormatTerm(SD) << 0 << "\n\n";
-  exi_todo("implement packed dump");
+  WithColor(errs(), raw_ostream::BRIGHT_RED)
+    << "TODO: Implement packed dump!\n\n";
+  //exi_todo("implement packed dump");
 }
 
 //////////////////////////////////////////////////////////////////////////
