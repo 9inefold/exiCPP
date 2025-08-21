@@ -311,7 +311,12 @@ public:
   }
   template <bool IsRoot = false>
   ExiError saveNSToTableOnly(const NamespaceEvent& NS) {
-    exi_todo("Encoding without Preserve.Prefixes");
+    StrRef Pfx(NS.PfxData, NS.PfxSize);
+    StrRef URI(NS.UriData, NS.UriSize);
+    auto* PfxV = Strings.enterNamespaceFacade(Pfx, URI);
+    if constexpr (!IsRoot)
+      CtxStack.add(Strings, PfxV);
+    return ExiError::OK;
   }
 
   /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.

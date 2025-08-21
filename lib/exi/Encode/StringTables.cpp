@@ -100,6 +100,11 @@ void StringTable::setup(const ExiOptions& Opts) {
     // SchemaResolver[*ID]->getExtraEntryCount();
   }
 
+  if (!Opts.Preserve.Prefixes) {
+    auto& A = URIMap->getAllocator();
+    FakeURIMap = std::make_unique<URIMapType>(4, A);
+  }
+
   if (Bounded I = Opts.ValuePartitionCapacity; I.bounded()) {
     WrappingValues = true;
     LOG_WARN("Bounded tables are not supported.");
@@ -119,7 +124,7 @@ void StringTable::pushURIContext(PrefixEntry* EPfx, URIEntry* URI) {
   
   exi_assert(URI && Pfx.Link);
   // FIXME: Do nothing if Pfx.Link == X(URI)
-#if EXI_INVARIANTS
+#if 0 && EXI_INVARIANTS
   if EXI_NEVER(!Pfx.isSyncedWithURI()) {
     StrRef LinkName = Pfx.Link
       ? X(Pfx.Link)->getKey()
@@ -229,22 +234,47 @@ std::pair<STValueEntry*, bool>
 //////////////////////////////////////////////////////////////////////////
 // Uniquing
 
-std::pair<StringTable::URIEntry*, bool>
- StringTable::createURIOnly(CachedHashStrRef URI) {
-  auto [It, DidInsert] = URIMap->try_emplace(URI);
-  if (DidInsert) {
-    URIMap.recalculateLog();
-    // Since the URI was already inserted, decrement.
-    const u32 NewURI = URIMap->size() - 1;
-    if EXI_NEVER(NewURI > kURIMax)
-      Throw<range_error>("Exceeded the maximum number of URIs!");
-    It->second.URI = NewURI;
-  }
-  return {&*It, DidInsert};
+void StringTable::initializeURI(StringTable::URIEntry* URI) {
+  URIMap.recalculateLog();
+  // Since the URI was already inserted, decrement.
+  const u32 NewURI = URIMap->size() - 1;
+  if EXI_NEVER(NewURI > kURIMax)
+    Throw<range_error>("Exceeded the maximum number of URIs!");
+  URI->second.URI = NewURI;
 }
 
-NSContext StringTable::createURI(CachedHashStrRef URI,
-                                 Option<CachedHashStrRef> Pfx) {
+StringTable::URIEntry* StringTable::makeFakeURIReal(StringTable::URIEntry* URI) {
+  exi_invariant(FakeURIMap && URI);
+  if (!URIMap->insert(URI)) {
+    LOG_ERROR("Fake uri \"{}\" found in real table.", URI->first());
+    auto* OldURI = &*URIMap->find(URI->first());
+    VOf(OldURI)->assertIsValid();
+    FakeURIMap->remove(URI);
+    URI->Destroy(FakeURIMap->getAllocator());
+    return OldURI;
+  }
+  FakeURIMap->remove(URI);
+  this->initializeURI(URI);
+  for (PrefixInfo* Pfx : VOf(URI)->PfxMap)
+    Pfx->WithURI = VOf(URI)->URI;
+  return URI;
+}
+
+std::pair<StringTable::URIEntry*, bool>
+ StringTable::createURIOnly(CachedHashStrRef URI) {
+  if (auto* FakeEntry = X(lookupFakeURI(URI))) [[unlikely]] {
+    auto* RealEntry = this->makeFakeURIReal(FakeEntry);
+    return {RealEntry, true};
+  }
+  auto [It, DidInsert] = URIMap->try_emplace(URI);
+  auto* URIV = &*It;
+  if (DidInsert)
+    this->initializeURI(URIV);
+  return {URIV, DidInsert};
+}
+
+NSContext StringTable::createURIAssociation(CachedHashStrRef URI,
+                                            Option<CachedHashStrRef> Pfx) {
   XEntry<URIEntry> UEntry = createURIOnly(URI);
   NSContext Ctx(UEntry);
   if (!Pfx)
@@ -261,7 +291,7 @@ NSContext StringTable::createURI(CachedHashStrRef URI,
   }
 }
 
-NSContext StringTable::createURIForInit(StrRef URI, StrRef Pfx) {
+NSContext StringTable::createURIAssociationForInit(StrRef URI, StrRef Pfx) {
   XEntry<URIEntry> UEntry = createURIOnly(Hash(URI));
   NSContext Ctx(UEntry);
 
@@ -342,9 +372,9 @@ STValueEntry* StringTable::addValue(LocalNameInfo* LN, CachedHashStrRef Value) {
 void StringTable::createInitialEntries(bool UsesSchema) {
   // D.1 & D.2 - Initial Entries in Uri & Prefix Partition
   // FIXME: Move these to the constructor?
-  auto Nil = createURIForInit(""_str,  ""_str);
-  auto Xml = createURIForInit(XML_URI, "xml"_str);
-  auto Xsi = createURIForInit(XSI_URI, "xsi"_str);
+  auto Nil = createURIAssociationForInit(""_str,  ""_str);
+  auto Xml = createURIAssociationForInit(XML_URI, "xml"_str);
+  auto Xsi = createURIAssociationForInit(XSI_URI, "xsi"_str);
 
   this->Pfx_NIL = Nil.Pfx;
   this->Pfx_xml = Xml.Pfx;
@@ -362,7 +392,7 @@ void StringTable::createInitialEntries(bool UsesSchema) {
   if (UsesSchema) {
     // TODO: When a schema is provided, prepopulate with the LocalName of each
     // attribute, element and type explicitly declared in the schema.
-    auto Xsd = createURI(XSD_URI);
+    auto Xsd = createURIAssociation(XSD_URI);
     this->Pfx_xsd = Xsd.Pfx;
     appendLocalNames(Xsd.URI, XSD_InitialValues);
   }

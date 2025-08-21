@@ -92,6 +92,7 @@ struct PrefixInfo {
   u16 Pfx = max_v<u16>;
   /// The cached qname prefix log.
   u16 PfxLogQ = 0;
+
 public:
   /// Checked if the Prefix is synced with `Link`.
   inline bool isSyncedWithURI() const;
@@ -191,6 +192,7 @@ public:
   /// TODO: Use to pack memory? (and profile...)
   static constexpr u32 kURIMax = 0xFFFFFF;
   static constexpr u32 kURIUninit = max_v<u32>;
+  static constexpr u32 kURIFacade = kURIUninit - 1; // A fake URI.
   /// Contains URI's ID and reverse mappings for prefixes.
   /// TODO: Handle Prefix unbinding!
   struct URIInfo {
@@ -212,10 +214,12 @@ public:
 
   private:
     ALWAYS_INLINE void bindPfx(PrefixInfo* Pfx, u16 ID, unsigned Size) const {
+      if (URI != kURIFacade)
+        this->assertIsValid();
       Pfx->Link     = XUnmap(const_cast<URIInfo*>(this));
       Pfx->Pfx      = ID;
       Pfx->PfxLogQ  = Log2Q(Size);
-      Pfx->WithURI  = uri();
+      Pfx->WithURI  = URI;
     }
     template <bool BindToThis>
     inline void bindNewPfx(PrefixInfo* Pfx, u16 ID) const {
@@ -270,6 +274,15 @@ public:
       return emplaceAndBroadcast<BindToThis>(Pfx);
     }
 
+    [[noreturn]] EXI_PRESERVE_CALLSITE void handleInvalidURI() const {
+      if (this->isUninitialized())
+        Throw<uninit_error>("URI is uninitialized!");
+      else if (this->isFake())
+        Throw<argument_error>("URI cannot be fake!");
+      else
+        Throw<range_error>("URI is out of range!");
+    }
+
   public:
     /// Finds the index of an existing prefix mapping, otherwise appends.
     u16 try_emplace(PrefixInfo* Pfx) {
@@ -305,9 +318,19 @@ public:
       return ID_AddOffsetLog2<1>(numMappedPrefixes());
     }
     u32 uri() const {
-      if EXI_NEVER(URI == kURIUninit)
-        Throw<uninit_error>("URI is uninitialized!");
+      this->assertIsValid();
       return this->URI;
+    }
+
+    ALWAYS_INLINE void assertIsValid() const {
+      if EXI_NEVER(URI > kURIMax)
+        this->handleInvalidURI();
+    }
+    ALWAYS_INLINE bool isUninitialized() const {
+      return URI == kURIUninit;
+    }
+    ALWAYS_INLINE bool isFake() const {
+      return URI == kURIFacade;
     }
   };
   /// Maps a URI to its associated ID.
@@ -324,6 +347,8 @@ public:
 private:
   /// Used to map URIs to IDs.
   IntrusiveLogCounter<URIMapType, 1> URIMap;
+  /// Used to keep track of fake URIs when Preserve.Prefixes is false.
+  Box<URIMapType> FakeURIMap = nullptr;
   /// Used to map Prefixes to URIs (and their IDs).
   PrefixMapType PrefixMap;
 
@@ -703,10 +728,10 @@ public:
 
   /// For declaring namespaces in a schema.
   NSContext declareURI(StrRef URI) {
-    return createURI(prehash(URI), std::nullopt);
+    return createURIAssociation(prehash(URI), std::nullopt);
   }
   NSContext declareURI(CachedHashStrRef URI) {
-    return createURI(URI, std::nullopt);
+    return createURIAssociation(URI, std::nullopt);
   }
 
   /// Creates a new URI.
@@ -714,6 +739,16 @@ public:
     auto [UI, IsNewURI] = createURIOnly(URI);
     // TODO: LOG_WARN("URI '{}' already existed.")
     return X(UI);
+  }
+  /// Creates a new fake URI.
+  STURIEntry* addFakeURI(ImplicitHashStrRef URI) {
+    if EXI_NEVER(!FakeURIMap)
+      Throw("Cannot use fake uris with Preserve.Prefixes enabled.");
+    exi_assert(!this->lookupURI(URI), "URI already exists!");
+    auto [It, DidInsert] = FakeURIMap->try_emplace(URI);
+    // TODO: LOG_WARN("URI '{}' already existed.")
+    It->second.URI = kURIFacade;
+    return X(&*It);
   }
   /// Creates a new Prefix entry for a URI.
   STPrefixEntry* addPrefix(STURIEntry* URI, ImplicitHashStrRef Pfx) {
@@ -734,7 +769,20 @@ public:
 
   /// When encountering a `xmlns:[Pfx]=[URI]`.
   NSContext enterNamespace(ImplicitHashStrRef Pfx, ImplicitHashStrRef URI) {
-    return createURI(URI, Pfx);
+    return createURIAssociation(URI, Pfx);
+  }
+  /// When encountering a `xmlns:[Pfx]=[URI]` without Preserve.Prefixes on.
+  STPrefixEntry* enterNamespaceFacade(ImplicitHashStrRef Pfx,
+                                      ImplicitHashStrRef URI) {
+    URIEntry* URIV = X(lookupURIOrAddFake(URI));
+    exi_invariant(URIV != nullptr, "Unable to locate or add URI!");
+    auto [PfxV, IsNewPfx] = createPfxOnly(Pfx);
+    if (IsNewPfx)
+      BindPrefixToNewURI(&PfxV->second, URIV);
+    else {
+      pushURIContext(PfxV, URIV);
+    }
+    return X(PfxV);
   }
   /// When adding a known mapping.
   void enterNamespace(STURIEntry* URI, STPrefixEntry* Pfx) {
@@ -780,6 +828,20 @@ public:
       return nullptr;
     return X(&*It);
   }
+  /// Same as `lookupURI`, but searches `FakeURIMap` if possible.
+  STURIEntry* lookupURIOrAddFake(ImplicitHashStrRef URI) {
+    auto It = URIMap->find(URI);
+    if (It == URIMap->end())
+      tail_return this->lookupFakeURI(URI);
+    return X(&*It);
+  }
+  /// Returns the `URIEntry` for `URI`, or makes a new entry.
+  /// This should generally only be used when Preserve.Prefixes is true.
+  STURIEntry* lookupFakeURI(ImplicitHashStrRef URI) {
+    if EXI_UNLIKELY(!FakeURIMap)
+      return nullptr;
+    tail_return this->addFakeURI(URI);
+  }
   /// Gets `URIEntry*` for a given Prefix.
   /// @tparam IsAttribute If the lookup is for an attribute.
   template <bool IsAttribute = false>
@@ -788,7 +850,7 @@ public:
       if (Pfx == GetEmptyHashString())
         return getUnprefixedATURI();
     auto It = PrefixMap.find(Pfx);
-    exi_assert(It != PrefixMap.end());
+    exi_relassert(It != PrefixMap.end());
     return It->second.Link;
   }
 
@@ -862,6 +924,8 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Logging
 
+  /// TODO: Implement logging
+
 private:
   ////////////////////////////////////////////////////////////////////////
   // Prefixes
@@ -908,6 +972,11 @@ private:
   ////////////////////////////////////////////////////////////////////////
   // Uniquing
 
+  /// Initializes a new or previously fake URI.
+  void initializeURI(URIEntry* URI);
+  /// Initializes a previously fake URI and moves to the real.
+  URIEntry* makeFakeURIReal(URIEntry* URI);
+
   /// Gets a new `(URI*, IsNewURI)` from a URI.
   std::pair<URIEntry*, bool> createURIOnly(CachedHashStrRef URI);
   /// Gets a new `(URI*, IsNewURI)` from a URI.
@@ -917,18 +986,18 @@ private:
   }
 
   /// Gets a new (URI*, Pfx*?) pair from a URI and Prefix.
-  NSContext createURI(CachedHashStrRef URI,
-                      Option<CachedHashStrRef> Pfx = std::nullopt);
+  NSContext createURIAssociation(CachedHashStrRef URI,
+                                 Option<CachedHashStrRef> Pfx = std::nullopt);
   /// Gets a new (URI*, Pfx*?) pair from a URI and Prefix.
-  NSContext createURI(StrRef URI, Option<StrRef> Pfx = std::nullopt) {
-    return createURI(prehash(URI), Pfx.transform([](StrRef S) {
+  NSContext createURIAssociation(StrRef URI, Option<StrRef> Pfx = std::nullopt) {
+    return createURIAssociation(prehash(URI), Pfx.transform([](StrRef S) {
       return StringTable::prehash(S);
     }));
   }
   /// Gets a new (URI*, Pfx*?) pair from a URI and Prefix.
   /// Used during initialization to avoid usage of potentially uninitialized data.
-  /// Simpler than createURI, as it assumes all inputs are simple and valid.
-  NSContext createURIForInit(StrRef URI, StrRef Pfx);
+  /// Simpler than createURIAssociation, as it assumes all inputs are simple and valid.
+  NSContext createURIAssociationForInit(StrRef URI, StrRef Pfx);
 
   std::pair<PrefixEntry*, bool> createPfxOnly(CachedHashStrRef Pfx) {
     CheckIsValidPrefix(Pfx);

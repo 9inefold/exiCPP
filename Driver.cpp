@@ -481,6 +481,10 @@ public:
   /// Invokes run, exits on failure.
   void run(StrRef ExiFile, StrRef XmlFile,
            bool Diff = true, usize Skip = 0) const;
+  /// Invokes run without exi, exits on failure.
+  void runXml(StrRef XmlFile, bool Diff = true, usize Skip = 0) const {
+    this->run(""_str, XmlFile, Diff, Skip);
+  }
 
   ExiOptions* operator->() { return &Opts; }
   const ExiOptions* operator->() const { return &Opts; }
@@ -788,9 +792,13 @@ int main(int Argc, char* Argv[]) {
     auto All = MAKE_EXTEST_RUNNER(AlignKind::BytePacked, All & ~LexicalValues);
     Zil().run("SpecExampleB.exi",     "SpecExample.xml");
     Zil().run("BasicNooptB.exi",      "Basic.xml");
-    Pfx().run("CustomersNooptB.exi",  "Customers.xml");
     Zil().run("ThaiNooptB.exi",       "Thai.xml");
+    Pfx().run("CustomersNooptB.exi",  "Customers.xml");
     All().run("NamespaceNooptB.exi",  "Namespace.xml");
+    //Zil().runXml("Stacked.xml");
+    SetLogLevel(LogLevel::VERBOSE);
+    Pfx().runXml("Stacked.xml");
+    SetLogLevel(LogLevel::WARN);
   }
   ExificientFileData.push_back("");
   /*BitPacked*/ {
@@ -799,10 +807,14 @@ int main(int Argc, char* Argv[]) {
     auto All = MAKE_EXTEST_RUNNER(AlignKind::BitPacked, All & ~LexicalValues);
     Zil().run("SpecExample.exi",      "SpecExample.xml");
     Zil().run("BasicNoopt.exi",       "Basic.xml");
-    Pfx().run("CustomersNoopt.exi",   "Customers.xml");
     Zil().run("ThaiNoopt.exi",        "Thai.xml");
-    All().run("NamespaceNoopt.exi",   "Namespace.xml");
+    Pfx().run("CustomersNoopt.exi",   "Customers.xml");
     Pfx().run("OrdersSmall.exi",      "OrdersSmall.xml");
+    All().run("NamespaceNoopt.exi",   "Namespace.xml");
+    //Zil().runXml("Stacked.xml");
+    SetLogLevel(LogLevel::VERBOSE);
+    Pfx().runXml("Stacked.xml");
+    SetLogLevel(LogLevel::WARN);
 #if TEST_LARGE_EXAMPLES
     SetLogLevel(LogLevel::WARN);
     Pfx().run("Orders.exi", "Orders.xml", /*Diff=*/false);
