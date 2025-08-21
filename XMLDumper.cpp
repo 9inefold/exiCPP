@@ -59,7 +59,7 @@ public:
   Colors COLOR_attrns  = BRIGHT_BLUE;
   Colors COLOR_string  = BRIGHT_GREEN;
   Colors COLOR_cdata   = BRIGHT_GREEN;
-  Colors COLOR_split   = BLACK;
+  Colors COLOR_split   = BRIGHT_BLACK;
   Colors COLOR_comment = BRIGHT_BLACK;
   Colors COLOR_entity  = BRIGHT_RED;
   Colors COLOR_data    = BRIGHT_WHITE;
