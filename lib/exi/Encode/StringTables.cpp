@@ -123,15 +123,14 @@ void StringTable::pushURIContext(PrefixEntry* EPfx, URIEntry* URI) {
   PrefixInfo& Pfx = *VOf(EPfx);
   
   exi_assert(URI && Pfx.Link);
-  // FIXME: Do nothing if Pfx.Link == X(URI)
-#if 0 && EXI_INVARIANTS
+#if EXI_INVARIANTS
   if EXI_NEVER(!Pfx.isSyncedWithURI()) {
     StrRef LinkName = Pfx.Link
       ? X(Pfx.Link)->getKey()
       : "<nullptr>";
     exi::format_fatal_error(
-      "Prefix '{}' is unset in current URI \"{}\"!",
-        EPfx->getKey(), LinkName);
+      "Prefix '{}' is unsynced with URI \"{}\"! Reason: {}.",
+        EPfx->getKey(), LinkName, Pfx.unsyncedReasoning());
   }
 #endif
 

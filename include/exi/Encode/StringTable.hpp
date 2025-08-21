@@ -96,6 +96,8 @@ struct PrefixInfo {
 public:
   /// Checked if the Prefix is synced with `Link`.
   inline bool isSyncedWithURI() const;
+  /// Get the reason this prefix is unsynced.
+  inline StrRef unsyncedReasoning() const;
   /// Syncs `PfxLogQ` with `Link->PfxMap`s size.
   inline void syncWithURI();
   /// Returns URI if valid.
@@ -259,7 +261,7 @@ public:
       // Check if update broadcast is required.
       // This gets less likely the more prefixes are added.
       if EXI_UNLIKELY(NeedsBroadcast(ID))
-        this->broadcastLog(Log2Q(ID));
+        this->broadcastLog(Log2Q(ID + 1));
       return ID;
     }
     template <bool BindToThis = false>
@@ -1025,16 +1027,27 @@ private:
   void appendLocalNames(URIEntry* ID, ArrayRef<StrRef> LNMappings);
 };
 
-bool PrefixInfo::isSyncedWithURI() const {
+inline bool PrefixInfo::isSyncedWithURI() const {
   if EXI_NEVER(Link == nullptr)
     Throw<uninit_error>("Prefix::Link is uninitialized!");
   auto* UI = StringTable::VOfX(Link);
-  return WithURI == UI->uri()
+  return WithURI == UI->URI
       && PfxLogQ == UI->pfxLogQ()
       && UI->contains(this);
 }
 
-void PrefixInfo::syncWithURI() {
+inline StrRef PrefixInfo::unsyncedReasoning() const {
+  auto* UI = StringTable::VOfX(Link);
+  if (WithURI != UI->URI)
+    return "incorrect URI";
+  if (PfxLogQ != UI->pfxLogQ())
+    return "incorrect prefix log";
+  if (!UI->contains(this))
+    return "URI doesn't have a mapping to this prefix";
+  return "none";
+}
+
+inline void PrefixInfo::syncWithURI() {
   if EXI_NEVER(Link == nullptr)
     Throw<uninit_error>("Prefix::Link is uninitialized!");
   PfxLogQ = StringTable::VOfX(Link)->pfxLogQ();

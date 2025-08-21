@@ -312,16 +312,15 @@ public:
     exi_invariant(URI < URIMap.size());
     this->assertPartitionsInSync();
     const u64 Count = URIMap[URI].PrefixElts;
-    if EXI_UNLIKELY(Count == 0)
-      return 0;
-    return ID_Log2(Count - 1);
+    return ID_Log2(Count);
   }
 
   /// Gets the bit number for QName prefixes.
   u64 getPrefixLog(CompactID URI) const {
     exi_invariant(URI < URIMap.size());
     this->assertPartitionsInSync();
-    return ID_Log2(URIMap[URI].PrefixElts);
+    const u64 Count = URIMap[URI].PrefixElts;
+    return ID_AddOffsetLog2<1>(Count);
   }
 
   u64 getLocalNameLog(CompactID URI) const {
