@@ -297,10 +297,12 @@ public:
     StrRef URI(NS.UriData, NS.UriSize);
     URIEntry* URIV = encodeURI<StrmT>(URI);
     exi_assert(URIV != nullptr);
-
+    
     StrRef Pfx(NS.PfxData, NS.PfxSize);
     Result PfxOrErr = encodePfx<StrmT>(URIV, Pfx);
     exi_try_unwrap(PfxOrErr);
+
+    Strings.enterNamespace(URIV, *PfxOrErr);
     if constexpr (!IsRoot)
       CtxStack.add(Strings, *PfxOrErr);
     
