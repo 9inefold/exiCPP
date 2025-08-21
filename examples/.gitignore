@@ -1,20 +1,8 @@
 /*.exi
 /out/*
 
-!/ThaiNoopt.exi
-!/ThaiNooptB.exi
-
-!/SpecExample.exi
-!/SpecExampleB.exi
-
-!/BasicNoopt.exi
-!/BasicNooptB.exi
-
-!/NamespaceNoopt.exi
-!/NamespaceNooptB.exi
-
-!/CustomersNoopt.exi
-!/CustomersNooptB.exi
+!/*Noopt.exi
+!/*NooptB.exi
 
 !/Orders.exi
 !/LineItem.exi
