@@ -833,8 +833,11 @@ public:
   /// Same as `lookupURI`, but searches `FakeURIMap` if possible.
   STURIEntry* lookupURIOrAddFake(ImplicitHashStrRef URI) {
     auto It = URIMap->find(URI);
-    if (It == URIMap->end())
-      tail_return this->lookupFakeURI(URI);
+    if (It == URIMap->end()) {
+      if (!FakeURIMap)
+        return nullptr;
+      win_tail_return this->addFakeURI(URI);
+    }
     return X(&*It);
   }
   /// Returns the `URIEntry` for `URI`, or makes a new entry.
@@ -842,7 +845,10 @@ public:
   STURIEntry* lookupFakeURI(ImplicitHashStrRef URI) {
     if EXI_UNLIKELY(!FakeURIMap)
       return nullptr;
-    tail_return this->addFakeURI(URI);
+    auto It = FakeURIMap->find(URI);
+    if (It == FakeURIMap->end())
+      return nullptr;
+    return X(&*It);
   }
   /// Gets `URIEntry*` for a given Prefix.
   /// @tparam IsAttribute If the lookup is for an attribute.
