@@ -201,7 +201,7 @@ RttiResult<StrRef> exi::rtti::demangle(
  StrRef Symbol, SmallVecImpl<char>& Buf) {
   if (auto OptErr = DemangleChk(Symbol))
     return Err(*OptErr);
-  tail_return RttiDemangleImpl(Symbol, Buf);
+  win_tail_return RttiDemangleImpl(Symbol, Buf);
 }
 
 RttiResult<StrRef> exi::rtti::demangle(
@@ -222,7 +222,7 @@ RttiError exi::rtti::demangle(const char* Symbol, raw_ostream& OS) {
 RttiError exi::rtti::demangle(StrRef Symbol, raw_ostream& OS) {
   if (auto OptErr = DemangleChk(Symbol))
     return *OptErr;
-  tail_return RttiDemangleImpl(Symbol, OS);
+  win_tail_return RttiDemangleImpl(Symbol, OS);
 }
 
 RttiError exi::rtti::demangle(

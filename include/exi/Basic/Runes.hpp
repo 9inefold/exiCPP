@@ -307,7 +307,7 @@ public:
   }
 
   constexpr bool operator==(const iterator& RHS) const {
-    return (Data.Data == RHS->Data) && (Data.Length == RHS->Length);
+    return Data.Data == RHS->Data;
   }
   constexpr bool operator==(sentinel) const {
     return Data.Length == 0;

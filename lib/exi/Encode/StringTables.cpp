@@ -121,7 +121,7 @@ void StringTable::setup(const ExiOptions& Opts) {
 void StringTable::pushURIContext(PrefixEntry* EPfx, URIEntry* URI) {
   exi_invariant(EPfx);
   PrefixInfo& Pfx = *VOf(EPfx);
-  
+
   exi_assert(URI && Pfx.Link);
 #if EXI_INVARIANTS
   if EXI_NEVER(!Pfx.isSyncedWithURI()) {
@@ -252,6 +252,7 @@ StringTable::URIEntry* StringTable::makeFakeURIReal(StringTable::URIEntry* URI) 
     URI->Destroy(FakeURIMap->getAllocator());
     return OldURI;
   }
+  LOG_WARN("URI '{}' already in map!", URI->first());
   FakeURIMap->remove(URI);
   this->initializeURI(URI);
   for (PrefixInfo* Pfx : VOf(URI)->PfxMap)

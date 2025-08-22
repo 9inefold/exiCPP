@@ -240,7 +240,7 @@ public:
   /// Should only be used for URIs and Prefixes.
   void encodeString(StrRef Str) {
     this->writeUInt(countRunes(Str));
-    tail_return this->writeString(Str);
+    win_tail_return this->writeString(Str);
   }
 
   /// Decodes a UInt size, then writes an ASCII string to the buffer.
@@ -248,14 +248,14 @@ public:
   void encodeAsciiString(StrRef Str) {
     exi_invariant(Str.size() == countRunes(Str));
     this->writeUInt(Str.size());
-    tail_return this->writeString(Str);
+    tail_return this->writeAsciiString(Str);
   }
 
   /// Writes a unicode string to the buffer (no size).
   EXI_FLATTEN void writeString(StrRef Str) {
     if (Str.empty())
       return;
-    
+
     RuneDecoder Decoder(Str);
     for (Rune Val : Decoder) {
       this->writeNByteUInt<UnicodeReads>(Val);

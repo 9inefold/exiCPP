@@ -487,6 +487,15 @@
 /// Forces and verifies tail calls (even in debug) if supported.
 #define tail_return EXI_MUSTTAIL return
 
+#if EXI_ON_WIN32
+/// Windows has codegen issues tailcalling with structs.
+/// See: https://github.com/llvm/llvm-project/issues/116568
+# define win_tail_return return
+#else
+/// Same as `tail_return`.
+# define win_tail_return EXI_MUSTTAIL return
+#endif
+
 #if EXI_HAS_CPPATTR(clang::always_inline)
 # define EXI_HAS_INLINE_STMT 1
 # define EXI_INLINE_STMT [[clang::always_inline]]

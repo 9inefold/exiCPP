@@ -84,7 +84,7 @@ public:
   template <bool TrailingUninitialized = false>
   static constexpr EnumeratedArray Partial(ArrayRef<ValueT> Init) {
     if (Init.size() >= Size)
-      tail_return SelfT::New(Init.take_front(Size)); 
+      win_tail_return SelfT::New(Init.take_front(Size)); 
     
     SelfT Arr;
     // Copy front elements from the input.
