@@ -157,11 +157,13 @@ public:
   ExiError StartDocument() {
     static constexpr StartDocEvent SD
       = make_event<SimpleEventTerm::SD>();
+    exi_assert(CtxStack.total_depth() == 0);
     return getSchema()->encode(this, SD);
   }
   ExiError EndDocument() {
     static constexpr EndDocEvent ED
       = make_event<SimpleEventTerm::ED>();
+    exi_assert(CtxStack.total_depth() == 0);
     return getSchema()->encode(this, ED);
   }
 
@@ -297,12 +299,10 @@ public:
     StrRef URI(NS.UriData, NS.UriSize);
     URIEntry* URIV = encodeURI<StrmT>(URI);
     exi_assert(URIV != nullptr);
-    
     StrRef Pfx(NS.PfxData, NS.PfxSize);
     Result PfxOrErr = encodePfx<StrmT>(URIV, Pfx);
     exi_try_unwrap(PfxOrErr);
 
-    Strings.enterNamespace(URIV, *PfxOrErr);
     if constexpr (!IsRoot)
       CtxStack.add(Strings, *PfxOrErr);
     
@@ -509,7 +509,6 @@ public:
     writer<StrmT>().writeBits64(0, Bits);
     writer<StrmT>().encodeString(Pfx);
     PrefixEntry* PfxV = Strings.addPrefix(URI, Pfx);
-    Strings.enterNamespace(URI, PfxV);
     LOG_INFO(">> PXNS (Miss) @{}: \"{}\"", Strings.GetID(PfxV), Pfx);
     return PfxV;
   }

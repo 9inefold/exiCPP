@@ -540,6 +540,8 @@ private:
   }
   template <bool IsRoot = false>
   CC ExiError handleNS(OrderedEncoder* OE, const NamespaceEvent& NS) {
+    if constexpr (IsRoot)
+      exi_assert(GStack.size() == 1, "Don't use root on child items!");
     if (OE->PreservePrefixes()) {
       StrmT* OW = &Get::Writer(OE);
       GStack.back()->writeFallbackCode<true>(OW);

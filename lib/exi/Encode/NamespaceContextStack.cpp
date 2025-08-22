@@ -54,7 +54,7 @@ EXI_PRESERVE_MOST void NSContextStack::pushScope(
 }
 
 EXI_PRESERVE_MOST void NSContextStack::popScope(StringTable& SM) {
-  if EXI_NEVER(Head->isTail())
+  if EXI_NEVER(Head == getTail())
     Throw<runtime_error>("Attempted to pop() from the tail scope!");
   
   exi_invariant(Head->Depth == 0);

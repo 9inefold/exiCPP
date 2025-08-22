@@ -64,7 +64,7 @@ public:
   /// The depth of the current block.
   Int depth() const { return Depth; }
   /// Returns whether this is the sentinel info block.
-  bool isTail() const { return NumElts == 0; }
+  [[deprecated]] bool isTail() const { return NumElts == 0; }
 };
 
 /// Stores info about the context stack and its blocks, as well as providing
@@ -230,22 +230,22 @@ public:
   /// returns. Creates a new scope if depth is >1.
   void add(encode::StringTable& SM, value_type Elt) {
     if EXI_UNLIKELY(Head->Depth != 1) {
-      if (Head->isTail())
-        return;
       exi_assert(Head->Depth > 1);
-      decDepth();
-      return pushScope(SM, Elt);
+      this->decDepth();
+      Scopes.emplace_back(Elt);
+      Head = this->addHeadImpl(1);
+      return;
     }
     const usize NewNumElts = Head->NumElts + 1;
     Scopes.pop_back();
     Scopes.emplace_back(Elt);
-    this->addHeadImpl(NewNumElts);
+    Head = this->addHeadImpl(NewNumElts);
   }
 
   /// If scope remains, subs from the depth. Otherwise, pops the contexts from
   /// the `StringTable` and removes the scope.
   void pop(encode::StringTable& SM) {
-    if EXI_UNLIKELY(decDepth() == 0)
+    if (decDepth() == 0)
       popScope(SM);
   }
 
@@ -265,7 +265,7 @@ public:
     InfoType Info(0, 0);
     auto* It = this->Head;
 
-    while (!It->isTail()) {
+    while (It != getTail()) {
       Info.NumElts += It->NumElts;
       Info.Depth += It->Depth;
       It = It->next();
