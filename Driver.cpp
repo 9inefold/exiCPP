@@ -128,20 +128,22 @@ static bool CheckEnvTruthiness(Option<String>& Env,
     *Env, EmptyResult);
 }
 
-static void HandleEscapeCodeSetup() {
+static bool HandleEscapeCodeSetup() {
   using sys::Process;
   if (Process::IsReallyDebugging()) {
     Option<String> NoAnsiEnv
       = Process::GetEnv("EXICPP_NO_ANSI");
-    if (!CheckEnvTruthiness(NoAnsiEnv, /*EmptyResult=*/true)) {
+    if (CheckEnvTruthiness(NoAnsiEnv, /*EmptyResult=*/false)) {
       LOG_EXTRA("ANSI escape codes disabled.");
-      return;
+      Process::UseANSIEscapeCodes(false);
+      return false;
     }
   }
 
   LOG_EXTRA("ANSI escape codes enabled.");
   Process::UseANSIEscapeCodes(true);
   Process::UseUTF8Codepage(true);
+  return true;
 }
 
 static void HandleDebugSetup() {
@@ -477,13 +479,14 @@ public:
 
   /// Runs Decoder -> Encoder -> Decoder.
   int runWithRet(StrRef ExiFile, StrRef XmlFile,
-                 bool Diff = true, usize Skip = 0) const;
+                 bool Diff = true, bool Dump = false, usize Skip = 0) const;
   /// Invokes run, exits on failure.
   void run(StrRef ExiFile, StrRef XmlFile,
-           bool Diff = true, usize Skip = 0) const;
+           bool Diff = true, bool Dump = false, usize Skip = 0) const;
   /// Invokes run without exi, exits on failure.
-  void runXml(StrRef XmlFile, bool Diff = true, usize Skip = 0) const {
-    this->run(""_str, XmlFile, Diff, Skip);
+  void runXml(StrRef XmlFile, bool Diff = true,
+              bool Dump = false, usize Skip = 0) const {
+    this->run(""_str, XmlFile, Diff, Dump, Skip);
   }
 
   ExiOptions* operator->() { return &Opts; }
@@ -557,7 +560,7 @@ static void WriteExificientCmds(const Vec<String>& Contents) {
 }
 
 int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
-                               bool Diff, usize Skip) const {
+                               bool Diff, bool Dump, usize Skip) const {
   using enum raw_ostream::Colors;
   const auto CoderLogLevel = exi::DebugFlag;
   root::DumpOptions DO {.Conforming = true};
@@ -596,6 +599,9 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
       ByteCompareStrings(Original, Encoded);
   };
 
+  Option<ExiDecoder> EDecoder;
+  Option<XMLDeserializer> ExiS;
+
   bool HasCookie = false;
   const bool HasOptions = false;
 
@@ -612,8 +618,8 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     DecodeBuf = MB;
 
     SetLogLevel(LogLevel::WARN);
-    ExiDecoder Decoder(Opts);
-    XMLDeserializer S;
+    ExiDecoder& Decoder = EDecoder.emplace(Opts);
+    XMLDeserializer& S = ExiS.emplace();
 
     SetLogLevel(CoderLogLevel);
     if (int Ret = Decode(Decoder, MB, &S)) {
@@ -701,6 +707,15 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     SetLogLevel(LogLevel::WARN);
     WithColor(errs(), BRIGHT_GREEN)
       << "Decoding (again) successful!\n\n";
+    
+    if (Dump) {
+      if (ExiS) {
+        WithColor(errs(), BRIGHT_MAGENTA) << "Decoding result:\n";
+        FullXMLDump(ExiS->document(), DO);
+      }
+      WithColor(errs(), BRIGHT_MAGENTA) << "Encoding result:\n";
+      FullXMLDump(S.document(), DO);
+    }
   }
 
   if (auto E = WriteFile(OutExiFile, EncodeBuf)) {
@@ -730,8 +745,8 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
 }
 
 void ECDCTestRunner::run(StrRef ExiFile, StrRef XmlFile,
-                         bool Diff, usize Skip) const {
-  if (int Ret = runWithRet(ExiFile, XmlFile, Diff, Skip)) {
+                         bool Diff, bool Dump, usize Skip) const {
+  if (int Ret = runWithRet(ExiFile, XmlFile, Diff, Dump, Skip)) {
     if (Cmds)
       WriteExificientCmds(*Cmds);
     std::exit(Ret);
@@ -753,11 +768,11 @@ int main(int Argc, char* Argv[]) {
   using enum raw_ostream::Colors;
   SetLogLevel(LogLevel::WARN);
   HandleDebugSetup();
-  HandleEscapeCodeSetup();
-
-  outs().enable_colors(true);
-  errs().enable_colors(true);
-  dbgs().enable_colors(true);
+  const bool HaveEscapeCodes
+    = HandleEscapeCodeSetup();
+  outs().enable_colors(HaveEscapeCodes);
+  errs().enable_colors(HaveEscapeCodes);
+  dbgs().enable_colors(HaveEscapeCodes);
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
 
@@ -793,12 +808,10 @@ int main(int Argc, char* Argv[]) {
     Zil().run("SpecExampleB.exi",     "SpecExample.xml");
     Zil().run("BasicNooptB.exi",      "Basic.xml");
     Zil().run("ThaiNooptB.exi",       "Thai.xml");
+    Zil().run("StackedPNNooptB.exi",  "Stacked.xml");
     Pfx().run("CustomersNooptB.exi",  "Customers.xml");
+    Pfx().run("StackedPPNooptB.exi",  "Stacked.xml");
     All().run("NamespaceNooptB.exi",  "Namespace.xml");
-    //Zil().runXml("Stacked.xml");
-    SetLogLevel(LogLevel::VERBOSE);
-    Pfx().runXml("Stacked.xml");
-    SetLogLevel(LogLevel::WARN);
   }
   ExificientFileData.push_back("");
   /*BitPacked*/ {
@@ -807,14 +820,12 @@ int main(int Argc, char* Argv[]) {
     auto All = MAKE_EXTEST_RUNNER(AlignKind::BitPacked, All & ~LexicalValues);
     Zil().run("SpecExample.exi",      "SpecExample.xml");
     Zil().run("BasicNoopt.exi",       "Basic.xml");
+    Zil().run("StackedPNNoopt.exi",   "Stacked.xml");
     Zil().run("ThaiNoopt.exi",        "Thai.xml");
     Pfx().run("CustomersNoopt.exi",   "Customers.xml");
+    Pfx().run("StackedPPNoopt.exi",   "Stacked.xml");
     Pfx().run("OrdersSmall.exi",      "OrdersSmall.xml");
     All().run("NamespaceNoopt.exi",   "Namespace.xml");
-    //Zil().runXml("Stacked.xml");
-    SetLogLevel(LogLevel::VERBOSE);
-    Pfx().runXml("Stacked.xml");
-    SetLogLevel(LogLevel::WARN);
 #if TEST_LARGE_EXAMPLES
     SetLogLevel(LogLevel::WARN);
     Pfx().run("Orders.exi", "Orders.xml", /*Diff=*/false);
