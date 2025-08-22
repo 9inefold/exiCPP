@@ -18,7 +18,8 @@
 
 #pragma once
 
-#cmakedefine01 EXI_EXCEPTIONS
+#include "Config.inc"
+
 #cmakedefine EXI_XML_EXCEPTIONS EXI_EXCEPTIONS
 
 #if defined(EXI_XML_EXCEPTIONS) && !EXI_XML_EXCEPTIONS

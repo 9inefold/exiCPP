@@ -3,7 +3,7 @@ include_guard(DIRECTORY)
 
 project(
   exi-cpp
-  VERSION 0.7.25
+  VERSION 0.7.26
   LANGUAGES CXX C
 )
 
@@ -68,8 +68,14 @@ else()
     endif()
   endif()
   if(EXI_NATIVE_CODEGEN)
-    # TODO: Add a less narrowing version for production builds.
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+    set(EXI_MARCH native CACHE STRING "" FORCE)
+    message(DEPRECATION "EXI_NATIVE_CODEGEN is deprecated!")
+  endif()
+  if(DEFINED EXI_MARCH AND NOT (EXI_MARCH STREQUAL ""))
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${EXI_MARCH}")
+    set(EXI_MARCH_ENABLED ON CACHE BOOL "")
+  else()
+    set(EXI_MARCH_ENABLED OFF CACHE BOOL "")
   endif()
 endif()
 
@@ -137,7 +143,9 @@ if(EXI_DEBUG_BUILD)
   message(STATUS "[exicpp] Fast debug       : ${EXI_FAST_DEBUG}")
 endif()
 message(STATUS "[exicpp] Unstable features: ${EXI_ENABLE_UNSTABLE_FEATURES}")
-message(STATUS "[exicpp] Native codegen   : ${EXI_NATIVE_CODEGEN}")
+if(EXI_MARCH_ENABLED)
+  message(STATUS "[exicpp] Arch (-march=...): ${EXI_MARCH}")
+endif()
 if(DEFINED EXI_CODEGEN_TESTS)
   message(STATUS "[exicpp] Codegen tests    : ${EXI_CODEGEN_TESTS}")
 endif()
