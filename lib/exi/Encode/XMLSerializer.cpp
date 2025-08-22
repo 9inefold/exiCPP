@@ -208,8 +208,9 @@ private:
     case xml::IK_NamedNS:
       tail_return this->ppAddNamespace<false>(A, Pfx, Ctx);
     case xml::IK_None:
-      exi_guardrail("empty attributes are not valid.");
+      exi_guardrail("empty attributes are not valid");
     }
+    exi_guardrail("invalid node type");
   }
 
   /// Handles parsing out attributes and such.

@@ -54,10 +54,10 @@ inline constexpr unsigned DocEndIdx(TermT K) {
 struct DocContentArray {
   FullEventCode Data[4] {};
 public:
-  EXI_FLATTEN EXI_INLINE FullEventCode& operator[](TermT K) {
+  constexpr EXI_FLATTEN EXI_INLINE FullEventCode& operator[](TermT K) {
     return Data[DocContentIdx(K)];
   }
-  EXI_FLATTEN EXI_INLINE FullEventCode operator[](TermT K) const {
+  constexpr EXI_FLATTEN EXI_INLINE FullEventCode operator[](TermT K) const {
     return Data[DocContentIdx(K)];
   }
 };
@@ -66,10 +66,10 @@ public:
 struct DocEndArray {
   FullEventCode Data[3] {};
 public:
-  EXI_FLATTEN EXI_INLINE FullEventCode& operator[](TermT K) {
+  constexpr EXI_FLATTEN EXI_INLINE FullEventCode& operator[](TermT K) {
     return Data[DocEndIdx(K)];
   }
-  EXI_FLATTEN EXI_INLINE FullEventCode operator[](TermT K) const {
+  constexpr EXI_FLATTEN EXI_INLINE FullEventCode operator[](TermT K) const {
     return Data[DocEndIdx(K)];
   }
 };

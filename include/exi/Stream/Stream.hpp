@@ -107,30 +107,30 @@ struct StreamBase {
 
   /// Creates a mask for the current word type.
   template <typename IntT = word_t>
-  inline static constexpr IntT MakeNBitMask(size_type Bits) EXI_READNONE {
+  inline static constexpr IntT EXI_READNONE MakeNBitMask(size_type Bits) {
     constexpr_static IntT Mask = ~IntT(0);
     return EXI_LIKELY(Bits != bitsizeof_v<IntT>) ? ~(Mask << Bits) : Mask;
   }
   /// Creates an upper mask for the current word type.
   template <typename IntT = word_t>
-  inline static constexpr IntT MakeUpperNBitMask(size_type Bits) EXI_READNONE {
+  inline static constexpr IntT EXI_READNONE MakeUpperNBitMask(size_type Bits) {
     constexpr_static IntT Mask = ~IntT(0);
     return EXI_LIKELY(Bits != bitsizeof_v<IntT>) ? ~(Mask >> Bits) : Mask;
   }
 
   /// Get the number of bytes N bits can fit in.
-  inline static constexpr size_type MakeByteCount(size_type Bits) EXI_READNONE {
+  inline static constexpr size_type EXI_READNONE MakeByteCount(size_type Bits) {
     exi_invariant(Bits != 0);
     return ((Bits - 1) >> 3) + size_type(1);
   }
 
   /// Get the number of bytes N bits can fit in.
-  inline static constexpr size_type MakeByteAligned(size_type Bits) EXI_READNONE {
+  inline static constexpr size_type EXI_READNONE MakeByteAligned(size_type Bits) {
     return EXI_LIKELY(Bits < 64) ? (Bits + 7) & ~ByteAlignMask : 64;
   }
 
   /// Get the byte-aligned shift required for N bits.
-  inline static constexpr size_type MakeBitShift(size_type Bits) EXI_READONLY {
+  inline static constexpr size_type EXI_READONLY MakeBitShift(size_type Bits) {
     exi_invariant(Bits > 0);
     // Only use high bits.
     constexpr_static size_type Mask = ~size_type(0b111) & ShiftMask;

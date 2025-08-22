@@ -220,7 +220,8 @@ private:
     }
 
     auto* Strm = Get::Reader(D);
-    const MatchT M = this->decodeTerm(Strm, 1, Ret.error());
+    [[maybe_unused]] const MatchT M
+      = this->decodeTerm(Strm, 1, Ret.error());
     return this->Event;
   }
 

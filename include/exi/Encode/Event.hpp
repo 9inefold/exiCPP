@@ -187,6 +187,9 @@ inline constexpr SimpleEventTerm unmap_event_v
 //////////////////////////////////////////////////////////////////////////
 // make/cast
 
+DIAGNOSTIC_PUSH()
+GCC_IGNORED("-Wmissing-field-initializers")
+
 template <SimpleEventTerm Term> struct MakeEvent {
   using Type = map_event_t<Term>;
   static_assert(std::is_empty_v<Type>);
@@ -262,6 +265,8 @@ template <> struct MakeEvent<SimpleEventTerm::NS> {
     };
   }
 };
+
+DIAGNOSTIC_POP()
 
 template <> struct MakeEvent<SimpleEventTerm::DT>
  : public variadic_function<&H::MakeDTEventImpl, 4> {

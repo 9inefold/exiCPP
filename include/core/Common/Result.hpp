@@ -103,6 +103,15 @@ concept trivial_move_ctor = trivially_move_constructible<result_storage<T>>;
 template <typename T>
 concept trivial_dtor = trivially_destructible<result_storage<T>>;
 
+template <typename T, typename E>
+concept trivial_copy_both = trivial_copy_ctor<T> && trivial_copy_ctor<E>;
+
+template <typename T, typename E>
+concept trivial_move_both = trivial_move_ctor<T> && trivial_move_ctor<E>;
+
+template <typename T, typename E>
+concept trivial_dtor_both = trivial_dtor<T> && trivial_dtor<E>;
+
 template <typename T, typename U>
 concept can_assign = std::is_assignable_v<
   result_storage<T>,
@@ -122,13 +131,18 @@ protected:
     EXI_NO_UNIQUE_ADDRESS result_storage<T> Data;
     EXI_NO_UNIQUE_ADDRESS result_storage<E> Unex;
   public:
-    constexpr Impl(const Impl&) = delete;
+#ifndef __clang__
+    explicit constexpr Impl(std::nullopt_t) {}
+#endif
     constexpr Impl(const Impl&)
-      requires(trivial_copy_ctor<T> && trivial_copy_ctor<E>) = default;
+      requires(!trivial_copy_both<T, E>) = delete;
+    constexpr Impl(const Impl&)
+      requires(trivial_copy_both<T, E>) = default;
     
-    constexpr Impl(Impl&&) = delete;
     constexpr Impl(Impl&&)
-      requires(trivial_move_ctor<T> && trivial_move_ctor<E>) = default;
+      requires(!trivial_move_both<T, E>) = delete;
+    constexpr Impl(Impl&&)
+      requires(trivial_move_both<T, E>) = default;
     
     constexpr Impl& operator=(const Impl&) = delete;
     constexpr Impl& operator=(Impl&&) = delete;
@@ -141,29 +155,31 @@ protected:
       unexpect_t, auto&&...Args)
      : Unex(EXI_FWD(Args)...) {}
 
-    constexpr ~Impl() requires(trivial_dtor<T> && trivial_dtor<E>) = default;
-    constexpr ~Impl() {}
+    constexpr ~Impl() requires(trivial_dtor_both<T, E>) = default;
+    constexpr ~Impl() requires(!trivial_dtor_both<T, E>) {}
   };
 
   EXI_NO_UNIQUE_ADDRESS Impl X;
   bool Active = true;
 
 public:
-  constexpr StorageBase(const StorageBase&) = delete;
   constexpr StorageBase(const StorageBase&)
-    requires(trivial_copy_ctor<T> && trivial_copy_ctor<E>) = default;
+    requires(!trivial_copy_both<T, E>) = delete;
+  constexpr StorageBase(const StorageBase&)
+    requires(trivial_copy_both<T, E>) = default;
   
-  constexpr StorageBase(StorageBase&&) = delete;
   constexpr StorageBase(StorageBase&&)
-    requires(trivial_move_ctor<T> && trivial_move_ctor<E>) = default;
+    requires(!trivial_move_both<T, E>) = delete;
+  constexpr StorageBase(StorageBase&&)
+    requires(trivial_move_both<T, E>) = default;
   
   constexpr StorageBase& operator=(const StorageBase&) = delete;
   constexpr StorageBase& operator=(StorageBase&&) = delete;
 
   constexpr ~StorageBase()
-    requires(trivial_dtor<T> && trivial_dtor<E>) = default;
+    requires(trivial_dtor_both<T, E>) = default;
   constexpr ~StorageBase()
-    requires(!trivial_dtor<T> || !trivial_dtor<E>) { reset(); }
+    requires(!trivial_dtor_both<T, E>) { reset(); }
 
   inline constexpr StorageBase(std::in_place_t, auto&&...Args)
    : X(std::in_place, EXI_FWD(Args)...), Active(true) {}
@@ -171,8 +187,18 @@ public:
    : X(unexpect, EXI_FWD(Args)...), Active(false) {}
 
 protected:
+#ifdef __clang__
   inline constexpr StorageBase(ImplInvokeTag, bool IsActive, auto&& O) :
    X(StorageBase::MakeUnion(IsActive, EXI_FWD(O))), Active(IsActive) {}
+#else
+  inline constexpr StorageBase(ImplInvokeTag, bool IsActive, auto&& O)
+   : X(std::nullopt), Active(IsActive) {
+    if (IsActive)
+      std::construct_at(&X, std::in_place, EXI_FWD(O).Data);
+    else
+      std::construct_at(&X, unexpect, EXI_FWD(O).Unex);
+  }
+#endif
 
   EXI_INLINE constexpr Impl& get_union() { return X; }
   EXI_INLINE constexpr const Impl& get_union() const { return X; }
@@ -188,10 +214,10 @@ protected:
   }
 
   EXI_INLINE constexpr void reset() 
-   requires(trivial_dtor<T> && trivial_dtor<E>) {}
+   requires(trivial_dtor_both<T, E>) {}
   
   constexpr void reset() 
-   requires(!trivial_dtor<T> || !trivial_dtor<E>) {
+   requires(!trivial_dtor_both<T, E>) {
     if (Active) {
       if constexpr (!trivial_dtor<T>)
         std::destroy_at(std::addressof(X.Data));
@@ -202,12 +228,12 @@ protected:
   }
 
   constexpr void reset_union() 
-   requires(trivial_dtor<T> && trivial_dtor<E>) {
+   requires(trivial_dtor_both<T, E>) {
     std::destroy_at(&X);
   }
 
   constexpr void reset_union() 
-   requires(!trivial_dtor<T> || !trivial_dtor<E>) {
+   requires(!trivial_dtor_both<T, E>) {
     this->reset();
     std::destroy_at(&X);
   }

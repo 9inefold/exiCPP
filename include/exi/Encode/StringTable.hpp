@@ -77,7 +77,7 @@ public:
   ImplicitHashStrRef(CachedHashStrRef S) : CachedHashStrRef(S) {
     exi_invariant(S.hash() == StringMapImpl::hash(S.val()));
   }
-  constexpr bool operator==(const CachedHashStrRef& S) const {
+  EXI_INLINE bool operator==(const CachedHashStrRef& S) const {
     return CachedHashStrRef::equals(S);
   }
 };

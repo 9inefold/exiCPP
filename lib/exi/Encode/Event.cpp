@@ -34,6 +34,8 @@ using namespace exi::encode;
 
 #define DEBUG_TYPE "DoctypeEvent"
 
+GCC_IGNORED("-Wmissing-field-initializers")
+
 static_assert(sizeof(StringEventData) == 2 * sizeof(void*));
 static_assert(sizeof(StringEventData) == sizeof(StartElemEvent));
 static_assert(sizeof(StartElemURIEvent) == 3 * sizeof(void*));
@@ -149,4 +151,5 @@ raw_ostream& exi::operator<<(raw_ostream& OS, const DoctypeEvent& DT) {
   case DTK_Public:
     return OS << format("{} PUBLIC \"{}\" \"{}\" [{}]", DT[0], DT[1], DT[2], DT[3]);
   }
+  exi_guardrail("invalid DOCTYPE type.");
 }

@@ -144,8 +144,9 @@ public:
   static const ExiError TODO; // `ErrorCode::kUnimplemented`
   static const ExiError OOB;  // `ErrorCode::kOutOfBounds`
 
-  template <bool Strict = false> class AsOutParam;
-  using AsStrictOutParam = AsOutParam<true>;
+  template <bool Strict> class AsOutParamT;
+  using AsOutParam = AsOutParamT<false>;
+  using AsStrictOutParam = AsOutParamT<true>;
 
   ////////////////////////////////////////////////////////////////////////
   // Ctors
@@ -235,13 +236,13 @@ EXI_CONST ExiError ExiError::OOB  = ExiError::kOutOfBounds;
 /// Values can be assigned to the proxy instead of the actual input.
 /// @tparam Strict If `Throw(...)` should be called on errors for invalid inputs.
 template <bool Strict>
-class ExiError::AsOutParam {
+class ExiError::AsOutParamT {
   ExiError* Data = nullptr;
 public:
-  explicit AsOutParam(ExiError* E) : Data(E) {}
-  explicit AsOutParam(ExiError& E) : Data(&E) {}
+  explicit AsOutParamT(ExiError* E) : Data(E) {}
+  explicit AsOutParamT(ExiError& E) : Data(&E) {}
 
-  AsOutParam& operator=(auto&& Val) {
+  AsOutParamT& operator=(auto&& Val) {
     ExiError E(EXI_FWD(Val));
     if (Strict && !Data)
       ThrowDyn<runtime_error>(E.msg());
@@ -250,7 +251,7 @@ public:
     return *this;
   }
 
-  ~AsOutParam() {
+  ~AsOutParamT() {
     if (Data && !*Data)
       *Data = ExiError::OK;
   }
