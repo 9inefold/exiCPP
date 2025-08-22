@@ -103,6 +103,10 @@ public:
     return Writer->bitPos();
   }
 
+  usize depth() const {
+    return CtxStack.total_depth();
+  }
+
   ////////////////////////////////////////////////////////////////////////
   // Initialization
 

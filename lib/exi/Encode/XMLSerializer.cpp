@@ -29,6 +29,7 @@
 #include <core/Support/ErrorHandle.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/D/InternalMacros.hpp>
+#include <exi/Encode/DepthValidator.hpp>
 #include <exi/Encode/Event.hpp>
 //#include <Encode/ChannelEncoder-inl.hpp>
 #include <Encode/OrderedEncoder-inl.hpp>
@@ -347,8 +348,9 @@ private:
     return BE.StartElement(N->name());
   }
 
-  template <bool IsRoot = false>
+  template <bool IsRoot>
   ExiError handleElement(XMLNode* N) {
+    DepthValidator X(BE);
     // IsRoot only used on root :)
     exi_try(handleSEAndAT<IsRoot>(N));
     if (auto* Child = N->first_node())
@@ -379,7 +381,7 @@ private:
   /// Depth-first traversal of the XML tree.
   /// Assumes the Node is not the root.
   EXI_NO_INLINE EXI_FLATTEN ExiError walkXMLContent(XMLNode* N) {
-    exi_invariant(N && /*IsSENode(N) &&*/ !IsRootNode(N));
+    exi_invariant(N /*&& IsSENode(N)*/ && !IsRootNode(N));
     do {
       const NodeKind K = N->type();
       if (!CurrKinds.test(K))
