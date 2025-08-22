@@ -289,7 +289,7 @@ private:
     // Handle fallback case with a partial read.
     Result Out = this->readPartialBits64(Bits);
     if constexpr (std::same_as<u64, Ret>) {
-      return std::move(Out);
+      return Out;
     } else {
       if EXI_UNLIKELY(Out.is_err())
         return Err(Out.error());
@@ -534,7 +534,7 @@ private:
     // Handle fallback case with a partial read.
     Result Out = this->readPartialBytes64(Bytes);
     if constexpr (std::same_as<u64, Ret>) {
-      return std::move(Out);
+      return Out;
     } else {
       if EXI_UNLIKELY(Out.is_err())
         return Err(Out.error());

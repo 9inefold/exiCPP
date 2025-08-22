@@ -84,17 +84,17 @@ public:
   /// @{
 
   /// Construct an empty ArrayRef.
-  /*implicit*/ ArrayRef() = default;
+  /*implicit*/ constexpr ArrayRef() = default;
 
   /// Construct an empty ArrayRef from std::nullopt.
-  /*implicit*/ ArrayRef(std::nullopt_t) {}
+  /*implicit*/ constexpr ArrayRef(std::nullopt_t) {}
 
   /// Construct an ArrayRef from a single element.
-  /*implicit*/ ArrayRef(const T &OneElt)
+  /*implicit*/ constexpr ArrayRef(const T& OneElt)
     : Data(&OneElt), Length(1) {}
 
   /// Construct an ArrayRef from a pointer and length.
-  constexpr /*implicit*/ ArrayRef(const T *data, usize length)
+  /*implicit*/ constexpr ArrayRef(const T *data, usize length)
     : Data(data), Length(length) {}
 
   /// Construct an ArrayRef from a range.
@@ -169,15 +169,15 @@ DIAGNOSTIC_POP()
   reverse_iterator rend() const { return reverse_iterator(begin()); }
 
   /// empty - Check if the array is empty.
-  bool empty() const { return Length == 0; }
+  constexpr bool empty() const { return Length == 0; }
 
-  const T *data() const { return Data; }
+  constexpr const T* data() const { return Data; }
 
   /// size - Get the array size.
-  usize size() const { return Length; }
+  constexpr usize size() const { return Length; }
 
   /// size - Get the array size in bytes.
-  usize size_in_bytes() const { return Length * sizeof(T); }
+  constexpr usize size_in_bytes() const { return Length * sizeof(T); }
 
   /// front - Get the first element.
   const T &front() const {

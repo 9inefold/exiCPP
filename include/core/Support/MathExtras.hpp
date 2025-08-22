@@ -162,7 +162,7 @@ exi_mem_constexpr T reverseBits(T Val) {
     exi___builtin_memcpy(in, &Val, sizeof(Val));
     for (unsigned i = 0; i < sizeof(Val); ++i)
       out[(sizeof(Val) - i) - 1] = BitReverseTable256[in[i]];
-    exi___builtin_memcpy(in, &Val, sizeof(Val));
+    exi___builtin_memcpy(&Val, out, sizeof(Val));
     return Val;
   }
 }

@@ -258,7 +258,7 @@ template <> struct MakeEvent<SimpleEventTerm::NS> {
       .UriSize = unsigned(Uri.size()),
       .IsLocal = IsLocal,
       .PfxData = Pfx.data(),
-      .UriData = Uri.data(),
+      .UriData = Uri.data()
     };
   }
 };

@@ -55,11 +55,11 @@ else()
   # TODO: Add function for this?
   set(EXI_WARNING_FLAGS -Wall -Wextra
     -Wno-unused-variable -Wno-unused-function
-    -Wno-unused-parameter)
+    -Wno-unused-parameter -Wno-ignored-qualifiers)
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GCC")
     # GCC only flags
-    list(APPEND EXI_FLAGS -Wuninitialized=precise
-      $<$<NOT:$<CONFIG:Debug>>:\"-ftrivial-auto-var-init=zero\">)
+    set(EXI_FLAGS "${EXI_FLAGS} -Wuninitialized=precise")
+    set(EXI_FLAGS "${EXI_FLAGS} $<$<NOT:$<CONFIG:Debug>>:\"-ftrivial-auto-var-init=zero\">")
   elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     # Clang only flags
     list(APPEND EXI_FLAGS -fdiagnostics-show-template-tree)

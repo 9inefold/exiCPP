@@ -222,7 +222,7 @@ Expected<XMLDocument&> XMLContainer::loadAndParse(const MapEntry& ME,
   if (!TheBuffer || IsVolatile) {
     auto Result = loadBuffer(IsVolatile);
     if (Error E = Result.takeError())
-      return std::move(E);
+      return E;
   }
 
   return this->parse();

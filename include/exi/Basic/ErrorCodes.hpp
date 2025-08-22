@@ -151,7 +151,7 @@ public:
   // Ctors
   
   /// Construct an error from a code.
-  constexpr ExiError(ErrorCode E) : EC(E) {}
+  constexpr ExiError(ErrorCode E) : EC(E), Storage(0) {}
   /// Construct an error from a code.
   static ExiError New(ErrorCode E) EXI_READONLY;
 

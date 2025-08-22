@@ -41,7 +41,7 @@ concept has_features_tag = std::derived_from<T, OpaqueFeaturesTag>;
 
 template <class T>
 struct OpaqueFeaturesInfo {
-  COMPILE_FAILURE(OpaqueFeatures,
+  COMPILE_FAILURE(OpaqueFeaturesInfo,
     "Invalid opaque features!")
 };
 

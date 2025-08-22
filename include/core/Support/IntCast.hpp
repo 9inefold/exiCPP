@@ -30,6 +30,7 @@
 #include <concepts>
 #include <type_traits>
 #include <typeinfo>
+#include <utility>
 
 namespace exi {
 /// Some template parameter helpers to optimize for bitwidth, for functions that

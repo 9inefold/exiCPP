@@ -46,6 +46,7 @@ StrRef exi::get_doctype_name(DoctypeKind K) {
   case DTK_System: return "SYSTEM";
   case DTK_Public: return "PUBLIC";
   }
+  exi_guardrail("invalid DOCTYPE type");
 }
 
 template <typename T>

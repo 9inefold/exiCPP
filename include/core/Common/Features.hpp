@@ -356,7 +356,7 @@
 #endif
 
 #if EXI_HAS_ATTR(used)
-# if EXI_HAS_ATTR(retain)
+# if defined(__clang__) && EXI_HAS_ATTR(retain)
 #  define EXI_USED __attribute__((__used__, retain))
 # else
 #  define EXI_USED __attribute__((__used__))

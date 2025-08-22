@@ -7,6 +7,12 @@
 
 #include <Support/ErrorHandle.hpp>
 
+#ifndef _WIN32
+# define HIDE __attribute__((visibility("hidden")))
+#else
+# define HIDE
+#endif
+
 extern "C" {
 
 // This function is used in vtables to point at pure virtual methods.
@@ -25,7 +31,7 @@ int __cdecl _purecall() {
   exi::report_fatal_error("pure virtual call");
 }
 #else
-__attribute__((visibility("hidden"))) void __cxa_pure_virtual() {
+HIDE void __cxa_pure_virtual() {
   exi::report_fatal_error("pure virtual call");
 }
 #endif

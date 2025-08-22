@@ -70,7 +70,7 @@ Expected<XMLContainer&>
 
   auto Buf = Entry->loadBuffer(*NamedEnt, IsVolatile);
   if (Error E = Buf.takeError())
-    return std::move(E);
+    return E;
   LOG_EXTRA("Created new file '{}'", Filepath);
   return *Entry;
 }
@@ -132,7 +132,7 @@ Expected<XMLDocument&>
  XMLManager::getXMLDocument(const Twine& Filepath, bool IsVolatile) {
   auto XML = this->getXMLRef(Filepath, IsVolatile);
   if (Error E = XML.takeError())
-    return std::move(E);
+    return E;
 
   auto* Entry = &*XML;
   LOG_EXTRA("Parsing file '{}'", Entry->getName());

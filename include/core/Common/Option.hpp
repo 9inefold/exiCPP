@@ -157,12 +157,16 @@ class OptionStorage : public option_detail::Storage<T> {
 public:
   using BaseT::BaseT;
 
+  // TODO: Remove pragmas?
+  DIAGNOSTIC_PUSH()
+  GCC_IGNORED("-Wextra")
   constexpr OptionStorage(const OptionStorage& Other) {
     this->construct(Other);
   }
   constexpr OptionStorage(OptionStorage&& Other) {
     this->construct(std::move(Other));
   }
+  DIAGNOSTIC_POP()
 
   EXI_FLATTEN constexpr OptionStorage& operator=(const T& V) {
     this->emplace(V);
