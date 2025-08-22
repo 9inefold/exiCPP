@@ -21,6 +21,14 @@
 #define OFF 0
 #define ON 1
 
+#define EXI_LLNONE    0
+#define EXI_LLERROR   1
+#define EXI_LLWARN    2
+#define EXI_LLINFO    3
+#define EXI_LLEXTRA   4
+#define EXI_LLQUIET   EXI_LLNONE
+#define EXI_LLVERBOSE EXI_LLEXTRA
+
 #define EXI_VERSION_MAJOR @EXI_VERSION_MAJOR@
 #define EXI_VERSION_MINOR @EXI_VERSION_MINOR@
 #define EXI_VERSION_PATCH @EXI_VERSION_PATCH@
@@ -55,13 +63,33 @@
 #ifndef EXI_MIN_LOG_LEVEL
 # if EXI_DEBUG
 #  define EXI_MIN_LOG_LEVEL VERBOSE
+#  define EXI_MIN_LOG_LEVEL_VAL EXI_LLVERBOSE
 # else
 #  define EXI_MIN_LOG_LEVEL INFO
+#  define EXI_MIN_LOG_LEVEL_VAL EXI_LLINFO
 # endif
+#else
+# define EXI_MIN_LOG_LEVEL_VAL EXI_LL@EXI_MIN_LOG_LEVEL@
 #endif
 
 #if EXI_ENABLE_EXPENSIVE_CHECKS
 # define EXPENSIVE_CHECKS
 #endif
 
+/// TODO: Remove this...
 #define EXI_STRICT_NODISCARD EXI_ENABLE_NODISCARD
+
+#ifdef __clang__
+# pragma clang final(EXI_EXCEPTIONS)
+# pragma clang final(EXI_USE_THREADS)
+# pragma clang final(EXI_USE_MIMALLOC)
+# pragma clang final(EXI_DEBUG)
+# pragma clang final(EXI_INVARIANTS)
+# pragma clang final(EXI_FAST_DEBUG)
+# pragma clang final(EXI_ENABLE_UNSTABLE_FEATURES)
+# pragma clang final(EXI_ENABLE_EXPENSIVE_CHECKS)
+# pragma clang final(EXI_OPTIMIZE_UNREACHABLE)
+# pragma clang final(EXI_ENABLE_STACKTRACES)
+# pragma clang final(EXI_MIN_LOG_LEVEL)
+# pragma clang final(EXI_MIN_LOG_LEVEL_VAL)
+#endif

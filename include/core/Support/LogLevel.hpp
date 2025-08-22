@@ -27,6 +27,8 @@
 #include <Config/Config.inc>
 
 #define EXI_LOG_LEVEL ::exi::LogLevel::EXI_MIN_LOG_LEVEL
+/// Checks the current minimum log level. Use like `EXI_HAS_LOG_LEVEL(INFO)`.
+#define EXI_HAS_LOG_LEVEL(TYPE) (EXI_LL##TYPE <= EXI_MIN_LOG_LEVEL_VAL)
 
 namespace exi {
 
