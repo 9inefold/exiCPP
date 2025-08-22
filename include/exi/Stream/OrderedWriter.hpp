@@ -248,7 +248,7 @@ public:
   void encodeAsciiString(StrRef Str) {
     exi_invariant(Str.size() == countRunes(Str));
     this->writeUInt(Str.size());
-    tail_return this->writeAsciiString(Str);
+    win_tail_return this->writeAsciiString(Str);
   }
 
   /// Writes a unicode string to the buffer (no size).
@@ -259,8 +259,12 @@ public:
     RuneDecoder Decoder(Str);
     for (Rune Val : Decoder) {
       this->writeNByteUInt<UnicodeReads>(Val);
-      // TODO: Log!!
+#if EXI_HAS_LOG_LEVEL(VERBOSE)
+      auto Buf = Decoder.decodeChars();
+      LOG_EXTRA(">>> {}: {}", Buf.str(), 
+        fmt::format("0x{:02X}", fmt::join(Buf, " 0x")));
     }
+#endif
   }
 
   /// Writes a unicode string to the buffer (no size).

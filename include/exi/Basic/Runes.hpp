@@ -30,18 +30,23 @@
 namespace exi {
 
 template <typename T> class SmallVecImpl;
+class RuneEncoder;
+class RuneDecoder;
 
 using Rune = u32;
 inline constexpr Rune kInvalidRune = U'�'; 
 
+namespace H {
 #if EXI_INVARIANTS
 inline constexpr bool kCheckRunes = true;
 #else
 inline constexpr bool kCheckRunes = false;
 #endif
 
-class RuneEncoder;
-class RuneDecoder;
+template <usize N>
+concept is_valid_utf8_count = N >= 1 && N <= 4;
+
+} // namespace H
 
 /// A simple 4-byte buffer to hold encoded runes. Can be freely passed by value.
 class RuneBuf {
@@ -157,7 +162,7 @@ private:
 
   template <usize N>
   ALWAYS_INLINE constexpr usize checkTrail() const {
-    static_assert(N >= 1 && N < 4);
+    static_assert(H::is_valid_utf8_count<N>);
     return (Data[N] & 0b1100'0000) == 0b1000'0000;
   }
 
@@ -167,6 +172,21 @@ private:
       return checkTrail<N>();
     else
       return checkTrail<N>() && checkTrailSeq<N - 1>();
+  }
+
+  ALWAYS_INLINE constexpr RuneBuf peekCharsImpl(usize N) const {
+    exi_invariant(N >= 1 && N <= 4);
+    RuneBuf Out;
+#if !EXI_HAS_CONSTEXPR_MEMOPS
+    if (std::is_constant_evaluated()) {
+      for (usize I = 0; I < N; ++I)
+        Out.putUnchecked(Data[N]);
+      return Out;
+    }
+#endif
+    exi___builtin_memcpy(Out.Data, this->Data, N);
+    Out.Length = N;
+    return Out;
   }
 
   /// Decodes 1-byte utf8 codepoints.
@@ -276,6 +296,32 @@ public:
     return EXI_LIKELY(Out <= kMaxVal) ? Out : U'�';
   }
 
+  template <bool Checked = true>
+  constexpr RuneBuf peekChars() {
+    const usize NBytes = UnitLen(*Data);
+    if constexpr (Checked) {
+      if EXI_UNLIKELY(NBytes > Length)
+        return RuneBuf{};
+    }
+    return peekCharsImpl(NBytes);
+  }
+
+  template <bool Checked = true>
+  constexpr RuneBuf decodeChars() {
+    if (Checked && (!Data || Length == 0))
+      return RuneBuf{};
+    
+    RuneBuf Out = peekChars<Checked>();
+    if EXI_UNLIKELY(!Out.Length || Out.Length > Length) {
+      Data += Length;
+      Length = 0;
+      return RuneBuf{};
+    }
+
+    advance(Out.Length);
+    return Out;
+  }
+
   /// Checks if the decoder reached the end of the data.
   constexpr explicit operator bool() const {
     return EXI_LIKELY(Data) && (Length > 0);
@@ -292,7 +338,7 @@ class RuneDecoder::iterator {
   RuneDecoder Data;
 public:
   constexpr iterator(RuneDecoder Decoder) : Data(Decoder) {}
-  constexpr Rune operator*() const { return Data.peek<kCheckRunes>().first; }
+  constexpr Rune operator*() const { return Data.peek<H::kCheckRunes>().first; }
   constexpr RuneDecoder* operator->() { return &Data; }
   constexpr const RuneDecoder* operator->() const { return &Data; }
 
