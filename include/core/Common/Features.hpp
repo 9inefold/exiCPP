@@ -531,13 +531,13 @@
 #if defined(__clang__) && HAS__builtin_memcpy && HAS__builtin_memmove
 # define EXI_HAS_CONSTEXPR_MEMOPS 1
 # define exi_mem_constexpr constexpr
-# define exi___builtin_memcpy(SRC, DST, SIZE) __builtin_memcpy(SRC, DST, SIZE)
-# define exi___builtin_memmove(SRC, DST, SIZE) __builtin_memmove(SRC, DST, SIZE)
+# define exi___builtin_memcpy(DST, SRC, SIZE) __builtin_memcpy(DST, SRC, SIZE)
+# define exi___builtin_memmove(DST, SRC, SIZE) __builtin_memmove(DST, SRC, SIZE)
 #else
 # define EXI_HAS_CONSTEXPR_MEMOPS 0
 # define exi_mem_constexpr
-# define exi___builtin_memcpy(SRC, DST, SIZE) ::memcpy(SRC, DST, SIZE)
-# define exi___builtin_memmove(SRC, DST, SIZE) ::memmove(SRC, DST, SIZE)
+# define exi___builtin_memcpy(DST, SRC, SIZE) ::memcpy(DST, SRC, SIZE)
+# define exi___builtin_memmove(DST, SRC, SIZE) ::memmove(DST, SRC, SIZE)
 #endif
 
 #if EXI_HAS_BUILTIN(__builtin_expect)
