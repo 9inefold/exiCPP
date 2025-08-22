@@ -440,6 +440,10 @@ template <typename StrmT>
 ExiResult<Option<CompactID>> ExiDecoder::decodePfxQ(CompactID URI) {
   if (!Preserve.Prefixes)
     return Ok(std::nullopt);
+  if (URI == 0) {
+    LOG_INFO(">> PXQ (null)");
+    return 0;
+  }
   if (!Strings.hasPrefix(URI))
     return Ok(std::nullopt);
   

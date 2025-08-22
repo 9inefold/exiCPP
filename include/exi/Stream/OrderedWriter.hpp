@@ -45,7 +45,7 @@
 #endif
 
 #define DEBUG_TYPE "OrderedWriter"
-#define ORDEREDWRITER_DUMP 1
+#define ORDEREDWRITER_DUMP 0
 #define ORDEREDWRITER_ALTERNATE_WRITE 0
 
 #if ORDEREDWRITER_DUMP
@@ -127,7 +127,7 @@ protected:
   }
 
   void writeWord(word_t Val) {
-#if ORDEREDWRITER_DUMP
+#if ORDEREDWRITER_DUMP && EXI_DEBUG
     if (hasDbgLogLevel(INFO))
       this->dumpWord();
 #endif

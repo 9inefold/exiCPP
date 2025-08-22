@@ -476,7 +476,7 @@ public:
   EXI_INLINE bool shouldPfxQEarlyReturn(URIEntry* URI, PrefixEntry* Pfx) {
     if (shouldPfxQEarlyReturn(URI))
       return true;
-    if EXI_UNLIKELY(!Pfx) {
+    if (!Pfx) {
       LOG_WARN(">> PXQ (null)");
       return true;
     }

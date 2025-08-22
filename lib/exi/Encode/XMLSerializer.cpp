@@ -242,7 +242,7 @@ private:
     }
 #else
     // If anon, must be empty. Otherwise, drop 'xmlns:` and return.
-    return IsAnon ? ""_str : A->name().drop_front(6)
+    return IsAnon ? ""_str : A->name().drop_front(6);
 #endif
   }
 
