@@ -36,7 +36,10 @@
 using namespace exi;
 
 namespace {
-enum : u64 { kDefaultReserveSize = 64 };
+enum : u64 {
+  kDefaultReserveSize = 64,
+  kMaxInitialReserveSize = (4096 * 16),
+};
 
 constexpr StrRef XML_URI("http://www.w3.org/XML/1998/namespace");
 constexpr StrRef XML_InitialValues[] { EXI_XML_IV(GEN_IV, SEP) };
@@ -51,6 +54,10 @@ constexpr StrRef XSD_InitialValues[] { EXI_XSD_IV(GEN_IV, SEP) };
 
 static const Option<String&> PullSchemaID(const Option<PackedMaybeBox<String>>& ID) {
   return ID.expect("schema should resolve to value or nil").get();
+}
+
+static constexpr u64 CapInitialReserve(usize I) {
+  return (I < kMaxInitialReserveSize) ? I : kMaxInitialReserveSize;
 }
 
 //===----------------------------------------------------------------===//
@@ -79,12 +86,11 @@ void StringTable::setup(const ExiOptions& Opts) {
   }
 
   if (Bounded I = Opts.ValuePartitionCapacity; I.bounded()) {
+    const usize InitialReserve = CapInitialReserve(*I);
     WrappingValues = true;
     LOG_WARN("Bounded tables are not supported, "
-             "the value '{}' only affects the initial reserve.", *I);
-    // TODO: Do some kind of check here. We definitely don't want arbitrarily
-    // large allocations.
-    GValueMap.reserve(*I);
+             "the value '{}' only affects the initial reserve.", InitialReserve);
+    GValueMap.reserve(InitialReserve);
   } else
     GValueMap.reserve(kDefaultReserveSize);
 
