@@ -49,6 +49,10 @@ option(EXI_NATIVE_CODEGEN  "If code should be optimized for the native architect
 option(EXI_USE_EXIP "[DEPRECATED] Enables the old version of exicpp." OFF)
 option(EXI_ANSI     "[DEPRECATED] If ANSI should be enabled." ON)
 
+if (NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+  message(FATAL_ERROR "Currently only supported on 64bit!")
+endif()
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")
 else()
@@ -151,7 +155,28 @@ if(DEFINED EXI_CODEGEN_TESTS)
   message(STATUS "[exicpp] Codegen tests    : ${EXI_CODEGEN_TESTS}")
 endif()
 
-if(EXI_ENABLE_STACKTRACES)
+canonicalize_cmake_booleans(
+  EXI_TESTS
+  EXI_EXCEPTIONS
+  EXI_XML_EXCEPTIONS
+  EXI_USE_THREADS
+  EXI_USE_MIMALLOC
+  EXI_DEBUG
+  EXI_DEBUG_BUILD
+  EXI_FAST_DEBUG
+  EXI_INVARIANTS
+  EXI_LOGGING
+  EXI_ENABLE_NODISCARD
+  EXI_ENABLE_DUMP
+  EXI_ENABLE_EXPENSIVE_CHECKS
+  EXI_ENABLE_STACKTRACES
+  EXI_ENABLE_UNSTABLE_FEATURES
+  EXI_OPTIMIZE_UNREACHABLE
+  EXI_ON_WIN32
+  EXI_ON_UNIX
+)
+
+if(EXI_ENABLE_STACKTRACES OR EXI_TESTS)
   include(scripts/CPM.cmake)
 endif()
 

@@ -18,17 +18,6 @@
 
 #pragma once
 
-#define OFF 0
-#define ON 1
-
-#define EXI_LLNONE    0
-#define EXI_LLERROR   1
-#define EXI_LLWARN    2
-#define EXI_LLINFO    3
-#define EXI_LLEXTRA   4
-#define EXI_LLQUIET   EXI_LLNONE
-#define EXI_LLVERBOSE EXI_LLEXTRA
-
 #define EXI_VERSION_MAJOR @EXI_VERSION_MAJOR@
 #define EXI_VERSION_MINOR @EXI_VERSION_MINOR@
 #define EXI_VERSION_PATCH @EXI_VERSION_PATCH@
@@ -59,6 +48,14 @@
 #cmakedefine01 EXI_ON_UNIX
 
 #define EXI_ANSI 1
+
+#define EXI_LLNONE    0
+#define EXI_LLERROR   1
+#define EXI_LLWARN    2
+#define EXI_LLINFO    3
+#define EXI_LLEXTRA   4
+#define EXI_LLQUIET   EXI_LLNONE
+#define EXI_LLVERBOSE EXI_LLEXTRA
 
 #ifndef EXI_MIN_LOG_LEVEL
 # if EXI_DEBUG

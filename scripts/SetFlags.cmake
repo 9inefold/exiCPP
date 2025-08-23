@@ -114,3 +114,19 @@ macro(set_if_unset var src)
     set(${var} ${src})
   endif()
 endmacro(set_if_unset)
+
+##======================================================================##
+## canonicalize_cmake_booleans
+##======================================================================##
+
+# Converts boolean variable values to 0/1 for use in C++.
+#  canonicalize_cmake_booleans([vars...])
+function(canonicalize_cmake_booleans)
+  foreach(var ${ARGN})
+    if(${var})
+      set(${var} 1 PARENT_SCOPE)
+    else()
+      set(${var} 0 PARENT_SCOPE)
+    endif()
+  endforeach()
+endfunction(canonicalize_cmake_booleans)

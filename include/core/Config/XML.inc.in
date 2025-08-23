@@ -20,7 +20,7 @@
 
 #include "Config.inc"
 
-#cmakedefine EXI_XML_EXCEPTIONS EXI_EXCEPTIONS
+#cmakedefine EXI_XML_EXCEPTIONS @EXI_EXCEPTIONS@
 
 #if defined(EXI_XML_EXCEPTIONS) && !EXI_XML_EXCEPTIONS
 # define RAPIDXML_NO_EXCEPTIONS 1
