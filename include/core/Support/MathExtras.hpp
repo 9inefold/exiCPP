@@ -59,7 +59,8 @@ using common_sint =
 namespace numbers {
 // TODO: Track C++20 std::numbers.
 // TODO: Favor using the hexadecimal FP constants (requires C++17).
-constexpr double e          = 2.7182818284590452354, // (0x1.5bf0a8b145749P+1) https://oeis.org/A001113
+inline constexpr double
+                 e          = 2.7182818284590452354, // (0x1.5bf0a8b145749P+1) https://oeis.org/A001113
                  egamma     = .57721566490153286061, // (0x1.2788cfc6fb619P-1) https://oeis.org/A001620
                  ln2        = .69314718055994530942, // (0x1.62e42fefa39efP-1) https://oeis.org/A002162
                  ln10       = 2.3025850929940456840, // (0x1.24bb1bbb55516P+1) https://oeis.org/A002392
@@ -74,21 +75,22 @@ constexpr double e          = 2.7182818284590452354, // (0x1.5bf0a8b145749P+1) h
                  sqrt3      = 1.7320508075688772935, // (0x1.bb67ae8584caaP+0) https://oeis.org/A002194
                  inv_sqrt3  = .57735026918962576451, // (0x1.279a74590331cP-1)
                  phi        = 1.6180339887498948482; // (0x1.9e3779b97f4a8P+0) https://oeis.org/A001622
-constexpr float ef          = 2.71828183F, // (0x1.5bf0a8P+1) https://oeis.org/A001113
-                egammaf     = .577215665F, // (0x1.2788d0P-1) https://oeis.org/A001620
-                ln2f        = .693147181F, // (0x1.62e430P-1) https://oeis.org/A002162
-                ln10f       = 2.30258509F, // (0x1.26bb1cP+1) https://oeis.org/A002392
-                log2ef      = 1.44269504F, // (0x1.715476P+0)
-                log10ef     = .434294482F, // (0x1.bcb7b2P-2)
-                pif         = 3.14159265F, // (0x1.921fb6P+1) https://oeis.org/A000796
-                inv_pif     = .318309886F, // (0x1.45f306P-2) https://oeis.org/A049541
-                sqrtpif     = 1.77245385F, // (0x1.c5bf8aP+0) https://oeis.org/A002161
-                inv_sqrtpif = .564189584F, // (0x1.20dd76P-1) https://oeis.org/A087197
-                sqrt2f      = 1.41421356F, // (0x1.6a09e6P+0) https://oeis.org/A002193
-                inv_sqrt2f  = .707106781F, // (0x1.6a09e6P-1)
-                sqrt3f      = 1.73205081F, // (0x1.bb67aeP+0) https://oeis.org/A002194
-                inv_sqrt3f  = .577350269F, // (0x1.279a74P-1)
-                phif        = 1.61803399F; // (0x1.9e377aP+0) https://oeis.org/A001622
+inline constexpr float
+                 ef          = 2.71828183F, // (0x1.5bf0a8P+1) https://oeis.org/A001113
+                 egammaf     = .577215665F, // (0x1.2788d0P-1) https://oeis.org/A001620
+                 ln2f        = .693147181F, // (0x1.62e430P-1) https://oeis.org/A002162
+                 ln10f       = 2.30258509F, // (0x1.26bb1cP+1) https://oeis.org/A002392
+                 log2ef      = 1.44269504F, // (0x1.715476P+0)
+                 log10ef     = .434294482F, // (0x1.bcb7b2P-2)
+                 pif         = 3.14159265F, // (0x1.921fb6P+1) https://oeis.org/A000796
+                 inv_pif     = .318309886F, // (0x1.45f306P-2) https://oeis.org/A049541
+                 sqrtpif     = 1.77245385F, // (0x1.c5bf8aP+0) https://oeis.org/A002161
+                 inv_sqrtpif = .564189584F, // (0x1.20dd76P-1) https://oeis.org/A087197
+                 sqrt2f      = 1.41421356F, // (0x1.6a09e6P+0) https://oeis.org/A002193
+                 inv_sqrt2f  = .707106781F, // (0x1.6a09e6P-1)
+                 sqrt3f      = 1.73205081F, // (0x1.bb67aeP+0) https://oeis.org/A002194
+                 inv_sqrt3f  = .577350269F, // (0x1.279a74P-1)
+                 phif        = 1.61803399F; // (0x1.9e377aP+0) https://oeis.org/A001622
 } // namespace numbers
 
 /// Create a bitmask with the N right-most bits set to 1, and all other

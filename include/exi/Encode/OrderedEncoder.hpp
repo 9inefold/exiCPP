@@ -499,7 +499,6 @@ public:
   /// Encodes a NS event prefix.
   template <typename StrmT>
   ExiResult<PrefixEntry*> encodePfx(URIEntry* URI, StrRef Pfx) {
-    CachedHashStrRef ChPfx = Strings.prehash(Pfx);
 #if EXI_DEBUG
     if (!this->PreservePrefixes()) {
       LOG_ERROR("Encoded NS prefix with prefixes disabled!");

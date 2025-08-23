@@ -98,7 +98,7 @@ static void DumpArrayNonPacked(u32 FirstLevel, auto& A,
 }
 
 inline void BIEventMap::dumpNonPacked(const ExiOptions& Opts) const {
-  ExiOptions::PreserveOpts Preserve = Opts.Preserve;
+  [[maybe_unused]] ExiOptions::PreserveOpts Preserve = Opts.Preserve;
   errs() << "Document:\n  " << FormatTerm(SD) << 0 << "\n";
 
   errs() << "\nDocContent:\n";
@@ -121,7 +121,7 @@ inline void BIEventMap::dumpNonPacked(const ExiOptions& Opts) const {
 // TODO: Implement
 
 inline void BIEventMap::dumpPacked(const ExiOptions& Opts) const {
-  ExiOptions::PreserveOpts Preserve = Opts.Preserve;
+  [[maybe_unused]] ExiOptions::PreserveOpts Preserve = Opts.Preserve;
   errs() << "Document:\n  " << FormatTerm(SD) << 0 << "\n\n";
   WithColor(errs(), raw_ostream::BRIGHT_RED)
     << "TODO: Implement packed dump!\n\n";

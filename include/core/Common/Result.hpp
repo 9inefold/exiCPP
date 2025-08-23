@@ -134,21 +134,20 @@ protected:
 #ifndef __clang__
     explicit constexpr Impl(std::nullopt_t) {}
 #endif
-    constexpr Impl(const Impl&)
-      requires(!trivial_copy_both<T, E>) = delete;
+    constexpr Impl(const Impl&) = delete;
     constexpr Impl(const Impl&)
       requires(trivial_copy_both<T, E>) = default;
     
-    constexpr Impl(Impl&&)
-      requires(!trivial_move_both<T, E>) = delete;
+    constexpr Impl(Impl&&) = delete;
     constexpr Impl(Impl&&)
       requires(trivial_move_both<T, E>) = default;
     
     constexpr Impl& operator=(const Impl&) = delete;
     constexpr Impl& operator=(Impl&&) = delete;
 
+    template <typename...ArgsT>
     ALWAYS_INLINE constexpr explicit Impl(
-      std::in_place_t, auto&&...Args)
+      std::in_place_t, ArgsT&&...Args)
      : Data(EXI_FWD(Args)...) {}
     
     ALWAYS_INLINE constexpr explicit Impl(
@@ -156,20 +155,18 @@ protected:
      : Unex(EXI_FWD(Args)...) {}
 
     constexpr ~Impl() requires(trivial_dtor_both<T, E>) = default;
-    constexpr ~Impl() requires(!trivial_dtor_both<T, E>) {}
+    constexpr ~Impl() {}
   };
 
   EXI_NO_UNIQUE_ADDRESS Impl X;
   bool Active = true;
 
 public:
-  constexpr StorageBase(const StorageBase&)
-    requires(!trivial_copy_both<T, E>) = delete;
+  constexpr StorageBase(const StorageBase&) = delete;
   constexpr StorageBase(const StorageBase&)
     requires(trivial_copy_both<T, E>) = default;
   
-  constexpr StorageBase(StorageBase&&)
-    requires(!trivial_move_both<T, E>) = delete;
+  constexpr StorageBase(StorageBase&&) = delete;
   constexpr StorageBase(StorageBase&&)
     requires(trivial_move_both<T, E>) = default;
   
@@ -194,9 +191,9 @@ protected:
   inline constexpr StorageBase(ImplInvokeTag, bool IsActive, auto&& O)
    : X(std::nullopt), Active(IsActive) {
     if (IsActive)
-      std::construct_at(&X, std::in_place, EXI_FWD(O).Data);
+      std::construct_at(std::addressof(X.Data), EXI_FWD(O).Data);
     else
-      std::construct_at(&X, unexpect, EXI_FWD(O).Unex);
+      std::construct_at(std::addressof(X.Unex), EXI_FWD(O).Unex);
   }
 #endif
 
@@ -699,28 +696,28 @@ public:
 
   constexpr Result(const Result&) = delete;
   constexpr Result(const Result&) requires(
-      result_detail::trivial_copy_ctor<T>
-   && result_detail::trivial_copy_ctor<E>) = default;
+      result_detail::trivial_copy_both<T, E>) = default;
   
   constexpr Result(const Result& O) requires(
       std::is_copy_constructible_v<Tx>
    && std::is_copy_constructible_v<Ex> && 
-    !(result_detail::trivial_copy_ctor<T>
-   && result_detail::trivial_copy_ctor<E>)) :
+     !result_detail::trivial_copy_both<T, E>) :
     BaseT(InvokeTag{}, O.is_ok(), O.get_union()) {}
   
   constexpr Result(Result&&) = delete;
   constexpr Result(Result&&) requires(
-      result_detail::trivial_move_ctor<T>
-   && result_detail::trivial_move_ctor<E>) = default;
+      result_detail::trivial_move_both<T, E>) = default;
   
   constexpr Result(Result&& O) requires(
       std::is_move_constructible_v<Tx>
    && std::is_move_constructible_v<Ex> && 
-    !(result_detail::trivial_move_ctor<T>
-   && result_detail::trivial_move_ctor<E>)) :
+     !result_detail::trivial_move_both<T, E>) :
     BaseT(InvokeTag{}, O.is_ok(), std::move(O.get_union())) {}
   
+  template <typename U, typename G>
+  constexpr explicit(!can_copy<U, G>) Result(Result<U, G>& O) :
+   BaseT(InvokeTag{}, O.is_ok(), O.get_union()) {}
+
   template <typename U, typename G>
   constexpr explicit(!can_copy<U, G>) Result(const Result<U, G>& O) :
    BaseT(InvokeTag{}, O.is_ok(), O.get_union()) {}

@@ -202,7 +202,7 @@ endif()
 if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
   add_executable(exi-driver Driver.cpp
     DriverTests.cpp XMLDumper.cpp)
-  target_link_libraries(exi-driver exi::exicpp)
+  target_link_libraries(exi-driver PUBLIC exi::exicpp)
   exi_minject(exi-driver CLASSIC BACKUP)
   add_dependencies(exi-exicpp exi-irgen)
 endif()

@@ -863,23 +863,24 @@ static void BoundedTests(int, char*[]) noexcept {
 //===----------------------------------------------------------------===//
 
 static void MaybeBoxTests(int, char*[]) noexcept {
+  using Type = std::pair<String*, bool>;
   MaybeBox<String> MBox;
-  auto Data = [&MBox] { return MBox.dataAndOwned(); };
+  auto Data = [&MBox]() -> Type { return MBox.dataAndOwned(); };
 
   String Stk = "...";
   Option<String&> Opt(Stk);
   Box<String> Bx = std::make_unique<String>("..?");
   Naked<String> Nkd(Bx.get());
 
-  exi_assert((Data() == std::pair{nullptr, false}));
+  exi_assert((Data() == Type{nullptr, false}));
   MBox = Stk;
-  exi_assert((Data() == std::pair{&Stk, false}));
+  exi_assert((Data() == Type{&Stk, false}));
   MBox = Opt;
-  exi_assert((Data() == std::pair{&Stk, false}));
+  exi_assert((Data() == Type{&Stk, false}));
   MBox = Nkd;
-  exi_assert((Data() == std::pair{Bx.get(), false}));
+  exi_assert((Data() == Type{Bx.get(), false}));
   MBox = std::move(Bx);
-  exi_assert((Data() == std::pair{Nkd.get(), true}));
+  exi_assert((Data() == Type{Nkd.get(), true}));
 }
 
 //===----------------------------------------------------------------===//
@@ -1039,12 +1040,13 @@ static void ResultTests(int, char*[]) {
     Result<float, int> Y(Err(F));
     exi_assert(Y.is_err());
 
+    
     Result<String, int> Z("Hello!");
     exi_assert(Z.is_ok());
 
     Z.emplace_error(1);
     exi_assert(Z.is_err());
-
+    
     Result<const char*, short> A("Hello world!");
     exi_assert(A.is_ok());
 
