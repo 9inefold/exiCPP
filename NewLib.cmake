@@ -136,6 +136,7 @@ include_items(EXICPP_STREAM "lib/exi"
   Stream/Stream.cpp
 )
 
+set(EXI_LINK_LIBS exi::core rapidxml::rapidxml)
 function(exi_add_library lib src)
   set(LIBNAME exi-${lib})
   add_library(${LIBNAME} STATIC ${${src}})
@@ -144,15 +145,22 @@ function(exi_add_library lib src)
   target_include_directories(${LIBNAME}
     PUBLIC include
     PRIVATE lib/core lib/exi)
-  target_link_libraries(${LIBNAME} PUBLIC exi::core rapidxml::rapidxml)
+  target_link_libraries(${LIBNAME} PUBLIC ${EXI_LINK_LIBS})
   target_compile_options(${LIBNAME} PRIVATE ${EXI_WARNING_FLAGS})
 endfunction(exi_add_library)
 
 exi_add_library(basic   EXICPP_BASIC)
+list(APPEND EXI_LINK_LIBS exi::basic)
+exi_add_library(stream  EXICPP_STREAM)
+list(APPEND EXI_LINK_LIBS exi::stream)
+
 exi_add_library(decode  EXICPP_DECODE)
 exi_add_library(encode  EXICPP_ENCODE)
 exi_add_library(grammar EXICPP_GRAMMAR)
-exi_add_library(stream  EXICPP_STREAM)
+
+target_link_libraries(exi-decode  PRIVATE exi::encode exi::grammar)
+target_link_libraries(exi-encode  PRIVATE exi::decode exi::grammar)
+target_link_libraries(exi-grammar PRIVATE exi::decode exi::encode)
 
 add_library(exi-exicpp INTERFACE)
 add_library(exi::exicpp ALIAS exi-exicpp)

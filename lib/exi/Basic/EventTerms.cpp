@@ -1,4 +1,4 @@
-//===- exi/Basic/EventCodes.cpp -------------------------------------===//
+//===- exi/Basic/EventTerms.cpp -------------------------------------===//
 //
 // Copyright (C) 2024-2025 Eightfold
 //
@@ -21,9 +21,10 @@
 ///
 //===----------------------------------------------------------------===//
 
-#include <exi/Basic/EventCodes.hpp>
+#include <exi/Basic/EventTerms.hpp>
 #include <core/Common/EnumTraits.hpp>
 #include <core/Common/StrRef.hpp>
+#include <exi/Basic/EventCodes.hpp>
 
 using namespace exi;
 

@@ -178,6 +178,7 @@ inline bool DemangleOptions(ExiOptions& Opts, StrRef Sym) {
     break;
   case 'c':
     Opts.Compression = true;
+    [[fallthrough]];
   case 'p':
     Opts.Alignment = AlignKind::PreCompression;
     break;
