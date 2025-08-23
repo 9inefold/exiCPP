@@ -4,7 +4,7 @@ A C++ implementation of for the Efficient XML Interchange (EXI) format.
 Originally a wrapper for the EXIP library.
 
 Reading and writing are now complete for "schemaless" bit/byte streams.
-A full test suite will be added soon.
+A full test suite will be added soon. Currently Windows Clang only.
 
 ## Background
 

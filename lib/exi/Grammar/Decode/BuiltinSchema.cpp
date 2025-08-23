@@ -89,7 +89,7 @@ EXI_ERROR_CC EXI_MINSIZE static void Diagnose(const ExiResult<T>& Result) {
 /// The Grammar stack stores a compressed pair of [Grammar, Start-Or-Element].
 /// Start-Or-Element is used to modify the behaviour of grammar lookups.
 
-namespace INTERNAL_NS(exi) {
+namespace INTERNAL_NS(exi::decode) {
 
 //===----------------------------------------------------------------===//
 // Ordered Encoding
@@ -531,8 +531,9 @@ private:
   }
 
   BuiltinGrammar* makeGrammar(ExiDecoder* D, SmallQName Name) {
-    auto& BP = Get::BP(D);
-    auto* G = new (BP) BuiltinGrammar(Name);
+    //auto& BP = Get::BP(D);
+    void* Ptr = Get::BP(D).template Allocate<BuiltinGrammar>();
+    auto* G = new (Ptr) BuiltinGrammar(Name);
     auto [It, DidEmplace] = Grammars.try_emplace(Name, G);
     exi_invariant(DidEmplace, "grammar already added");
     return G;
@@ -568,7 +569,7 @@ private:
 
 // ...
 
-} // namespace INTERNAL_NS
+} // namespace exi::decode
 
 template<> void OrderedBuiltinSchema<BitReader>::anchor() {}
 template<> void OrderedBuiltinSchema<ByteReader>::anchor() {}
@@ -616,7 +617,7 @@ void OrderedBuiltinSchema<StrmT>::PrintGrammar(State G) const {
 
   auto PrintEvent = [&] (int Ix) {
     exi_assert(IntCast<unsigned>(At) < BaseT::size());
-    StrRef Name = get_event_fullname(Base[At++]);
+    StrRef Name = exi::get_event_fullname(Base[At++]);
     outs() << "  "
       << format("{: <8}", Name)
       << format("{}{}", Pre, Ix) << '\n';
@@ -683,8 +684,8 @@ EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logCurrentEvent() {
 template <class StrmT>
 EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEvent(EventTerm Term) {
   LOG_INFO("> With {}: {}",
-    get_event_name(Term),
-    get_event_signature(Term)
+    exi::get_event_name(Term),
+    exi::get_event_signature(Term)
   );
 }
 #endif // EXI_LOGGING

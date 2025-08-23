@@ -136,7 +136,7 @@ EXI_MINSIZE static void VisitEvent(const void* Arr, usize N,
 ///   PI ElementContent      n.(m+3).1
 ///
 
-namespace INTERNAL_NS(exi) {
+namespace INTERNAL_NS(exi::encode) {
 
 //===----------------------------------------------------------------===//
 // Ordered Encoding
@@ -789,7 +789,7 @@ CC ExiError OrderedBuiltinSchema<StrmT>::encodeEventSimple(
 
 // ...
 
-} // namespace INTERNAL_NS
+} // namespace exi::encode
 
 template<> void OrderedBuiltinSchema<BitWriter>::anchor() {}
 template<> void OrderedBuiltinSchema<ByteWriter>::anchor() {}
@@ -847,9 +847,10 @@ EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEventEx(
 template <is_ordwriter_stream StrmT>
 EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logEventEx(
  const void*, usize N, SimpleEventTerm K) {
+  using enum exi::raw_ostream::Colors;
   if (!hasDbgLogLevel(VERBOSE))
     return;
-  WithColor(dbgs(), raw_ostream::BRIGHT_MAGENTA)
+  WithColor(dbgs(), BRIGHT_MAGENTA)
     << format("Batch of {}[{}]\n", get_event_name(K), N);
 }
 #endif // EXI_LOGGING
