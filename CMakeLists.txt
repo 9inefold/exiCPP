@@ -60,7 +60,7 @@ else()
   set(EXI_WARNING_FLAGS -Wall -Wextra
     -Wno-unused-variable -Wno-unused-function
     -Wno-unused-parameter -Wno-ignored-qualifiers
-    -Wmismatched-new-delete)
+    -Wmismatched-new-delete) # TODO: Remove -Wmismatched-new-delete
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GCC")
     # GCC only flags
     #set(EXI_FLAGS "${EXI_FLAGS} -Wuninitialized=precise")

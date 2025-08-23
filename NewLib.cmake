@@ -208,6 +208,7 @@ else()
 endif()
 
 if(EXI_TESTS)
+  include(TestSetup.cmake)
   add_subdirectory(unittests)
   add_subdirectory(tests)
 endif()
