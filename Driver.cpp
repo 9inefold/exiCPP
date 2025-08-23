@@ -631,7 +631,8 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     HasCookie = Decoder.hasCookie();
     SetLogLevel(LogLevel::WARN);
     WithColor(errs(), BRIGHT_GREEN)
-      << "Decoding successful!\n\n";
+      << "Decoding successful: "
+      << exi_mangle_header(Decoder.header()) << "!\n\n";
   }
   /*Encoding*/ {
     SmallStr<80> File;

@@ -200,4 +200,14 @@ EXI_READNONE inline constexpr PreserveBuilder
   return Opts;
 }
 
+//////////////////////////////////////////////////////////////////////////
+// Mangling
+
+/// Produces a unique string from the option values.
+String exi_mangle_options(const ExiOptions& Opts);
+
+/// Produces a unique string from the option values.
+/// @returns `true` on success.
+bool exi_demangle_options(ExiOptions& Opts, StrRef Sym);
+
 } // namespace exi

@@ -24,6 +24,7 @@
 #include <exi/Basic/ExiHeader.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
+#include <Basic/Mangling-inl.hpp>
 
 #define DEBUG_TYPE "ExiHeader"
 
@@ -58,4 +59,18 @@ ExiError exi::FixupAndValidateHeader(const ExiHeader& Header) {
   // TODO: If permissive, set to closest version?
   exi_try(exi::ValidateHeaderOnly(Header));
   return exi::FixupAndValidateOptions(*Header.Opts);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Mangling
+
+String exi::exi_mangle_header(const ExiHeader& Header) {
+  String Out;
+  raw_string_ostream OS(Out);
+  MangleHeader(Header, OS);
+  return Out;
+}
+
+bool exi::exi_demangle_header(ExiHeader& Header, StrRef Sym) {
+  return DemangleHeader(Header, Sym);
 }

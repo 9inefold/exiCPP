@@ -25,6 +25,7 @@
 #include <core/Common/Option.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
+#include <Basic/Mangling-inl.hpp>
 
 #define DEBUG_TYPE "ExiOptions"
 
@@ -151,4 +152,18 @@ ExiError exi::FixupAndValidateOptions(ExiOptions& Opts) {
   }
 
   return ValidateCommon(Opts);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Mangling
+
+String exi::exi_mangle_options(const ExiOptions& Opts) {
+  String Out;
+  raw_string_ostream OS(Out);
+  MangleOptions(Opts, OS);
+  return Out;
+}
+
+bool exi::exi_demangle_options(ExiOptions& Opts, StrRef Sym) {
+  return DemangleOptions(Opts, Sym);
 }

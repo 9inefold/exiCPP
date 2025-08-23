@@ -24,6 +24,7 @@
 #pragma once
 
 #include <core/Common/MaybeBox.hpp>
+#include <core/Common/D/Str.hpp>
 #include <exi/Basic/ExiOptions.hpp>
 
 namespace exi {
@@ -58,5 +59,15 @@ ExiError ValidateHeader(const ExiHeader& Header);
 
 /// Will verify header validity, passing `Opts` to be fixed up.
 ExiError FixupAndValidateHeader(const ExiHeader& Header);
+
+//////////////////////////////////////////////////////////////////////////
+// Mangling
+
+/// Produces a unique string from the header values.
+String exi_mangle_header(const ExiHeader& Header);
+
+/// Produces a unique string from the header values.
+/// @returns `true` on success.
+bool exi_demangle_header(ExiHeader& Header, StrRef Sym);
 
 } // namespace exi

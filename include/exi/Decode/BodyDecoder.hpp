@@ -100,6 +100,7 @@ public:
   //ExiDecoder(ExiDecoder&& O);
   ~ExiDecoder() = default;
 
+  const ExiHeader& header() const { return Header; }
   /// Get the state flags.
   DecoderFlags flags() const { return Flags; }
   /// Returns if the header was successfully decoded.
