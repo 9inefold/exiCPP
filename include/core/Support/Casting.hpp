@@ -614,7 +614,7 @@ template <typename T, typename Enable = void> struct ValueIsPresent {
 };
 
 // Optional provides its own way to check if something is present.
-template <typename T> struct ValueIsPresent<exi::Option<T>> {
+template <typename T> struct ValueIsPresent<exi::Option<T>, void> {
   using UnwrappedType = T;
   static inline bool isPresent(const exi::Option<T> &t) {
     return t.has_value();

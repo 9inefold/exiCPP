@@ -1,4 +1,4 @@
-add_exi_unittest(CommonTests
+add_exi_unittest(Common
   AnyTest.cpp
   #APFixedPointTest.cpp
   #APFloatTest.cpp

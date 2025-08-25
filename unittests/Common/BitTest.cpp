@@ -9,7 +9,7 @@
 //===----------------------------------------------------------------===//
 
 #include <core/Common/bit.hpp>
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 #include <cstdint>
 #include <cstdlib>
 

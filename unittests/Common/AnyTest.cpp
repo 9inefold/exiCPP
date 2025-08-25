@@ -9,7 +9,7 @@
 //===----------------------------------------------------------------===//
 
 #include <core/Common/Any.hpp>
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 #include <cstdlib>
 
 using namespace exi;
