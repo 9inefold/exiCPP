@@ -105,7 +105,7 @@ add_exi_unittest(Support
   #buffer_ostream_test.cpp
   #formatted_raw_ostream_test.cpp
   #raw_fd_stream_test.cpp
-  #raw_ostream_test.cpp
+  raw_ostream_test.cpp
   #raw_pwrite_stream_test.cpp
   #raw_socket_stream_test.cpp
 )
