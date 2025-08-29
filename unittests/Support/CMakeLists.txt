@@ -14,7 +14,7 @@ add_exi_unittest(Support
   #CachePruningTest.cpp
   #CrashRecoveryTest.cpp
   #Caching.cpp
-  #CastingTest.cpp
+  CastingTest.cpp
   #CheckedArithmeticTest.cpp
   #Chrono.cpp
   #CommandLineTest.cpp

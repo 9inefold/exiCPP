@@ -567,6 +567,40 @@ ALWAYS_INLINE constexpr auto
 }
 
 //////////////////////////////////////////////////////////////////////////
+// is_option[...]
+
+namespace H {
+
+template <typename T>
+struct IsOptionImpl : std::false_type {
+  static constexpr bool is_value = false;
+  static constexpr bool is_ref = false;
+};
+
+template <typename T>
+struct IsOptionImpl<Option<T>> : std::true_type {
+  static constexpr bool is_value = true;
+  static constexpr bool is_ref = false;
+};
+
+template <typename T>
+struct IsOptionImpl<Option<T&>> : std::true_type {
+  static constexpr bool is_value = false;
+  static constexpr bool is_ref = true;
+};
+
+template <typename T>
+concept is_option = IsOptionImpl<T>::value;
+
+template <typename T>
+concept is_value_option = IsOptionImpl<T>::is_value;
+
+template <typename T>
+concept is_ref_option = IsOptionImpl<T>::is_ref;
+
+} // namespace H
+
+//////////////////////////////////////////////////////////////////////////
 // Other Functions
 
 using std::nullopt_t;

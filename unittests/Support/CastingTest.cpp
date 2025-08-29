@@ -177,7 +177,7 @@ TEST(CastingTest, cast) {
   foo *F8 = B1.baz();
   EXPECT_NE(F8, null_foo);
 
-  std::unique_ptr<const bar> BP(B2);
+  Box<const bar> BP(B2);
   auto FP = cast<foo>(std::move(BP));
   static_assert(std::same_as<Box<const foo>, decltype(FP)>,
                 "Incorrect deduced return type!");
@@ -197,7 +197,7 @@ TEST(CastingTest, cast_or_null) {
   foo *F15 = B1.caz();
   EXPECT_NE(F15, null_foo);
 
-  std::unique_ptr<const bar> BP(fub());
+  Box<const bar> BP(fub());
   auto FP = cast_or_null<foo>(std::move(BP));
   EXPECT_EQ(FP.get(), null_foo);
 }

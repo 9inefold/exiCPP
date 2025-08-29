@@ -21,6 +21,8 @@
 #include <cassert>
 #include <memory>
 
+#include <Common/QualTraits.hpp>
+
 namespace exi {
 
 //===----------------------------------------------------------------------===//
@@ -38,7 +40,8 @@ template <typename From> struct simplify_type {
 };
 
 template <typename From> struct simplify_type<const From> {
-  using SimpleType = typename simplify_type<From>::SimpleType;
+  using NonConstSimpleType = typename simplify_type<From>::SimpleType;
+  using SimpleType = add_const_past_pointer_t<NonConstSimpleType>;
   using RetType = add_lvalue_reference_if_not_pointer_t<SimpleType>;
 
   static RetType getSimplifiedValue(const From &Val) {
@@ -353,6 +356,12 @@ struct UniquePtrCast : public CastIsPossible<To, From *> {
   using CastResultType = exi::Box<
       std::remove_reference_t<cast_retty_t<To, From>>>;
 
+  using CastIsPossible<To, From *>::isPossible;
+
+  ALWAYS_INLINE static bool isPossible(const exi::Box<From> &f) {
+    return CastIsPossible<To, From *>::isPossible(f.get());
+  }
+
   static inline CastResultType doCast(exi::Box<From> &&f) {
     return CastResultType((typename CastResultType::element_type *)f.release());
   }
@@ -622,9 +631,19 @@ template <typename T> struct ValueIsPresent<exi::Option<T>, void> {
   static inline decltype(auto) unwrapValue(exi::Option<T> &t) { return *t; }
 };
 
+// Optional provides its own way to check if something is present.
+template <typename T> struct ValueIsPresent<exi::Option<T&>, void> {
+  using UnwrappedType = T;
+  static inline bool isPresent(const exi::Option<T&> &t) {
+    return t.has_value();
+  }
+  static inline decltype(auto) unwrapValue(const exi::Option<T&> &t) { return *t; }
+};
+
 // If something is "nullable" then we just compare it to nullptr to see if it
 // exists.
 template <typename T>
+requires (!H::is_option<T>)
 struct ValueIsPresent<T, std::enable_if_t<IsNullable<T>>> {
   using UnwrappedType = T;
   static inline bool isPresent(const T &t) { return t != T(nullptr); }

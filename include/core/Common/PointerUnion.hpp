@@ -249,6 +249,11 @@ struct CastInfo<To, PointerUnion<PTs...>>
   static inline To castFailed() { return To(); }
 };
 
+template <typename To, typename...PTs>
+struct CastInfo<To, const PointerUnion<PTs...>> : public
+  ConstStrippingForwardingCast<To, const PointerUnion<PTs...>,
+    CastInfo<To, PointerUnion<PTs...>>> {};
+
 // Teach SmallPtrSet that PointerUnion is "basically a pointer", that has
 // # low bits available = min(PT1bits,PT2bits)-1.
 template <typename...PTs>
