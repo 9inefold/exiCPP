@@ -9,10 +9,10 @@ endif()
 ##########################################################################
 
 add_custom_target(core-unittests)
+set_target_properties(core-unittests PROPERTIES EXI_SUBPROJECT_NAME core)
 function(add_exi_unittest test_dirname)
   message(STATUS "Adding ${test_dirname}")
   add_unittest(core-unittests ${test_dirname} ${ARGN})
-  # set_target_properties(${test_dirname}Tests PROPERTIES FOLDER "Tests/${core}/Unit")
 endfunction()
 
 add_subdirectory(Common)
@@ -23,6 +23,7 @@ add_subdirectory(Support)
 ##########################################################################
 
 add_custom_target(exi-unittests)
+set_target_properties(exi-unittests PROPERTIES EXI_SUBPROJECT_NAME exi)
 function(add_exi_unittest test_dirname)
   message(STATUS "Adding ${test_dirname}")
   add_unittest(exi-unittests ${test_dirname} ${ARGN})

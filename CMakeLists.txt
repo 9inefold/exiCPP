@@ -22,6 +22,9 @@ set(EFL_NAMESPACE exi) # Unused... for now
 
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
 
+define_property(TARGET PROPERTY EXI_SUBPROJECT_NAME)
+define_property(TEST PROPERTY EXI_SUBPROJECT_NAME)
+
 # TODO: Remove when complete?
 option(EXI_DRIVER       "If the driver should be built (always ON at top level)." OFF)
 option(EXI_TESTS        "If tests should be run." OFF)
