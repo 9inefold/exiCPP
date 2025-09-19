@@ -115,6 +115,8 @@ public:
 
   /// Creates a new `ExiEncoder` if options are valid.
   static ExiResult<ExiEncoder> New(MaybeBox<ExiOptions>&& Opts);
+  /// Sets header-only data.
+  ExiError setHeaderOnly(ExiHeaderOnly Data);
   /// Sets options for encoding.
   ExiError setOptions(MaybeBox<ExiOptions>&& Opts);
   /// Sets whether the $EXI cookie will be encoded.

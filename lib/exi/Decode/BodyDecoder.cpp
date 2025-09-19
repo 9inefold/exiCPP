@@ -70,6 +70,14 @@ ExiDecoder::ExiDecoder(MaybeBox<ExiOptions>&& Opts, ExiError* Err) {
 //  O.Flags.DidInit   = false;
 //}
 
+ExiResult<ExiHeaderOnly> ExiDecoder::headerOnly() const {
+  if (!Flags.DidHeader) {
+    LOG_ERROR("Header has not been initialized.");
+    return Err(ErrorCode::kUnexpectedError);
+  }
+  return GetHeaderOnlyData(this->Header);
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Initialization
 

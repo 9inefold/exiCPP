@@ -75,6 +75,19 @@ ExiResult<ExiEncoder> ExiEncoder::New(MaybeBox<ExiOptions>&& Opts) {
   return ExiEncoder(assumed_valid_tag{}, std::move(Opts));
 }
 
+ExiError ExiEncoder::setHeaderOnly(ExiHeaderOnly Data) {
+  if (Flags.DidHeader || Flags.DidInit) {
+    LOG_ERROR("Header has already been written.");
+    return ExiError::kInvalidConfig;
+  }
+
+  if (ExiError E = ValidateHeaderOnly(Data))
+    return E;
+
+  SetHeaderOnlyData(Header, Data);
+  return ExiError::OK;
+}
+
 ExiError ExiEncoder::setOptions(MaybeBox<ExiOptions>&& Opts) {
   if (Flags.DidHeader || Flags.DidInit) {
     LOG_ERROR("Header has already been written.");

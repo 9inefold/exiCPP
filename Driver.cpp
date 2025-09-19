@@ -602,8 +602,9 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
   Option<ExiDecoder> EDecoder;
   Option<XMLDeserializer> ExiS;
 
-  bool HasCookie = false;
-  const bool HasOptions = false;
+  ExiHeaderOnly HdrOnlyOpts {.HasOptions = false};
+  const bool& HasCookie = HdrOnlyOpts.HasCookie;
+  const bool& HasOptions = HdrOnlyOpts.HasOptions;
 
   if (!ExiFile.empty()) {
     SmallStr<80> File;
@@ -628,8 +629,16 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
       return Ret;
     }
 
-    HasCookie = Decoder.hasCookie();
     SetLogLevel(LogLevel::WARN);
+    auto HOOptsOrErr = Decoder.headerOnly();
+    if (HOOptsOrErr.is_err()) {
+      WithColor(errs(), BRIGHT_RED)
+        << "Decoding failed? "
+        << HOOptsOrErr.error() << '\n';
+      return 1;
+    }
+
+    HdrOnlyOpts = *HOOptsOrErr;
     WithColor(errs(), BRIGHT_GREEN)
       << "Decoding successful: "
       << exi_mangle_header(Decoder.header()) << "!\n\n";
@@ -655,10 +664,12 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
 
     ExiEncoder Encoder = std::move(*EncoderOrErr);
     XMLSerializer S(&Xml);
-    Encoder.hdrHasCookie(HasCookie)
+    Encoder.setHeaderOnly(HdrOnlyOpts)
       .expect("Options already compiled??");
-    Encoder.hdrHasOptions(HasOptions)
-      .expect("Options already compiled??");
+    //Encoder.hdrHasCookie(HasCookie)
+    //  .expect("Options already compiled??");
+    //Encoder.hdrHasOptions(HasOptions)
+    //  .expect("Options already compiled??");
 
     SetLogLevel(CoderLogLevel);
     LOG_INFO("Compiling header...");

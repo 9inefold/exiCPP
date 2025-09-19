@@ -105,6 +105,8 @@ public:
   DecoderFlags flags() const { return Flags; }
   /// Returns if the header was successfully decoded.
   bool didHeader() const { return Flags.DidHeader; }
+  /// Gets the header-only data.
+  ExiResult<ExiHeaderOnly> headerOnly() const;
   /// Checks if header has cookie.
   bool hasCookie() const { return Header.HasCookie; }
   /// Returns the bit position of the reader.

@@ -31,6 +31,22 @@ namespace exi {
 
 inline constexpr u32 kCurrentExiVersion = 1;
 
+/// Exi header without the options.
+struct ExiHeaderOnly {
+  /// If the file begins with "$EXI".
+  bool HasCookie : 1 = false;
+
+  /// If the header has options.
+  bool HasOptions : 1 = true;
+
+  /// If the version is a preview.
+  bool IsPreviewVersion : 1 = false;
+
+  /// If the version is a preview
+  u32 ExiVersion = kCurrentExiVersion;
+};
+
+/// Exi header, including the options.
 struct ExiHeader {
   EXI_PREFER_TYPE(bool)
   /// If the file begins with "$EXI".
@@ -52,6 +68,9 @@ struct ExiHeader {
 };
 
 /// Will verify header validity without checking options.
+ExiError ValidateHeaderOnly(ExiHeaderOnly Header);
+
+/// Will verify header validity without checking options.
 ExiError ValidateHeaderOnly(const ExiHeader& Header);
 
 /// Will verify header validity without modification.
@@ -59,6 +78,24 @@ ExiError ValidateHeader(const ExiHeader& Header);
 
 /// Will verify header validity, passing `Opts` to be fixed up.
 ExiError FixupAndValidateHeader(const ExiHeader& Header);
+
+/// Extracts `ExiHeader` data to an `ExiHeaderOnly`.
+inline ExiHeaderOnly GetHeaderOnlyData(const ExiHeader& Data) {
+  ExiHeaderOnly Out {};
+  Out.HasCookie         = Data.HasCookie;
+  Out.HasOptions        = Data.HasOptions;
+  Out.IsPreviewVersion  = Data.IsPreviewVersion;
+  Out.ExiVersion        = Data.ExiVersion;
+  return Out;
+}
+
+/// Sets `ExiHeader` data with an `ExiHeaderOnly`.
+inline void SetHeaderOnlyData(ExiHeader& Out, ExiHeaderOnly Data) {
+  Out.HasCookie         = Data.HasCookie;
+  Out.HasOptions        = Data.HasOptions;
+  Out.IsPreviewVersion  = Data.IsPreviewVersion;
+  Out.ExiVersion        = Data.ExiVersion;
+}
 
 //////////////////////////////////////////////////////////////////////////
 // Mangling

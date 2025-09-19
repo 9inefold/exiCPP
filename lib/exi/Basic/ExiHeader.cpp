@@ -30,15 +30,8 @@
 
 using namespace exi;
 
-ExiError exi::ValidateHeaderOnly(const ExiHeader& Header) {
-  // Ensure options are provided.
-  // TODO: If permissive mode is added, allow deferred validation.
-  if (!Header.Opts) {
-    LOG_ERROR("options must be provided!");
-    // FIXME: Incorrect error message for encoding
-    return ExiError::Header();
-  }
-
+template <typename HeaderT>
+static ExiError ValidateHeaderOnlyImpl(const HeaderT& Header) {
   // Validate version.
   if (Header.IsPreviewVersion)
     return ExiError::HeaderVer();
@@ -46,8 +39,23 @@ ExiError exi::ValidateHeaderOnly(const ExiHeader& Header) {
     return ExiError::HeaderVer(Header.ExiVersion);
   else if (Header.ExiVersion == 0)
     return ExiError::HeaderVer(0);
-
+  
   return ExiError::OK;
+}
+
+EXI_FLATTEN ExiError exi::ValidateHeaderOnly(const ExiHeader& Header) {
+  // Ensure options are provided.
+  // TODO: If permissive mode is added, allow deferred validation.
+  if (!Header.Opts) {
+    LOG_ERROR("options must be provided!");
+    // FIXME: Incorrect error message for encoding
+    return ExiError::Header();
+  }
+  return ValidateHeaderOnlyImpl(Header);
+}
+
+EXI_FLATTEN ExiError exi::ValidateHeaderOnly(ExiHeaderOnly Header) {
+  return ValidateHeaderOnlyImpl(Header);
 }
 
 ExiError exi::ValidateHeader(const ExiHeader& Header) {
