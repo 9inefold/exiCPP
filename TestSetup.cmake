@@ -25,8 +25,10 @@ function(add_unittest test_suite test_name)
   set(test_target_name "${test_name}Tests")
   get_target_property(test_suite_NAME ${test_suite} EXI_SUBPROJECT_NAME)
 
-  add_executable(${test_target_name} ${ARGN})
-  target_link_libraries(${test_target_name} PRIVATE gtest gtest_main)
+  add_executable(${test_target_name} ${EXI_BASE_FOLDER}/unittests/TestDriver.cpp ${ARGN})
+  target_link_libraries(${test_target_name} PRIVATE gtest)
+  #add_executable(${test_target_name} ${ARGN})
+  #target_link_libraries(${test_target_name} PRIVATE gtest gtest_main)
   target_compile_options(${test_target_name} PRIVATE ${EXI_WARNING_FLAGS})
   set_target_properties(${test_target_name} PROPERTIES
     FOLDER "${test_suite_NAME}/Tests/Unit"
@@ -36,11 +38,14 @@ function(add_unittest test_suite test_name)
   #get_target_property(test_FOLDER ${test_target_name} FOLDER)
   #message(STATUS "${test_name}-FOLDER: ${test_FOLDER}")
 
-  add_test(NAME ${test_name} COMMAND $<TARGET_FILE:${test_target_name}>)
+  #add_test(NAME ${test_name} COMMAND $<TARGET_FILE:${test_target_name}>)
   #set_property(TEST ${test_name} APPEND PROPERTY LABELS ${test_suite_NAME})
-  set_tests_properties(${test_name} PROPERTIES LABELS "${test_suite_NAME}")
+  #set_tests_properties(${test_name} PROPERTIES LABELS "${test_suite_NAME}")
   add_dependencies(${test_suite} ${test_target_name})
-  gtest_discover_tests(${test_target_name})
+  gtest_discover_tests(${test_target_name}
+    TEST_PREFIX "${test_suite_NAME}.${test_name}."
+    PROPERTIES LABELS "${test_suite_NAME}"
+  )
 
   #get_test_property(${test_name} LABELS test_LABELS)
   #message(STATUS "${test_name}-LABELS: '${test_LABELS}'")
