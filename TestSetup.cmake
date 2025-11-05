@@ -31,7 +31,7 @@ function(add_unittest test_suite test_name)
   #target_link_libraries(${test_target_name} PRIVATE gtest gtest_main)
   target_compile_options(${test_target_name} PRIVATE ${EXI_WARNING_FLAGS})
   set_target_properties(${test_target_name} PROPERTIES
-    FOLDER "${test_suite_NAME}/Tests/Unit"
+    #FOLDER "${test_suite_NAME}/Tests/Unit"
     EXI_SUBPROJECT_NAME "${test_suite_NAME}"
   )
 
