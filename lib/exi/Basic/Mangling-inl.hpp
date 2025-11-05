@@ -117,12 +117,14 @@ inline void MangleOptions(const ExiOptions& Opts, raw_ostream& OS) {
     OS << 'M' << *Opts.ValueMaxLength;
 
   // ValuePartitionCapacity:
-  //  If bounded: 
+  //  If bounded:
   //   P<N>: length (P if compressed or has max length)
   //  Otherwise ommitted
   if (Opts.ValuePartitionCapacity.bounded())
     // TODO: Use base64?
     OS << 'P' << *Opts.ValuePartitionCapacity;
+  
+  // TODO: Add options for DTRMap
 }
 
 /// Implements header mangling for generic types.

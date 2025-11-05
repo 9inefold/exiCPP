@@ -32,6 +32,7 @@
 #include <core/Common/Option.hpp>
 #include <core/Common/StringMap.hpp>
 #include <exi/Basic/Bounded.hpp>
+#include <exi/Basic/Mangling.hpp>
 
 namespace exi {
 class ExiError;
@@ -199,15 +200,5 @@ EXI_READNONE inline constexpr PreserveBuilder
 #undef MARK_PRESERVED
   return Opts;
 }
-
-//////////////////////////////////////////////////////////////////////////
-// Mangling
-
-/// Produces a unique string from the option values.
-String exi_mangle_options(const ExiOptions& Opts);
-
-/// Produces a unique string from the option values.
-/// @returns `true` on success.
-bool exi_demangle_options(ExiOptions& Opts, StrRef Sym);
 
 } // namespace exi

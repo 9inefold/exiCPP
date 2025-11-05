@@ -26,6 +26,7 @@
 #include <core/Common/MaybeBox.hpp>
 #include <core/Common/D/Str.hpp>
 #include <exi/Basic/ExiOptions.hpp>
+#include <exi/Basic/Mangling.hpp>
 
 namespace exi {
 
@@ -96,15 +97,5 @@ inline void SetHeaderOnlyData(ExiHeader& Out, ExiHeaderOnly Data) {
   Out.IsPreviewVersion  = Data.IsPreviewVersion;
   Out.ExiVersion        = Data.ExiVersion;
 }
-
-//////////////////////////////////////////////////////////////////////////
-// Mangling
-
-/// Produces a unique string from the header values.
-String exi_mangle_header(const ExiHeader& Header);
-
-/// Produces a unique string from the header values.
-/// @returns `true` on success.
-bool exi_demangle_header(ExiHeader& Header, StrRef Sym);
 
 } // namespace exi
