@@ -26,7 +26,7 @@ endif()
 add_subdirectory(ordered)
 
 add_test(
-  NAME roundtrip-tests
+  NAME roundtrip
   COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/Tests.py
     --java ${Java_JAVA_EXECUTABLE}
     --jar ${EXIFICIENT_JAR}
