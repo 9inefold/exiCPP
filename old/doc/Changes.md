@@ -8,7 +8,7 @@ Here are the major ones:
 
 The first thing I worked on was making debug information prettier.
 This meant adding file, line, and statement information.
-To handle this, I added [``errorHandle.c``](https://github.com/8ightfold/exiCPP/blob/main/vendored/exip/src/common/src/errorHandle.c).
+To handle this, I added [``errorHandle.c``](https://github.com/9inefold/exiCPP/blob/main/vendored/exip/src/common/src/errorHandle.c).
 The new functions implented optional ANSI printing,
 as well as formatting for the new debugging information.
 
@@ -16,10 +16,10 @@ as well as formatting for the new debugging information.
 
 While testing compression, I found that the program would
 sometimes crash seemingly at random.
-The crash happened in [``decodeStringValue``](https://github.com/8ightfold/exiCPP/blob/517d6a8ac6b9eee84d63702de84087e953dc403c/vendored/exip/src/contentIO/src/bodyDecode.c#L884) when the crosstable would sometimes get massively out of bounds indexes.
+The crash happened in [``decodeStringValue``](https://github.com/9inefold/exiCPP/blob/517d6a8ac6b9eee84d63702de84087e953dc403c/vendored/exip/src/contentIO/src/bodyDecode.c#L884) when the crosstable would sometimes get massively out of bounds indexes.
 After an hour of debugging, I realized the mistake.
 
-In [``decodeNBitUnsignedInteger``](https://github.com/8ightfold/exiCPP/blob/73c0b321b1d1b3944bd46fbdc30eed3c3d9b60ce/vendored/exip/src/streamIO/src/streamDecode.c#L54), you had the following:
+In [``decodeNBitUnsignedInteger``](https://github.com/9inefold/exiCPP/blob/73c0b321b1d1b3944bd46fbdc30eed3c3d9b60ce/vendored/exip/src/streamIO/src/streamDecode.c#L54), you had the following:
 
 ```cpp
 unsigned long tmp_byte_buf = 0;
@@ -114,7 +114,7 @@ The runtime was reduced to **7 seconds**.
 My final optimization was to update the hashtable.
 The old implementation was from 2002, using the DJB hashing algorithm.
 While it was probably good for the time, it was time for it to go.
-I replaced it with my own [C port](https://github.com/8ightfold/exiCPP/blob/517d6a8ac6b9eee84d63702de84087e953dc403c/vendored/exip/src/common/src/new_hashtable.c) of LLVM's ``StringMap``, alongside [rapidhash](https://github.com/Nicoshev/rapidhash).
+I replaced it with my own [C port](https://github.com/9inefold/exiCPP/blob/517d6a8ac6b9eee84d63702de84087e953dc403c/vendored/exip/src/common/src/new_hashtable.c) of LLVM's ``StringMap``, alongside [rapidhash](https://github.com/Nicoshev/rapidhash).
 
 With that, I got the encoding time down to **2.5 seconds**!
 This means even extremely large files can be encoded with exiCPP.
