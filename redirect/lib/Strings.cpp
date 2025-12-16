@@ -18,7 +18,7 @@
 ///
 /// \file
 /// This file implements utilities for dealing with strings.
-/// See https://github.com/8ightfold/headless-compiler/blob/main/hc-rt/xcrt/Generic/String/Utils.hpp
+/// See https://github.com/9inefold/headless-compiler/blob/main/hc-rt/xcrt/Generic/String/Utils.hpp
 ///
 //===----------------------------------------------------------------===//
 

@@ -18,7 +18,7 @@
 ///
 /// \file
 /// This file declares the ntdll imports.
-/// Adapted from https://github.com/8ightfold/headless-compiler/blob/main/hc-rt/include/Bootstrap/Win64KernelDefs.hpp
+/// Adapted from https://github.com/9inefold/headless-compiler/blob/main/hc-rt/include/Bootstrap/Win64KernelDefs.hpp
 ///
 //===----------------------------------------------------------------===//
 
