@@ -10,7 +10,7 @@
  * @brief Implementation of debug printing.
  *
  * @date Oct 3, 2024
- * @author Eightfold
+ * @author Ninefold
  * @version 0.5
  * @par[Revision] $Id$
  */
