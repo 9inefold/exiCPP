@@ -38,6 +38,7 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## Not Started
 
+- Change schema from `Box<String>` to regular `String`
 - Implement `StackExhaustionHandler`
 - Fix `CDATA` parsing
 - Split out implementation of `ExiDecoder` like with `ExiEncoder`

@@ -96,7 +96,7 @@ struct ExiOptions;
 /// Produces a unique string from the header values.
 String exi_mangle_header(const ExiHeader& Header);
 
-/// Produces a unique string from the header values.
+/// Produces header values from a mangled string.
 /// @returns `true` on success.
 bool exi_demangle_header(ExiHeader& Header, StrRef Sym);
 
@@ -105,7 +105,7 @@ bool exi_demangle_header(ExiHeader& Header, StrRef Sym);
 /// Produces a unique string from the option values.
 String exi_mangle_options(const ExiOptions& Opts);
 
-/// Produces a unique string from the option values.
+/// Produces option values from a mangled string.
 /// @returns `true` on success.
 bool exi_demangle_options(ExiOptions& Opts, StrRef Sym);
 

@@ -97,6 +97,7 @@ include_items(EXICPP_BASIC "lib/exi"
   Basic/NBitInt.cpp
   Basic/Runes.cpp
   Basic/XML.cpp
+  Basic/XMLCompare.cpp
   Basic/XMLContainer.cpp
   Basic/XMLManager.cpp
 )
@@ -220,3 +221,6 @@ if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
   exi_minject(exi-driver CLASSIC BACKUP)
   add_dependencies(exi-exicpp exi-irgen)
 endif()
+
+add_executable(exi-xml-compare XMLCompareDriver.cpp)
+target_link_libraries(exi-xml-compare PUBLIC exi::exicpp)
