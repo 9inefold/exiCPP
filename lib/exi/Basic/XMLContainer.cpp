@@ -178,6 +178,52 @@ static String FormatParseError(MemoryBuffer& MB,
   return Out;
 }
 
+Error exi::parseXMLFromBuffer(XMLDocument& Doc, WritableMemoryBuffer& MB,
+                              bool Immutable, bool Strict) {
+  LOG_EXTRA("Parsing '{}'.", MB.getBufferIdentifier());
+  try {
+    // FIXME: Make this an atomic increment in threaded mode.
+    ScopedSave S(xml::use_exceptions_anyway, true);
+    // Try to parse with the container's qualifiers.
+    ParseWithQuals(Doc, MB, Immutable, Strict);
+    return Error::success();
+  } catch (const std::exception& Ex) {
+    LOG_ERROR("Failed to parse file '{}'", MB.getBufferStart());
+#if !RAPIDXML_NO_EXCEPTIONS
+    /// Check if it's rapidxml's wee type
+    if (auto* PEx = dynamic_cast<const xml::parse_error*>(&Ex)) {
+      LOG_EXTRA("Error type is 'xml::parse_error'");
+      return createStringError(FormatParseError(MB, *PEx));
+    }
+#endif
+    return createStringError(Ex.what());
+  }
+}
+
+Error exi::parseXMLFromBuffer(XMLDocument& Doc, MemoryBuffer& MB, bool Strict) {
+  LOG_EXTRA("Parsing '{}'.", MB.getBufferIdentifier());
+  try {
+    // FIXME: Make this an atomic increment in threaded mode.
+    ScopedSave S(xml::use_exceptions_anyway, true);
+    char* MBS = const_cast<char*>(MB.getBufferStart());
+    if (!Strict)
+      Doc.parse<kImmutable | xml::parse_all>(MBS);
+    else
+      Doc.parse<kImmutable>(MBS);
+    return Error::success();
+  } catch (const std::exception& Ex) {
+    LOG_ERROR("Failed to parse file '{}'", MB.getBufferIdentifier());
+#if !RAPIDXML_NO_EXCEPTIONS
+    /// Check if it's rapidxml's wee type
+    if (auto* PEx = dynamic_cast<const xml::parse_error*>(&Ex)) {
+      LOG_EXTRA("Error type is 'xml::parse_error'");
+      return createStringError(FormatParseError(MB, *PEx));
+    }
+#endif
+    return createStringError(Ex.what());
+  }
+}
+
 Expected<XMLDocument&> XMLContainer::parse() const {
   // The parse results were cached.
   if (isParsed())
@@ -197,7 +243,7 @@ Expected<XMLDocument&> XMLContainer::parse() const {
     this->Parsed = true;
     return TheDocument;
   } catch (const std::exception& Ex) {
-    LOG_ERROR("Failed to read file '{}'", ME->getKey());
+    LOG_ERROR("Failed to parse file '{}'", ME->getKey());
 #if !RAPIDXML_NO_EXCEPTIONS
     /// Check if it's rapidxml's wee type
     if (auto* PEx = dynamic_cast<const xml::parse_error*>(&Ex)) {

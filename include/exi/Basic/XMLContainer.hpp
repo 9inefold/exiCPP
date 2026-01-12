@@ -34,6 +34,7 @@
 
 namespace exi {
 
+class MemoryBuffer;
 class MemoryBufferRef;
 class WritableMemoryBuffer;
 
@@ -125,5 +126,12 @@ private:
   Error makeError(const std::error_code& EC) const;
   Error makeError(const Twine& Msg) const;
 };
+
+/// Parses document with a writable memory buffer.
+Error parseXMLFromBuffer(XMLDocument& Doc, WritableMemoryBuffer& MB,
+                         bool Immutable = false, bool Strict = false);
+
+/// Parses document with an immutable memory buffer.
+Error parseXMLFromBuffer(XMLDocument& Doc, MemoryBuffer& MB, bool Strict = false);
 
 } // namespace exi

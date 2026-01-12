@@ -33,32 +33,17 @@
 
 using namespace exi;
 
-namespace {
-#ifndef NDEBUG
-constexpr int kValidate = xml::parse_validate_closing_tags;
-#else
-constexpr int kValidate = 0;
-#endif
-
-constexpr int kDefault = xml::parse_no_entity_translation
-                       /*| xml::parse_no_data_nodes*/
-                       | kValidate;
-
-constexpr int kImmutable = kDefault
-                         | xml::parse_non_destructive;
-} // namespace `anonymous`
-
 static void PrintHelp() {
   outs() << "USAGE: <file-in> <file-out> [c|d|l|i]\n";
   exit(1);
 }
 
-static Box<WritableMemoryBuffer> LoadFile(const Twine& Path) {
+static Box<MemoryBuffer> LoadFile(const Twine& Path) {
   SmallStr<80> Storage;
   Path.toVector(Storage);
   sys::fs::make_absolute(Storage);
 
-  auto ErrOrBuf = WritableMemoryBuffer::getFileEx(Storage.str());
+  auto ErrOrBuf = MemoryBuffer::getFile(Storage.str());
   if (!ErrOrBuf) {
     outs() << raw_ostream::BRIGHT_RED
       << "Error opening file: " << ErrOrBuf.getError().message()
@@ -117,9 +102,15 @@ int main(int Argc, char* Argv[]) {
   if (Argc >= 3)
     ParsePreserveOpts(Preserve, Argv[2]);
   
-  In.parse<kImmutable | xml::parse_all>(InData->getBufferStart());
-  Out.parse<kImmutable | xml::parse_all>(OutData->getBufferStart());
-  
+  if (Error E = exi::parseXMLFromBuffer(In, *InData)) {
+    logAllUnhandledErrors(std::move(E), errs());
+    return 1;
+  }
+  if (Error E = exi::parseXMLFromBuffer(Out, *OutData)) {
+    logAllUnhandledErrors(std::move(E), errs());
+    return 1;
+  }
+
   bool Res = compareXMLWithPreserve(&In, &Out, Preserve);
   if (Res) {
     WithColor(outs(), raw_ostream::BRIGHT_GREEN)

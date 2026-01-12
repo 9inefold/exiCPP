@@ -42,8 +42,9 @@
 #include <exi/Basic/ExiOptions.hpp>
 #include <exi/Basic/Runes.hpp>
 #include <exi/Basic/StringTables.hpp>
-#include <exi/Basic/XMLManager.hpp>
 #include <exi/Basic/XMLContainer.hpp>
+#include <exi/Basic/XMLCompare.hpp>
+#include <exi/Basic/XMLManager.hpp>
 #include <exi/Stream/OrderedReader.hpp>
 #include <exi/Stream/OrderedWriter.hpp>
 
@@ -455,17 +456,28 @@ static void ByteCompareStrings(StrRef Original, StrRef Encoded) {
 // Encode/Decode
 
 namespace {
+struct CompareMetadata {
+  Vec<String> RawCommands;
+  Vec<std::tuple<String, String, ExiOptions::PreserveOpts>> OldToNewMapping;
+public:
+  void reserve(usize N) {
+    RawCommands.reserve(N);
+    OldToNewMapping.reserve(N);
+  }
+};
+
+/// EnCode/DeCode Test Runner
 class ECDCTestRunner {
   XMLManagerRef Mgr;
   StrRef ExamplePath = "examples";
   mutable ExiOptions Opts;
-  Vec<String>* Cmds = nullptr;
+  CompareMetadata* Cmds = nullptr;
 
 public:
   ECDCTestRunner(XMLManagerRef Mgr, StrRef Folder,
                  AlignKind K, ExiOptions::PreserveOpts P,
-                 Vec<String>* Cmds = nullptr)
-   : Mgr(std::move(Mgr)), Opts{
+                 CompareMetadata* Cmds = nullptr)
+   : Mgr(std::move(Mgr)), ExamplePath(Folder), Opts{
       .Alignment = K, .Preserve = P,
       .SchemaID = Some(nullptr)},
      Cmds(Cmds) {
@@ -473,7 +485,7 @@ public:
 
   ECDCTestRunner(XMLManagerRef Mgr,
                  AlignKind K, ExiOptions::PreserveOpts P,
-                 Vec<String>* Cmds = nullptr)
+                 CompareMetadata* Cmds = nullptr)
    : ECDCTestRunner(std::move(Mgr), "examples", K, P, Cmds) {
   }
 
@@ -557,6 +569,10 @@ static void WriteExificientCmds(const Vec<String>& Contents) {
 #endif
   Error E = WriteCmdsToFile(OutputFile, Contents);
   logAllUnhandledErrors(std::move(E), errs(), "Errors creating ExificientCmds");
+}
+
+static void WriteExificientCmds(const CompareMetadata& Contents) {
+  return WriteExificientCmds(Contents.RawCommands);
 }
 
 int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
@@ -750,7 +766,14 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     sys::fs::make_absolute(FilenameStore);
     OS << format("-i \"{0}\" -o \"{0}.xml\"", FilenameStore.str());
 
-    Cmds->emplace_back(std::move(Cmd));
+    Cmds->RawCommands.emplace_back(std::move(Cmd));
+    if (Opts.Preserve.Prefixes) {
+      Cmds->OldToNewMapping.emplace_back(
+        fmt::format("{}/{}", ExamplePath, XmlFile.str()),
+        fmt::format("{}.xml", FilenameStore.str()),
+        this->Opts.Preserve
+      );
+    }
   }
   
   return 0;
@@ -772,9 +795,9 @@ void ECDCTestRunner::run(StrRef ExiFile, StrRef XmlFile,
   return ECDCTestRunner(Mgr, FOLDER, KIND, TheOpts, &ExificientFileData);     \
 }
 
-/// Makes a test runner for "example".
+/// Makes a test runner for "examples".
 #define MAKE_EXTEST_RUNNER(KIND, ...)                                         \
-  MAKE_TEST_RUNNER(KIND, "example", ##__VA_ARGS__)
+  MAKE_TEST_RUNNER(KIND, "examples", ##__VA_ARGS__)
 
 int main(int Argc, char* Argv[]) {
   using enum raw_ostream::Colors;
@@ -803,7 +826,7 @@ int main(int Argc, char* Argv[]) {
 
   // Add https://www.w3.org/TR/xmlschema-0/#ipo.xsd
 
-  Vec<String> ExificientFileData;
+  CompareMetadata ExificientFileData;
   if (auto Dir = sys::Process::GetEnv("EXIFICIENT_DIR")) {
     SmallStr<80> FullPath;
     sys::path::append(FullPath, *Dir, "exificient-jar-with-dependencies.jar");
@@ -811,6 +834,7 @@ int main(int Argc, char* Argv[]) {
       EXIFICIENT_DIR = std::move(Dir);
       ExificientFileData.reserve(32);
     }
+    // TODO: Add defaulted jar
   }
 
   /*BytePacked*/ {
@@ -825,7 +849,7 @@ int main(int Argc, char* Argv[]) {
     Pfx().run("StackedPPNooptB.exi",  "Stacked.xml");
     All().run("NamespaceNooptB.exi",  "Namespace.xml");
   }
-  ExificientFileData.push_back("");
+  ExificientFileData.RawCommands.push_back("");
   /*BitPacked*/ {
     auto Zil = MAKE_EXTEST_RUNNER(AlignKind::BitPacked);
     auto Pfx = MAKE_EXTEST_RUNNER(AlignKind::BitPacked, Prefixes);
@@ -857,6 +881,17 @@ int main(int Argc, char* Argv[]) {
 #endif
     WithColor(errs(), BRIGHT_GREEN)
       << "Wrote to 'examples/out/ExificientCmds.*'\n\n";
+    
+    errs() << "Running comparisons...\n";
+    for (auto& [In, Out, P] : ExificientFileData.OldToNewMapping) {
+      errs() << "  " << In << ": " << sys::path::filename(Out) << ' ';
+      auto& InDoc = Mgr->getOptXMLDocument(In, errs()).expect("???");
+      auto& OutDoc = Mgr->getOptXMLDocument(Out, errs()).expect("Parsing failed.");
+      const bool IsEqual = exi::compareXMLWithPreserve(&InDoc, &OutDoc, P);
+      const auto Color = IsEqual ? raw_ostream::BRIGHT_GREEN : raw_ostream::BRIGHT_RED;
+      WithColor(errs(), Color) << (IsEqual ? "[SUCCEEDED]" : "[FAILED]") << '\n';
+    }
+    errs() << '\n';
   }
 
 #endif
