@@ -792,6 +792,18 @@ public:
     return true;
   }
 
+  /// Returns true if this StrRef is pinched by the prefix/suffix and
+  /// removes those.
+  ALWAYS_INLINE bool consume_pinch(StrRef PrefixAndSuffix) {
+    return consume_pinch(PrefixAndSuffix, PrefixAndSuffix);
+  }
+
+  /// Returns true if this StrRef is pinched by the prefix/suffix,
+  /// ignoring case, and removes those.
+  ALWAYS_INLINE bool consume_pinch_insensitive(StrRef PrefixAndSuffix) {
+    return consume_pinch_insensitive(PrefixAndSuffix, PrefixAndSuffix);
+  }
+
   /// Return a reference to the substring from [Start, End).
   ///
   /// \param Start The index of the starting character in the substring; if
