@@ -475,6 +475,10 @@ inline StrRef getOrdinalSuffix(unsigned Val) {
 /// printable or if it is an escape char.
 void printEscapedString(StrRef Name, raw_ostream &Out);
 
+/// Print each character of the specified string, escaping it if it is not
+/// printable or if it is an escape char.
+void printCStyleEscapedString(StrRef Name, raw_ostream &Out);
+
 /// Print each character of the specified string, escaping HTML special
 /// characters.
 void printHTMLEscaped(StrRef String, raw_ostream &Out);

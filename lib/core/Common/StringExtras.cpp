@@ -98,6 +98,42 @@ void exi::printEscapedString(StrRef Name, raw_ostream &Out) {
   }
 }
 
+void exi::printCStyleEscapedString(StrRef Name, raw_ostream &Out) {
+  for (unsigned char C : Name) {
+    if (C == '\\' || C == '\"')
+      Out << '\\' << C;
+    else if (isPrint(C))
+      Out << C;
+    else {
+      switch (C) {
+      case u8('\a'):
+        Out << "\\a";
+        break;
+      case u8('\b'):
+        Out << "\\b";
+        break;
+      case u8('\f'):
+        Out << "\\f";
+        break;
+      case u8('\n'):
+        Out << "\\n";
+        break;
+      case u8('\r'):
+        Out << "\\r";
+        break;
+      case u8('\t'):
+        Out << "\\t";
+        break;
+      case u8('\v'):
+        Out << "\\v";
+        break;
+      default:
+        Out << '\\' << hexdigit(C >> 4) << hexdigit(C & 0x0F);
+      }
+    }
+  }
+}
+
 void exi::printHTMLEscaped(StrRef String, raw_ostream &Out) {
   for (char C : String) {
     if (C == '&')
