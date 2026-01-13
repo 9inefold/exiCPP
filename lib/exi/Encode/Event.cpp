@@ -23,6 +23,7 @@
 
 #include <exi/Encode/Event.hpp>
 #include <core/Common/STLExtras.hpp>
+#include <core/Common/StringExtras.hpp>
 #include <core/Support/IntCast.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/Except.hpp>
@@ -51,17 +52,44 @@ StrRef exi::get_doctype_name(DoctypeKind K) {
   exi_guardrail("invalid DOCTYPE type");
 }
 
+//static void PushBackSingleArgument(SmallStr<kSmallStrLen>& S, StrRef Arg) {
+//  while (!Arg.empty()) {
+//    usize Off = Arg.find_first_of('\n');
+//    S.append(Arg.take_front(Off));
+//    if (Off == StrRef::npos)
+//      return;
+//    Arg = Arg.drop_front(Off + 1);
+//  }
+//}
+
+template <typename T>
+NO_INLINE static void WarnOnInvalidDTArgs(DoctypeKind Kind, ArrayRef<T> Args) {
+  SmallStr<80> Buf;
+  raw_svector_ostream OS(Buf);
+
+  ListSeparator LS;
+  for (auto Arg : Args) {
+    if constexpr (std::is_pointer_v<T>) {
+      if EXI_LIKELY(Arg)
+        exi::printCStyleEscapedString(*Arg, OS << LS);
+    } else
+      exi::printCStyleEscapedString(Arg, OS << LS);
+  }
+  
+  LOG_WARN("Too many arguments to make_event<DT>({}, ...)! "
+           "Expected <= {}, got {}: {{{}}}",
+           get_doctype_name(Kind),
+           unsigned(Kind), Args.size(), Buf.str()
+  );
+}
+
 template <typename T>
 ALWAYS_INLINE static void ValidateDTArgs(DoctypeKind Kind, ArrayRef<T>& Args) {
   const unsigned kMaxArgs = unsigned(Kind);
   if EXI_LIKELY(Args.size() <= kMaxArgs)
     return;
   
-  LOG_WARN("Too many arguments to make_event<DT>({}, ...)! "
-           "Expected <= {}, got {}.",
-           get_doctype_name(Kind),
-           kMaxArgs, Args.size()
-  );
+  WarnOnInvalidDTArgs(Kind, Args);
   Args = Args.take_front(kMaxArgs);
 #if !EXI_PERMISSIVE
   Throw<argument_error>("Too many arguments passed to make_event<DT>(...)!");

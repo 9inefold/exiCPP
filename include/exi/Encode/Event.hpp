@@ -170,6 +170,7 @@ EXI_ENCODE_EVENT_MAPPINGS(MAP_TERM)
 
 DoctypeEvent MakeDTEventImpl(DoctypeKind Kind,
                              ArrayRef<const StrRef*> Args);
+/// TODO: Remove? Isn't used anywhere currently...
 ExiError EncodeDTWithImpl(encode::Schema* S, BodyEncoder* BE,
                           DoctypeKind Kind, ArrayRef<const StrRef*> Args);
 
