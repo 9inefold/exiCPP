@@ -31,6 +31,9 @@
 #include <bitset>
 
 #define DEBUG_TYPE "XMLCompare"
+#if !EXI_DEV_ONLY
+CLANG_IGNORED("-Wunused-private-field")
+#endif
 
 using namespace exi;
 

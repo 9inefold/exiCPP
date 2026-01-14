@@ -32,6 +32,7 @@
 
 #cmakedefine01 EXI_DEBUG
 #cmakedefine01 EXI_INVARIANTS
+#cmakedefine01 EXI_DEV_ONLY
 #cmakedefine01 EXI_LOGGING
 #cmakedefine EXI_MIN_LOG_LEVEL
 
