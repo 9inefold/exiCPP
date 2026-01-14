@@ -1,6 +1,6 @@
 //===- exi/Encode/Event.cpp ------------------------------------------===//
 //
-// Copyright (C) 2025 Ninefold
+// Copyright (C) 2025-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -174,6 +174,7 @@ raw_ostream& exi::operator<<(raw_ostream& OS, const DoctypeEvent& DT) {
     return OS << format("{}", DT[0]);
   case DTK_Text:
     return OS << format("{} [{}]", DT[0], DT[1]);
+  // TODO: When quoting, check for " and switch to ' if necessary
   case DTK_System:
     return OS << format("{} SYSTEM \"{}\" [{}]", DT[0], DT[1], DT[2]);
   case DTK_Public:

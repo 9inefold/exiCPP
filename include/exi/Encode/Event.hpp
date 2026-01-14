@@ -1,6 +1,6 @@
 //===- exi/Encode/Event.hpp ------------------------------------------===//
 //
-// Copyright (C) 2025 Ninefold
+// Copyright (C) 2025-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,9 +41,11 @@ namespace encode {
 class Schema;
 } // namespace encode
 
+/// See https://www.liquid-technologies.com/Reference/Glossary/XML_DocType.html
 enum class DoctypeKind : u8 {
   DTK_None   = 1, // Name
   DTK_Text   = 2, // Name Text
+  DTK_Inline = 2, // Name Text
   DTK_System = 3, // Name SYSTEM "sysid" Text?
   DTK_Public = 4, // Name PUBLIC "pubid" "sysid" Text?
 };
