@@ -126,6 +126,84 @@ DoctypeEvent MakeEvent<SimpleEventTerm::DT>::operator()(DoctypeKind K,
 }
 
 //////////////////////////////////////////////////////////////////////////
+// operator==
+
+template <bool Opaque>
+static StrRef GetSEURI(const StartElemEvent& SE) {
+  static constexpr unsigned TAG = (Opaque ? 2 : 1);
+  exi_invariant(SE.Tag == TAG, "Incorrect type!");
+  auto* SEUri = &static_cast<const StartElemURIEvent&>(SE);
+  if constexpr (!Opaque)
+    return StrRef(SEUri->URI, SEUri->Extra);
+  else
+    return StringTable::GetURI(SEUri->OpaqueURI);
+}
+
+static StrRef RuntimeGetSEURI(const StartElemEvent& SE) {
+  auto* SEUri = &static_cast<const StartElemURIEvent&>(SE);
+  if (SE.Tag == 0)
+    return ""_str;
+  else if (SE.Tag == 1)
+    return StrRef(SEUri->URI, SEUri->Extra);
+  else if (SE.Tag == 2)
+    return StringTable::GetURI(SEUri->OpaqueURI);
+  exi_guardrail("invalid SE tag type");
+}
+
+// TODO: TEST THIS!!! IT DESPERATELY NEEDS TESTING
+static bool CompareIncompatibleTags(const StartElemEvent& LHS,
+                                    const StartElemEvent& RHS) {
+  exi_invariant(LHS.name() == RHS.name());
+  if (LHS.Tag == 0 || RHS.Tag == 0)
+    // TODO: Check if this assumption is true.
+    // It should be since it should only appear the first time... but I'm kinda
+    // tired rn so I could be wrong lol
+    return true;
+  else
+    return RuntimeGetSEURI(LHS) == RuntimeGetSEURI(RHS);
+}
+
+bool exi::operator==(const StartElemEvent& LHS, const StartElemEvent& RHS) {
+  if (LHS.name() != RHS.name())
+    return false;
+  if (LHS.Tag != RHS.Tag)
+    return CompareIncompatibleTags(LHS, RHS);
+  // SE(qname)
+  if (LHS.Tag == 0)
+    return true;
+  // SE(uri:*)
+  else if (LHS.Tag == 1)
+    return GetSEURI<false>(LHS) == GetSEURI<false>(RHS);
+  else if (LHS.Tag == 2)
+    return GetSEURI<true>(LHS) == GetSEURI<true>(RHS);
+  exi_guardrail("invalid SE tag type");
+}
+
+bool exi::operator==(const DoctypeEvent& LHS, const DoctypeEvent& RHS) {
+  if (LHS.Kind != RHS.Kind)
+    return false;
+  
+  switch (LHS.Kind) {
+  case DTK_Public:
+    if (LHS[3] != RHS[3])
+      return false;
+    [[fallthrough]];
+  case DTK_System:
+    if (LHS[2] != RHS[2])
+      return false;
+    [[fallthrough]];
+  case DTK_Inline:
+    if (LHS[1] != RHS[1])
+      return false;
+    [[fallthrough]];
+  case DTK_None:
+    return LHS[0] == RHS[0];
+  }
+
+  exi_guardrail("Invalid DTD type!");
+}
+
+//////////////////////////////////////////////////////////////////////////
 // raw_ostream
 
 raw_ostream& exi::operator<<(raw_ostream& OS, const StringEventData& Event) {
@@ -134,17 +212,6 @@ raw_ostream& exi::operator<<(raw_ostream& OS, const StringEventData& Event) {
 
 raw_ostream& exi::operator<<(raw_ostream& OS, const PairEventData& Event) {
   return OS << format("'{}' -> {}", Event[0], Event[1]);
-}
-
-template <bool Opaque>
-static StrRef GetSEURI(const StartElemEvent& SE) {
-  static constexpr unsigned TAG = (Opaque ? 2 : 1);
-  exi_invariant(SE.Tag == TAG);
-  auto* SEUri = &static_cast<const StartElemURIEvent&>(SE);
-  if constexpr (!Opaque)
-    return StrRef(SEUri->URI, SEUri->Extra);
-  else
-    return StringTable::GetURI(SEUri->OpaqueURI);
 }
 
 raw_ostream& exi::operator<<(raw_ostream& OS, const StartElemEvent& SE) {

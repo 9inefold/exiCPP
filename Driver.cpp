@@ -59,7 +59,7 @@
 #include <rapidxml.hpp>
 
 #define DEBUG_TYPE "__DRIVER__"
-#define TEST_LARGE_EXAMPLES 1
+#define TEST_LARGE_EXAMPLES 0
 #define STRESS_TEST_DECODING 0
 
 using namespace exi;

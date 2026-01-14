@@ -82,7 +82,10 @@ public:
 };
 
 // Start Element (qname)
-struct StartElemEvent : StringEventData {};
+struct StartElemEvent : StringEventData {
+  inline constexpr StrRef uri() const;
+  inline encode::STURIEntry* opaque() const;
+};
 // Start Element (uri:*)
 struct StartElemURIEvent : StartElemEvent {
   union {
@@ -311,6 +314,36 @@ constexpr StrRef get_event_name(const Event&) {
 }
 
 //inline constexpr variadic_function<&H::EncodeDTWithImpl, 4> EncodeDTWith;
+
+//////////////////////////////////////////////////////////////////////////
+// operator==
+
+ALWAYS_INLINE constexpr StrRef StartElemEvent::uri() const {
+  exi_relassert(Tag == 1, "Incorrect type!");
+  const char* URI = static_cast<const StartElemURIEvent&>(*this).URI;
+  return StrRef(URI, Extra);
+}
+ALWAYS_INLINE encode::STURIEntry* StartElemEvent::opaque() const {
+  exi_relassert(Tag == 2, "Incorrect type!");
+  return static_cast<const StartElemURIEvent&>(*this).OpaqueURI;
+}
+
+bool operator==(const StartElemEvent& LHS, const StartElemEvent& RHS);
+bool operator==(const DoctypeEvent& LHS, const DoctypeEvent& RHS);
+
+inline bool operator==(const StringEventData& LHS, const StringEventData& RHS) {
+  if EXI_UNLIKELY(LHS.Tag != 0 || RHS.Tag != 0)
+    return static_cast<const StartElemEvent&>(LHS)
+        == static_cast<const StartElemEvent&>(RHS);
+  return LHS.name() == RHS.name();
+}
+inline bool operator==(const PairEventData& LHS, const PairEventData& RHS) {
+  return LHS[0] == RHS[0] && LHS[1] == RHS[1];
+}
+inline bool operator==(const NamespaceEvent& LHS, const NamespaceEvent& RHS) {
+  return StrRef(LHS.PfxData, LHS.PfxSize) == StrRef(RHS.PfxData, RHS.PfxSize)
+      && StrRef(LHS.UriData, LHS.UriSize) == StrRef(RHS.UriData, RHS.UriSize);
+}
 
 //////////////////////////////////////////////////////////////////////////
 // raw_ostream
