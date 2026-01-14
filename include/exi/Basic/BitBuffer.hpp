@@ -17,8 +17,8 @@
 //===----------------------------------------------------------------===//
 ///
 /// \file
-/// This file implements the BitBuffer class. It is used for copying data across
-/// stream types.
+/// This file implements the BitBuffer class. It is specialized for the use in
+/// copying data across stream types.
 ///
 //===----------------------------------------------------------------===//
 
