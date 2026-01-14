@@ -36,6 +36,7 @@
 #include <Common/Fundamental.hpp>
 #include <Common/STLExtras.hpp>
 #include <Common/iterator_range.hpp>
+#include <Common/D/BitSpan.hpp>
 #include <Config/FeatureFlags.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <Support/MathExtras.hpp>
@@ -46,6 +47,11 @@
 #include <utility>
 
 namespace exi {
+
+class BitVector;
+
+/// Alias for `BitVector`.
+using bit_vector = BitVector;
 
 /// ForwardIterator for the bits that are set.
 /// Iterators get invalidated when resize / reserve is called.
@@ -98,15 +104,14 @@ public:
 };
 
 class BitVector {
-  using BitWord = uptr;
+  template <typename> friend class BitSpan;
+  using BitWord = BitSpanWordType;
   static constexpr unsigned kBitwordSize = bitsizeof_v<BitWord>; 
 
   static_assert(kBitwordSize == 64 || kBitwordSize == 32,
                 "Unsupported word size");
 
-  using Storage = SmallVec<BitWord>;
-
-  Storage Bits;  // Actual bits.
+  SmallVec<BitWord> Bits; // Actual bits.
   unsigned Size = 0; // Size of bitvector in bits.
 
 public:
@@ -114,15 +119,13 @@ public:
 
   // Encapsulation of a single bit.
   class reference {
-
     BitWord *WordRef;
     unsigned BitPos;
 
   public:
-    reference(BitVector &b, unsigned Idx) {
-      WordRef = &b.Bits[Idx / kBitwordSize];
-      BitPos = Idx % kBitwordSize;
-    }
+    reference(BitVector &b, size_type Idx)
+     : WordRef(&b.Bits[Idx / kBitwordSize]),
+       BitPos(Idx % kBitwordSize) {}
 
     reference() = delete;
     reference(const reference&) = default;
@@ -168,6 +171,10 @@ public:
     if (t)
       clear_unused_bits();
   }
+
+  /// BitVector ctor - Creates a bitvector from a bitspan.
+  /// Defined in `Common/BitSpan.cpp`.
+  explicit BitVector(BitSpan<BitWord> BS, bool Clear = false);
 
   /// empty - Tests whether there are no bits in this bitvector.
   bool empty() const { return Size == 0; }

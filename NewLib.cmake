@@ -7,6 +7,7 @@
 include_items(EXICPP_CORE "lib/core"
   Common/APInt.cpp
   Common/APSInt.cpp
+  Common/BitSpan.cpp
   Common/FoldingSet.cpp
   Common/Option.cpp
   Common/SmallVec.cpp
