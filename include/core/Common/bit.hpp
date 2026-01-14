@@ -370,7 +370,7 @@ template <typename T> [[nodiscard]] T bit_ceil(T Value) {
 
 namespace detail {
 template <typename T, std::size_t SizeOfT> struct PopulationCounter {
-  static int count(T Value) {
+  ALWAYS_INLINE static constexpr int count(T Value) {
     // Generic version, forward to 32 bits.
     static_assert(SizeOfT <= 4, "Not implemented!");
 #if defined(__GNUC__)
@@ -385,7 +385,7 @@ template <typename T, std::size_t SizeOfT> struct PopulationCounter {
 };
 
 template <typename T> struct PopulationCounter<T, 8> {
-  static int count(T Value) {
+  ALWAYS_INLINE static constexpr int count(T Value) {
 #if defined(__GNUC__)
     return (int)__builtin_popcountll(Value);
 #else
@@ -403,7 +403,7 @@ template <typename T> struct PopulationCounter<T, 8> {
 /// Ex. popcount(0xF000F000) = 8
 /// Returns 0 if the word is zero.
 template <typename T, typename = std::enable_if_t<std::is_unsigned_v<T>>>
-[[nodiscard]] inline int popcount(T Value) noexcept {
+[[nodiscard]] inline constexpr int popcount(T Value) noexcept {
   return detail::PopulationCounter<T, sizeof(T)>::count(Value);
 }
 

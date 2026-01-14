@@ -35,11 +35,12 @@ This is a TODO list for the C++ version of exiCPP.
 - Remove EXIP, merge `NewLib`
 - Add `EXI_GUARDRAILS` to handle invalid assumptions in release
 - Fix weird `__FILE__` normalization on windows
+- Implement `bitset` to get constexpr functions...
 
 ## Not Started
 
+- Move common masking functions used in `bitset`/`BitSpan`/`BitVector`/streams to its own file?
 - Change schema from `Box<String>` to regular `String`
-- Implement `Bitset` to get constexpr functions...
 - Implement `StackExhaustionHandler`
 - Fix `CDATA` parsing
 - Split out implementation of `ExiDecoder` like with `ExiEncoder`
