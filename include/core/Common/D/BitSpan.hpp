@@ -19,6 +19,7 @@
 #pragma once
 
 #include <Common/Fundamental.hpp>
+#include <Support/MathExtras.hpp>
 
 namespace exi {
 
@@ -34,5 +35,30 @@ template <typename T = BitSpanWordType> class MutBitSpan;
 template <typename T = BitSpanWordType> using bit_span = BitSpan<T>;
 /// Alias for `MutBitSpan<T>`.
 template <typename T = BitSpanWordType> using mut_bit_span = MutBitSpan<T>;
+
+//////////////////////////////////////////////////////////////////////////
+// Traits
+
+/// Traits shared across `BitSpan`/`BitVector`/`bitset`.
+// TODO: Move this kind of stuff to its own file?
+template <typename BitWord = BitSpanWordType> struct BitSpanTraits {
+  static constexpr usize kBitwordSize = bitsizeof_v<BitWord>;
+  static constexpr BitWord kIdxSize = Log2_64(u64(kBitwordSize - 1)) + 1;
+  static constexpr BitWord kOffMask = ~BitWord(~BitWord(0) << kIdxSize);
+
+  ALWAYS_INLINE static constexpr usize Idx(usize I) {
+    return I >> kIdxSize;
+  }
+  ALWAYS_INLINE static constexpr usize Off(usize I) {
+    return I & kOffMask;
+  }
+  ALWAYS_INLINE static constexpr BitWord Mask(usize I) {
+    return BitWord(1) << Off(I);
+  }
+
+  static constexpr unsigned NumBitWords(usize I) {
+    return (I + kBitwordSize - 1) / kBitwordSize;
+  }
+};
 
 } // namespace exi

@@ -32,91 +32,7 @@
 namespace exi {
 
 class BitVector;
-
-/// Traits shared across `BitSpan`/`BitVector`/`bitset`.
-// TODO: Move this kind of stuff to its own file?
-template <typename BitWord = BitSpanWordType> struct BitSpanTraits {
-  static constexpr usize kBitwordSize = bitsizeof_v<BitWord>;
-  static constexpr BitWord kIdxSize = Log2_64(u64(kBitwordSize - 1)) + 1;
-  static constexpr BitWord kOffMask = ~BitWord(~BitWord(0) << kIdxSize);
-
-  ALWAYS_INLINE static constexpr usize Idx(usize I) {
-    return I >> kIdxSize;
-  }
-  ALWAYS_INLINE static constexpr usize Off(usize I) {
-    return I & kOffMask;
-  }
-  ALWAYS_INLINE static constexpr BitWord Mask(usize I) {
-    return BitWord(1) << Off(I);
-  }
-
-  static constexpr unsigned NumBitWords(usize I) {
-    return (I + kBitwordSize - 1) / kBitwordSize;
-  }
-};
-
-namespace H {
-/// Encapsulation of a single bit.
-template <typename T> class bit_reference {
-  using TraitsT = BitSpanTraits<T>;
-  T* WordRef = nullptr;
-  usize BitPos = 0;
-
-public:
-  template <class BufferT>
-  constexpr bit_reference(BufferT& b EXI_LIFETIMEBOUND, usize I)
-   : WordRef(&b[TraitsT::Idx(I)]),
-     BitPos(TraitsT::Off(I)) {}
-  
-  constexpr bit_reference(MutArrayRef<T> b, usize I)
-   : WordRef(&b[TraitsT::Idx(I)]),
-     BitPos(TraitsT::Off(I)) {}
-
-  bit_reference() = delete;
-  bit_reference(const bit_reference&) = default;
-
-  constexpr bit_reference& operator=(bit_reference O) {
-    *this = bool(O);
-    return *this;
-  }
-
-  constexpr bit_reference& operator=(bool V) {
-    if (V)
-      *WordRef |= T(1) << BitPos;
-    else
-      *WordRef &= ~(T(1) << BitPos);
-    return *this;
-  }
-
-  constexpr operator bool() const {
-    return (*WordRef & (T(1) << BitPos)) != 0;
-  }
-};
-
-/// Encapsulation of a single bit.
-template <typename T> class bit_reference<const T> {
-  using TraitsT = BitSpanTraits<T>;
-  const T* WordRef = nullptr;
-  usize BitPos = 0;
-
-public:
-  template <class BufferT>
-  constexpr bit_reference(const BufferT& b EXI_LIFETIMEBOUND, usize I)
-   : WordRef(&b[TraitsT::Idx(I)]),
-     BitPos(TraitsT::Off(I)) {}
-  
-  constexpr bit_reference(ArrayRef<T> b, usize I)
-   : WordRef(&b[TraitsT::Idx(I)]),
-     BitPos(TraitsT::Off(I)) {}
-
-  bit_reference() = delete;
-  bit_reference(const bit_reference&) = default;
-
-  constexpr operator bool() const {
-    return (*WordRef & (T(1) << BitPos)) != 0;
-  }
-};
-} // namespace H
+template <usize> class bitset;
 
 template <typename T> class BitSpan {
   COMPILE_FAILURE(BitSpan, "Currently unimplemented!")
@@ -153,8 +69,29 @@ protected:
 public:
   using type = BitWord;
   using size_type = unsigned;
-  using reference = H::bit_reference<const BitWord>;
   static constexpr size_type npos = ~size_type(0) - size_type(2);
+
+  /// Encapsulation of a single bit.
+  class reference {
+    const T* WordRef = nullptr;
+    usize BitPos = 0;
+
+  public:
+    constexpr reference(const BitSpan& b EXI_LIFETIMEBOUND, usize I)
+     : WordRef(b.Bits + Tr::Idx(I)),
+       BitPos(Tr::Off(I)) {}
+
+    constexpr reference(ArrayRef<T> b, usize I)
+     : WordRef(&b[Tr::Idx(I)]),
+       BitPos(Tr::Off(I)) {}
+
+    reference() = delete;
+    reference(const reference&) = default;
+
+    constexpr operator bool() const {
+      return (*WordRef & (T(1) << BitPos)) != 0;
+    }
+  };
 
   /// Constructs empty BitSpan.
   constexpr BitSpan() = default;
@@ -163,6 +100,14 @@ public:
   /// Constructs a new BitSpan from a BitVector.
   ALWAYS_INLINE BitSpan(BitVector& BV EXI_LIFETIMEBOUND)
    : BitSpan(const_cast<const BitVector&>(BV)) {}
+  /// Constructs a new BitSpan from a bitset.
+  template <usize N>
+  constexpr BitSpan(bitset<N>& B EXI_LIFETIMEBOUND)
+   : BitSpan(B.Bits.X, N) {}
+  /// Constructs a new BitSpan from a bitset.
+  template <usize N>
+  constexpr BitSpan(const bitset<N>& B EXI_LIFETIMEBOUND)
+   : BitSpan(B.Bits.X, N) {}
 
 protected:
   /// Constructs new BitSpan from Bits.
@@ -177,7 +122,7 @@ public:
 
   ALWAYS_INLINE constexpr reference operator[](size_type I) const {
     exi_invariant(I < Size, "Invalid offset!");
-    return reference(arr(), I);
+    return reference(*this, I);
   }
 
   /// test - Tests the value of a specific bit.
@@ -255,12 +200,46 @@ template <> class MutBitSpan<BitSpanWordType>
 public:
   using Super::type;
   using Super::size_type;
-  using reference = H::bit_reference<BitWord>;
+
+  /// Encapsulation of a single bit.
+  class reference {
+    T* WordRef = nullptr;
+    size_type BitPos = 0;
+
+  public:
+    constexpr reference(const MutBitSpan& b EXI_LIFETIMEBOUND, usize I)
+     : WordRef(b.data() + Tr::Idx(I)),
+       BitPos(Tr::Off(I)) {}
+
+    reference() = delete;
+    reference(const reference&) = default;
+
+    constexpr reference& operator=(reference O) {
+      *this = bool(O);
+      return *this;
+    }
+
+    constexpr reference& operator=(bool V) {
+      if (V)
+        *WordRef |= T(1) << BitPos;
+      else
+        *WordRef &= ~(T(1) << BitPos);
+      return *this;
+    }
+
+    constexpr operator bool() const {
+      return (*WordRef & (T(1) << BitPos)) != 0;
+    }
+  };
 
   /// Constructs an empty MutBitSpan.
   constexpr MutBitSpan() = default;
   /// Constructs a new MutBitSpan from a BitVector.
   MutBitSpan(BitVector& EXI_LIFETIMEBOUND);
+  /// Constructs a new MutBitSpan from a bitset.
+  template <usize N>
+  constexpr MutBitSpan(bitset<N>& B EXI_LIFETIMEBOUND)
+   : MutBitSpan(B.Bits.X, N) {}
 
 protected:
   /// Constructs new BitSpan from Bits.
@@ -276,7 +255,7 @@ public:
 
   ALWAYS_INLINE reference operator[](size_type I) const {
     exi_invariant(I < Super::Size, "Invalid offset!");
-    return reference(arr(), I);
+    return reference(*this, I);
   }
 
   // Set, reset, flip

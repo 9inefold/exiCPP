@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include <Common/Fundamental.hpp>
+#include <Common/BitSpan.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <Support/MathExtras.hpp>
 #include <bitset>
@@ -38,7 +38,7 @@ class BitVector;
 
 /// Reimplementation of `std::bitset` with extra functionality.
 template <usize N> class bitset {
-  using BitWord = uptr;
+  using BitWord = BitSpanWordType;
   static constexpr usize kBitwordSize = bitsizeof_v<BitWord>;
   static_assert(kBitwordSize == 16 || kBitwordSize == 32 || kBitwordSize == 64,
                 "Unsupported word size");
@@ -98,20 +98,23 @@ public:
 
   buffer Bits = {};
 
+  // TODO: Add ctor from std::bitset
+
   /// size - Returns the number of bits in this bitset.
   static constexpr usize size() { return N; }
 
   ALWAYS_INLINE constexpr reference operator[](size_type I) {
-    AssertIndexInRange(I);
+    exi_invariant(I < size(), "Invalid offset!");
     return reference(*this, I);
   }
   ALWAYS_INLINE constexpr bool operator[](size_type I) const {
+    exi_invariant(I < size(), "Invalid offset!");
     return this->test(I);
   }
 
   /// test - Tests the value of a specific bit.
   constexpr bool test(size_type I) const {
-    AssertIndexInRange(I);
+    exi_invariant(I < size(), "Invalid offset!");
     return (Bits[Idx(I)] & Mask(I)) != 0;
   }
 
@@ -202,7 +205,7 @@ public:
 
   /// set - Sets specific bit to `Val`.
   constexpr bitset& set(usize I, bool Val = true) {
-    AssertIndexInRange(I);
+    exi_invariant(I < size(), "Invalid offset!");
     if (Val)
       Bits[Idx(I)] |= Mask(I);
     else
@@ -247,7 +250,7 @@ public:
 
   /// reset - Sets specific bit to `false`.
   constexpr bitset& reset(usize I) {
-    AssertIndexInRange(I);
+    exi_invariant(I < size(), "Invalid offset!");
     Bits[Idx(I)] &= ~Mask(I);
     return *this;
   }
@@ -291,13 +294,21 @@ public:
 
   /// flip - Flips the value of a specific bit.
   constexpr bitset& flip(usize I) {
-    AssertIndexInRange(I);
+    exi_invariant(I < size(), "Invalid offset!");
     Bits[Idx(I)] ^= Mask(I);
     return *this;
   }
 
   ////////////////////////////////////////////////////////////////////////
   // Conversion
+
+  MutBitSpan<BitWord> to_bitspan() {
+    return MutBitSpan<BitWord>(*this);
+  }
+
+  BitSpan<BitWord> to_bitspan() const {
+    return MutBitSpan<BitWord>(*this);
+  }
 
 private:
   ALWAYS_INLINE static constexpr usize Idx(usize I) {
@@ -308,10 +319,6 @@ private:
   }
   ALWAYS_INLINE static constexpr BitWord Mask(usize I) {
     return BitWord(1) << Off(I);
-  }
-
-  EXI_INLINE static constexpr void AssertIndexInRange(usize I) {
-    exi_invariant(I < size(), "Invalid offset!");
   }
 
   /// Sets the unused bits to zero. Allows for cleaner bitwise operations.
