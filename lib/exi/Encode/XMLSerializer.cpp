@@ -32,6 +32,7 @@
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/D/InternalMacros.hpp>
 #include <exi/Encode/DepthValidator.hpp>
+#include <exi/Encode/DTDParser.hpp>
 #include <exi/Encode/Event.hpp>
 //#include <Encode/ChannelEncoder-inl.hpp>
 #include <Encode/OrderedEncoder-inl.hpp>
@@ -394,87 +395,6 @@ private:
   }
 
 protected:
-  static StrRef TakeToken(StrRef& S) {
-    const auto Pos = S.find_first_of(" \t\n\r");
-    if (Pos == StrRef::npos) {
-      StrRef Out = S;
-      S = "";
-      return Out;
-    }
-    StrRef Out = S.take_front(Pos);
-    S = S.drop_front(Pos).ltrim(" \t\n\r");
-    return Out;
-  }
-
-  /// Per the XML EBNF:
-  ///  `#x20 | #xD | #xA | [a-zA-Z0-9] | [-'()+,./:=?;!*#@$_%]`
-  static consteval exi::bitset<128> GetPubidCharFilter() {
-    exi::bitset<128> Filter {};
-    // #x20 | #xD | #xA
-    Filter.set(' ').set('\r').set('\n');
-    // [a-zA-Z0-9]
-    Filter.set(usize('A'),'Z')
-          .set(usize('a'),'z')
-          .set(usize('0'),'9');
-    // [-'()+,./:=?;!*#@$_%]
-    for (unsigned char C : "-'()+,./:=?;!*#@$_%")
-      Filter.set(C);
-    return Filter;
-  }
-
-  /// Per the XML EBNF:
-  ///  `" PubidChar* " | ' (PubidChar - ')* '`
-  static exi::bitset<128> GetPubidLiteralFilter(char Quote) {
-    const bool kAllowQuote = (Quote == '\"');
-    auto Filter = GetPubidCharFilter();
-    return Filter.set('\'', kAllowQuote);
-  }
-
-  /// Takes tokens with the format `"..."`.
-  static ExiResult<StrRef> TakeLiteralToken(StrRef& S, bool IsSystem = true) {
-    static constexpr StrRef kLiteralName[] = {"PubidLiteral", "SystemLiteral"};
-    if EXI_UNLIKELY(S.size() < 2 || (S[0] != '\"' && S[0] != '\'')) {
-      LOG_ERROR("Invalid DOCTYPE! Expected a {}, got '{}'.",
-                kLiteralName[IsSystem], S);
-      return Err(ErrorCode::kInvalidEXIInput);
-    }
-
-    const char Quote = S[0];
-    const auto Pos = S.find_first_of(Quote, 1);
-    if EXI_UNLIKELY(Pos == StrRef::npos) {
-      LOG_ERROR("Invalid DOCTYPE! Unterminated {} in {}: `{}`.",
-                Quote, kLiteralName[IsSystem], S);
-      return Err(ErrorCode::kInvalidEXIInput);
-    }
-
-    StrRef Out = S.take_front(Pos).drop_front();
-#if !EXI_PERMISSIVE
-    if (!IsSystem && !Out.empty()) {
-      const auto Filter = GetPubidLiteralFilter(Quote);
-      for (unsigned char C : Out) {
-        if EXI_UNLIKELY(C > 127 || !Filter.test(C)) {
-          LOG_WARN("Invalid DOCTYPE! "
-                   "Invalid characters in PubidLiteral: {}.",
-                   S.take_front(Pos + 1));
-          // TODO: Allow "invalid" characters in different mode?
-          return Err(ErrorCode::kInvalidEXIInput);
-        }
-      }
-    }
-#endif
-    S = S.drop_front(Pos + 1).ltrim(" \t\n\r");
-    return Out;
-  }
-
-  static ExiError StripDTText(StrRef& S) {
-    if EXI_LIKELY(S.consume_pinch("[", "]")) {
-      S = S.trim();
-      return ExiError::OK;
-    }
-    LOG_ERROR("Invalid DOCTYPE! Expected [<text>], got '{}'", S);
-    return ErrorCode::kInvalidEXIInput;
-  }
-
   ExiError handleCM(XMLNode& N) const {
     return BE.Comment(N.value());
   }
@@ -488,52 +408,10 @@ protected:
   }
 
   ExiError handleDT(XMLNode& N) const {
-    StrRef Data = N.value().trim();
-    StrRef Name = TakeToken(Data);
-    // Name only
-    if (Data.empty()) {
-      if EXI_UNLIKELY(Name.empty()) {
-        LOG_ERROR("Invalid DOCTYPE! Expected Name.");
-        return ErrorCode::kInvalidEXIInput;
-      }
-      // <!DOCTYPE Name>
-      return BE.Doctype(make_event<DT>(DTK_None, Name));
-    } else if (Data.consume_pinch("[", "]"))
-      // <!DOCTYPE Name [Data...]>
-      return BE.Doctype(make_event<DT>(DTK_Inline, Name, Data.trim()));
-
-    StrRef Kind = TakeToken(Data);
-    auto K = StringSwitch<DoctypeKind>(Kind)
-      .Case("SYSTEM", DTK_System)
-      .Case("PUBLIC", DTK_Public)
-      .Default(DTK_None);
-    if (K == DTK_None) {
-      LOG_ERROR("Invalid DOCTYPE! "
-                "Expected SYSTEM or PUBLIC, got '{}'.", Kind);
-      return ErrorCode::kInvalidEXIInput;
-    }
-    // SYSTEM
-    StrRef PrimID = EXI_UNWRAP(
-      TakeLiteralToken(Data, K == DTK_System));
-    if (K == DTK_System) {
-      if (!Data.empty())
-        exi_try(StripDTText(Data));
-      // <!DOCTYPE Name SYSTEM  [Data...]?>
-      return BE.Doctype(make_event<DT>(
-        DTK_System, Name, PrimID, Data));
-    }
-    // PUBLIC
-    StrRef SysID = EXI_UNWRAP(
-      TakeLiteralToken(Data, true));
-    if (!SysID.consume_pinch("\"")) {
-      LOG_ERROR("Invalid PUBLIC DOCTYPE! "
-                "Expected a SystemLiteral, got '{}'.", SysID);
-      return ErrorCode::kInvalidEXIInput;
-    }
-    if (!Data.empty())
-      exi_try(StripDTText(Data));
-    return BE.Doctype(make_event<DT>(
-      DTK_Public, Name, PrimID, SysID, Data));
+    auto DTD = DTDParser::CreateDTEvent(N.value());
+    if EXI_UNLIKELY(DTD.is_err())
+      return DTD.error();
+    return BE.Doctype(*DTD);
   }
 
   ExiError handleDocContent(XMLNode& N) const {

@@ -1,6 +1,6 @@
 //===- exi/Basic/XMLCompare.cpp -------------------------------------===//
 //
-// Copyright (C) 2025 Ninefold
+// Copyright (C) 2025-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@
 #include <core/Support/ErrorHandle.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/XML.hpp>
+#include <exi/Encode/DTDParser.hpp>
 #include <bitset>
 
 #define DEBUG_TYPE "XMLCompare"
@@ -186,6 +187,7 @@ private:
   }
 
   bool compareDTDs() {
+    exi_todo("Add DTD comparison!");
     return false;
   }
 
