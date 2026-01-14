@@ -26,12 +26,14 @@
 #include <Common/ArrayRef.hpp>
 #include <Common/Fundamental.hpp>
 #include <Common/D/BitSpan.hpp>
+#include <Common/D/Str.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <Support/MathExtras.hpp>
 
 namespace exi {
 
 class BitVector;
+class raw_ostream;
 template <usize> class bitset;
 
 template <typename T> class BitSpan {
@@ -174,6 +176,8 @@ public:
   }
 
   BitVector to_bitvector() const;
+
+  String to_string() const;
 };
 
 /// MutBitSpan - Represents a mutable reference to a sequence of bits.
@@ -370,5 +374,7 @@ private:
     std::fill(data(), data() + Super::Words, 0 - BitWord(V));
   }
 };
+
+raw_ostream& operator<<(raw_ostream& OS, const BitSpan<>& B);
 
 } // namespace exi

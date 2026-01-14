@@ -33,6 +33,16 @@ BitVector BitSpan<BitSpanWordType>::to_bitvector() const {
   return BitVector(*this);
 }
 
+String BitSpan<BitSpanWordType>::to_string() const {
+  exi_todo("implement to_string");
+  return "";
+}
+
+raw_ostream& exi::operator<<(raw_ostream& OS, const BitSpan<>& B) {
+  exi_todo("implement OS << BitSpan");
+  return OS;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // BitVector
 

@@ -35,12 +35,13 @@
 namespace exi {
 
 class BitVector;
+class raw_ostream;
 
 /// Reimplementation of `std::bitset` with extra functionality.
 template <usize N> class bitset {
   using BitWord = BitSpanWordType;
   static constexpr usize kBitwordSize = bitsizeof_v<BitWord>;
-  static_assert(kBitwordSize == 16 || kBitwordSize == 32 || kBitwordSize == 64,
+  static_assert(kBitwordSize == 32 || kBitwordSize == 64,
                 "Unsupported word size");
 
   static constexpr usize kBufferSize = ((N == 0) ? 0 : (N - 1) / kBitwordSize) + 1;
@@ -302,12 +303,36 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Conversion
 
-  MutBitSpan<BitWord> to_bitspan() {
+  constexpr MutBitSpan<BitWord> to_bitspan() {
     return MutBitSpan<BitWord>(*this);
   }
 
-  BitSpan<BitWord> to_bitspan() const {
-    return MutBitSpan<BitWord>(*this);
+  constexpr BitSpan<BitWord> to_bitspan() const {
+    return BitSpan<BitWord>(*this);
+  }
+
+  constexpr unsigned long to_ulong() const
+   requires(bitsizeof_v<unsigned long> >= N) {
+    constexpr BitWord kMask = ~BitWord(0) >> bitsizeof_v<unsigned long>;
+    return static_cast<unsigned long>(Bits[0] & kMask);
+  }
+
+  constexpr unsigned long to_ullong() const
+   requires(bitsizeof_v<unsigned long long> >= N) {
+    if constexpr (sizeof(BitWord) == sizeof(unsigned long long)) {
+      return static_cast<unsigned long long>(Bits[0]);
+    } else if constexpr (sizeof(BitWord) > sizeof(unsigned long long)) {
+      const BitWord kMask = ~BitWord(0) >> bitsizeof_v<unsigned long long>;
+      return static_cast<unsigned long long>(Bits[0] & kMask);
+    } else {
+      static_assert(sizeof(BitWord) * 2 == sizeof(unsigned long long));
+      return static_cast<unsigned long long>(Bits[0])
+           | static_cast<unsigned long long>(Bits[1]) << sizeof(BitWord);
+    }
+  }
+
+  String to_string() const {
+    return to_bitspan().to_string();
   }
 
 private:
@@ -328,5 +353,10 @@ private:
       Bits[N / kBitwordSize] &= BitWord((BitWord(1) << Remainder) - 1ull);
   }
 };
+
+template <usize N>
+inline raw_ostream& operator<<(raw_ostream& OS, const bitset<N>& B) {
+  return OS << B.to_bitspan();
+}
 
 } // namespace exi
