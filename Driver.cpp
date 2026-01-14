@@ -1,6 +1,6 @@
 //===- Driver.cpp ---------------------------------------------------===//
 //
-// Copyright (C) 2024-2025 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -848,6 +848,10 @@ int main(int Argc, char* Argv[]) {
     Pfx().run("CustomersNooptB.exi",  "Customers.xml");
     Pfx().run("StackedPPNooptB.exi",  "Stacked.xml");
     All().run("NamespaceNooptB.exi",  "Namespace.xml");
+    All().run("022NooptB.exi",        "022.xml");
+    All().run("044NooptB.exi",        "044.xml");
+    All().run("085NooptB.exi",        "085.xml");
+    All().run("116NooptB.exi",        "116.xml");
   }
   ExificientFileData.RawCommands.push_back("");
   /*BitPacked*/ {
