@@ -3,7 +3,7 @@ include_guard(DIRECTORY)
 
 project(
   exi-cpp
-  VERSION 0.8.1
+  VERSION 0.8.2
   LANGUAGES CXX C
 )
 
@@ -37,6 +37,7 @@ option(EXI_USE_MIMALLOC "If allocation should be done through mimalloc." ON)
 option(EXI_DEBUG        "If debug printing should be enabled." ON)
 option(EXI_INVARIANTS   "Adds extra invariant checking." ON)
 option(EXI_LOGGING      "If logging should be enabled." ON)
+option(EXI_DEV_ONLY     "Enables things just for development." OFF)
 
 option(EXI_ENABLE_NODISCARD "If nodiscard should be enabled." ON)
 option(EXI_ENABLE_DUMP  "If dump methods shouldn't be stripped." OFF)

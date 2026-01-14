@@ -444,7 +444,7 @@ StrRef::size_type StrInStrNoCase(StrRef s1, StrRef s2);
 /// The function returns a pair containing the extracted token and the
 /// remaining tail string.
 std::pair<StrRef, StrRef> getToken(StrRef Source,
-                                         StrRef Delimiters = " \t\n\v\f\r");
+                                   StrRef Delimiters = " \t\n\v\f\r");
 
 /// SplitString - Split up the specified string according to the specified
 /// delimiters, appending the result fragments to the output list.

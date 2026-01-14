@@ -23,9 +23,11 @@
 
 #include <exi/Basic/XMLCompare.hpp>
 #include <core/Common/SmallVec.hpp>
+#include <core/Common/StringExtras.hpp>
 #include <core/Common/STLExtras.hpp>
 #include <core/Support/ErrorHandle.hpp>
 #include <core/Support/Logging.hpp>
+#include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/XML.hpp>
 #include <exi/Encode/DTDParser.hpp>
 #include <bitset>
@@ -54,6 +56,67 @@ static NodeKindBitset MakeBitset(ExiOptions::PreserveOpts Opts) {
   if (Opts.PIs)
     B.set(NodeKind::node_pi, true);
   return B;
+}
+
+static String WriteDTDDifferences(StrRef LHS, StrRef RHS) {
+  String Out;
+  raw_string_ostream OS(Out);
+  printCStyleEscapedString(LHS, OS);
+  OS << ", ";
+  printCStyleEscapedString(RHS, OS);
+  return Out;
+}
+
+static bool CompareInlDTD(StrRef LHS, StrRef RHS) {
+  SmallVec<StrRef> LHSVec, RHSVec;
+  LHS.split(LHSVec, "\n\v\f\r");
+  RHS.split(LHSVec, "\n\v\f\r");
+  return LHSVec == RHSVec;
+}
+
+static bool DebugCompareDTDs(const DoctypeEvent& LHS, const DoctypeEvent& RHS) {
+  if (LHS.Kind != RHS.Kind) {
+    LOG_WARN("Different DOCTYPE types: {}, {}",
+             get_doctype_name(LHS.Kind), get_doctype_name(RHS.Kind));
+    return false;
+  }
+
+  auto LogDifferences = [&](StrRef Name, int N) {
+#if EXI_DEBUG
+    StrRef Split = Name.empty() ? "" : " ";
+    String Diff = WriteDTDDifferences(LHS[N], RHS[N]);
+    LOG_WARN("Different {}{}DOCTYPEs: {}", Name, Split, Diff);
+#endif
+  };
+
+  switch (LHS.Kind) {
+  case DTK_Public:
+    if (CompareInlDTD(LHS[3], RHS[3])) {
+      LogDifferences("PUBLIC", 3);
+      return false;
+    }
+    [[fallthrough]];
+  case DTK_System:
+    if (LHS[2] != RHS[2]) {
+      LogDifferences("SYSTEM", 2);
+      return false;
+    }
+    [[fallthrough]];
+  case DTK_Inline:
+    if (CompareInlDTD(LHS[1], RHS[1])) {
+      LogDifferences("Inline", 1);
+      return false;
+    }
+    [[fallthrough]];
+  case DTK_None:
+    if (LHS[0] != RHS[0]) {
+      LogDifferences("", 0);
+      return false;
+    }
+    return true;
+  }
+
+  exi_guardrail("Invalid DTD type!");
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -190,8 +253,20 @@ private:
   }
 
   bool compareDTDs() {
-    exi_todo("Add DTD comparison!");
-    return false;
+    auto InDTD = DTDParser::CreateDTEvent(In->value());
+    if (InDTD.is_err()) {
+      // TODO: Better log error
+      LOG_ERROR("Failed to create DOCTYPE for '{}'.", In->value());
+      return false;
+    }
+    auto OutDTD = DTDParser::CreateDTEvent(Out->value());
+    if (OutDTD.is_err()) {
+      // TODO: Better log error
+      LOG_ERROR("Failed to create DOCTYPE for '{}'.", Out->value());
+      return false;
+    }
+    //return *InDTD == *OutDTD;
+    return DebugCompareDTDs(*InDTD, *OutDTD);
   }
 
   bool comparePIs() {

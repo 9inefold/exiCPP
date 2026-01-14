@@ -40,6 +40,7 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## Not Started
 
+- Make XML comparison match failures more useful
 - Change schema from `Box<String>` to regular `String`
 - Implement `StackExhaustionHandler`
 - Fix `CDATA` parsing

@@ -848,6 +848,7 @@ int main(int Argc, char* Argv[]) {
     Pfx().run("CustomersNooptB.exi",  "Customers.xml");
     Pfx().run("StackedPPNooptB.exi",  "Stacked.xml");
     All().run("NamespaceNooptB.exi",  "Namespace.xml");
+    // TODO: Fix exificient replacing & with &amp; and pruning CDATA
     All().run("022NooptB.exi",        "022.xml");
     All().run("044NooptB.exi",        "044.xml");
     All().run("085NooptB.exi",        "085.xml");
