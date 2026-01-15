@@ -146,9 +146,9 @@ template <class To, class From,
 struct IntCastDefaultFailure {
   using FromT = IntCastFrom<From>;
 public:
-  static inline To castFailed() { return To(0); }
+  static constexpr To castFailed() { return To(0); }
 
-  static inline To doCastIfPossible(FromT X) {
+  static constexpr To doCastIfPossible(FromT X) {
     if EXI_UNLIKELY(!Derived::isPossible(X))
       // TODO: Add warning in debug if this occurs?
       return castFailed();
@@ -164,7 +164,7 @@ struct IntCastCast
   static_assert(H::simple_convertible_to<FromT, To>,
     "Invalid IntCast, \"static_cast<To>(from)\" must be well-formed!");
 public:
-  static inline To doCast(FromT X) { return static_cast<To>(X); }
+  static constexpr To doCast(FromT X) { return static_cast<To>(X); }
 };
 
 /// The real trait used by the cast functions. Nice and simple...
@@ -173,19 +173,19 @@ template <class To, class From> struct IntCastInfo {
   using SimplifiedSelf = IntCastCast<To, SimpleFrom>;
   using FromT = IntCastFrom<SimpleFrom>;
 
-  static inline bool isPossible(FromT X) {
+  static constexpr bool isPossible(FromT X) {
     return SimplifiedSelf::isPossible(X);
   }
 
-  static inline decltype(auto) doCast(FromT X) {
+  static constexpr decltype(auto) doCast(FromT X) {
     return SimplifiedSelf::doCast(X);
   }
 
-  static inline decltype(auto) castFailed() {
+  static constexpr decltype(auto) castFailed() {
     return SimplifiedSelf::castFailed();
   }
 
-  static inline decltype(auto) doCastIfPossible(FromT X) {
+  static constexpr decltype(auto) doCastIfPossible(FromT X) {
     return SimplifiedSelf::doCastIfPossible(X);
   }
 };
@@ -223,14 +223,14 @@ EXI_INLINE constexpr To IntCast(const From X) {
 /// Cast that checks if the result is the same representation.
 /// If they would differ, returns 0.
 template <class To, class From>
-constexpr inline To IntCastOrZero(const From X) {
+constexpr To IntCastOrZero(const From X) {
   return IntCastInfo<To, From>::doCastIfPossible(X);
 }
 
 /// Cast that checks if the result is the same representation.
 /// If they would differ, returns 0.
 template <class To, class From>
-constexpr inline To IntCastOr(const From X, const To Else) {
+constexpr To IntCastOr(const From X, const To Else) {
   using TraitsT = IntCastInfo<To, From>;
   if EXI_LIKELY(TraitsT::isPossible(X))
     return TraitsT::doCast(X);
@@ -245,7 +245,7 @@ constexpr inline To IntCastOr(const From X, const To Else) {
 /// the same.
 template <class To, class From>
 requires H::both_int<To, From>
-constexpr inline To promotion_cast(const From X) noexcept {
+constexpr To promotion_cast(const From X) noexcept {
   if constexpr (H::same_sign<To, From>) {
     if constexpr (sizeof(To) >= sizeof(From))
       // Simple case, eg. promotion_cast<u64>(u32);
