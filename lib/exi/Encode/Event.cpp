@@ -141,11 +141,11 @@ static StrRef GetSEURI(const StartElemEvent& SE) {
 
 static StrRef RuntimeGetSEURI(const StartElemEvent& SE) {
   auto* SEUri = &static_cast<const StartElemURIEvent&>(SE);
-  if (SE.Tag == 0)
-    return ""_str;
-  else if (SE.Tag == 1)
+  if (SE.tag() == StringEventKind::Simple)
+    return ""_str; // TODO: Decide if this should be nullopt?
+  else if (SE.tag() == StringEventKind::URI)
     return StrRef(SEUri->URI, SEUri->Extra);
-  else if (SE.Tag == 2)
+  else if (SE.tag() == StringEventKind::Opaque)
     return StringTable::GetURI(SEUri->OpaqueURI);
   exi_guardrail("invalid SE tag type");
 }
@@ -154,7 +154,8 @@ static StrRef RuntimeGetSEURI(const StartElemEvent& SE) {
 static bool CompareIncompatibleTags(const StartElemEvent& LHS,
                                     const StartElemEvent& RHS) {
   exi_invariant(LHS.name() == RHS.name());
-  if (LHS.Tag == 0 || RHS.Tag == 0)
+  static_assert(u32(StringEventKind::Simple) == 1, "Tags out of sync!");
+  if (LHS.Tag <= 1 || RHS.Tag <= 1)
     // TODO: Check if this assumption is true.
     // It should be since it should only appear the first time... but I'm kinda
     // tired rn so I could be wrong lol
@@ -164,19 +165,28 @@ static bool CompareIncompatibleTags(const StartElemEvent& LHS,
 }
 
 bool exi::operator==(const StartElemEvent& LHS, const StartElemEvent& RHS) {
+  exi_assert(LHS.Tag != 0 && RHS.Tag != 0);
   if (LHS.name() != RHS.name())
     return false;
-  if (LHS.Tag != RHS.Tag)
+  if (LHS.tag() != RHS.tag())
     return CompareIncompatibleTags(LHS, RHS);
   // SE(qname)
-  if (LHS.Tag == 0)
+  if (LHS.tag() == StringEventKind::Simple)
     return true;
   // SE(uri:*)
-  else if (LHS.Tag == 1)
+  else if (LHS.tag() == StringEventKind::URI)
     return GetSEURI<false>(LHS) == GetSEURI<false>(RHS);
-  else if (LHS.Tag == 2)
+  else if (LHS.tag() == StringEventKind::Opaque)
     return GetSEURI<true>(LHS) == GetSEURI<true>(RHS);
   exi_guardrail("invalid SE tag type");
+}
+
+bool DoctypeEvent::equals(const DoctypeEvent& RHS) const {
+  exi_todo("Implement equals");
+}
+
+bool DoctypeEvent::equalsEx(const DoctypeEvent& RHS) const {
+  exi_todo("Implement equalsEx");
 }
 
 bool exi::operator==(const DoctypeEvent& LHS, const DoctypeEvent& RHS) {

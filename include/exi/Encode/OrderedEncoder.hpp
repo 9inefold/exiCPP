@@ -1,6 +1,6 @@
 //===- exi/Encode/OrderedEncoder.hpp --------------------------------===//
 //
-// Copyright (C) 2025 Ninefold
+// Copyright (C) 2025-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -243,7 +243,7 @@ public:
   using BodyEncoder::SplitName;
 
   static StrRef GetSEUriValue(const StartElemURIEvent& SE) {
-    if EXI_LIKELY(SE.Tag == 1)
+    if EXI_LIKELY(SE.tag() == StringEventKind::URI)
       return StrRef(SE.URI, SE.Extra);
     else
       return encode::StringTable::GetURI(SE.OpaqueURI);

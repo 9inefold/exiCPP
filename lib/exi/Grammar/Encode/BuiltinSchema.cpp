@@ -1,6 +1,6 @@
 //===- exi/Grammar/Encode/BuiltinSchema.cpp -------------------------===//
 //
-// Copyright (C) 2025 Ninefold
+// Copyright (C) 2025-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -430,7 +430,7 @@ private:
   }
   template <State S>
   CC ExiError handleSE(OrderedEncoder* OE, const StartElemEvent& SE) {
-    if (SE.Tag != 0)
+    if (SE.tag() != StringEventKind::Simple)
       tail_return this->handleSEUri<S>(OE, SE);
     if constexpr (S != DocContent) {
       static constexpr bool IsStart = (S != ElementContent);

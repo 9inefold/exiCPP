@@ -50,11 +50,22 @@ enum class DoctypeKind : u8 {
   DTK_Public = 4, // Name PUBLIC "pubid" "sysid" Text?
 };
 
+/// Tag values for string events
+enum class StringEventKind : u32 {
+  None      = 0, // CH, CM, ER
+  Simple    = 1, // SE(qname)
+  URI       = 2, // SE(uri:*)
+  Opaque    = 3, // SE(uri:*)
+};
+
 using enum DoctypeKind;
 StrRef get_doctype_name(DoctypeKind K) EXI_READNONE;
 
 /// Marks all events as such.
 struct alignas(8) BaseEvent {};
+
+struct StartElemEvent;
+struct StartElemURIEvent;
 
 /// The base of all string types.
 struct EXI_EMPTY_BASES NoEventData : BaseEvent {};
@@ -62,12 +73,16 @@ struct EXI_EMPTY_BASES NoEventData : BaseEvent {};
 struct EXI_EMPTY_BASES StringEventData : BaseEvent {
   u32 Size = 0;
   u32 Extra : 30 = 0;
-  u32 Tag : 2 = 0b00;
+  u32 Tag : 2 = u32(StringEventKind::None);
   const char* Data = nullptr;
 public:
   ALWAYS_INLINE constexpr StrRef name() const {
     return StrRef(Data, Size);
   }
+  ALWAYS_INLINE constexpr StringEventKind tag() const {
+    return static_cast<StringEventKind>(this->Tag);
+  }
+  inline constexpr const StartElemEvent& se() const;
 };
 /// The base of all (string, string) types.
 struct EXI_EMPTY_BASES PairEventData : BaseEvent {
@@ -126,6 +141,10 @@ public:
     exi_invariant(Ix <= 3, "Index out of range!");
     return StrRef(Data[Ix], Size[Ix]);
   }
+  /// Simple comparison function.
+  bool equals(const DoctypeEvent& RHS) const;
+  /// More detailed comparison function. Checks the value in inline blocks.
+  bool equalsEx(const DoctypeEvent& RHS) const;
 };
 /// Entity Reference (string)
 struct EntityRefEvent : StringEventData {};
@@ -208,7 +227,7 @@ template <SimpleEventTerm Term>
 requires is_string_event<map_event_t<Term>>
 struct MakeEvent<Term> {
   using Type = map_event_t<Term>;
-  inline constexpr Type operator()(StrRef Data) const {
+  constexpr Type operator()(StrRef Data) const {
     return Type{{
       .Size = unsigned(Data.size()),
       .Data = Data.data()
@@ -220,7 +239,7 @@ template <SimpleEventTerm Term>
 requires is_stringpair_event<map_event_t<Term>>
 struct MakeEvent<Term> {
   using Type = map_event_t<Term>;
-  inline constexpr Type operator()(StrRef Name, StrRef Data) const {
+  constexpr Type operator()(StrRef Name, StrRef Data) const {
     return Type{{
       .Size = {unsigned(Name.size()), unsigned(Data.size())},
       .Data = {Name.data(), Data.data()}
@@ -230,27 +249,28 @@ struct MakeEvent<Term> {
 
 template <> struct MakeEvent<SimpleEventTerm::SE> {
   using Type = StartElemEvent;
-  inline constexpr Type operator()(StrRef Data) const {
+  constexpr Type operator()(StrRef Data) const {
     return Type{{
       .Size = unsigned(Data.size()),
+      .Tag  = u32(StringEventKind::Simple),
       .Data = Data.data()
     }};
   }
   using TypeEx = StartElemURIEvent;
-  inline constexpr TypeEx operator()(StrRef Data, StrRef URI) const {
+  constexpr TypeEx operator()(StrRef Data, StrRef URI) const {
     return TypeEx{{{
-      .Size = unsigned(Data.size()),
-      .Extra = unsigned(URI.size()), .Tag = 1,
-      .Data = Data.data()
+      .Size  = unsigned(Data.size()),
+      .Extra = unsigned(URI.size()),
+      .Tag   = u32(StringEventKind::URI),
+      .Data  = Data.data()
     }}, {
       .URI = URI.data()
     }};
   }
-  inline constexpr TypeEx operator()(StrRef Data,
-                                     encode::STURIEntry* URI) const {
+  constexpr TypeEx operator()(StrRef Data, encode::STURIEntry* URI) const {
     return TypeEx{{{
       .Size = unsigned(Data.size()),
-      .Tag  = 2,
+      .Tag  = u32(StringEventKind::Opaque),
       .Data = Data.data()
     }}, {
       .OpaqueURI = URI
@@ -260,8 +280,8 @@ template <> struct MakeEvent<SimpleEventTerm::SE> {
 
 template <> struct MakeEvent<SimpleEventTerm::NS> {
   using Type = NamespaceEvent;
-  inline constexpr Type operator()(StrRef Pfx, StrRef Uri,
-                                   bool IsLocal = false) const {
+  constexpr Type operator()(StrRef Pfx, StrRef Uri,
+                            bool IsLocal = false) const {
     return Type{
       .PfxSize = unsigned(Pfx.size()),
       .UriSize = unsigned(Uri.size()),
@@ -318,13 +338,18 @@ constexpr StrRef get_event_name(const Event&) {
 //////////////////////////////////////////////////////////////////////////
 // operator==
 
+EXI_INLINE constexpr const StartElemEvent& StringEventData::se() const {
+  exi_invariant(tag() != StringEventKind::None);
+  return static_cast<const StartElemEvent&>(*this);
+}
+
 ALWAYS_INLINE constexpr StrRef StartElemEvent::uri() const {
-  exi_relassert(Tag == 1, "Incorrect type!");
+  exi_invariant(tag() == StringEventKind::URI, "Incorrect type!");
   const char* URI = static_cast<const StartElemURIEvent&>(*this).URI;
   return StrRef(URI, Extra);
 }
 ALWAYS_INLINE encode::STURIEntry* StartElemEvent::opaque() const {
-  exi_relassert(Tag == 2, "Incorrect type!");
+  exi_invariant(tag() == StringEventKind::Opaque, "Incorrect type!");
   return static_cast<const StartElemURIEvent&>(*this).OpaqueURI;
 }
 
@@ -332,9 +357,8 @@ bool operator==(const StartElemEvent& LHS, const StartElemEvent& RHS);
 bool operator==(const DoctypeEvent& LHS, const DoctypeEvent& RHS);
 
 inline bool operator==(const StringEventData& LHS, const StringEventData& RHS) {
-  if EXI_UNLIKELY(LHS.Tag != 0 || RHS.Tag != 0)
-    return static_cast<const StartElemEvent&>(LHS)
-        == static_cast<const StartElemEvent&>(RHS);
+  if EXI_UNLIKELY(LHS.Tag != 0 && RHS.Tag != 0)
+    return LHS.se() == RHS.se();
   return LHS.name() == RHS.name();
 }
 inline bool operator==(const PairEventData& LHS, const PairEventData& RHS) {
