@@ -38,29 +38,32 @@ namespace exi {
 
 /// Implements DOCTYPE parsing functions.
 struct DTDParser {
+  /// Delimiters used by DTDs.
+  static constexpr StrRef kDelimiter = " \t\n\r"_str;
+
   /// Consumes a token and advances to the next (or the end).
   static StrRef TakeToken(StrRef& S) {
-    const auto Pos = S.find_first_of(" \t\n\r");
+    const auto Pos = S.find_first_of(kDelimiter);
     if (Pos == StrRef::npos) {
       StrRef Out = S;
       S = "";
       return Out;
     }
     StrRef Out = S.take_front(Pos);
-    S = S.drop_front(Pos).ltrim(" \t\n\r");
+    S = S.drop_front(Pos).ltrim(kDelimiter);
     return Out;
   }
 
   /// Per the XML EBNF:
   ///  `#x20 | #xD | #xA | [a-zA-Z0-9] | [-'()+,./:=?;!*#@$_%]`
-  static consteval exi::bitset<128> GetPubidCharFilter() {
-    exi::bitset<128> Filter {};
+  static consteval StrRef::filter_t GetPubidCharFilter() {
+    StrRef::filter_t Filter {};
     // #x20 | #xD | #xA
     Filter.set(' ').set('\r').set('\n');
     // [a-zA-Z0-9]
-    Filter.set(usize('A'),'Z')
-          .set(usize('a'),'z')
-          .set(usize('0'),'9');
+    Filter.set_range('A','Z')
+          .set_range('a','z')
+          .set_range('0','9');
     // [-'()+,./:=?;!*#@$_%]
     for (unsigned char C : "-'()+,./:=?;!*#@$_%")
       Filter.set(C);
@@ -69,7 +72,7 @@ struct DTDParser {
 
   /// Per the XML EBNF:
   ///  `" PubidChar* " | ' (PubidChar - ')* '`
-  static exi::bitset<128> GetPubidLiteralFilter(char Quote) {
+  static StrRef::filter_t GetPubidLiteralFilter(char Quote) {
     const bool kAllowQuote = (Quote == '\"');
     auto Filter = GetPubidCharFilter();
     return Filter.set('\'', kAllowQuote);

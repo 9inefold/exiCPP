@@ -982,6 +982,10 @@ public:
     return drop_front(std::min(size(), find_first_not_of(Chars)));
   }
 
+  /// Return string with consecutive characters in \p F starting from
+  /// the left removed.
+  [[nodiscard]] inline StrRef ltrim(const filter_t& F) const;
+
   /// Return string with consecutive \p Char characters starting from the
   /// right removed.
   [[nodiscard]] StrRef rtrim(char Char) const {
@@ -994,6 +998,10 @@ public:
     return drop_back(size() - std::min(size(), find_last_not_of(Chars) + 1));
   }
 
+  /// Return string with consecutive characters in \p F starting from
+  /// the right removed.
+  [[nodiscard]] inline StrRef rtrim(const filter_t& F) const;
+
   /// Return string with consecutive \p Char characters starting from the
   /// left and right removed.
   [[nodiscard]] StrRef trim(char Char) const {
@@ -1005,6 +1013,10 @@ public:
   [[nodiscard]] StrRef trim(StrRef Chars = " \t\n\v\f\r") const {
     return ltrim(Chars).rtrim(Chars);
   }
+
+  /// Return string with consecutive characters in \p F starting from
+  /// the left and right removed.
+  [[nodiscard]] inline StrRef trim(const filter_t& F) const;
 
   /// Detect the line ending style of the string.
   ///

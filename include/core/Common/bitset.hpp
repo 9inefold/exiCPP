@@ -101,6 +101,13 @@ public:
 
   // TODO: Add ctor from std::bitset
 
+  static constexpr bitset FromChars(StrRef S) {
+    bitset B {};
+    for (char C : S)
+      B.set((unsigned char)C);
+    return B;
+  }
+
   /// size - Returns the number of bits in this bitset.
   static constexpr usize size() { return N; }
 
@@ -243,6 +250,11 @@ public:
     return *this;
   }
 
+  /// set_range - Alias for set
+  template <typename T> constexpr bitset& set_range(T I, T E) {
+    return set(IntCast<unsigned>(I), IntCast<unsigned>(E));
+  }
+
   /// reset - Sets all bits to `false`.
   constexpr bitset& reset() {
     Bits = buffer{};
@@ -283,6 +295,11 @@ public:
       Bits[Idx(I)] &= ~PostfixMask;
 
     return *this;
+  }
+
+  /// reset_range - Alias for set
+  template <typename T> constexpr bitset& reset_range(T I, T E) {
+    return reset(IntCast<unsigned>(I), IntCast<unsigned>(E));
   }
 
   /// flip - Flips the value of all bits.

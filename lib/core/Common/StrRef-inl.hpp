@@ -57,6 +57,18 @@ ALWAYS_INLINE usize StrRef::find_last_not_of(const filter_t& F, usize From) cons
   return npos;
 }
 
+inline StrRef StrRef::ltrim(const filter_t& F) const {
+  return drop_front(std::min(size(), find_first_not_of(F)));
+}
+
+inline StrRef StrRef::rtrim(const filter_t& F) const {
+  return drop_back(size() - std::min(size(), find_last_not_of(F) + 1));
+}
+
+inline StrRef StrRef::trim(const filter_t& F) const {
+  return ltrim(F).rtrim(F);
+}
+
 inline std::pair<usize, usize> StrRef::find_token(const filter_t& F) const {
   // Figure out where the token starts.
   StrRef::size_type Start = find_first_not_of(F);

@@ -24,6 +24,7 @@
 #include <Common/BitSpan.hpp>
 #include <Common/BitVector.hpp>
 #include <Common/SmallStr.hpp>
+#include <Support/raw_ostream.hpp>
 
 using namespace exi;
 
