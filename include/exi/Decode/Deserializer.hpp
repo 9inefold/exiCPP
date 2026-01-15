@@ -125,6 +125,12 @@ public:
     return ExiError::OK;
   }
 
+  /// DOCTYPE (Full Text)
+  virtual ExiError DT(StrRef FullText) {
+    LOG_EXTRA("Decoded DT");
+    return ExiError::OK;
+  }
+
   /// DOCTYPE
   virtual ExiError DT(StrRef Name, StrRef PublicID,
                       StrRef SystemID, StrRef Text) {
@@ -147,6 +153,11 @@ public:
   /// Customization point for enabling or disabling persistence for uncommon
   /// values. Enable if strings are saved beyond the lifetime of the function.
   virtual bool needsPersistence() const { return false; }
+
+  /// Customization point for simplifying DOCTYPE passing.
+  virtual bool simpleDoctype() const { return false; }
+
+  /// Destructor.
   virtual ~Deserializer() = default;
 
 private:

@@ -759,6 +759,9 @@ CC ExiError OrderedBuiltinSchema<StrmT>::encodeEventSimple(
   StrmT& Strm = Get::Writer(OE);
   switch (Event.Kind) {
   case DTK_None:
+    Strm.encodeString(Event[0]); // Name
+    Strm.writeBits(ubit<24>(0)); // Padding[3]
+    break;
   case DTK_Text:
     Strm.encodeString(Event[0]); // Name
     Strm.writeBits(ubit<16>(0)); // Padding[2]

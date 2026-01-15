@@ -42,7 +42,7 @@ struct DTDParser {
   static constexpr StrRef kDelimiter = " \t\n\r"_str;
 
   /// Consumes a token and advances to the next (or the end).
-  static StrRef TakeToken(StrRef& S) {
+  [[nodiscard]] static StrRef TakeToken(StrRef& S) {
     const auto Pos = S.find_first_of(kDelimiter);
     if (Pos == StrRef::npos) {
       StrRef Out = S;
@@ -123,7 +123,7 @@ struct DTDParser {
     return ErrorCode::kInvalidEXIInput;
   }
 
-  static ExiResult<DoctypeEvent> CreateDTEvent(StrRef Data) {
+  [[nodiscard]] static ExiResult<DoctypeEvent> CreateDTEvent(StrRef Data) {
     using enum SimpleEventTerm;
     Data = Data.trim();
     StrRef Name = TakeToken(Data);

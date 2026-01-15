@@ -404,6 +404,7 @@ case##CODE:                                                                   \
   ExiError handleCM(Deserializer* S);
   EXI_COLD ExiError handlePI(Deserializer* S);
   EXI_COLD ExiError handleDT(Deserializer* S);
+  ExiError handleDTSimple(Deserializer* S, StrRef, StrRef, StrRef, StrRef);
   EXI_COLD ExiError handleER(Deserializer* S);
 
   QName getQName(EventUID Event);
@@ -430,7 +431,7 @@ case##CODE:                                                                   \
   }
 
   /// Interns a collection of strings with `BP`.
-  EXI_INLINE void internStrings(auto&...Strs) {
+  inline void internStrings(auto&...Strs) {
     (InternString(this->BP, Strs), ...);
   }
 

@@ -280,12 +280,45 @@ EXI_COLD ExiError ExiDecoder::handlePI(Deserializer* S) {
   });
 }
 
+static void WriteQuotedDTString(raw_ostream& OS, StrRef S) {
+  if EXI_UNLIKELY(S.contains('\"')) {
+    // TODO: Handle case where string contains '
+    exi_invariant(!S.contains('\''));
+    OS << '\'' << S << '\'';
+  } else
+    OS << '\"' << S << '\"';
+}
+
+ExiError ExiDecoder::handleDTSimple(Deserializer* S,
+ StrRef Name, StrRef PublicID, StrRef SystemID, StrRef Text) {
+  SmallStr<80> Buf = Name;
+  raw_svector_ostream OS(Buf);
+
+  if (!PublicID.empty()) {
+    WriteQuotedDTString(OS << " PUBLIC ", PublicID);
+    WriteQuotedDTString(OS << ' ', SystemID);
+  } else if (!SystemID.empty()) {
+    WriteQuotedDTString(OS << " SYSTEM ", SystemID);
+  }
+  // Text can follow any type
+  if (!Text.empty())
+    OS << format(" [{}]", Text);
+  
+  StrRef Out = Buf.str();
+  if (S->needsPersistence())
+    this->internStrings(Out);
+  return S->DT(Out);
+}
+
 EXI_COLD ExiError ExiDecoder::handleDT(Deserializer* S) {
   return Reader.visit([this, S] (auto& Strm) -> ExiError {
     READ_STRING(Name,  16, &Strm)
     READ_STRING(PubID, 16, &Strm)
     READ_STRING(SysID, 16, &Strm)
     READ_STRING(Text,  32, &Strm)
+    if (S->simpleDoctype())
+      return this->handleDTSimple(S, *Name, *PubID, *SysID, *Text);
+    // Full DT passing
     if (S->needsPersistence())
       this->internStrings(*Name, *PubID, *SysID, *Text);
     return S->DT(*Name, *PubID, *SysID, *Text);

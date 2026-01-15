@@ -125,10 +125,9 @@ public:
   }
 
   /// DOCTYPE
-  ExiError DT(StrRef Name, StrRef PublicID,
-              StrRef SystemID, StrRef Text) override {
+  ExiError DT(StrRef FullText) override {
     // TODO: Use other params
-    XMLNode* Node = allocValue(node_doctype, Text);
+    XMLNode* Node = allocValue(node_doctype, FullText);
     Curr->append_node(Node);
     return ExiError::OK;
   }
@@ -141,6 +140,7 @@ public:
 
   XMLDocument& document() { return Doc; }
   bool needsPersistence() const override { return true; }
+  bool simpleDoctype() const override { return true; }
 
 private:
   bool hasUnboundPrefix() const {

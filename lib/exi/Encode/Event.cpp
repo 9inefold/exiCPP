@@ -281,7 +281,7 @@ raw_ostream& exi::operator<<(raw_ostream& OS, const NamespaceEvent& NS) {
 raw_ostream& exi::operator<<(raw_ostream& OS, const DoctypeEvent& DT) {
   switch (DT.Kind) {
   case DTK_None:
-    return OS << format("{}", DT[0]);
+    return OS << DT[0];
   case DTK_Text:
     return OS << format("{} [{}]", DT[0], DT[1]);
   // TODO: When quoting, check for " and switch to ' if necessary
