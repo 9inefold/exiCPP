@@ -446,6 +446,14 @@ StrRef::size_type StrInStrNoCase(StrRef s1, StrRef s2);
 std::pair<StrRef, StrRef> getToken(StrRef Source,
                                    StrRef Delimiters = " \t\n\v\f\r");
 
+/// getToken - This function extracts one token from source, ignoring any
+/// leading characters that appear in the Delimiters filter, and ending the
+/// token at any of the characters that appear in the Delimiters filter. If
+/// there are no tokens in the source string, an empty string is returned.
+/// The function returns a pair containing the extracted token and the
+/// remaining tail string.
+std::pair<StrRef, StrRef> getToken(StrRef Source, const StrRef::filter_t& F);
+
 /// SplitString - Split up the specified string according to the specified
 /// delimiters, appending the result fragments to the output list.
 void SplitString(StrRef Source,

@@ -61,7 +61,7 @@ StrRef::size_type exi::StrInStrNoCase(StrRef s1, StrRef s2) {
 
 /// getToken - This function extracts one token from source, ignoring any
 /// leading characters that appear in the Delimiters string, and ending the
-/// token at any of the characters that appear in the Delimiters string.  If
+/// token at any of the characters that appear in the Delimiters string. If
 /// there are no tokens in the source string, an empty string is returned.
 /// The function returns a pair containing the extracted token and the
 /// remaining tail string.
@@ -70,8 +70,14 @@ std::pair<StrRef, StrRef> exi::getToken(StrRef Source, StrRef Delimiters) {
   return std::make_pair(Source.slice(Start, End), Source.substr(End));
 }
 
-static std::pair<StrRef, StrRef> GetTokenFromBits(StrRef Source,
-                                                  const StrRef::filter_t& F) {
+/// getToken - This function extracts one token from source, ignoring any
+/// leading characters that appear in the Delimiters filter, and ending the
+/// token at any of the characters that appear in the Delimiters filter. If
+/// there are no tokens in the source string, an empty string is returned.
+/// The function returns a pair containing the extracted token and the
+/// remaining tail string.
+std::pair<StrRef, StrRef> exi::getToken(StrRef Source,
+                                        const StrRef::filter_t& F) {
   auto [Start, End] = Source.find_token(F);
   return std::make_pair(Source.slice(Start, End), Source.substr(End));
 }
@@ -81,11 +87,10 @@ static std::pair<StrRef, StrRef> GetTokenFromBits(StrRef Source,
 void exi::SplitString(StrRef Source,
                       SmallVecImpl<StrRef> &OutFragments,
                       const StrRef::filter_t &Filter) {
-  // ...
-  std::pair<StrRef, StrRef> Str = GetTokenFromBits(Source, Filter);
+  std::pair<StrRef, StrRef> Str = getToken(Source, Filter);
   while (!Str.first.empty()) {
     OutFragments.push_back(Str.first);
-    Str = GetTokenFromBits(Str.second, Filter);
+    Str = getToken(Str.second, Filter);
   }
 }
 
