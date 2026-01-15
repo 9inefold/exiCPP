@@ -100,7 +100,7 @@ void exi::SplitString(StrRef Source,
   SplitString(Source, OutFragments, CharBits);
 }
 
-void exi::printEscapedString(StrRef Name, raw_ostream &Out) {
+raw_ostream &exi::printEscapedString(StrRef Name, raw_ostream &Out) {
   for (unsigned char C : Name) {
     if (C == '\\')
       Out << '\\' << C;
@@ -109,9 +109,10 @@ void exi::printEscapedString(StrRef Name, raw_ostream &Out) {
     else
       Out << '\\' << hexdigit(C >> 4) << hexdigit(C & 0x0F);
   }
+  return Out;
 }
 
-void exi::printCStyleEscapedString(StrRef Name, raw_ostream &Out) {
+raw_ostream &exi::printCStyleEscapedString(StrRef Name, raw_ostream &Out) {
   for (unsigned char C : Name) {
     if (C == '\\' || C == '\"')
       Out << '\\' << C;
@@ -145,9 +146,10 @@ void exi::printCStyleEscapedString(StrRef Name, raw_ostream &Out) {
       }
     }
   }
+  return Out;
 }
 
-void exi::printHTMLEscaped(StrRef String, raw_ostream &Out) {
+raw_ostream &exi::printHTMLEscaped(StrRef String, raw_ostream &Out) {
   for (char C : String) {
     if (C == '&')
       Out << "&amp;";
@@ -162,11 +164,13 @@ void exi::printHTMLEscaped(StrRef String, raw_ostream &Out) {
     else
       Out << C;
   }
+  return Out;
 }
 
-void exi::printLowerCase(StrRef String, raw_ostream &Out) {
+raw_ostream &exi::printLowerCase(StrRef String, raw_ostream &Out) {
   for (const char C : String)
     Out << toLower(C);
+  return Out;
 }
 
 String exi::convertToSnakeFromCamelCase(StrRef input) {

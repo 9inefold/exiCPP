@@ -479,18 +479,18 @@ inline StrRef getOrdinalSuffix(unsigned Val) {
 
 /// Print each character of the specified string, escaping it if it is not
 /// printable or if it is an escape char.
-void printEscapedString(StrRef Name, raw_ostream &Out);
+raw_ostream &printEscapedString(StrRef Name, raw_ostream &Out);
 
 /// Print each character of the specified string, escaping it if it is not
 /// printable or if it is an escape char.
-void printCStyleEscapedString(StrRef Name, raw_ostream &Out);
+raw_ostream &printCStyleEscapedString(StrRef Name, raw_ostream &Out);
 
 /// Print each character of the specified string, escaping HTML special
 /// characters.
-void printHTMLEscaped(StrRef String, raw_ostream &Out);
+raw_ostream &printHTMLEscaped(StrRef String, raw_ostream &Out);
 
 /// printLowerCase - Print each character as lowercase if it is uppercase.
-void printLowerCase(StrRef String, raw_ostream &Out);
+raw_ostream &printLowerCase(StrRef String, raw_ostream &Out);
 
 /// Converts a string from camel-case to snake-case by replacing all uppercase
 /// letters with '_' followed by the letter in lowercase, except if the
@@ -501,8 +501,7 @@ String convertToSnakeFromCamelCase(StrRef input);
 /// of '_' followed by a lowercase letter with the letter in uppercase.
 /// Optionally allow capitalization of the first letter (if it is a lowercase
 /// letter)
-String convertToCamelFromSnakeCase(StrRef input,
-                                        bool capitalizeFirst = false);
+String convertToCamelFromSnakeCase(StrRef input, bool capitalizeFirst = false);
 
 namespace detail {
 
@@ -605,15 +604,52 @@ inline String join_items(Sep Separator, Args &&... Items) {
   return Result;
 }
 
+/// A helper struct to escape strings. The default is CStyle.
+/// The 3 kinds (Classic, CStyle, Html) map to their respective functions.
+///
+/// ```cpp
+/// OS << escape(String) << '\n';
+/// OS << escape::html(String) << '\n';
+/// ```
+struct escape {
+  enum StyleKind { CLASSIC, CSTYLE, HTML };
+  StrRef Text;
+  StyleKind Style = CSTYLE;
+  
+public:
+  explicit escape(StrRef Text, StyleKind Style = CSTYLE)
+   : Text(Text), Style(Style) {}
+  
+  static escape Classic(StrRef Text) { return escape(Text, CLASSIC); }
+  static escape CStyle(StrRef Text) { return escape(Text, CSTYLE); }
+  static escape Html(StrRef Text) { return escape(Text, HTML); }
+
+  static escape classic(StrRef Text) { return escape(Text, CLASSIC); }
+  static escape cstyle(StrRef Text) { return escape(Text, CSTYLE); }
+  static escape html(StrRef Text) { return escape(Text, HTML); }
+};
+
+inline raw_ostream& operator<<(raw_ostream& OS, const escape& Escape) {
+  switch (Escape.Style) {
+  case escape::CLASSIC:
+    return printEscapedString(Escape.Text, OS);
+  case escape::CSTYLE:
+    return printCStyleEscapedString(Escape.Text, OS);
+  case escape::HTML:
+    return printHTMLEscaped(Escape.Text, OS);
+  }
+  exi_unreachable("???");
+}
+
 /// A helper class to return the specified delimiter string after the first
 /// invocation of operator StrRef().  Used to generate a comma-separated
 /// list from a loop like so:
 ///
-/// \code
-///   ListSeparator LS;
-///   for (auto &I : C)
-///     OS << LS << I.getName();
-/// \end
+/// ```cpp
+/// ListSeparator LS;
+/// for (auto &I : C)
+///   OS << LS << I.getName();
+/// ```
 class ListSeparator {
   bool First = true;
   StrRef Separator;
