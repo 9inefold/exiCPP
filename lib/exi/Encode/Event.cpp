@@ -46,7 +46,7 @@ static_assert(sizeof(NamespaceEvent) == 3 * sizeof(void*));
 StrRef exi::get_doctype_name(DoctypeKind K) {
   switch (K) {
   case DTK_None:   return "";
-  case DTK_Text:   return "Text";
+  case DTK_Text:   return "Inline";
   case DTK_System: return "SYSTEM";
   case DTK_Public: return "PUBLIC";
   }

@@ -141,6 +141,23 @@ public:
     exi_invariant(Ix <= 3, "Index out of range!");
     return StrRef(Data[Ix], Size[Ix]);
   }
+  constexpr ALWAYS_INLINE StrRef name() const {
+    return (*this)[0];
+  }
+  constexpr StrRef publicID() const {
+    return Kind == DTK_Public ? (*this)[1] : ""_str;
+  }
+  constexpr StrRef systemID() const {
+    if (Kind == DTK_Public)
+      return (*this)[2];
+    else if (Kind == DTK_System)
+      return (*this)[1];
+    else
+      return ""_str;
+  }
+  constexpr StrRef text() const {
+    return Kind != DTK_None ? (*this)[u32(Kind) - 1] : ""_str;
+  }
   /// Simple comparison function.
   bool equals(const DoctypeEvent& RHS) const;
   /// More detailed comparison function. Checks the value in inline blocks.
@@ -336,7 +353,7 @@ constexpr StrRef get_event_name(const Event&) {
 //inline constexpr variadic_function<&H::EncodeDTWithImpl, 4> EncodeDTWith;
 
 //////////////////////////////////////////////////////////////////////////
-// operator==
+// Implementation
 
 EXI_INLINE constexpr const StartElemEvent& StringEventData::se() const {
   exi_invariant(tag() != StringEventKind::None);
@@ -352,6 +369,9 @@ ALWAYS_INLINE encode::STURIEntry* StartElemEvent::opaque() const {
   exi_invariant(tag() == StringEventKind::Opaque, "Incorrect type!");
   return static_cast<const StartElemURIEvent&>(*this).OpaqueURI;
 }
+
+//////////////////////////////////////////////////////////////////////////
+// operator==
 
 bool operator==(const StartElemEvent& LHS, const StartElemEvent& RHS);
 
