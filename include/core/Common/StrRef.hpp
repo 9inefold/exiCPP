@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Relicensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -54,6 +54,7 @@ namespace exi {
 #if EXI_HAS_AP_SCALARS == 1
 class APInt;
 #endif
+template <usize N> class bitset;
 class hash_code;
 template <typename T> class SmallVecImpl;
 class StrRef;
@@ -470,6 +471,9 @@ public:
   /// found.
   [[nodiscard]] usize rfind_insensitive(StrRef Str) const;
 
+  /// The type used for `find_[first|last][_not]_of` under the hood.
+  using filter_t = exi::bitset<1 << CHAR_BIT>;
+
   /// Find the first character in the string that is \p C, or npos if not
   /// found. Same as find.
   [[nodiscard]] usize find_first_of(char C, usize From = 0) const {
@@ -482,6 +486,13 @@ public:
   /// Complexity: O(size() + Chars.size())
   [[nodiscard]] usize find_first_of(StrRef Chars, usize From = 0) const;
 
+  /// Find the first character in the string that is in \p F, or npos if
+  /// not found.
+  ///
+  /// Complexity: O(size() + Chars.size())
+  [[nodiscard]] inline usize find_first_of(const filter_t& F,
+                                           usize From = 0) const;
+
   /// Find the first character in the string that is not \p C or npos if not
   /// found.
   [[nodiscard]] usize find_first_not_of(char C, usize From = 0) const;
@@ -491,7 +502,14 @@ public:
   ///
   /// Complexity: O(size() + Chars.size())
   [[nodiscard]] usize find_first_not_of(StrRef Chars,
-                                         usize From = 0) const;
+                                        usize From = 0) const;
+  
+  /// Find the first character in the string that is not in the string \p F,
+  /// or npos if not found.
+  ///
+  /// Complexity: O(size() + Chars.size())
+  [[nodiscard]] inline usize find_first_not_of(const filter_t& F,
+                                               usize From = 0) const;
 
   /// Find the last character in the string that is \p C, or npos if not
   /// found.
@@ -499,12 +517,18 @@ public:
     return rfind(C, From);
   }
 
-  /// Find the last character in the string that is in \p C, or npos if not
+  /// Find the last character in the string that is in \p Chars, or npos if not
   /// found.
   ///
   /// Complexity: O(size() + Chars.size())
-  [[nodiscard]] usize find_last_of(StrRef Chars,
-                                    usize From = npos) const;
+  [[nodiscard]] usize find_last_of(StrRef Chars, usize From = npos) const;
+  
+  /// Find the last character in the string that is in \p F, or npos if not
+  /// found.
+  ///
+  /// Complexity: O(size() + Chars.size())
+  [[nodiscard]] inline usize find_last_of(const filter_t& F,
+                                          usize From = npos) const;
 
   /// Find the last character in the string that is not \p C, or npos if not
   /// found.
@@ -516,6 +540,13 @@ public:
   /// Complexity: O(size() + Chars.size())
   [[nodiscard]] usize find_last_not_of(StrRef Chars,
                                         usize From = npos) const;
+
+  /// Find the last character in the string that is not in \p F, or
+  /// npos if not found.
+  ///
+  /// Complexity: O(size() + Chars.size())
+  [[nodiscard]] inline usize find_last_not_of(const filter_t& F,
+                                              usize From = npos) const;
 
   /// Return true if the given string is a substring of *this, and false
   /// otherwise.
@@ -848,8 +879,7 @@ public:
   ///
   /// \param Separator - The string to split on.
   /// \return - The split substrings.
-  [[nodiscard]] std::pair<StrRef, StrRef>
-  split(StrRef Separator) const {
+  [[nodiscard]] std::pair<StrRef, StrRef> split(StrRef Separator) const {
     usize Idx = find(Separator);
     if (Idx == npos)
       return std::make_pair(*this, StrRef());
@@ -866,8 +896,7 @@ public:
   ///
   /// \param Separator - The string to split on.
   /// \return - The split substrings.
-  [[nodiscard]] std::pair<StrRef, StrRef>
-  rsplit(StrRef Separator) const {
+  [[nodiscard]] std::pair<StrRef, StrRef> rsplit(StrRef Separator) const {
     usize Idx = rfind(Separator);
     if (Idx == npos)
       return std::make_pair(*this, StrRef());
@@ -922,6 +951,24 @@ public:
   [[nodiscard]] std::pair<StrRef, StrRef> rsplit(char Separator) const {
     return rsplit(StrRef(&Separator, 1));
   }
+
+  /// Locates the start and end positions of a token delimited by \p C.
+  ///
+  /// \param Chars - The delimiter character.
+  /// \return - The positions [start, end).
+  [[nodiscard]] std::pair<usize, usize> find_token(char C) const;
+
+  /// Locates the start and end positions of a token delimited by \p Chars.
+  ///
+  /// \param Chars - The delimiter characters.
+  /// \return - The positions [start, end).
+  [[nodiscard]] std::pair<usize, usize> find_token(StrRef Chars) const;
+
+  /// Locates the start and end positions of a token delimited by \p F.
+  ///
+  /// \param Chars - The delimiter character filter.
+  /// \return - The positions [start, end).
+  [[nodiscard]] inline std::pair<usize, usize> find_token(const filter_t& F) const;
 
   /// Return string with consecutive \p Char characters starting from the
   /// the left removed.

@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Relicensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,7 +33,8 @@
 #include <Common/StringExtras.hpp>
 #include <Common/edit_distance.hpp>
 #include <Support/Error.hpp>
-#include <bitset>
+#include <Common/StrRef-inl.hpp>
+//#include <bitset>
 
 using namespace exi;
 
@@ -311,16 +312,11 @@ usize StrRef::rfind_insensitive(StrRef Str) const {
 /// Chars, or npos if not found.
 ///
 /// Note: O(size() + Chars.size())
-StrRef::size_type StrRef::find_first_of(StrRef Chars,
-                                              usize From) const {
-  std::bitset<1 << CHAR_BIT> CharBits;
+StrRef::size_type StrRef::find_first_of(StrRef Chars, usize From) const {
+  filter_t CharBits {};
   for (char C : Chars)
     CharBits.set((unsigned char)C);
-
-  for (size_type i = std::min(From, size()), e = size(); i != e; ++i)
-    if (CharBits.test((unsigned char)data()[i]))
-      return i;
-  return npos;
+  return this->find_first_of(CharBits, From);
 }
 
 /// find_first_not_of - Find the first character in the string that is not
@@ -333,32 +329,22 @@ StrRef::size_type StrRef::find_first_not_of(char C, usize From) const {
 /// in the string \arg Chars, or npos if not found.
 ///
 /// Note: O(size() + Chars.size())
-StrRef::size_type StrRef::find_first_not_of(StrRef Chars,
-                                                  usize From) const {
-  std::bitset<1 << CHAR_BIT> CharBits;
+StrRef::size_type StrRef::find_first_not_of(StrRef Chars, usize From) const {
+  filter_t CharBits {};
   for (char C : Chars)
     CharBits.set((unsigned char)C);
-
-  for (size_type i = std::min(From, size()), e = size(); i != e; ++i)
-    if (!CharBits.test((unsigned char)data()[i]))
-      return i;
-  return npos;
+  return this->find_first_not_of(CharBits, From);
 }
 
 /// find_last_of - Find the last character in the string that is in \arg C,
 /// or npos if not found.
 ///
 /// Note: O(size() + Chars.size())
-StrRef::size_type StrRef::find_last_of(StrRef Chars,
-                                             usize From) const {
-  std::bitset<1 << CHAR_BIT> CharBits;
+StrRef::size_type StrRef::find_last_of(StrRef Chars, usize From) const {
+  filter_t CharBits {};
   for (char C : Chars)
     CharBits.set((unsigned char)C);
-
-  for (size_type i = std::min(From, size()) - 1, e = -1; i != e; --i)
-    if (CharBits.test((unsigned char)data()[i]))
-      return i;
-  return npos;
+  return this->find_last_of(CharBits, From);
 }
 
 /// find_last_not_of - Find the last character in the string that is not
@@ -374,21 +360,16 @@ StrRef::size_type StrRef::find_last_not_of(char C, usize From) const {
 /// \arg Chars, or npos if not found.
 ///
 /// Note: O(size() + Chars.size())
-StrRef::size_type StrRef::find_last_not_of(StrRef Chars,
-                                                 usize From) const {
-  std::bitset<1 << CHAR_BIT> CharBits;
+StrRef::size_type StrRef::find_last_not_of(StrRef Chars, usize From) const {
+  filter_t CharBits {};
   for (char C : Chars)
     CharBits.set((unsigned char)C);
-
-  for (size_type i = std::min(From, size()) - 1, e = -1; i != e; --i)
-    if (!CharBits.test((unsigned char)data()[i]))
-      return i;
-  return npos;
+  return this->find_last_not_of(CharBits, From);
 }
 
 void StrRef::split(SmallVecImpl<StrRef> &A,
-                      StrRef Separator, int MaxSplit,
-                      bool KeepEmpty) const {
+                   StrRef Separator, int MaxSplit,
+                   bool KeepEmpty) const {
   StrRef Str = *this;
 
   // Count down from MaxSplit. When MaxSplit is -1, this will just split
@@ -414,7 +395,7 @@ void StrRef::split(SmallVecImpl<StrRef> &A,
 }
 
 void StrRef::split(SmallVecImpl<StrRef> &A, char Separator,
-                      int MaxSplit, bool KeepEmpty) const {
+                   int MaxSplit, bool KeepEmpty) const {
   StrRef Str = *this;
 
   // Count down from MaxSplit. When MaxSplit is -1, this will just split
@@ -437,6 +418,23 @@ void StrRef::split(SmallVecImpl<StrRef> &A, char Separator,
   // Push the tail.
   if (KeepEmpty || !Str.empty())
     A.push_back(Str);
+}
+
+std::pair<usize, usize> StrRef::find_token(char C) const {
+  // Figure out where the token starts.
+  StrRef::size_type Start = find_first_not_of(C);
+
+  // Find the next occurrence of the delimiter.
+  StrRef::size_type End = find_first_of(C, Start);
+
+  return std::make_pair(Start, End);
+}
+
+std::pair<usize, usize> StrRef::find_token(StrRef Chars) const {
+  filter_t CharBits {};
+  for (char C : Chars)
+    CharBits.set((unsigned char)C);
+  return find_token(CharBits);
 }
 
 //===----------------------------------------------------------------------===//
@@ -483,7 +481,7 @@ static unsigned GetAutoSenseRadix(StrRef &Str) {
 }
 
 bool exi::consumeUnsignedInteger(StrRef &Str, unsigned Radix,
-                                  unsigned long long &Result) {
+                                 unsigned long long &Result) {
   // Autosense radix if not specified.
   if (Radix == 0)
     Radix = GetAutoSenseRadix(Str);
@@ -531,7 +529,7 @@ bool exi::consumeUnsignedInteger(StrRef &Str, unsigned Radix,
 }
 
 bool exi::consumeSignedInteger(StrRef &Str, unsigned Radix,
-                                long long &Result) {
+                               long long &Result) {
   unsigned long long ULLVal;
 
   // Handle positive strings first.
@@ -561,7 +559,7 @@ bool exi::consumeSignedInteger(StrRef &Str, unsigned Radix,
 /// GetAsUnsignedInteger - Workhorse method that converts a integer character
 /// sequence of radix up to 36 to an unsigned long long value.
 bool exi::getAsUnsignedInteger(StrRef Str, unsigned Radix,
-                                unsigned long long &Result) {
+                               unsigned long long &Result) {
   if (consumeUnsignedInteger(Str, Radix, Result))
     return true;
 
@@ -571,7 +569,7 @@ bool exi::getAsUnsignedInteger(StrRef Str, unsigned Radix,
 }
 
 bool exi::getAsSignedInteger(StrRef Str, unsigned Radix,
-                              long long &Result) {
+                             long long &Result) {
   if (consumeSignedInteger(Str, Radix, Result))
     return true;
 

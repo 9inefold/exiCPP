@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Relicensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@
 #include <Common/SmallVec.hpp>
 #include <Common/function_ref.hpp>
 #include <Support/raw_ostream.hpp>
+#include <Common/StrRef-inl.hpp>
 #include <cctype>
 
 using namespace exi;
@@ -64,14 +65,14 @@ StrRef::size_type exi::StrInStrNoCase(StrRef s1, StrRef s2) {
 /// there are no tokens in the source string, an empty string is returned.
 /// The function returns a pair containing the extracted token and the
 /// remaining tail string.
-std::pair<StrRef, StrRef> exi::getToken(StrRef Source,
-                                               StrRef Delimiters) {
-  // Figure out where the token starts.
-  StrRef::size_type Start = Source.find_first_not_of(Delimiters);
+std::pair<StrRef, StrRef> exi::getToken(StrRef Source, StrRef Delimiters) {
+  auto [Start, End] = Source.find_token(Delimiters);
+  return std::make_pair(Source.slice(Start, End), Source.substr(End));
+}
 
-  // Find the next occurrence of the delimiter.
-  StrRef::size_type End = Source.find_first_of(Delimiters, Start);
-
+static std::pair<StrRef, StrRef> GetTokenFromBits(StrRef Source,
+                                                  const StrRef::filter_t& F) {
+  auto [Start, End] = Source.find_token(F);
   return std::make_pair(Source.slice(Start, End), Source.substr(End));
 }
 
@@ -80,10 +81,14 @@ std::pair<StrRef, StrRef> exi::getToken(StrRef Source,
 void exi::SplitString(StrRef Source,
                       SmallVecImpl<StrRef> &OutFragments,
                       StrRef Delimiters) {
-  std::pair<StrRef, StrRef> Str = getToken(Source, Delimiters);
+  StrRef::filter_t CharBits {};
+  for (char C : Delimiters)
+    CharBits.set((unsigned char)C);
+  
+  std::pair<StrRef, StrRef> Str = GetTokenFromBits(Source, CharBits);
   while (!Str.first.empty()) {
     OutFragments.push_back(Str.first);
-    Str = getToken(Str.second, Delimiters);
+    Str = GetTokenFromBits(Str.second, CharBits);
   }
 }
 
