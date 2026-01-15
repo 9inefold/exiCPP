@@ -130,8 +130,10 @@ DoctypeEvent MakeEvent<SimpleEventTerm::DT>::operator()(DoctypeKind K,
 
 template <bool Opaque>
 static StrRef GetSEURI(const StartElemEvent& SE) {
-  static constexpr unsigned TAG = (Opaque ? 2 : 1);
-  exi_invariant(SE.Tag == TAG, "Incorrect type!");
+  static constexpr StringEventKind TAG
+    = Opaque ? StringEventKind::Opaque
+             : StringEventKind::URI;
+  exi_invariant(SE.tag() == TAG, "Incorrect type!");
   auto* SEUri = &static_cast<const StartElemURIEvent&>(SE);
   if constexpr (!Opaque)
     return StrRef(SEUri->URI, SEUri->Extra);
@@ -141,13 +143,16 @@ static StrRef GetSEURI(const StartElemEvent& SE) {
 
 static StrRef RuntimeGetSEURI(const StartElemEvent& SE) {
   auto* SEUri = &static_cast<const StartElemURIEvent&>(SE);
-  if (SE.tag() == StringEventKind::Simple)
+  switch (SE.tag()) {
+  case StringEventKind::Simple:
     return ""_str; // TODO: Decide if this should be nullopt?
-  else if (SE.tag() == StringEventKind::URI)
+  case StringEventKind::URI:
     return StrRef(SEUri->URI, SEUri->Extra);
-  else if (SE.tag() == StringEventKind::Opaque)
+  case StringEventKind::Opaque:
     return StringTable::GetURI(SEUri->OpaqueURI);
-  exi_guardrail("invalid SE tag type");
+  default:
+    exi_guardrail("invalid SE tag type");
+  }
 }
 
 // TODO: TEST THIS!!! IT DESPERATELY NEEDS TESTING
