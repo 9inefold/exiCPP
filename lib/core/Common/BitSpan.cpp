@@ -23,6 +23,7 @@
 
 #include <Common/BitSpan.hpp>
 #include <Common/BitVector.hpp>
+#include <Common/SmallStr.hpp>
 
 using namespace exi;
 
@@ -33,14 +34,30 @@ BitVector BitSpan<BitSpanWordType>::to_bitvector() const {
   return BitVector(*this);
 }
 
-String BitSpan<BitSpanWordType>::to_string() const {
-  exi_todo("implement to_string");
-  return "";
+String BitSpan<BitSpanWordType>::to_string(char Zero, char One) const {
+  String Out(Size, Zero);
+  for (unsigned Ix = 0; Ix != Size; ++Ix)
+    if (this->test(Ix))
+      Out[Size - 1 - Ix] = One;
+  return Out;
+}
+
+void BitSpan<BitSpanWordType>::write(SmallVecImpl<char>& Out,
+                                        char Zero, char One) const {
+  const unsigned Off = Out.size();
+  Out.reserve_back(Size);
+  Out.append(Zero, Size);
+
+  for (unsigned Ix = 0; Ix != Size; ++Ix)
+    if (this->test(Ix))
+      Out[Size - 1 - Ix + Off] = One;
 }
 
 raw_ostream& exi::operator<<(raw_ostream& OS, const BitSpan<>& B) {
-  exi_todo("implement OS << BitSpan");
-  return OS;
+  SmallStr<128> Out;
+  Out.reserve(B.size());
+  B.write(Out);
+  return OS << Out;
 }
 
 //////////////////////////////////////////////////////////////////////////

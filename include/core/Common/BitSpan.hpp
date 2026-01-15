@@ -171,13 +171,19 @@ public:
     return !any();
   }
 
+  /// arr - returns the underlying array.
   ALWAYS_INLINE constexpr ArrayRef<BitWord> arr() const {
     return ArrayRef(Bits, Words);
   }
 
-  BitVector to_bitvector() const;
+  /// to_bitvector - converts the BitSpan to a BitVector.
+  [[nodiscard]] BitVector to_bitvector() const;
 
-  String to_string() const;
+  /// to_string - converts the contents of the BitSpan to a string.
+  [[nodiscard]] String to_string(char Zero = '0', char One = '1') const;
+
+  /// Appends the string form into the given SmallStr or SmallVec.
+  void write(SmallVecImpl<char>& Out, char Zero = '0', char One = '1') const;
 };
 
 /// MutBitSpan - Represents a mutable reference to a sequence of bits.

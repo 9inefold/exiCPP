@@ -311,12 +311,14 @@ public:
     return BitSpan<BitWord>(*this);
   }
 
+  /// TODO: Update this implementation
   constexpr unsigned long to_ulong() const
    requires(bitsizeof_v<unsigned long> >= N) {
     constexpr BitWord kMask = ~BitWord(0) >> bitsizeof_v<unsigned long>;
     return static_cast<unsigned long>(Bits[0] & kMask);
   }
 
+  /// TODO: Update this implementation
   constexpr unsigned long to_ullong() const
    requires(bitsizeof_v<unsigned long long> >= N) {
     if constexpr (sizeof(BitWord) == sizeof(unsigned long long)) {
@@ -331,8 +333,14 @@ public:
     }
   }
 
-  String to_string() const {
-    return to_bitspan().to_string();
+  /// to_string - converts the contents of the bitset to a string.
+  [[nodiscard]] String to_string(char Zero = '0', char One = '1') const {
+    return to_bitspan().to_string(Zero, One);
+  }
+
+  /// Appends the string form into the given SmallStr or SmallVec.
+  void write(SmallVecImpl<char>& Out, char Zero = '0', char One = '1') const {
+    to_bitspan().write(Out, Zero, One);
   }
 
 private:
