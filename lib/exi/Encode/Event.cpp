@@ -27,6 +27,7 @@
 #include <core/Support/IntCast.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/Except.hpp>
+#include <exi/Encode/DTDParser.hpp>
 #include <exi/Encode/StringTable.hpp>
 #include <exi/Grammar/EncoderSchema.hpp>
 
@@ -186,33 +187,60 @@ bool exi::operator==(const StartElemEvent& LHS, const StartElemEvent& RHS) {
   exi_guardrail("invalid SE tag type");
 }
 
+/// TODO: Update this to make it better suit DOCTYPEs
+EXI_NO_INLINE static bool CompareDTDTokens(StrRef LHS, StrRef RHS) {
+  static constexpr auto kFilter
+    = StrRef::filter_t::FromChars(
+      DTDParser::kDelimiter);
+  SmallVec<StrRef, 16> LHSVec, RHSVec;
+  exi::SplitString(LHS, LHSVec, kFilter);
+  exi::SplitString(RHS, RHSVec, kFilter);
+  return LHSVec == RHSVec;
+}
+
 bool DoctypeEvent::equals(const DoctypeEvent& RHS) const {
-  exi_todo("Implement equals");
-}
-
-bool DoctypeEvent::equalsEx(const DoctypeEvent& RHS) const {
-  exi_todo("Implement equalsEx");
-}
-
-bool exi::operator==(const DoctypeEvent& LHS, const DoctypeEvent& RHS) {
-  if (LHS.Kind != RHS.Kind)
+  if (this->Kind != RHS.Kind)
     return false;
   
-  switch (LHS.Kind) {
+  switch (this->Kind) {
   case DTK_Public:
-    if (LHS[3] != RHS[3])
+    if ((*this)[3] != RHS[3])
       return false;
     [[fallthrough]];
   case DTK_System:
-    if (LHS[2] != RHS[2])
+    if ((*this)[2] != RHS[2])
       return false;
     [[fallthrough]];
   case DTK_Inline:
-    if (LHS[1] != RHS[1])
+    if ((*this)[1] != RHS[1])
       return false;
     [[fallthrough]];
   case DTK_None:
-    return LHS[0] == RHS[0];
+    return (*this)[0] == RHS[0];
+  }
+
+  exi_guardrail("Invalid DTD type!");
+}
+
+bool DoctypeEvent::equalsEx(const DoctypeEvent& RHS) const {
+  if (this->Kind != RHS.Kind)
+    return false;
+  
+  switch (this->Kind) {
+  case DTK_Public:
+    if (CompareDTDTokens((*this)[3], RHS[3]))
+      return false;
+    [[fallthrough]];
+  case DTK_System:
+    if ((*this)[2] != RHS[2])
+      return false;
+    [[fallthrough]];
+  case DTK_Inline:
+    if (CompareDTDTokens((*this)[1], RHS[1]))
+      return false;
+    [[fallthrough]];
+  case DTK_None:
+    return (*this)[0] == RHS[0];
   }
 
   exi_guardrail("Invalid DTD type!");

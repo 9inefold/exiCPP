@@ -181,15 +181,15 @@ public:
   /// @name Iterators
   /// @{
 
-  iterator begin() const { return data(); }
+  constexpr iterator begin() const { return data(); }
 
-  iterator end() const { return data() + size(); }
+  constexpr iterator end() const { return data() + size(); }
 
-  reverse_iterator rbegin() const {
+  constexpr reverse_iterator rbegin() const {
     return std::make_reverse_iterator(end());
   }
 
-  reverse_iterator rend() const {
+  constexpr reverse_iterator rend() const {
     return std::make_reverse_iterator(begin());
   }
 

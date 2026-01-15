@@ -354,7 +354,6 @@ ALWAYS_INLINE encode::STURIEntry* StartElemEvent::opaque() const {
 }
 
 bool operator==(const StartElemEvent& LHS, const StartElemEvent& RHS);
-bool operator==(const DoctypeEvent& LHS, const DoctypeEvent& RHS);
 
 inline bool operator==(const StringEventData& LHS, const StringEventData& RHS) {
   if EXI_UNLIKELY(LHS.Tag != 0 && RHS.Tag != 0)
@@ -368,11 +367,14 @@ inline bool operator==(const NamespaceEvent& LHS, const NamespaceEvent& RHS) {
   return StrRef(LHS.PfxData, LHS.PfxSize) == StrRef(RHS.PfxData, RHS.PfxSize)
       && StrRef(LHS.UriData, LHS.UriSize) == StrRef(RHS.UriData, RHS.UriSize);
 }
+ALWAYS_INLINE bool operator==(const DoctypeEvent& LHS, const DoctypeEvent& RHS) {
+  return LHS.equalsEx(RHS);
+}
 
 //////////////////////////////////////////////////////////////////////////
 // raw_ostream
 
-inline raw_ostream& operator<<(raw_ostream& OS, const NoEventData&) {return OS;}
+inline raw_ostream& operator<<(raw_ostream& OS, const NoEventData&) { return OS; }
 raw_ostream& operator<<(raw_ostream& OS, const StringEventData& Event);
 raw_ostream& operator<<(raw_ostream& OS, const PairEventData& Event);
 

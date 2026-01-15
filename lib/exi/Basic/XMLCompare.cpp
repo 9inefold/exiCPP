@@ -58,21 +58,63 @@ static NodeKindBitset MakeBitset(ExiOptions::PreserveOpts Opts) {
   return B;
 }
 
+static void WriteStringWithNoWS(StrRef S, raw_ostream& Out) {
+  for (usize Ix = 0; Ix < S.size(); ++Ix) {
+    const char C = S[Ix];
+    if (isPrint(C))
+      Out << C;
+    else {
+      switch (C) {
+      case u8('\a'):
+        Out << "\\a";
+        break;
+      case u8('\b'):
+        Out << "\\b";
+        break;
+      case u8('\f'):
+        Out << "\\f";
+        break;
+      case u8('\n'):
+        Out << "\\n";
+        break;
+      case u8('\r'):
+        if (S[Ix + 1] != '\n')
+          Out << "\\r";
+        break;
+      case u8('\t'):
+        Out << "\\t";
+        break;
+      case u8('\v'):
+        Out << "\\v";
+        break;
+      default:
+        Out << '\\' << hexdigit(C >> 4) << hexdigit(C & 0x0F);
+      }
+    }
+  }
+}
+
 static String WriteDTDDifferences(StrRef LHS, StrRef RHS) {
   String Out;
+  Out.reserve(LHS.size() + RHS.size() + 4);
   raw_string_ostream OS(Out);
-  printCStyleEscapedString(LHS, OS);
-  OS << ", ";
-  printCStyleEscapedString(RHS, OS);
+  OS << "\n\t";
+  WriteStringWithNoWS(LHS, OS);
+  OS << "\n\t";
+  WriteStringWithNoWS(RHS, OS);
   return Out;
 }
 
 static bool CompareInlDTD(StrRef LHS, StrRef RHS) {
-  SmallVec<StrRef> LHSVec, RHSVec;
-  LHS.split(LHSVec, "\n\v\f\r");
-  RHS.split(LHSVec, "\n\v\f\r");
+  static constexpr auto kFilter
+    = StrRef::filter_t::FromChars(
+      DTDParser::kDelimiter);
+  SmallVec<StrRef, 16> LHSVec, RHSVec;
+  exi::SplitString(LHS, LHSVec, kFilter);
+  exi::SplitString(RHS, RHSVec, kFilter);
   return LHSVec == RHSVec;
 }
+
 
 static bool DebugCompareDTDs(const DoctypeEvent& LHS, const DoctypeEvent& RHS) {
   if (LHS.Kind != RHS.Kind) {
@@ -91,7 +133,7 @@ static bool DebugCompareDTDs(const DoctypeEvent& LHS, const DoctypeEvent& RHS) {
 
   switch (LHS.Kind) {
   case DTK_Public:
-    if (CompareInlDTD(LHS[3], RHS[3])) {
+    if (!CompareInlDTD(LHS[3], RHS[3])) {
       LogDifferences("PUBLIC", 3);
       return false;
     }
@@ -103,7 +145,7 @@ static bool DebugCompareDTDs(const DoctypeEvent& LHS, const DoctypeEvent& RHS) {
     }
     [[fallthrough]];
   case DTK_Inline:
-    if (CompareInlDTD(LHS[1], RHS[1])) {
+    if (!CompareInlDTD(LHS[1], RHS[1])) {
       LogDifferences("Inline", 1);
       return false;
     }

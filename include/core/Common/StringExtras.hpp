@@ -452,6 +452,12 @@ void SplitString(StrRef Source,
                  SmallVecImpl<StrRef> &OutFragments,
                  StrRef Delimiters = " \t\n\v\f\r");
 
+/// SplitString - Split up the specified string according to the specified
+/// delimiters, appending the result fragments to the output list.
+void SplitString(StrRef Source,
+                 SmallVecImpl<StrRef> &OutFragments,
+                 const StrRef::filter_t &Filter);
+
 /// Returns the English suffix for an ordinal integer (-st, -nd, -rd, -th).
 inline StrRef getOrdinalSuffix(unsigned Val) {
   // It is critically important that we do this perfectly for

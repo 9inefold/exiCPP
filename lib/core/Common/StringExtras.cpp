@@ -80,16 +80,24 @@ static std::pair<StrRef, StrRef> GetTokenFromBits(StrRef Source,
 /// delimiters, appending the result fragments to the output list.
 void exi::SplitString(StrRef Source,
                       SmallVecImpl<StrRef> &OutFragments,
+                      const StrRef::filter_t &Filter) {
+  // ...
+  std::pair<StrRef, StrRef> Str = GetTokenFromBits(Source, Filter);
+  while (!Str.first.empty()) {
+    OutFragments.push_back(Str.first);
+    Str = GetTokenFromBits(Str.second, Filter);
+  }
+}
+
+/// SplitString - Split up the specified string according to the specified
+/// delimiters, appending the result fragments to the output list.
+void exi::SplitString(StrRef Source,
+                      SmallVecImpl<StrRef> &OutFragments,
                       StrRef Delimiters) {
   StrRef::filter_t CharBits {};
   for (char C : Delimiters)
     CharBits.set((unsigned char)C);
-  
-  std::pair<StrRef, StrRef> Str = GetTokenFromBits(Source, CharBits);
-  while (!Str.first.empty()) {
-    OutFragments.push_back(Str.first);
-    Str = GetTokenFromBits(Str.second, CharBits);
-  }
+  SplitString(Source, OutFragments, CharBits);
 }
 
 void exi::printEscapedString(StrRef Name, raw_ostream &Out) {
