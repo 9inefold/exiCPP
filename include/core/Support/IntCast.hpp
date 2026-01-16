@@ -200,6 +200,7 @@ constexpr bool CheckIntCast(From X) {
 }
 
 /// Assert that casting results in the same representation.
+// TODO: Maybe make reference?
 template <class To, class From>
 #if !EXI_ASSERTS
 ALWAYS_INLINE
@@ -230,7 +231,7 @@ constexpr To IntCastOrZero(const From X) {
 /// Cast that checks if the result is the same representation.
 /// If they would differ, returns 0.
 template <class To, class From>
-constexpr To IntCastOr(const From X, const To Else) {
+constexpr To IntCastOr(const From X, To Else) {
   using TraitsT = IntCastInfo<To, From>;
   if EXI_LIKELY(TraitsT::isPossible(X))
     return TraitsT::doCast(X);
@@ -245,7 +246,7 @@ constexpr To IntCastOr(const From X, const To Else) {
 /// the same.
 template <class To, class From>
 requires H::both_int<To, From>
-constexpr To promotion_cast(const From X) noexcept {
+constexpr To promotion_cast(const From X) {
   if constexpr (H::same_sign<To, From>) {
     if constexpr (sizeof(To) >= sizeof(From))
       // Simple case, eg. promotion_cast<u64>(u32);
@@ -256,9 +257,10 @@ constexpr To promotion_cast(const From X) noexcept {
       // FIXME: Revert tailcall once cleanup skipping is allowed.
       return IntCast<To>(X);
   } else {
+    // TODO: Check this is correct
     using U = swap_sign_t<From>;
     if constexpr (sizeof(To) >= sizeof(From))
-      // Simple case, eg. promotion_cast<u64>(u32);
+      // Simple case, eg. promotion_cast<u64>(i32);
       return static_cast<To>(U(X));
     else
       // More complex case, types are different sizes.

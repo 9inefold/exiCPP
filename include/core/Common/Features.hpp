@@ -568,6 +568,20 @@
 # define EXI_EXPECT_UNPREDICTABLE(EXPR) (EXPR)
 #endif
 
+#if EXI_CPP(23)
+# define EXI_HAS_IF_COMPTIME 1
+# define EXI_HAS_IF_CONSTEVAL 1
+# define exi_is_comptime   consteval
+# define exi_not_comptime !consteval
+#elif EXI_HAS_BUILTIN(__builtin_is_constant_evaluated)
+# define EXI_HAS_IF_COMPTIME 1
+# define exi_is_comptime   (__builtin_is_constant_evaluated())
+# define exi_not_comptime (!__builtin_is_constant_evaluated())
+#else
+# define exi_is_comptime  constexpr (true)
+# define exi_not_comptime constexpr (false)
+#endif
+
 #if EXI_IS_LANG_SERVER
 /// Tells the compiler a branch is likely.
 /// Full definition hidden for brevity.

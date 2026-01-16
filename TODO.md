@@ -20,42 +20,43 @@ This is a TODO list for the C++ version of exiCPP.
 - Fix copying between streams, currently super wonky
 - `encode::StringTable`
 - Produce event codes - set up `ExiEncoder`
+- Implement `Throw<Ex>(...)`, handle some exceptional cases...
 
 ## In Progress
 
 - Fix repeated elements being stacked/lost (as seen in `044[r].xml`)
+- Update `CDATA` parsing
+- `exi` example test suite
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense
 - Real tests for `core`
-- `exi` example test suite
 - Update `ABIBreak.*` for next version
 - Prepare for doxygen support
 - Update rapidxml
 - `ErrorCode` customization
-- Implement `Throw<Ex>(...)`, handle some exceptional cases...
 - Remove tabs added with broken vscode
 - Remove EXIP, merge `NewLib`
 - Add `EXI_GUARDRAILS` to handle invalid assumptions in release
 - Fix weird `__FILE__` normalization on windows
 - Implement `bitset`/`BitSpan` to get constexpr functions...
 - Move common masking functions used in `bitset`/`BitSpan`/`BitVector`/streams to its own file?
+- `CrashRecoveryContext` and `cpptrace`
 
 ## Not Started
 
 - Make XML comparison match failures more useful
+- `sys::` implementation on linux
+- Fully test `IntCast` and friends, improve support for non-integral types
 - Change schema from `Box<String>` to regular `String`
 - Implement `StackExhaustionHandler`
-- Fix `CDATA` parsing
 - Split out implementation of `ExiDecoder` like with `ExiEncoder`
-- `sys::` implementation on linux
+- Schema parser
 - Refactor `PagedVec`
 - Add some more major in-source TODOs here...
 - Add doxygen support
-- Improve name simplification in errors.
+- Improve name simplification in errors
 - Implement storage/lookup of typed values
-- `CrashRecoveryContext` and `cpptrace`
 - Add permissive mode for things like relaxed versioning and validation order?
 - Merge the concepts/traits I have lying around everywhere
-- Schema parser
 - `source_location` with Clang support
 - `Option<Unchecked<T>>` + `UncheckedOption`
 - Implement PrintOptions

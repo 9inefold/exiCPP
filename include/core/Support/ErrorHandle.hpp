@@ -146,9 +146,9 @@ class Twine;
 
 #if EXI_ASSERTS
 # define exi_assume(...) do {                                                 \
-    if EXI_NEVER(!static_cast<bool>(__VA_ARGS__))                             \
-      exi_fail_stringify(ASK_Assume, __VA_ARGS__);                            \
-  } while(0)
+  if EXI_NEVER(!static_cast<bool>(__VA_ARGS__))                               \
+    exi_fail_stringify(ASK_Assume, __VA_ARGS__);                              \
+} while(0)
 #elif defined(EXI_ASSUME) && !EXI_ENABLE_GUARDRAILS
 # define exi_assume(...) EXI_ASSUME(__VA_ARGS__)
 #else
@@ -158,35 +158,44 @@ class Twine;
 //////////////////////////////////////////////////////////////////////////
 // Assertions
 
-/// Provides runtime assertion checking for a generic kind.
-#define exi_assertRT_(KIND, EXPR, ...) void(EXI_ALWAYS((EXPR))                \
-  ? (void(0))                                                                 \
-  : (exi_fail(KIND, ("`" #EXPR "`" __VA_OPT__(". Reason: ") #__VA_ARGS__))))
-
-#if EXI_HAS_BUILTIN(__builtin_is_constant_evaluated)
-# define EXI_HAS_CTASSERT 1
-/// This version will have better error messages, as it uses unreachable instead
-/// of invoking a non-constexpr function.
-# define exi_assertCT_(EXPR, ...) do {                                        \
-    if (__builtin_is_constant_evaluated()) {                                  \
-      if (!static_cast<bool>(EXPR))                                           \
-        asm("constexpr assertion failed.");                                   \
-    }                                                                         \
-  } while(0)
+#if EXI_HAS_IF_COMPTIME
+/// `constexpr` only assertions. This version will have better error messages,
+/// as it uses `asm("...")` instead of invoking a non-constexpr function.
+# define exi_cxpr_assert(EXPR, ...) do {                                      \
+  if exi_is_comptime {                                                        \
+    if (!EXPR)                                                                \
+      asm("constexpr assertion failed.");                                     \
+  }                                                                           \
+} while(0)
 #else
-# define exi_assertCT_(EXPR) (void(0))
+# define exi_cxpr_assert(EXPR, ...) (void(0))
 #endif
 
 #if EXI_IS_LANG_SERVER
+/// Provides runtime assertion checking for a generic kind.
 /// Simpler version for language servers.
-#define exi_assert_(KIND, EXPR, ...) do {                                     \
-  if (!EXPR)                                                                  \
+# define exi_assert_(KIND, EXPR, ...) do {                                    \
+  if EXI_NEVER(!EXPR)                                                         \
     exi_fail(KIND, ("`" #EXPR "`" __VA_OPT__(". Reason: ") #__VA_ARGS__));    \
 } while(0)
+#elif EXI_HAS_IF_COMPTIME
+/// Provides runtime and comptime assertion checking for a generic kind.
+# define exi_assert_(KIND, EXPR, ...) do {                                    \
+  if exi_not_comptime {                                                       \
+    if EXI_NEVER(!static_cast<bool>(EXPR))                                    \
+      exi_fail(KIND, ("`" #EXPR "`" __VA_OPT__(". Reason: ") #__VA_ARGS__));  \
+  } else {                                                                    \
+    if (!static_cast<bool>(EXPR))                                             \
+      asm("constexpr assertion failed.");                                     \
+  }                                                                           \
+} while(0)
 #else
-#define exi_assert_(KIND, EXPR, ...) do {                                     \
-  exi_assertCT_(EXPR __VA_OPT__(,) __VA_ARGS__);                              \
-  exi_assertRT_(KIND, EXPR __VA_OPT__(,) __VA_ARGS__);                        \
+/// Provides runtime assertion checking for a generic kind.
+# define exi_assert_(KIND, EXPR, ...) do {                                    \
+  if exi_not_comptime {                                                       \
+    if EXI_NEVER(!static_cast<bool>(EXPR))                                    \
+      exi_fail(KIND, ("`" #EXPR "`" __VA_OPT__(". Reason: ") #__VA_ARGS__));  \
+  }                                                                           \
 } while(0)
 #endif
 
@@ -195,14 +204,14 @@ class Twine;
 # define exi_assert(EXPR, ...)                                                \
  exi_assert_(ASK_Assert, EXPR __VA_OPT__(,) __VA_ARGS__)
 #else
-# define exi_assert(EXPR, ...) exi_assertCT_(EXPR)
+# define exi_assert(EXPR, ...) exi_cxpr_assert(EXPR)
 #endif
 #if EXI_ASSERTS || EXI_ENABLE_GUARDRAILS
 /// Takes `(condition, "message")`, asserts in debug mode.
 # define exi_guard_assert(EXPR, ...)                                          \
  exi_assert_(ASK_Assert, EXPR __VA_OPT__(,) __VA_ARGS__)
 #else
-# define exi_guard_assert(EXPR, ...) exi_assertCT_(EXPR)
+# define exi_guard_assert(EXPR, ...) exi_cxpr_assert(EXPR)
 #endif
 
 #if EXI_ASSERTS
@@ -221,8 +230,8 @@ class Twine;
   }                                                                           \
 } while(0)
 #else
-# define exi_assert_eq(LHS, RHS, ...)  exi_assertCT_((LHS) == (RHS))
-# define exi_assert_neq(LHS, RHS, ...) exi_assertCT_((LHS) != (RHS))
+# define exi_assert_eq(LHS, RHS, ...)  exi_cxpr_assert((LHS) == (RHS))
+# define exi_assert_neq(LHS, RHS, ...) exi_cxpr_assert((LHS) != (RHS))
 #endif
 
 /// Takes `(condition, "message")`, always asserts. Use sparingly.
@@ -238,7 +247,8 @@ class Twine;
  exi_assert_(ASK_Invariant, EXPR __VA_OPT__(,) __VA_ARGS__)
 #else
 /// Noop in this mode.
-# define exi_invariant(EXPR, ...) exi_assertCT_(EXPR __VA_OPT__(,) __VA_ARGS__)
+# define exi_invariant(EXPR, ...)                                             \
+ exi_cxpr_assert(EXPR __VA_OPT__(,) __VA_ARGS__)
 #endif
 #if EXI_INVARIANTS || EXI_ENABLE_GUARDRAILS
 /// Takes `(condition, "message")`, checks when invariants on.
@@ -247,7 +257,7 @@ class Twine;
 #else
 /// Noop in this mode.
 # define exi_guard_invariant(EXPR, ...)                                       \
- exi_assertCT_(EXPR __VA_OPT__(,) __VA_ARGS__)
+ exi_cxpr_assert(EXPR __VA_OPT__(,) __VA_ARGS__)
 #endif
 
 #ifdef EXPENSIVE_CHECKS
