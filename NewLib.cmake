@@ -113,6 +113,7 @@ include_items(EXICPP_DECODE "lib/exi"
 
 include_items(EXICPP_ENCODE "lib/exi"
   Encode/BodyEncoder.cpp
+  Encode/DTDParser.cpp
   Encode/Event.cpp
   Encode/HeaderEncoder.cpp
   Encode/Grammar.cpp

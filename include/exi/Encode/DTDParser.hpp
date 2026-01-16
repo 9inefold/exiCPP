@@ -123,55 +123,25 @@ struct DTDParser {
     return ErrorCode::kInvalidEXIInput;
   }
 
-  [[nodiscard]] static ExiResult<DoctypeEvent> CreateDTEvent(StrRef Data) {
-    using enum SimpleEventTerm;
-    Data = Data.trim();
-    StrRef Name = TakeToken(Data);
-    // Name only
-    if (Data.empty()) {
-      if EXI_UNLIKELY(Name.empty()) {
-        LOG_ERROR("Invalid DOCTYPE! Expected Name.");
-        return Err(ErrorCode::kInvalidEXIInput);
-      }
-      // <!DOCTYPE Name>
-      return make_event<DT>(DTK_None, Name);
-    } else if (Data.consume_pinch("[", "]"))
-      // <!DOCTYPE Name [Data...]>
-      return make_event<DT>(DTK_Inline, Name, Data.trim());
+  /// Creates a DOCTYPE event from source.
+  [[nodiscard]] static ExiResult<DoctypeEvent> CreateDTEvent(StrRef Data);
 
-    StrRef Kind = TakeToken(Data);
-    auto K = StringSwitch<DoctypeKind>(Kind)
-      .Case("SYSTEM", DTK_System)
-      .Case("PUBLIC", DTK_Public)
-      .Default(DTK_None);
-    if (K == DTK_None) {
-      LOG_ERROR("Invalid DOCTYPE! "
-                "Expected SYSTEM or PUBLIC, got '{}'.", Kind);
-      return Err(ErrorCode::kInvalidEXIInput);;
-    }
-    // SYSTEM
-    StrRef PrimID = EXI_UNWRAP(
-      TakeLiteralToken(Data, K == DTK_System));
-    if (K == DTK_System) {
-      if (!Data.empty())
-        exi_try_r(StripDTText(Data));
-      // <!DOCTYPE Name SYSTEM [Data...]?>
-      return make_event<DT>(
-        DTK_System, Name, PrimID, Data);
-    }
-    // PUBLIC
-    StrRef SysID = EXI_UNWRAP(
-      TakeLiteralToken(Data, true));
-    if (!SysID.consume_pinch("\"")) {
-      LOG_ERROR("Invalid PUBLIC DOCTYPE! "
-                "Expected a SystemLiteral, got '{}'.", SysID);
-      return Err(ErrorCode::kInvalidEXIInput);;
-    }
-    if (!Data.empty())
-      exi_try_r(StripDTText(Data));
-    return make_event<DT>(
-      DTK_Public, Name, PrimID, SysID, Data);
-  }
+  ////////////////////////////////////////////////////////////////////////
+  // Utility
+
+  /// Splits the data at the end of a DOCTYPE.
+  /// TODO: Extend to support utf8...
+  /// Allowed sequences are:
+  ///
+  /// ```
+  /// <!ELEMENT ... >
+  /// <!ATTLIST ... >
+  /// <!ENTITY ... >
+  /// <!NOTATION ... >
+  /// <?...?>
+  /// <!-- ... -->
+  /// ```
+  static void SplitDTText(StrRef Data, SmallVecImpl<StrRef>& Out);
 };
 
 } // namespace exi

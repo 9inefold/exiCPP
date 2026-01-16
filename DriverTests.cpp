@@ -51,6 +51,7 @@
 #include <exi/Basic/NBitInt.hpp>
 #include <exi/Basic/ProcTypes.hpp>
 #include <exi/Basic/Runes.hpp>
+#include <exi/Encode/DTDParser.hpp>
 // #include <exi/Stream/BitStreamReader.hpp>
 // #include <exi/Stream/BitStreamWriter.hpp>
 
@@ -1272,6 +1273,30 @@ static void VariadicFunctionTests(int, char*[]) {
 }
 
 //===----------------------------------------------------------------===//
+// DTDParser
+//===----------------------------------------------------------------===//
+
+static void DTDParserTests(int, char*[]) {
+  SmallVec<StrRef, 8> Store;
+  auto TestSplit = [&Store] (StrRef Text) {
+    Store.clear();
+    DTDParser::SplitDTText(Text, Store);
+    return ArrayRef(Store);
+  };
+
+#define X(In, ...) exi_assert((TestSplit(In).equals(__VA_ARGS__)))
+  X("",                                          {});
+  X("\t\n",                                      {});
+  X("[]",                                        {});
+  X("\t\n[] ",                                   {});
+  X("<!ELEMENT >",                               {"<!ELEMENT >"});
+  X("<!ELEMENT>\n<!ENTITY e \"\">",              {"<!ELEMENT>", "<!ENTITY e \"\">"});
+  X("\t[  <!ELEMENT>\r\n<!ENTITY e \"\">\r\n] ", {"<!ELEMENT>", "<!ENTITY e \"\">"});
+  X("<!ELEMENT> <!-- --> <?xyz?>",               {"<!ELEMENT>", "<!-- -->", "<?xyz?>"});
+#undef X
+}
+
+//===----------------------------------------------------------------===//
 // ...
 //===----------------------------------------------------------------===//
 
@@ -1286,5 +1311,6 @@ void root::tests_main(int Argc, char* Argv[]) {
   // PolyTests(Argc, Argv);
   // ResultTests(Argc, Argv);
   // UniqueFunctionTests(Argc, Argv);
-  TrailingArrayTests(Argc, Argv);
+  // TrailingArrayTests(Argc, Argv);
+  DTDParserTests(Argc, Argv);
 }
