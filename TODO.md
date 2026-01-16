@@ -21,10 +21,11 @@ This is a TODO list for the C++ version of exiCPP.
 - `encode::StringTable`
 - Produce event codes - set up `ExiEncoder`
 - Implement `Throw<Ex>(...)`, handle some exceptional cases...
+- Fix repeated elements being stacked/lost (as seen in `044[r].xml`)
+- Add `EXI_GUARDRAILS` to handle invalid assumptions in release
 
 ## In Progress
 
-- Fix repeated elements being stacked/lost (as seen in `044[r].xml`)
 - Update `CDATA` parsing
 - `exi` example test suite
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense
@@ -35,7 +36,6 @@ This is a TODO list for the C++ version of exiCPP.
 - `ErrorCode` customization
 - Remove tabs added with broken vscode
 - Remove EXIP, merge `NewLib`
-- Add `EXI_GUARDRAILS` to handle invalid assumptions in release
 - Fix weird `__FILE__` normalization on windows
 - Implement `bitset`/`BitSpan` to get constexpr functions...
 - Move common masking functions used in `bitset`/`BitSpan`/`BitVector`/streams to its own file?

@@ -106,7 +106,8 @@ public:
   ExiError CH(StrRef Value) override {
     XMLNode* Node = allocValue(node_data, Value);
     // Curr->value(Value);
-    Curr->prepend_node(Node);
+    // Curr->prepend_node(Node);
+    Curr->append_node(Node);
     return ExiError::OK;
   }
 
