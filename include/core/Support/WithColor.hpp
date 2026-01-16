@@ -44,6 +44,7 @@ enum class HighlightColor {
 };
 
 /// An RAII object that temporarily switches an output stream to a specific color.
+// TODO: Fix cases where one of the colors is RESET
 class WithColor {
   raw_ostream& OS;
   raw_ostream::TiedColor TColor;
@@ -53,8 +54,8 @@ public:
 
   /// To be used like this: `WithColor(OS) << COLOR_CHANGE << "text";`
   /// @param OS The output stream
-  [[nodiscard]] WithColor(raw_ostream& OS) :
-   OS(OS), TColor(OS.getTiedColor()) {
+  [[nodiscard]] WithColor(raw_ostream& OS)
+   : OS(OS), TColor(OS.getTiedColor()) {
   }
 
   /// To be used like this: `WithColor(OS, raw_ostream::BLACK) << "text";`
@@ -67,7 +68,7 @@ public:
   /// To be used like this: `WithColor(OS, HighlightColor::String) << "text";`
   /// @param OS The output stream
   /// @param S Symbolic name for syntax element to color
-  [[nodiscard]] WithColor(raw_ostream& OS, HighlightColor S)  : WithColor(OS) {
+  [[nodiscard]] WithColor(raw_ostream& OS, HighlightColor S) : WithColor(OS) {
     this->SetHighlight(OS, S);
   }
   ~WithColor() { OS.changeColor(TColor); }

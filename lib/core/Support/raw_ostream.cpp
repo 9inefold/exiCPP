@@ -572,8 +572,8 @@ raw_ostream &raw_ostream::changeColor(enum Colors Color, bool Bold, bool BG) {
 }
 
 raw_ostream &raw_ostream::changeColor(TiedColor Color, bool Bold) {
-  return this->changeColor(Color.FG, Bold, false)
-              .changeColor(Color.BG, Bold, true);
+  return this->changeColor(Color.BG, Bold, true)
+              .changeColor(Color.FG, Bold, false);
 }
 
 raw_ostream &raw_ostream::resetColor() {
