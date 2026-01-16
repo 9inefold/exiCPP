@@ -20,16 +20,21 @@
 #include <Common/SmallStr.hpp>
 #include <Common/IntrusiveRefCntPtr.hpp>
 #include <Common/MMatch.hpp>
+#include <Common/StringExtras.hpp>
 #include <Common/STLExtras.hpp>
 #include <Support/Format.hpp>
 #include <Support/MemoryBuffer.hpp>
+#include <Support/Logging.hpp>
 #include <Support/ScopedSave.hpp>
 #include <Support/raw_ostream.hpp>
 #include <exi/Basic/Except.hpp>
 #include <exi/Basic/XMLManager.hpp>
 #include <exi/Basic/XMLContainer.hpp>
+#include <exi/Encode/DTDParser.hpp>
 #include <algorithm>
 #include <rapidxml.hpp>
+
+#define DEBUG_TYPE "XMLDumper"
 
 using namespace exi;
 
@@ -122,8 +127,10 @@ private:
   void printAttrsSlxOrd(NodeT Node); // Shortlex Order
   void printAttrsDocOrd(NodeT Node); // Document Order
   void printAttrs(NodeT Node);
-  void printDOCTYPEData(StrRef Data,
-                        Option<raw_ostream&> IOS = std::nullopt);
+  void printCDATAData(StrRef Data, Option<raw_ostream&> IOS = std::nullopt);
+  void printDOCTYPEDecl(StrRef Data, raw_ostream& OS);
+  void printDOCTYPEData(StrRef Data, Option<raw_ostream&> IOS = std::nullopt);
+  void printPIData(StrRef Name, StrRef Data);
   void printType(NodeT Node, StrRef Extra = "");
   void printErr(NodeT Node, StrRef Err = "err");
 
@@ -398,25 +405,169 @@ void XMLDumper::printAttrs(NodeT Node) {
     tail_return printAttrsSlxOrd(Node);
 }
 
-void XMLDumper::printDOCTYPEData(StrRef Data, Option<raw_ostream&> IOS) {
-  raw_ostream& OS
-    = IOS.value_or(this->OS);
+void XMLDumper::printCDATAData(StrRef Data, Option<raw_ostream&> IOS) {
+  constexpr auto Filter = StrRef::filter_t::FromChars("\n\r\v\f");
+  raw_ostream& OS = IOS.value_or(this->OS);
  {
   ScopedSave S(Indent);
   ++Indent;
 
-  SmallVec<StrRef, 4> Split;
-  Data.split(Split, '\n', -1, false);
-
   WithColor Save(OS, COLOR_data);
-  for (StrRef S : Split) {
-    S = S.rtrim();
-    if (S.empty())
-      continue;
-    Save << '\n' << Indent << S;
+  std::pair<StrRef, StrRef> Str = getToken(Data, Filter);
+  while (!Str.first.empty()) {
+    OS << '\n' << Indent << Str.first;
+    Str = getToken(Str.second, Filter);
   }
  }
   OS << '\n' << Indent;
+}
+
+enum DTDeclKind : int {
+  Decl_ELEMENT,
+  Decl_ATTLIST,
+  Decl_ENTITY,
+  Decl_NOTATION,
+  Decl_INVALID = -1,
+};
+
+void XMLDumper::printDOCTYPEDecl(StrRef Tok, raw_ostream& OS) {
+  if (!Tok.consume_pinch("<!", ">")) {
+    WithColor Save(OS, BRIGHT_RED);
+    Save << escape(Tok);
+    return;
+  }
+
+  auto PeekNextTokenChar = [&Tok] () -> char {
+    usize Start = Tok.find_first_not_of(DTDParser::kDelimiter);
+    return Start != StrRef::npos ? Tok[Start] : '\0';
+  };
+  auto TakeToken = [&Tok] () -> StrRef {
+    usize Start = Tok.find_first_not_of(DTDParser::kDelimiter);
+    if (Start == StrRef::npos) {
+      Tok = "";
+      return "";
+    }
+
+    const char C = Tok[Start];
+    if (C == '\"' || C == '\"' || C == '(') {
+      const char F = (C == '(') ? ')' : C;
+      usize End = Tok.find_first_of(F, Start + 1);
+      End += (End != StrRef::npos);
+      StrRef Out = Tok.slice(Start, End);
+      Tok = Tok.substr(End);
+      return Out;
+    }
+
+    usize End = Tok.find_first_of(DTDParser::kDelimiter, Start);
+    StrRef Out = Tok.slice(Start, End);
+    Tok = Tok.substr(End);
+    return Out;
+  };
+
+  Tok = Tok.trim();
+  if (Tok.empty()) {
+    WithColor Save(OS, BRIGHT_RED);
+    Save << "<!@empty-decl::DOCTYPE>";
+    return;
+  }
+
+  StrRef TypeName = TakeToken();
+  auto ty = StringSwitch<DTDeclKind>(TypeName)
+    .Case("ELEMENT",  Decl_ELEMENT)
+    .Case("ATTLIST",  Decl_ATTLIST)
+    .Case("ENTITY",   Decl_ENTITY)
+    .Case("NOTATION", Decl_NOTATION)
+    .Default(Decl_INVALID);
+
+  if EXI_UNLIKELY(ty == Decl_INVALID) {
+    WithColor Save(OS, BRIGHT_RED);
+    Save << "<!@invalid-type::" << TypeName << ">";
+    return;
+  }
+
+  OS << "<!";
+  putAttr(TypeName);
+
+  if (ty == Decl_ELEMENT) {
+    StrRef Name = TakeToken();
+    // Check if PEDecl
+    if (Name == "%") {
+      WithColor(OS, COLOR_split) << " %";
+      Name = TakeToken();
+    }
+    // Name
+    WithColor(OS, COLOR_name) << ' ' << Name;
+  }
+
+ {
+  WithColor Save(OS, BRIGHT_WHITE);
+  while (!Tok.empty()) {
+    StrRef S = TakeToken();
+    if (S.empty())
+      break;
+    OS << ' ';
+
+    if (S[0] == '\"' || S[0] == '\'')
+      WithColor(OS, COLOR_string) << S;
+    else if (S[0] == '#')
+      WithColor(OS, COLOR_entity) << S;
+    else if (S == "%")
+      putSplit('%');
+    else if (isUpper(S))
+      putAttr(S);
+    else if (isAlpha(S[0]))
+      putName(S);
+    else
+      OS << S;
+  }
+ }
+
+  OS << ">";
+}
+
+void XMLDumper::printDOCTYPEData(StrRef Data, Option<raw_ostream&> IOS) {
+  raw_ostream& OS = IOS.value_or(this->OS);
+ {
+  ScopedSave S(Indent);
+  ++Indent;
+
+  SmallVec<StrRef, 4> Tokens;
+  DTDParser::SplitDTText(Data, Tokens);
+
+  for (StrRef Tok : Tokens) {
+    OS << '\n' << Indent;
+    if (Tok[1] == '!') {
+      if (Tok[2] == '-') {
+        WithColor Save(OS, COLOR_comment);
+        Save << Tok;
+      } else
+        printDOCTYPEDecl(Tok, OS);
+    } else /*Tok[1] == '?'*/ {
+      if (!Tok.consume_pinch("<?", "?>")) {
+        WithColor Save(OS, BRIGHT_RED);
+        Save << escape(Tok);
+        continue;
+      }
+      auto [Name, Text] = getToken(Tok);
+      printPIData(Name, Text.trim());
+    }
+  }
+ }
+  OS << '\n' << Indent;
+}
+
+void XMLDumper::printPIData(StrRef Name, StrRef Data) {
+  SmallStr<32> Storage;
+  raw_svector_ostream OS(Storage);
+
+  OS << "<?" << Name;
+  SmallVec<StrRef, 2> PIVec;
+  Data.split(PIVec, ' ', -1, false);
+  for (StrRef PI : PIVec)
+    OS << ' ' << PI;
+  OS << "?>";
+
+  WithColor(this->OS, COLOR_dtname) << Storage.str();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -464,7 +615,7 @@ void XMLDumper::printNode_cdata(NodeT Node) {
   raw_svector_ostream OS(Storage);
 
   OS << "<![CDATA[";
-  printDOCTYPEData(Node->value(), OS);
+  printCDATAData(Node->value(), OS);
   OS << "]]>\n";
 
   putCDATA(Storage.str());
@@ -497,18 +648,35 @@ void XMLDumper::printNode_doctype(NodeT Node) {
   
   OS << "<!";
   putAttr("DOCTYPE ");
-  auto [Pre, Data] = Node->value().split('[');
+  
+  auto PrintDT = [this] (DoctypeEvent& DT) {
+    { WithColor(OS, COLOR_dtname) << DT.name(); }
+    if (DT.Kind == DTK_None)
+      return;
+    
+    if (DT.Kind == DTK_System) {
+      OS << " SYSTEM ";
+      putString(DT.systemID());
+    } else if (DT.Kind == DTK_Public) {
+      OS << " PUBLIC ";
+      putString(DT.publicID());
+      OS << ' ';
+      putString(DT.systemID());
+    }
 
-  if (Data.empty())
-    printErr(Node, "no-opening-brace");
-  else if (!Data.consume_back("]"))
-    printErr(Node, "no-closing-brace");
-  else {
-    { WithColor(OS, COLOR_dtname) << Pre; }
-    putSplit('[');
-    printDOCTYPEData(Data);
-    putSplit(']');
-  }
+    StrRef Text = DT.text();
+    if (!Text.empty()) {
+      OS << " [";
+      printDOCTYPEData(Text);
+      OS << "]";
+    }
+  };
+
+  auto DTOrErr = DTDParser::CreateDTEvent(Node->value());
+  if (DTOrErr.is_err())
+    printErr(Node, "invalid-doctype");
+  else
+    PrintDT(*DTOrErr);
 
   OS << ">\n";
 }
@@ -519,17 +687,8 @@ void XMLDumper::printNode_pi(NodeT Node) {
   if (expectData(Node, "no-PI-directives"))
     return;
   
-  SmallStr<32> Storage;
-  raw_svector_ostream OS(Storage);
-
-  OS << "<?" << Node->name();
-  SmallVec<StrRef, 2> PIVec;
-  Node->value().split(PIVec, ' ', -1, false);
-  for (StrRef PI : PIVec)
-    OS << ' ' << PI;
-  OS << "?>\n";
-
-  WithColor(this->OS, COLOR_dtname) << Storage.str();
+  printPIData(Node->name(), Node->value());
+  OS << '\n';
 }
 
 //////////////////////////////////////////////////////////////////////////

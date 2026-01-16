@@ -491,12 +491,12 @@ public:
 
   /// Runs Decoder -> Encoder -> Decoder.
   int runWithRet(StrRef ExiFile, StrRef XmlFile,
-                 bool Diff = true, bool Dump = false, usize Skip = 0) const;
+                 bool Diff = false, bool Dump = false, usize Skip = 0) const;
   /// Invokes run, exits on failure.
   void run(StrRef ExiFile, StrRef XmlFile,
-           bool Diff = true, bool Dump = false, usize Skip = 0) const;
+           bool Diff = false, bool Dump = false, usize Skip = 0) const;
   /// Invokes run without exi, exits on failure.
-  void runXml(StrRef XmlFile, bool Diff = true,
+  void runXml(StrRef XmlFile, bool Diff = false,
               bool Dump = false, usize Skip = 0) const {
     this->run(""_str, XmlFile, Diff, Dump, Skip);
   }
@@ -601,6 +601,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
   SmallStr<80> FilenameStore;
   StrRef OutExiFile = CreateOutPath(FilenameStore);
 
+  XMLDocument* Xml = nullptr;
   MemoryBufferRef DecodeBuf;
   SmallStr<0> EncodeBuf;
 
@@ -621,6 +622,8 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
   ExiHeaderOnly HdrOnlyOpts {.HasOptions = false};
   const bool& HasCookie = HdrOnlyOpts.HasCookie;
   const bool& HasOptions = HdrOnlyOpts.HasOptions;
+
+  WithColor(errs(), BRIGHT_MAGENTA) << "BEGINNING RUN:\n";
 
   if (!ExiFile.empty()) {
     SmallStr<80> File;
@@ -665,9 +668,8 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     WithColor(errs(), BRIGHT_CYAN)
       << format("Encoding: \"{}\"", File.str()) << '\n';
 
-    auto& Xml
-      = Mgr->getOptXMLDocument(File.str(), errs())
-        .expect("could not locate file!");
+    Xml = &Mgr->getOptXMLDocument(File.str(), errs())
+            .expect("could not locate file!");
     
     SetLogLevel(LogLevel::WARN);
     Result EncoderOrErr = ExiEncoder::New(Opts);
@@ -679,7 +681,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     }
 
     ExiEncoder Encoder = std::move(*EncoderOrErr);
-    XMLSerializer S(&Xml);
+    XMLSerializer S(Xml);
     Encoder.setHeaderOnly(HdrOnlyOpts)
       .expect("Options already compiled??");
     //Encoder.hdrHasCookie(HasCookie)
@@ -737,12 +739,18 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
       << "Decoding (again) successful!\n\n";
     
     if (Dump) {
+      if (Xml) {
+        WithColor(errs(), MAGENTA) << "Original:\n";
+        FullXMLDump(*Xml, DO);
+      }
       if (ExiS) {
-        WithColor(errs(), BRIGHT_MAGENTA) << "Decoding result:\n";
+        WithColor(errs(), MAGENTA) << "Decoding result:\n";
         FullXMLDump(ExiS->document(), DO);
       }
-      WithColor(errs(), BRIGHT_MAGENTA) << "Encoding result:\n";
+      WithColor(errs(), MAGENTA) << "Encoding result:\n";
       FullXMLDump(S.document(), DO);
+    } else {
+      
     }
   }
 
@@ -758,6 +766,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
 
     constexpr StrRef JarName = "exificient-jar-with-dependencies.jar";
     OS << format("java -jar {}/{} -decode ", *EXIFICIENT_DIR, JarName.str());
+    // OS << "-retainEntityReference ";
     if (HasCookie)
       OS << "-includeCookie ";
     if (HasOptions)
@@ -848,11 +857,18 @@ int main(int Argc, char* Argv[]) {
     Pfx().run("CustomersNooptB.exi",  "Customers.xml");
     Pfx().run("StackedPPNooptB.exi",  "Stacked.xml");
     All().run("NamespaceNooptB.exi",  "Namespace.xml");
+
+    All().run("022NooptB.exi",        "022.xml", false, true);
     // TODO: Fix exificient replacing & with &amp; and pruning CDATA
-    All().run("022NooptB.exi",        "022.xml");
-    All().run("044NooptB.exi",        "044.xml");
-    All().run("085NooptB.exi",        "085.xml");
-    All().run("116NooptB.exi",        "116.xml");
+    // Also fix outputs being in the wrong order...
+    All().run("044NooptB.exi",        "044.xml", false, true);
+    // [Fatal Error] :1:57: White space is required between the '%' and the
+    // entity name in the parameter entity declaration.
+    // [ERROR] org.xml.sax.SAXParseException; lineNumber: 1; columnNumber: 57;
+    // White space is required between the '%' and the entity name in the parameter
+    // entity declaration.class javax.xml.transform.TransformerException
+    All().run("085NooptB.exi",        "085.xml", false, true);
+    All().run("116NooptB.exi",        "116.xml", false, true);
   }
   ExificientFileData.RawCommands.push_back("");
   /*BitPacked*/ {
