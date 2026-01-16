@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Relicensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -277,16 +277,22 @@ public:
     return StrRef(this->data(), this->size());
   }
 
-  // TODO: Make this const, if it's safe...
-  const char_t* c_str() {
+  /// This must be called manually.
+  inline void null_terminate() {
     this->push_back(0);
     this->pop_back();
+  }
+
+  // TODO: Make this const, if it's safe...
+  const char_t* c_str() {
+    this->null_terminate();
     return this->data();
   }
 
   /// Null terminates and returns a str().
   [[nodiscard]] StrRef n_str() {
-    return StrRef(this->c_str(), this->size());
+    this->null_terminate();
+    return StrRef(this->data(), this->size());
   }
 
   /// Implicit conversion to StrRef.
