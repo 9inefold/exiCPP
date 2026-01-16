@@ -862,6 +862,7 @@ int main(int Argc, char* Argv[]) {
     // TODO: Fix exificient replacing & with &amp; and pruning CDATA
     // Also fix outputs being in the wrong order...
     All().run("044NooptB.exi",        "044.xml", false, true);
+    All().run("044rNooptB.exi",       "044r.xml", false, true);
     // [Fatal Error] :1:57: White space is required between the '%' and the
     // entity name in the parameter entity declaration.
     // [ERROR] org.xml.sax.SAXParseException; lineNumber: 1; columnNumber: 57;
