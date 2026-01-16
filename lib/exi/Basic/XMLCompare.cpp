@@ -58,6 +58,7 @@ static NodeKindBitset MakeBitset(ExiOptions::PreserveOpts Opts) {
   return B;
 }
 
+#if 0
 static void WriteStringWithNoWS(StrRef S, raw_ostream& Out) {
   for (usize Ix = 0; Ix < S.size(); ++Ix) {
     const char C = S[Ix];
@@ -115,7 +116,6 @@ static bool CompareInlDTD(StrRef LHS, StrRef RHS) {
   return LHSVec == RHSVec;
 }
 
-
 static bool DebugCompareDTDs(const DoctypeEvent& LHS, const DoctypeEvent& RHS) {
   if (LHS.Kind != RHS.Kind) {
     LOG_WARN("Different DOCTYPE types: {}, {}",
@@ -160,6 +160,7 @@ static bool DebugCompareDTDs(const DoctypeEvent& LHS, const DoctypeEvent& RHS) {
 
   exi_guardrail("Invalid DTD type!");
 }
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -184,8 +185,8 @@ public:
    : In(In), Out(Out), Filter(MakeBitset(Opts)), Matches(Matches) {}
   
   bool run() {
-    exi_assert(In->type() == NodeKind::node_document
-            && Out->type() == NodeKind::node_document);
+    exi_relassert(In->type() == NodeKind::node_document);
+    exi_relassert(Out->type() == NodeKind::node_document);
     
     In = In->first_node();
     Out = Out->first_node();
@@ -200,6 +201,7 @@ public:
         if (!this->compareAttrs())
           return false;
         break;
+      // TODO: Update these comparisons.
       case NodeKind::node_data:
       case NodeKind::node_cdata:
       case NodeKind::node_comment:

@@ -83,4 +83,5 @@ void xml::parse_error_handler(const char* what, void* where) {
 
 #endif // RAPIDXML_NO_EXCEPTIONS
 
+/// TODO: Make this thread_local when multithreaded
 volatile std::atomic<bool> xml::use_exceptions_anyway = false;
