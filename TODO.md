@@ -23,6 +23,7 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## In Progress
 
+- Fix repeated elements being stacked/lost (as seen in `044[r].xml`)
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense
 - Real tests for `core`
 - `exi` example test suite
@@ -65,6 +66,12 @@ This is a TODO list for the C++ version of exiCPP.
 - Unnamed namespace nesting
 - Namespace overwriting/nesting
 - No prefixes required in partition at POI in SE events
+
+## Exificient bugs
+
+- Entity references are not correctly handled (`&e;` becomes `&amp;e;`)
+- Crashes on DOCTYPE `<!ENTITY % X ...>` as it removes the space between the `%` and `X`
+- Converts escape sequences to their real value, which should be a flag
 
 ## Stretch Goals
 
