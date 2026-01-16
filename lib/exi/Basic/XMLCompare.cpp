@@ -307,8 +307,8 @@ private:
       LOG_ERROR("Failed to create DOCTYPE for '{}'.", Out->value());
       return false;
     }
-    //return *InDTD == *OutDTD;
-    return DebugCompareDTDs(*InDTD, *OutDTD);
+    return *InDTD == *OutDTD;
+    //return DebugCompareDTDs(*InDTD, *OutDTD);
   }
 
   bool comparePIs() {

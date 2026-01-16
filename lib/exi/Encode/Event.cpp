@@ -228,7 +228,7 @@ bool DoctypeEvent::equalsEx(const DoctypeEvent& RHS) const {
   
   switch (this->Kind) {
   case DTK_Public:
-    if (CompareDTDTokens((*this)[3], RHS[3]))
+    if (!CompareDTDTokens((*this)[3], RHS[3]))
       return false;
     [[fallthrough]];
   case DTK_System:
@@ -236,7 +236,7 @@ bool DoctypeEvent::equalsEx(const DoctypeEvent& RHS) const {
       return false;
     [[fallthrough]];
   case DTK_Inline:
-    if (CompareDTDTokens((*this)[1], RHS[1]))
+    if (!CompareDTDTokens((*this)[1], RHS[1]))
       return false;
     [[fallthrough]];
   case DTK_None:
