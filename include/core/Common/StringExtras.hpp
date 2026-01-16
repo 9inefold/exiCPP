@@ -201,10 +201,26 @@ EXI_READNONE inline bool isASCII(char C) {
   return static_cast<unsigned char>(C) <= 127;
 }
 
+/// Checks whether all characters in Str are lowercase.
+inline bool isLower(StrRef Str) {
+  for (char C : Str)
+    if (!isLower(C))
+      return false;
+  return true;
+}
+
+/// Checks whether all characters in Str are uppercase.
+inline bool isUpper(StrRef Str) {
+  for (char C : Str)
+    if (!isUpper(C))
+      return false;
+  return true;
+}
+
 /// Checks whether all characters in Str are ASCII.
 inline bool isASCII(StrRef Str) {
   for (char C : Str)
-    if (EXI_UNLIKELY(!isASCII(C)))
+    if EXI_UNLIKELY(!isASCII(C))
       return false;
   return true;
 }
