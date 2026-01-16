@@ -140,10 +140,11 @@ void parse_error_handler(const char* what, void* where);
 
 /// Forces the use of exceptions if `RAPIDXML_NO_EXCEPTIONS` is defined.
 /// Useful for testing.
-extern volatile std::atomic<bool> use_exceptions_anyway;
+extern EXI_THREAD_LOCAL volatile bool use_exceptions_anyway;
 
 ALWAYS_INLINE bool using_exceptions() {
-  return use_exceptions_anyway.load();
+  //return use_exceptions_anyway.load();
+  return use_exceptions_anyway;
 }
 
 } // namespace xml
