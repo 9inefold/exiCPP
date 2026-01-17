@@ -139,7 +139,7 @@ include_items(EXICPP_STREAM "lib/exi"
   Stream/Stream.cpp
 )
 
-set(EXI_LINK_LIBS exi::core rapidxml::rapidxml)
+set(EXI_LINK_LIBS exi::core rapidxml::rapidxml dtl::dtl)
 function(exi_add_library lib src)
   set(LIBNAME exi-${lib})
   add_library(${LIBNAME} STATIC ${${src}})

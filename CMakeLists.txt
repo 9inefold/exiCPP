@@ -238,6 +238,7 @@ if(EXI_USE_MIMALLOC)
   endif()
 endif()
 
+add_subdirectory(vendored/dtl)
 add_subdirectory(vendored/fmt)
 add_subdirectory(vendored/rapidxml)
 
