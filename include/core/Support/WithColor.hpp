@@ -71,7 +71,9 @@ public:
   [[nodiscard]] WithColor(raw_ostream& OS, HighlightColor S) : WithColor(OS) {
     this->SetHighlight(OS, S);
   }
-  ~WithColor() { OS.changeColor(TColor); }
+  ~WithColor() { this->reset(); }
+
+  raw_ostream& reset() { return OS.changeColor(TColor); }
 
   raw_ostream& get() { return OS; }
   operator raw_ostream&() { return OS; }

@@ -122,7 +122,8 @@ namespace dtl {
           }
             CommonPrinter< sesElem, stream > CmP(out_);
             ChangePrinter< sesElem, stream > ChP(out_);
-            
+
+            exi::WithColor OS(out_);
             for (const auto& Hunk : hunk.common[0]) CmP(Hunk);
             for (const auto& Change : hunk.change)  ChP(Change);
             for (const auto& Hunk : hunk.common[1]) CmP(Hunk);
