@@ -507,7 +507,8 @@ raw_ostream &printEscapedString(StrRef Name, raw_ostream &Out);
 
 /// Print each character of the specified string, escaping it if it is not
 /// printable or if it is an escape char.
-raw_ostream &printCStyleEscapedString(StrRef Name, raw_ostream &Out);
+raw_ostream &printCStyleEscapedString(StrRef Name, raw_ostream &Out,
+                                      bool IgnoreQuotes = false);
 
 /// Print each character of the specified string, escaping HTML special
 /// characters.
@@ -636,7 +637,7 @@ inline String join_items(Sep Separator, Args &&... Items) {
 /// OS << escape::html(String) << '\n';
 /// ```
 struct escape {
-  enum StyleKind { CLASSIC, CSTYLE, HTML };
+  enum StyleKind { CLASSIC, CSTYLE, CSTYLE_NQ, HTML };
   StrRef Text;
   StyleKind Style = CSTYLE;
   
@@ -646,10 +647,12 @@ public:
   
   static escape Classic(StrRef Text) { return escape(Text, CLASSIC); }
   static escape CStyle(StrRef Text) { return escape(Text, CSTYLE); }
+  static escape CStyleNQ(StrRef Text) { return escape(Text, CSTYLE_NQ); }
   static escape Html(StrRef Text) { return escape(Text, HTML); }
 
   static escape classic(StrRef Text) { return escape(Text, CLASSIC); }
   static escape cstyle(StrRef Text) { return escape(Text, CSTYLE); }
+  static escape cstylenq(StrRef Text) { return escape(Text, CSTYLE_NQ); }
   static escape html(StrRef Text) { return escape(Text, HTML); }
 };
 
@@ -658,7 +661,9 @@ inline raw_ostream& operator<<(raw_ostream& OS, const escape& Escape) {
   case escape::CLASSIC:
     return printEscapedString(Escape.Text, OS);
   case escape::CSTYLE:
-    return printCStyleEscapedString(Escape.Text, OS);
+    return printCStyleEscapedString(Escape.Text, OS, /*IgnoreQuotes=*/false);
+  case escape::CSTYLE_NQ:
+    return printCStyleEscapedString(Escape.Text, OS, /*IgnoreQuotes=*/true);
   case escape::HTML:
     return printHTMLEscaped(Escape.Text, OS);
   }

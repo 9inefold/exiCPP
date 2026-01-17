@@ -117,9 +117,10 @@ raw_ostream &exi::printEscapedString(StrRef Name, raw_ostream &Out) {
   return Out;
 }
 
-raw_ostream &exi::printCStyleEscapedString(StrRef Name, raw_ostream &Out) {
+template <bool IgnoreQuotes>
+static raw_ostream &PrintCStyleEscapedString(StrRef Name, raw_ostream &Out) {
   for (unsigned char C : Name) {
-    if (C == '\\' || C == '\"')
+    if (!IgnoreQuotes && (C == '\\' || C == '\"'))
       Out << '\\' << C;
     else if (isPrint(C))
       Out << C;
@@ -147,11 +148,19 @@ raw_ostream &exi::printCStyleEscapedString(StrRef Name, raw_ostream &Out) {
         Out << "\\v";
         break;
       default:
-        Out << '\\' << hexdigit(C >> 4) << hexdigit(C & 0x0F);
+        Out << "\\x" << hexdigit(C >> 4) << hexdigit(C & 0x0F);
       }
     }
   }
   return Out;
+}
+
+raw_ostream &exi::printCStyleEscapedString(StrRef Name, raw_ostream &Out,
+                                           bool IgnoreQuotes) {
+  if (IgnoreQuotes)
+    return PrintCStyleEscapedString<true>(Name, Out);
+  else
+    return PrintCStyleEscapedString<false>(Name, Out);
 }
 
 raw_ostream &exi::printHTMLEscaped(StrRef String, raw_ostream &Out) {
