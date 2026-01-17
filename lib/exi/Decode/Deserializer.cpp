@@ -1,6 +1,6 @@
 //===- exi/Decode/Deserializer.cpp -----------------------------------===//
 //
-// Copyright (C) 2025 Ninefold
+// Copyright (C) 2025-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,9 +22,11 @@
 //===----------------------------------------------------------------===//
 
 #include <exi/Decode/Deserializer.hpp>
+#include <exi/Decode/StreamDeserializer.hpp>
 #include <exi/Decode/XMLDeserializer.hpp>
 
 using namespace exi;
 
 void Deserializer::anchor() {}
+void StreamDeserializer::anchor() {}
 void XMLDeserializer::anchor() {}

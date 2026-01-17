@@ -1,6 +1,6 @@
 //===- exi/Decode/XMLDeserializer.hpp --------------------------------===//
 //
-// Copyright (C) 2025 Ninefold
+// Copyright (C) 2025-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -97,12 +97,13 @@ public:
     if EXI_UNLIKELY(UnboundURI != ID)
       Throw<argument_error>("local-name-ns does not match SE URI!");
     // TODO: Verify this is correct?
+    UnboundURI = kInvalidPrefix;
     StrRef FullName = intern(Prefix, Curr->name());
     Curr->name(FullName);
     return this->NS(URI, Prefix);
   }
 
-  /// Namespace Declaration
+  /// Characters
   ExiError CH(StrRef Value) override {
     XMLNode* Node = allocValue(node_data, Value);
     // Curr->value(Value);
