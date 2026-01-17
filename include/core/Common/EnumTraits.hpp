@@ -107,17 +107,7 @@ template <typename E>
 //////////////////////////////////////////////////////////////////////////
 // EnumBounds
 
-/// Creates `enum_first` for your type.
-#define EXI_MARK_ENUM_FIRST(TYPE, FIRST)                                      \
-  inline constexpr TYPE enum_first(TYPE) { return TYPE::FIRST; }
-/// Creates `enum_last` for your type.
-#define EXI_MARK_ENUM_LAST(TYPE, LAST)                                        \
-  inline constexpr TYPE enum_last(TYPE) { return TYPE::LAST; }
-
-/// Creates `enum_first` and `enum_last` for your type.
-#define EXI_MARK_ENUM_BOUNDS(TYPE, FIRST, LAST)                               \
-  EXI_MARK_ENUM_FIRST(TYPE, FIRST)                                            \
-  EXI_MARK_ENUM_LAST(TYPE,  LAST)
+#include <Common/D/EnumBounds.impl>
 
 namespace H {
 template <typename E>

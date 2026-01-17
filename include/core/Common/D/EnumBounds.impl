@@ -1,0 +1,29 @@
+//===- Common/D/EnumBounds.impl -------------------------------------===//
+//
+// Copyright (C) 2026 Ninefold
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+//     limitations under the License.
+//
+//===----------------------------------------------------------------===//
+
+/// Creates `enum_first` for your type.
+#define EXI_MARK_ENUM_FIRST(TYPE, FIRST)                                      \
+  inline constexpr TYPE enum_first(TYPE) { return TYPE::FIRST; }
+/// Creates `enum_last` for your type.
+#define EXI_MARK_ENUM_LAST(TYPE, LAST)                                        \
+  inline constexpr TYPE enum_last(TYPE) { return TYPE::LAST; }
+
+/// Creates `enum_first` and `enum_last` for your type.
+#define EXI_MARK_ENUM_BOUNDS(TYPE, FIRST, LAST)                               \
+  EXI_MARK_ENUM_FIRST(TYPE, FIRST)                                            \
+  EXI_MARK_ENUM_LAST(TYPE,  LAST)
