@@ -53,6 +53,7 @@
 #include <exi/Encode/XMLSerializer.hpp>
 
 #include <exi/Decode/BodyDecoder.hpp>
+#include <exi/Decode/StreamDeserializer.hpp>
 #include <exi/Decode/XMLDeserializer.hpp>
 
 #include <algorithm>
@@ -720,7 +721,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     
     if (!ExiFile.empty())
       PrintDiffOrCmp(DecodeBuf.getBuffer(), EncodeBuf.str());
-    auto MB = MemoryBuffer::getMemBuffer(EncodeBuf.str(), OutExiFile,
+    auto MB = MemoryBuffer::getMemBuffer(EncodeBuf.n_str(), OutExiFile,
                                          /*RequiresNullTerminator=*/false);
 
     SetLogLevel(LogLevel::WARN);

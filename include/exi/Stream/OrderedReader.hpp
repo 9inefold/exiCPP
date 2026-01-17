@@ -87,8 +87,11 @@ public:
   /// Return size of the stream in bytes.
   usize sizeInBytes() const { return Stream.size(); }
 
+  /// Return if the stream can read or not.
+  bool canRead() const { return ByteOffset <= Stream.size(); }
+
   /// Return if the stream has data or not.
-  bool hasData() const { return Stream.size() >= ByteOffset; }
+  bool hasData() const { return bitPos() <= (Stream.size() * 8); }
 
 protected:
   // TODO: EXI_PRESERVE_MOST for DerivedT::fillStore?
@@ -109,7 +112,6 @@ protected:
     } else {
       // Partial read.
       BytesRead = Stream.size() - ByteOffset;
-      ByteOffset = 0;
       exi_invariant(Store == 0);
       for (size_type Ix = 0; Ix != BytesRead; ++Ix)
         Store |= word_t(WordPtr[Ix]) << (Ix * 8);
