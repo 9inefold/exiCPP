@@ -158,9 +158,9 @@ raw_ostream &raw_ostream::write_hex(unsigned long long N) {
 }
 
 raw_ostream &raw_ostream::operator<<(Colors C) {
-  if (C == Colors::RESET)
-    resetColor();
-  else
+  //if (C == Colors::RESET)
+  //  resetColor();
+  //else
     changeColor(C);
   return *this;
 }
@@ -514,11 +514,11 @@ bool raw_ostream::prepare_colors() {
 #if EXI_HAS_SYS_IMPL
   // Colors require changing the terminal but this stream is not going to a
   // terminal.
-  if (sys::Process::ColorNeedsFlush() && !is_displayed())
-    return false;
-
-  if (sys::Process::ColorNeedsFlush())
+  if (sys::Process::ColorNeedsFlush()) {
+    if (!is_displayed())
+      return false;
     flush();
+  }
 #endif // EXI_HAS_SYS_IMPL
 
   return true;
@@ -531,7 +531,9 @@ raw_ostream::Colors raw_ostream::getColor(bool BG) const {
 }
 
 raw_ostream::TiedColor raw_ostream::getTiedColor() const {
-  return {getColor(false), getColor(true)};
+  if (!UsedColors)
+    return {Colors::RESET, Colors::RESET};
+  return {UsedColors->FG, UsedColors->BG};
 }
 
 void raw_ostream::setColor(enum Colors Color, bool BG) {
@@ -572,8 +574,14 @@ raw_ostream &raw_ostream::changeColor(enum Colors Color, bool Bold, bool BG) {
 }
 
 raw_ostream &raw_ostream::changeColor(TiedColor Color, bool Bold) {
-  return this->changeColor(Color.BG, Bold, true)
-              .changeColor(Color.FG, Bold, false);
+  if (!ColorEnabled)
+    return *this;
+  if (Color.FG == Colors::RESET)
+    return this->changeColor(Color.FG, Bold, false)
+                .changeColor(Color.BG, Bold, true);
+  else 
+    return this->changeColor(Color.BG, Bold, true)
+                .changeColor(Color.FG, Bold, false);
 }
 
 raw_ostream &raw_ostream::resetColor() {

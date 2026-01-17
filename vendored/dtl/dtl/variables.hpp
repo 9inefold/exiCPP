@@ -38,9 +38,9 @@
 #ifndef DTL_VARIABLES_H
 #define DTL_VARIABLES_H
 
-#include <Common/SmallVec.hpp>
-#include <Support/raw_ostream.hpp>
-#include <vector>
+#include <core/Common/SmallVec.hpp>
+#include <core/Support/WithColor.hpp>
+#include <core/Support/raw_ostream.hpp>
 #include <list>
 #include <string>
 #include <algorithm>
@@ -56,6 +56,7 @@ namespace dtl {
     using std::for_each;
     using std::distance;
     using std::fill;
+    using exi::raw_ostream;
     inline constexpr char endl = '\n'; 
     using std::rotate;
     using std::swap;

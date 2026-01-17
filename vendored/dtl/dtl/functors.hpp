@@ -82,16 +82,23 @@ namespace dtl {
         ~ChangePrinter () {}
         void operator() (const sesElem& se) const {
             switch (se.second.type) {
-            case SES_ADD:
-                this->out_ << SES_MARK_ADD    << se.first << endl;
-                break;
-            case SES_DELETE:
-                this->out_ << SES_MARK_DELETE << se.first << endl;
-                break;
-            case SES_COMMON:
-                this->out_ << SES_MARK_COMMON << se.first << endl;
+            case SES_ADD: {
+                exi::WithColor OS(this->out_);
+                OS->changeColor(raw_ostream::GREEN, false, true)
+                  << SES_MARK_ADD     << se.first;
                 break;
             }
+            case SES_DELETE: {
+                exi::WithColor OS(this->out_);
+                OS->changeColor(raw_ostream::RED, false, true)
+                  << SES_MARK_DELETE  << se.first;
+                break;
+            }
+            case SES_COMMON:
+                this->out_ << SES_MARK_COMMON << se.first;
+                break;
+            }
+            this->out_ << endl;
         }
     };
     
@@ -106,14 +113,19 @@ namespace dtl {
         UniHunkPrinter  (stream& out) : out_(out)  {}
         ~UniHunkPrinter () {}
         void operator() (const uniHunk< sesElem >& hunk) const {
-            out_ << "@@"
-                 << " -"  << hunk.a << "," << hunk.b
-                 << " +"  << hunk.c << "," << hunk.d
-                 << " @@" << endl;
+          {
+            exi::WithColor OS(out_, raw_ostream::MAGENTA);
+            OS << "@@"
+               << " -"  << hunk.a << "," << hunk.b
+               << " +"  << hunk.c << "," << hunk.d
+               << " @@" << endl;
+          }
+            CommonPrinter< sesElem, stream > CmP(out_);
+            ChangePrinter< sesElem, stream > ChP(out_);
             
-            for_each(hunk.common[0].begin(), hunk.common[0].end(), CommonPrinter< sesElem, stream >(out_));
-            for_each(hunk.change.begin(),    hunk.change.end(),    ChangePrinter< sesElem, stream >(out_));
-            for_each(hunk.common[1].begin(), hunk.common[1].end(), CommonPrinter< sesElem, stream >(out_));
+            for (const auto& Hunk : hunk.common[0]) CmP(Hunk);
+            for (const auto& Change : hunk.change)  ChP(Change);
+            for (const auto& Hunk : hunk.common[1]) CmP(Hunk);
         }
     private :
         stream& out_;

@@ -804,7 +804,7 @@ void XMLDump::full(XMLDocument& Doc,
 
   SmallStr<512> PrintBuf;
   raw_svector_ostream OS(PrintBuf);
-  OS.enable_colors(outs().has_colors());
+  OS.enable_colors(OutS.has_colors());
 
   XMLDumper Dumper(Doc, 2, OS);
   Dumper.ConformingSort = Conforming;
@@ -835,7 +835,7 @@ void XMLDump::full(XMLManager& Mgr,
     SmallStr<512> PrintBuf;
     PrintBuf.reserve(ReserveSize(Mgr, Name));
     raw_svector_ostream OS(PrintBuf);
-    OS.enable_colors(outs().has_colors());
+    OS.enable_colors(OutS.has_colors());
 
     XMLDumper Dumper(*Doc, 2, OS);
     Dumper.ConformingSort = Conforming;

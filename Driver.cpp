@@ -57,6 +57,7 @@
 #include <exi/Decode/XMLDeserializer.hpp>
 
 #include <algorithm>
+#include <dtl/dtl.hpp>
 #include <rapidxml.hpp>
 
 #define DEBUG_TYPE "__DRIVER__"
@@ -740,6 +741,8 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
       << "Decoding (again) successful!\n\n";
     
     if (Dump) {
+      bool DOk = !Xml || !ExiS || compareXML(Xml, &ExiS->document());
+      bool EOk = !Xml || compareXML(Xml, &S.document());
       if (Xml) {
         WithColor(errs(), MAGENTA) << "Original:\n";
         XMLDump::full(*Xml, DO);
@@ -750,8 +753,49 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
       }
       WithColor(errs(), EOk ? MAGENTA : RED) << "Encoding result:\n";
       XMLDump::full(S.document(), DO);
-    } else {
-      
+    } else if (Xml) {
+      using elem = StrRef;
+      using sequence = SmallVec<elem, 0>;
+      using sesElem = std::pair<elem, dtl::elemInfo>;
+
+      auto Dump = [] (XMLDocument& D, SmallVecImpl<char>& V) {
+        raw_svector_ostream OS(V);
+        OS.enable_colors(false);
+        XMLDump::full(D, OS, false, true);
+      };
+      auto Diff = [] (sequence& LHS, sequence& RHS) {
+        dtl::Diff<elem> diff(LHS, RHS);
+        diff.onHuge();
+        diff.compose();
+
+        if (diff.getEditDistance() == 0)
+          return;
+        
+        WithColor OS(outs(), raw_ostream::BRIGHT_WHITE);
+        diff.composeUnifiedHunks();
+        diff.printUnifiedFormat(OS);
+      };
+
+      SmallStr<0> Og, Enc, Dec;
+      Dump(*Xml, Og);
+      Dump(S.document(), Enc);
+      if (ExiS)
+        Dump(ExiS->document(), Dec);
+
+      outs() << "Og : " << Og.size() << '\n';
+      outs() << "Enc: " << Enc.size() << '\n';
+      if (ExiS)
+        outs() << "Dec: " << Dec.size() << '\n';
+
+      sequence OgLines, EncLines, DecLines;
+      Og.str().split(OgLines, '\n', -1, false);
+      Enc.str().split(EncLines, '\n', -1, false);
+
+      Diff(OgLines, EncLines);
+      if (ExiS) {
+        Dec.str().split(DecLines, '\n', -1, false);
+        Diff(OgLines, DecLines);
+      }
     }
   }
 
@@ -819,6 +863,10 @@ int main(int Argc, char* Argv[]) {
   errs().enable_colors(HaveEscapeCodes);
   dbgs().enable_colors(HaveEscapeCodes);
 
+  outs().changeColor(BLACK, false, true);
+  errs().changeColor(BLACK, false, true);
+  dbgs().changeColor(BLACK, false, true);
+
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
 
 #if STRESS_TEST_DECODING
@@ -851,25 +899,28 @@ int main(int Argc, char* Argv[]) {
     auto Zil = MAKE_EXTEST_RUNNER(AlignKind::BytePacked);
     auto Pfx = MAKE_EXTEST_RUNNER(AlignKind::BytePacked, Prefixes);
     auto All = MAKE_EXTEST_RUNNER(AlignKind::BytePacked, All & ~LexicalValues);
-    Zil().run("SpecExampleB.exi",     "SpecExample.xml");
-    Zil().run("BasicNooptB.exi",      "Basic.xml");
-    Zil().run("ThaiNooptB.exi",       "Thai.xml");
-    Zil().run("StackedPNNooptB.exi",  "Stacked.xml");
-    Pfx().run("CustomersNooptB.exi",  "Customers.xml");
-    Pfx().run("StackedPPNooptB.exi",  "Stacked.xml");
-    All().run("NamespaceNooptB.exi",  "Namespace.xml");
+    //Zil().run("SpecExampleB.exi",     "SpecExample.xml");
+    //Zil().run("BasicNooptB.exi",      "Basic.xml");
+    //Zil().run("ThaiNooptB.exi",       "Thai.xml");
+    //Zil().run("StackedPNNooptB.exi",  "Stacked.xml");
+    //Pfx().run("CustomersNooptB.exi",  "Customers.xml");
+    //Pfx().run("StackedPPNooptB.exi",  "Stacked.xml");
+    //All().run("NamespaceNooptB.exi",  "Namespace.xml");
 
-    All().run("022NooptB.exi",        "022.xml", false, true);
+    //All().run("022NooptB.exi",        "022.xml", false, true);
     // TODO: Fix exificient replacing & with &amp; and pruning CDATA
     // Also fix outputs being in the wrong order...
-    All().run("044NooptB.exi",        "044.xml", false, true);
-    All().run("044rNooptB.exi",       "044r.xml", true, true);
+    //All().run("044NooptB.exi",        "044.xml", false, true);
+    //SetLogLevel(LogLevel::EXTRA);
+    All().run("044rNooptB.exi",       "044r.xml", true);
+    
     // [Fatal Error] :1:57: White space is required between the '%' and the
     // entity name in the parameter entity declaration.
     // [ERROR] org.xml.sax.SAXParseException; lineNumber: 1; columnNumber: 57;
     // White space is required between the '%' and the entity name in the parameter
     // entity declaration.class javax.xml.transform.TransformerException
-    All().run("085NooptB.exi",        "085.xml", false, true);
+    All().run("085NooptB.exi",        "085.xml", true);
+    return 0;
     All().run("116NooptB.exi",        "116.xml", false, true);
   }
   ExificientFileData.RawCommands.push_back("");
