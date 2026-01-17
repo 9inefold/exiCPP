@@ -491,7 +491,7 @@ static ExiError Run(XMLDocument& Doc, BodyEncoder* BE) {
 // [Owning]XMLSerializer
 //===----------------------------------------------------------------===//
 
-ExiError XMLSerializer::run(BodyEncoder* BE) {
+ExiError XMLSerializer::exec(BodyEncoder* BE) {
   if EXI_NEVER(Doc == nullptr) {
     LOG_ERROR("Null XML document!");
     return ErrorCode::kNullptrRef;
@@ -499,7 +499,7 @@ ExiError XMLSerializer::run(BodyEncoder* BE) {
   return Run(*Doc, BE);
 }
 
-ExiError OwningXMLSerializer::run(BodyEncoder* BE) {
+ExiError OwningXMLSerializer::exec(BodyEncoder* BE) {
   exi_todo("add parsing interface");
   return Run(Doc, BE);
 }

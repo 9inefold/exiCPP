@@ -26,6 +26,12 @@
 
 using namespace exi;
 
+ExiError Serializer::run(BodyEncoder* BE) {
+  ExiError Out = this->exec(BE);
+  BE->flush();
+  return Out;
+}
+
 void Serializer::anchor() {}
 void XMLSerializer::anchor() {}
 void OwningXMLSerializer::anchor() {}

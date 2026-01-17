@@ -37,7 +37,7 @@ class XMLSerializer final : public Serializer {
 public:
   XMLSerializer(XMLDocument& Doc) : XMLSerializer(&Doc) {}
   XMLSerializer(XMLDocument* Doc) : Doc(Doc) {}
-  ExiError run(BodyEncoder* BE) override;
+  ExiError exec(BodyEncoder* BE) override;
 private:
   void anchor() override;
 };
@@ -47,7 +47,7 @@ class OwningXMLSerializer final : public Serializer {
 public:
   OwningXMLSerializer() : Doc() {}
   OwningXMLSerializer(Option<xml::XMLBumpAllocator&> A) : Doc(A) {}
-  ExiError run(BodyEncoder* BE) override;
+  ExiError exec(BodyEncoder* BE) override;
 private:
   void anchor() override;
 };

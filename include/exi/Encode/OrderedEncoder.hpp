@@ -91,6 +91,10 @@ public:
     return CurrentSchema.operator->();
   }
 
+  void flush() override {
+    Writer->flush();
+  }
+  
   StreamBase::StreamKind streamKind() const override {
     return Writer->getStreamKind();
   }

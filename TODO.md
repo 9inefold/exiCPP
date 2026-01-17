@@ -26,6 +26,8 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## In Progress
 
+- Fix stream not reading partial words
+- Check depth when parsing
 - Update `CDATA` parsing
 - `exi` example test suite
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense

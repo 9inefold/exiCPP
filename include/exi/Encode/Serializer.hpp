@@ -33,7 +33,8 @@ class Serializer {
 public:
   Serializer() = default;
   virtual ~Serializer() = default;
-  virtual ExiError run(BodyEncoder* BE) EXI_NONNULL(2) = 0;
+  virtual ExiError exec(BodyEncoder* BE) EXI_NONNULL(2) = 0;
+  ExiError run(BodyEncoder* BE) EXI_NONNULL(2);
 private:
   virtual void anchor();
 };

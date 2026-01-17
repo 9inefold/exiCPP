@@ -178,6 +178,8 @@ public:
   bool LexicalValues() const { return Opts.Preserve.LexicalValues; }
   /// Gets the type of the encoder.
   EncoderKind kind() const { return Kind; }
+  /// Flushes the stream.
+  virtual void flush() = 0;
   /// Gets the type of the stream.
   virtual StreamBase::StreamKind streamKind() const = 0;
 

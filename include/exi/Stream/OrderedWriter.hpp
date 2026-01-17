@@ -210,6 +210,11 @@ public:
     this->flushToFile(/*OnClosing=*/true);
   }
 
+  void flush() {
+    this->flushToWord();
+    this->flushToFile(/*OnClosing=*/false);
+  }
+
   void flushToWord() {
     if EXI_UNLIKELY(!BitsInStore)
       return;
