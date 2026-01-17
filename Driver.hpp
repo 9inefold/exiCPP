@@ -18,45 +18,13 @@
 
 #pragma once
 
-#include <Common/Option.hpp>
-#include <Common/Twine.hpp>
-#include <Support/WithColor.hpp>
-#include <Support/raw_ostream.hpp>
+#include <exi/Basic/XMLDumper.hpp>
 #include <exi/Basic/XMLManager.hpp>
 
 namespace root {
 
-struct DumpOptions {
-  exi::Option<exi::raw_ostream&> OS = std::nullopt;
-  int IdentLevel = 2; // Currently unused...
-  bool Conforming = false;
-  bool Debug = false;
-};
+using DumpOptions = exi::XMLDumpOptions;
 
 void tests_main(int Argc, char* Argv[]);
-
-void FullXMLDump(exi::XMLManager& Mgr,
-                 const exi::Twine& Filepath,
-                 exi::Option<exi::raw_ostream&> InOS = std::nullopt,
-                 bool DbgPrintTypes = false,
-                 bool Conforming = false);
-
-void FullXMLDump(exi::XMLDocument& Doc,
-                 exi::Option<exi::raw_ostream&> InOS = std::nullopt,
-                 bool DbgPrintTypes = false,
-                 bool Conforming = false);
-
-inline void FullXMLDump(exi::XMLManager& Mgr,
-                        const exi::Twine& Filepath,
-                        const DumpOptions& Opts) {
-  FullXMLDump(Mgr, Filepath,
-    Opts.OS, Opts.Debug, Opts.Conforming);
-}
-
-inline void FullXMLDump(exi::XMLDocument& Doc,
-                        const DumpOptions& Opts) {
-  FullXMLDump(Doc,
-    Opts.OS, Opts.Debug, Opts.Conforming);
-}
 
 } // namespace root

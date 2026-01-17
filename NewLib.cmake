@@ -100,6 +100,7 @@ include_items(EXICPP_BASIC "lib/exi"
   Basic/XML.cpp
   Basic/XMLCompare.cpp
   Basic/XMLContainer.cpp
+  Basic/XMLDumper.cpp
   Basic/XMLManager.cpp
 )
 
@@ -218,7 +219,8 @@ endif()
 
 if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
   add_executable(exi-driver Driver.cpp
-    DriverTests.cpp XMLDumper.cpp)
+    DriverTests.cpp #XMLDumper.cpp
+  )
   target_link_libraries(exi-driver PUBLIC exi::exicpp)
   exi_minject(exi-driver CLASSIC BACKUP)
   add_dependencies(exi-exicpp exi-irgen)

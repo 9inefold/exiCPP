@@ -164,18 +164,18 @@ static void HandleDebugSetup() {
 static void RunDumps(XMLManager& Mgr, bool Conforming = false) {
   using namespace root;
   DumpOptions Opts {.Conforming = Conforming};
-  FullXMLDump(Mgr, "examples/022.xml", Opts);
-  FullXMLDump(Mgr, "examples/044.xml", Opts);
-  FullXMLDump(Mgr, "examples/079.xml", Opts);
-  FullXMLDump(Mgr, "examples/085.xml", Opts);
-  FullXMLDump(Mgr, "examples/103.xml", Opts);
-  FullXMLDump(Mgr, "examples/116.xml", Opts);
-  FullXMLDump(Mgr, "examples/Namespace.xml", Opts);
-  FullXMLDump(Mgr, "examples/SortTest.xml", Opts);
-  FullXMLDump(Mgr, "examples/Thai.xml", Opts);
+  XMLDump::full(Mgr, "examples/022.xml", Opts);
+  XMLDump::full(Mgr, "examples/044.xml", Opts);
+  XMLDump::full(Mgr, "examples/079.xml", Opts);
+  XMLDump::full(Mgr, "examples/085.xml", Opts);
+  XMLDump::full(Mgr, "examples/103.xml", Opts);
+  XMLDump::full(Mgr, "examples/116.xml", Opts);
+  XMLDump::full(Mgr, "examples/Namespace.xml", Opts);
+  XMLDump::full(Mgr, "examples/SortTest.xml", Opts);
+  XMLDump::full(Mgr, "examples/Thai.xml", Opts);
 
   // Without prints this runs in 0.2 seconds!
-  // FullXMLDump(Mgr, "large-examples/treebank_e.xml", Opts);
+  // XMLDump::full(Mgr, "large-examples/treebank_e.xml", Opts);
 }
 
 static void TestSchema(StrRef Name, ExiOptions::PreserveOpts Preserve) {
@@ -742,14 +742,14 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     if (Dump) {
       if (Xml) {
         WithColor(errs(), MAGENTA) << "Original:\n";
-        FullXMLDump(*Xml, DO);
+        XMLDump::full(*Xml, DO);
       }
       if (ExiS) {
-        WithColor(errs(), MAGENTA) << "Decoding result:\n";
-        FullXMLDump(ExiS->document(), DO);
+        WithColor(errs(), DOk ? MAGENTA : RED) << "Decoding result:\n";
+        XMLDump::full(ExiS->document(), DO);
       }
-      WithColor(errs(), MAGENTA) << "Encoding result:\n";
-      FullXMLDump(S.document(), DO);
+      WithColor(errs(), EOk ? MAGENTA : RED) << "Encoding result:\n";
+      XMLDump::full(S.document(), DO);
     } else {
       
     }

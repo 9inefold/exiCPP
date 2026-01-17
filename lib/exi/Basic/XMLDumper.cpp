@@ -1,6 +1,6 @@
-//===- XMLDumper.cpp ------------------------------------------------===//
+//===- exi/Basic/XMLDumper.cpp --------------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,17 +16,17 @@
 //
 //===----------------------------------------------------------------===//
 
-#include "Driver.hpp"
-#include <Common/SmallStr.hpp>
-#include <Common/IntrusiveRefCntPtr.hpp>
-#include <Common/MMatch.hpp>
-#include <Common/StringExtras.hpp>
-#include <Common/STLExtras.hpp>
-#include <Support/Format.hpp>
-#include <Support/MemoryBuffer.hpp>
-#include <Support/Logging.hpp>
-#include <Support/ScopedSave.hpp>
-#include <Support/raw_ostream.hpp>
+#include <exi/Basic/XMLDumper.hpp>
+#include <core/Common/SmallStr.hpp>
+#include <core/Common/IntrusiveRefCntPtr.hpp>
+#include <core/Common/MMatch.hpp>
+#include <core/Common/StringExtras.hpp>
+#include <core/Common/STLExtras.hpp>
+#include <core/Support/Format.hpp>
+#include <core/Support/MemoryBuffer.hpp>
+#include <core/Support/Logging.hpp>
+#include <core/Support/ScopedSave.hpp>
+#include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/Except.hpp>
 #include <exi/Basic/XMLManager.hpp>
 #include <exi/Basic/XMLContainer.hpp>
@@ -44,8 +44,8 @@ class XMLDumper {
   static constexpr StrRef knode_null = "NULL-TYPE"; 
 
   XMLDocument& TopLevel;
-  exi::indent Indent;
   raw_ostream& OS;
+  exi::indent Indent;
 
 public:
   using enum raw_ostream::Colors;
@@ -334,7 +334,7 @@ static bool SortAttrsQName(const XMLAttribute* LHS, const XMLAttribute* RHS) {
     case IK_NamedNS:
       tail_return SortAttrsXmlns(LHS, RHS);
     default:
-      exi::Throw<argument_error>("Invalid IdentifierKind!");
+      Throw<argument_error>("Invalid IdentifierKind!");
   }
 }
 
@@ -793,9 +793,9 @@ static void HandleErr(XMLManager& Mgr, StrRef Name, raw_ostream& OS) {
   }
 }
 
-void root::FullXMLDump(exi::XMLDocument& Doc,
-                       exi::Option<raw_ostream&> InOS,
-                       bool DbgPrintTypes, bool Conforming) {
+void XMLDump::full(XMLDocument& Doc,
+                   Option<raw_ostream&> InOS,
+                   bool DbgPrintTypes, bool Conforming) {
   raw_ostream& OutS = InOS.value_or(outs());
   const bool OSProvided = InOS.has_value();
 
@@ -816,10 +816,10 @@ void root::FullXMLDump(exi::XMLDocument& Doc,
 }
 
 
-void root::FullXMLDump(exi::XMLManager& Mgr,
-                       const exi::Twine& Filepath,
-                       exi::Option<raw_ostream&> InOS,
-                       bool DbgPrintTypes, bool Conforming) {
+void XMLDump::full(XMLManager& Mgr,
+                   const Twine& Filepath,
+                   Option<raw_ostream&> InOS,
+                   bool DbgPrintTypes, bool Conforming) {
   SmallStr<80> Storage;
   StrRef Name = Filepath.toStrRef(Storage);
 
