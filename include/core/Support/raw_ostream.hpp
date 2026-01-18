@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Relicensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,6 +41,8 @@
 #include <system_error>
 #include <type_traits>
 
+#define EXI_DEBUG_OSCOLOR 0
+
 namespace exi {
 
 class Duration;
@@ -48,6 +50,7 @@ class IFormatObject;
 class FormattedString;
 class FormattedNumber;
 class FormattedBytes;
+class WithColor;
 template <class T> class [[nodiscard]] Expected;
 
 namespace sys {
@@ -101,6 +104,9 @@ public:
   };
 
   using enum Colors;
+  friend class WithColor;
+  friend constexpr Colors enum_first(Colors) { return Colors::BLACK; }
+  friend constexpr Colors enum_last(Colors) { return Colors::RESET; }
 
 protected:
   TiedColor MyColors;
@@ -447,6 +453,22 @@ private:
   /// Compute whether colors should be used and do the necessary work such as
   /// flushing. The result is affected by calls to enable_color().
   bool prepare_colors();
+
+  /// Implements changing color without checking.
+  /// Will be removed once colors are fully implemented.
+  inline raw_ostream &write_color(enum Colors Color, bool Bold, bool BG);
+
+  /// Implements resetting color without checking.
+  /// Will be removed once colors are fully implemented.
+  inline raw_ostream &reset_color();
+
+  /// Writes color codes if enabled.
+  /// Will be removed once colors are fully implemented.
+  inline void send_colorcode(const char *colorcode);
+
+  /// Writes foreground color codes directly.
+  /// Will be removed once colors are fully implemented.
+  inline void write_colorcode(enum Colors Color);
 
   virtual void anchor();
 };

@@ -23,6 +23,7 @@ This is a TODO list for the C++ version of exiCPP.
 - Implement `Throw<Ex>(...)`, handle some exceptional cases...
 - Fix repeated elements being stacked/lost (as seen in `044[r].xml`)
 - Add `EXI_GUARDRAILS` to handle invalid assumptions in release
+- Fixed colored output randomly resetting (removed `0;` from ansi codes)
 
 ## In Progress
 
@@ -44,6 +45,7 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## Not Started
 
+- Add `ANSIState` class for colored output + rethink strategy
 - Make XML comparison match failures more useful
 - `sys::` implementation on linux
 - Fully test `IntCast` and friends, improve support for non-integral types

@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Relicensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,8 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/raw_ostream.hpp>
+#include <Support/raw_ostream-inl.hpp>
+#include <Common/EnumArray.hpp>
 #include <Common/Fundamental.hpp>
 #include <Common/Twine.hpp>
 #include <Common/StringExtras.hpp>
@@ -81,6 +83,14 @@
 
 using namespace exi;
 using enum raw_ostream::Colors;
+
+static constexpr EnumArray<StrRef, raw_ostream::Colors> kColorNames {
+  "BLACK",        "RED",            "GREEN",        "YELLOW",
+  "BLUE",         "MAGENTA",        "CYAN",         "WHITE",
+  "BRIGHT_BLACK", "BRIGHT_RED",     "BRIGHT_GREEN", "BRIGHT_YELLOW",
+  "BRIGHT_BLUE",  "BRIGHT_MAGENTA", "BRIGHT_CYAN",  "BRIGHT_WHITE",
+  "SAVEDCOLOR",   "RESET"
+};
 
 raw_ostream::~raw_ostream() {
   // raw_ostream's subclasses should take care to flush the buffer
@@ -539,60 +549,54 @@ raw_ostream::TiedColor raw_ostream::getTiedColor() const {
 void raw_ostream::setColor(enum Colors Color, bool BG) {
   if (!UsedColors || Color == SAVEDCOLOR)
     return;
-  Colors& Col = *(BG ? &UsedColors->BG : &UsedColors->FG);
-  Col = Color;
+  if EXI_LIKELY(!BG)
+    UsedColors->FG = Color;
+  else
+    UsedColors->BG = Color;
 }
 
 void raw_ostream::setColor(raw_ostream::TiedColor Tied) {
-  this->setColor(Tied.FG, false);
-  this->setColor(Tied.BG, true);
+  if (!UsedColors)
+    return;
+  auto& Used = *UsedColors;
+  if (Tied.FG != SAVEDCOLOR)
+    Used.FG = Tied.FG;
+  if (Tied.BG != SAVEDCOLOR)
+    Used.BG = Tied.BG;
 }
 
 raw_ostream &raw_ostream::changeColor(enum Colors Color, bool Bold, bool BG) {
   if (!prepare_colors())
     return *this;
   this->setColor(Color, BG);
-#if EXI_HAS_SYS_IMPL
-  const char *colorcode =
-      (Color == SAVEDCOLOR)
-          ? sys::Process::OutputBold(BG)
-          : sys::Process::OutputColor(static_cast<char>(Color), Bold, BG);
-  if (colorcode) {
-#if 0
-    if (*colorcode == '\033') {
-      const auto Len = std::strlen(colorcode);
-      this->write(colorcode, Len);
-      this->write(colorcode + 1, Len - 1);
-      this->write("\033[0m", sizeof("\033[0m") - 1);
-      return *this;
-    }
-#endif
-    this->write(colorcode, std::strlen(colorcode));
-  }
-#endif // EXI_HAS_SYS_IMPL
-  return *this;
+  return this->write_color(Color, Bold, BG);
 }
 
 raw_ostream &raw_ostream::changeColor(TiedColor Color, bool Bold) {
-  if (!ColorEnabled)
+  if (!prepare_colors())
     return *this;
-  if (Color.FG == Colors::RESET)
-    return this->changeColor(Color.FG, Bold, false)
-                .changeColor(Color.BG, Bold, true);
-  else 
-    return this->changeColor(Color.BG, Bold, true)
-                .changeColor(Color.FG, Bold, false);
+  this->setColor(Color);
+
+  // TODO: Have this combine multiple codes into a single write.
+  if (Color.FG == Colors::RESET) {
+    this->reset_color();
+    if (Color.BG == Colors::RESET)
+      return *this;
+    return this->write_color(Color.BG, Bold, /*BG=*/true);
+  } else if (Color.BG == Colors::RESET) {
+    this->reset_color();
+    return this->write_color(Color.FG, Bold, /*BG=*/false);
+  }
+
+  this->write_color(Color.BG, false, /*BG=*/true);
+  return this->write_color(Color.FG, Bold, /*BG=*/false);
 }
 
 raw_ostream &raw_ostream::resetColor() {
   if (!prepare_colors())
     return *this;
   UsedColors.reset();
-#if EXI_HAS_SYS_IMPL
-  if (const char *colorcode = sys::Process::ResetColor())
-    this->write(colorcode, strlen(colorcode));
-#endif // EXI_HAS_SYS_IMPL
-  return *this;
+  return this->reset_color();
 }
 
 raw_ostream &raw_ostream::reverseColor() {

@@ -56,7 +56,13 @@ public:
   /// @param OS The output stream
   [[nodiscard]] WithColor(raw_ostream& OS)
    : OS(OS), TColor(OS.getTiedColor()) {
+#if EXI_DEBUG_OSCOLOR
+    this->incDepth();
+#endif
   }
+
+  [[nodiscard]] WithColor(const WithColor& WC) : WithColor(WC.OS) {}
+  [[nodiscard]] WithColor(WithColor&& WC) : WithColor(WC.OS) {}
 
   /// To be used like this: `WithColor(OS, raw_ostream::BLACK) << "text";`
   /// @param OS The output stream
@@ -71,10 +77,15 @@ public:
   [[nodiscard]] WithColor(raw_ostream& OS, HighlightColor S) : WithColor(OS) {
     this->SetHighlight(OS, S);
   }
-  ~WithColor() { this->reset(); }
+
+  ~WithColor() {
+    this->reset();
+#if EXI_DEBUG_OSCOLOR
+    this->decDepth();
+#endif
+  }
 
   raw_ostream& reset() { return OS.changeColor(TColor); }
-
   raw_ostream& get() { return OS; }
   operator raw_ostream&() { return OS; }
   raw_ostream* operator->() { return &OS; }
@@ -90,6 +101,13 @@ public:
 
   /// Sets the highlight color for `OS`.
   static raw_ostream& SetHighlight(raw_ostream& OS, HighlightColor S);
+
+private:
+#if EXI_DEBUG_OSCOLOR
+  inline void printDepth(char C);
+  void incDepth();
+  void decDepth();
+#endif
 };
 
 EXI_INLINE raw_ostream& operator<<(raw_ostream& OS, HighlightColor S) {

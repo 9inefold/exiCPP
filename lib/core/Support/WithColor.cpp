@@ -22,6 +22,7 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/WithColor.hpp>
+#include <Support/raw_ostream-inl.hpp>
 
 using namespace exi;
 
@@ -53,3 +54,27 @@ raw_ostream& WithColor::SetHighlight(raw_ostream& OS, HighlightColor S) {
 
   exi_unreachable("Invalid HighlightColor?");
 }
+
+#if EXI_DEBUG_OSCOLOR
+static constinit int withcolorDepth = 0;
+
+ALWAYS_INLINE void WithColor::printDepth(char C) {
+  if (!OS.prepare_colors())
+    return;
+  OS.write_colorcode(BRIGHT_CYAN);
+  OS << '[' << C << withcolorDepth << ']';
+  if (OS.prepare_colors())
+    OS.write_colorcode(RESET);
+}
+
+void WithColor::incDepth() {
+  ++withcolorDepth;
+  this->printDepth('+');
+}
+
+void WithColor::decDepth() {
+  this->printDepth('-');
+  --withcolorDepth;
+  exi_assert(withcolorDepth >= 0);
+}
+#endif

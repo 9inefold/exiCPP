@@ -771,7 +771,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
         if (diff.getEditDistance() == 0)
           return;
         
-        WithColor OS(outs(), raw_ostream::BRIGHT_WHITE);
+        WithColor OS(errs(), raw_ostream::BRIGHT_WHITE);
         diff.composeUnifiedHunks();
         diff.printUnifiedFormat(OS);
       };
@@ -782,10 +782,10 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
       if (ExiS)
         Dump(ExiS->document(), Dec);
 
-      outs() << "Og : " << Og.size() << '\n';
-      outs() << "Enc: " << Enc.size() << '\n';
+      errs() << "Og : " << Og.size() << '\n';
+      errs() << "Enc: " << Enc.size() << '\n';
       if (ExiS)
-        outs() << "Dec: " << Dec.size() << '\n';
+        errs() << "Dec: " << Dec.size() << '\n';
 
       sequence OgLines, EncLines, DecLines;
       Og.str().split(OgLines, '\n', -1, false);
@@ -862,10 +862,6 @@ int main(int Argc, char* Argv[]) {
   outs().enable_colors(HaveEscapeCodes);
   errs().enable_colors(HaveEscapeCodes);
   dbgs().enable_colors(HaveEscapeCodes);
-
-  outs().changeColor(BLACK, false, true);
-  errs().changeColor(BLACK, false, true);
-  dbgs().changeColor(BLACK, false, true);
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
 

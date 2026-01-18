@@ -121,7 +121,9 @@ Process::FindInEnvPath(StrRef EnvName, StrRef FileName,
 }
 
 // clang-format off
-#define COLOR(FGBG, CODE, BOLD) "\033[0;" BOLD FGBG CODE "m"
+/// TODO: Report this fix to LLVM?
+#define COLOR(FGBG, CODE, BOLD) "\033[" BOLD FGBG CODE "m"
+//#define COLOR(FGBG, CODE, BOLD) "\033[0;" BOLD FGBG CODE "m"
 
 #define ALLCOLORS(FGBG, BRIGHT, BOLD) \
   {                           \
