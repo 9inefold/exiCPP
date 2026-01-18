@@ -662,21 +662,40 @@ void XMLDumper::printNode_data(NodeT Node) {
   if (expectData(Node, "no-data"))
     return;
   
+  auto PutData = [this] (StrRef Data) {
+    while (!Data.empty()) {
+      auto [Front, Back] = Data.split('&');
+      if (Back.empty())
+        break;
+      
+      StrRef Entity;
+      std::tie(Entity, Data) = Back.split(';');
+
+      this->putData(Front);
+      this->putEntity(Entity);
+    }
+
+    this->putData(Data);
+  };
+  
   StrRef Data = Node->value().trim();
   if (Data.empty())
     return;
   
-  while (!Data.empty()) {
-    auto [Front, Back] = Data.split('&');
-    if (Back.empty())
-      break;
-    
-    StrRef Entity;
-    std::tie(Entity, Data) = Back.split(';');
-    putEntity(Entity);
+  constexpr auto Filter = StrRef::filter_t::FromChars("\n\r\v\f");
+  std::pair<StrRef, StrRef> Str = getToken(Data, Filter);
+  
+  auto Sep = fmt::format("\n{}", Indent);
+  ListSeparator LS(Sep);
+  while (!Str.first.empty()) {
+    StrRef Out = Str.first.ltrim(' ');
+    if (!Out.empty()) {
+      OS << LS;
+      PutData(Out);
+    }
+    Str = getToken(Str.second, Filter);
   }
 
-  putData(Data);
   OS << '\n';
 }
 
