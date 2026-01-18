@@ -695,6 +695,9 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     //Encoder.hdrHasOptions(HasOptions)
     //  .expect("Options already compiled??");
 
+    XMLSerializer S(Xml);
+    S.PreserveCDATA = false;
+
     SetLogLevel(CoderLogLevel);
     LOG_INFO("Compiling header...");
     SetLogLevel(LogLevel::INFO);
@@ -801,13 +804,15 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
       sequence OgLines, EncLines, DecLines;
       Og.str().split(OgLines, '\n', -1, false);
 
-      if (Og.str() != Enc.str()) {
-        Enc.str().split(EncLines, '\n', -1, false);
-        Diff(OgLines, EncLines);
-      }
       if (ExiS && Og.str() != Dec.str()) {
         Dec.str().split(DecLines, '\n', -1, false);
+        WithColor(errs(), RED) << "Decoding result:\n";
         Diff(OgLines, DecLines);
+      }
+      if (Og.str() != Enc.str()) {
+        Enc.str().split(EncLines, '\n', -1, false);
+        WithColor(errs(), RED) << "Encoding result:\n";
+        Diff(OgLines, EncLines);
       }
     }
   }

@@ -76,12 +76,13 @@ class INTERNAL_LINKAGE XMLEncoderRunner<OrderedEncoder>
   Encoder& BE;
   encode::Schema* TheSchema = nullptr;
   NodeKindBitset CurrKinds;
+  XMLSerializerOpts Opts;
 
 public:
-  XMLEncoderRunner(Encoder& BE)
+  XMLEncoderRunner(Encoder& BE, XMLSerializerOpts Opts)
    : GenericXMLEncoderRunner(BE),
       BE(BE), TheSchema(BE.getSchema()),
-      CurrKinds(0b1) {
+      CurrKinds(0b1), Opts(Opts) {
   }
 
   ALWAYS_INLINE void loadKinds() {
@@ -370,8 +371,9 @@ private:
     case NodeKind::node_element:
       return handleElement</*IsRoot=*/false>(N);
     case NodeKind::node_data:
-    case NodeKind::node_cdata:
       return BE.Characters(N->value());
+    case NodeKind::node_cdata:
+      return handleCDATA(*N);
     case NodeKind::node_comment:
       return handleCM(*N);
     case NodeKind::node_pi:
@@ -395,6 +397,18 @@ private:
   }
 
 protected:
+  EXI_NO_INLINE ExiError handleCDATA(XMLNode& N) const {
+    SmallStr<80> Buf;
+    raw_svector_ostream OS(Buf);
+
+    if (Opts.PreserveCDATA)
+      OS << "<![CDATA[" << N.value() << "]]>";
+    else
+      OS << escape::xml(N.value());
+
+    return BE.Characters(Buf.str());
+  }
+
   ExiError handleCM(XMLNode& N) const {
     return BE.Comment(N.value());
   }
@@ -474,15 +488,17 @@ GenericXMLEncoderRunner::GenericXMLEncoderRunner(BodyEncoder& BE)
 // Interface
 
 template <class Encoder>
-static ExiError RunAs(XMLDocument& Doc, BodyEncoder* BE) {
+static ExiError RunAs(XMLDocument& Doc, BodyEncoder* BE,
+                      const XMLSerializerOpts& Opts) {
   auto& EE = cast<Encoder>(*BE);
-  XMLEncoderRunner<Encoder> Runner(EE);
+  XMLEncoderRunner<Encoder> Runner(EE, Opts);
   return Runner.run(Doc);
 }
 
-static ExiError Run(XMLDocument& Doc, BodyEncoder* BE) {
+static ExiError Run(XMLDocument& Doc, BodyEncoder* BE,
+                    const XMLSerializerOpts& Opts) {
   if EXI_ALWAYS(isa<OrderedEncoder>(*BE))
-    tail_return RunAs<OrderedEncoder>(Doc, BE);
+    tail_return RunAs<OrderedEncoder>(Doc, BE, Opts);
   LOG_ERROR("Non-ordered encoders have not been implemented!");
   return ExiError::TODO;
 }
@@ -496,10 +512,10 @@ ExiError XMLSerializer::exec(BodyEncoder* BE) {
     LOG_ERROR("Null XML document!");
     return ErrorCode::kNullptrRef;
   }
-  return Run(*Doc, BE);
+  return Run(*Doc, BE, *this);
 }
 
 ExiError OwningXMLSerializer::exec(BodyEncoder* BE) {
   exi_todo("add parsing interface");
-  return Run(Doc, BE);
+  return Run(Doc, BE, *this);
 }
