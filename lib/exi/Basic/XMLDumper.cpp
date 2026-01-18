@@ -61,6 +61,7 @@ public:
   bool PreservePIs      = true;
   bool PreservePrefixes = true;
   bool PreserveDecl     = false;
+  bool PreserveCDATA    = true;
 
   Colors COLOR_default = CYAN;
   Colors COLOR_name    = BRIGHT_CYAN;
@@ -92,6 +93,7 @@ public:
     PreservePIs       = Opts.Preserve.PIs;
     PreservePrefixes  = Opts.Preserve.Prefixes;
     PreserveDecl      = Opts.PreserveDeclaration.value_or(PreservePIs);
+    PreserveCDATA     = Opts.PreserveCDATA;
     /// Misc
     ConformingSort    = Opts.Conforming;
     DebugPrint        = Opts.Debug;
@@ -149,6 +151,7 @@ private:
   void printAttrsDocOrd(NodeT Node); // Document Order
   void printAttrs(NodeT Node);
   void printCDATAData(StrRef Data, Option<raw_ostream&> IOS = std::nullopt);
+  void printCDATAEscaped(StrRef Data, Option<raw_ostream&> IOS = std::nullopt);
   void printDOCTYPEDecl(StrRef Data, raw_ostream& OS);
   void printDOCTYPEData(StrRef Data, Option<raw_ostream&> IOS = std::nullopt);
   void printPIData(StrRef Name, StrRef Data);
@@ -465,11 +468,32 @@ void XMLDumper::printCDATAData(StrRef Data, Option<raw_ostream&> IOS) {
 
   std::pair<StrRef, StrRef> Str = getToken(Data, Filter);
   while (!Str.first.empty()) {
-    OS << '\n' << Indent << Str.first;
+    StrRef Out = Str.first.ltrim(' ');
+    if (!Out.empty())
+      OS << '\n' << Indent << Out;
     Str = getToken(Str.second, Filter);
   }
  }
   OS << '\n' << Indent;
+}
+
+void XMLDumper::printCDATAEscaped(StrRef Data, Option<raw_ostream&> IOS) {
+  constexpr auto Filter = StrRef::filter_t::FromChars("\n\r\v\f");
+  exi_invariant(!PreserveCDATA);
+  raw_ostream& OS = IOS.value_or(this->OS);
+ {
+  WithColor Save(OS, COLOR_data);
+  std::pair<StrRef, StrRef> Str = getToken(Data, Filter);
+
+  auto Sep = fmt::format("\n{}", Indent);
+  ListSeparator LS(Sep);
+  while (!Str.first.empty()) {
+    StrRef Out = Str.first.ltrim(' ');
+    if (!Out.empty())
+      OS << LS << escape::xml(Out);
+    Str = getToken(Str.second, Filter);
+  }
+ }
 }
 
 enum DTDeclKind : int {
@@ -638,7 +662,7 @@ void XMLDumper::printNode_data(NodeT Node) {
   if (expectData(Node, "no-data"))
     return;
   
-  StrRef Data = Node->value().trim().rtrim();
+  StrRef Data = Node->value().trim();
   if (Data.empty())
     return;
   
@@ -662,10 +686,16 @@ void XMLDumper::printNode_cdata(NodeT Node) {
   
   SmallStr<32> Storage;
   raw_svector_ostream OS(Storage);
+  StrRef Data = Node->value().trim();
 
-  OS << "<![CDATA[";
-  printCDATAData(Node->value(), OS);
-  OS << "]]>\n";
+  if (PreserveCDATA) {
+    OS << "<![CDATA[";
+    printCDATAData(Node->value(), OS);
+    OS << "]]>\n";
+  } else {
+    printCDATAEscaped(Node->value(), OS);
+    OS << '\n';
+  }
 
   putCDATA(Storage.str());
 }

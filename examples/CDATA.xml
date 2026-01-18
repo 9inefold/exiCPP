@@ -1,0 +1,10 @@
+<doc>
+  <data><![CDATA[<sender>John Smith</sender>]]></data>
+  <example>
+  <![CDATA[
+    You will see this in the document
+    and can use reserved characters like
+    < > & "
+  ]]>
+  </example>
+</doc>

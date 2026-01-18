@@ -581,7 +581,11 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
                                bool Diff, bool Dump, usize Skip) const {
   using enum raw_ostream::Colors;
   const auto CoderLogLevel = exi::DebugFlag;
-  root::DumpOptions DO {.Conforming = true};
+  root::DumpOptions DO {
+    .Conforming = true,
+    .PreserveDeclaration = false,
+    .PreserveCDATA = false
+  };
 #if EXI_LOGGING
   ScopedSave LogLevelRestore(exi::DebugFlag, LogLevel::WARN);
 #endif
@@ -767,6 +771,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
           .Conforming           = false,
           .Preserve             = P,
           .PreserveDeclaration  = false,
+          .PreserveCDATA        = false
         });
       };
       auto Diff = [] (sequence& LHS, sequence& RHS) {

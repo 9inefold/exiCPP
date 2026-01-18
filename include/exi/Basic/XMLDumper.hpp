@@ -52,6 +52,8 @@ public:
   ExiOptions::PreserveOpts Preserve = kPreserveAll;
   /// If `<?xml ...?>` should be kept. Defaults to Preserve.PIs.
   Option<bool> PreserveDeclaration = std::nullopt;
+  /// If CDATA blocks should be kept untouched or escaped.
+  bool PreserveCDATA = true;
   /// Prints extra debugging info.
   bool Debug = false;
 };
