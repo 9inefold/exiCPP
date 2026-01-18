@@ -29,6 +29,7 @@ namespace exi {
 
 /// Options used by the XML dumper.
 struct XMLDumpOptions {
+  using enum XMLCoderOptions::PreserveCDATAKind;
   static constexpr ExiOptions::PreserveOpts kPreserveAll = {
     .Comments      = true,
     .DTDs          = true,
@@ -53,7 +54,7 @@ public:
   /// If `<?xml ...?>` should be kept. Defaults to Preserve.PIs.
   Option<bool> PreserveDeclaration = std::nullopt;
   /// If CDATA blocks should be kept untouched or escaped.
-  bool PreserveCDATA = true;
+  XMLCoderOptions::PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
   /// Prints extra debugging info.
   bool Debug = false;
 };
@@ -94,6 +95,14 @@ struct XMLDump {
       .Preserve = Preserve
     });
   }
+
+  /// Dump XML from the file `Filepath`.
+  static void info_tree(XMLManager& Mgr,
+                        const Twine& Filepath,
+                        const XMLDumpOptions& Opts);
+
+  /// Dump XML from the given document.
+  static void info_tree(XMLDocument& Doc, const XMLDumpOptions& Opts);
 };
 
 } // namespace exi

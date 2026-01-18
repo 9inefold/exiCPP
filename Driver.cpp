@@ -577,7 +577,7 @@ static void WriteExificientCmds(const CompareMetadata& Contents) {
   return WriteExificientCmds(Contents.RawCommands);
 }
 
-static constexpr bool kPreserveCDATA = true;
+static constexpr auto kPreserveCDATA = XMLCoderOptions::CDATA_NONE;
 
 int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
                                bool Diff, bool Dump, usize Skip) const {
@@ -648,7 +648,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     SetLogLevel(LogLevel::WARN);
     ExiDecoder& Decoder = EDecoder.emplace(Opts);
     XMLDeserializer& S = ExiS.emplace();
-    S.PreserveCDATA = false;
+    S.PreserveCDATA = XMLCoderOptions::CDATA_ESCAPE;
 
     SetLogLevel(CoderLogLevel);
     if (int Ret = Decode(Decoder, MB, &S)) {

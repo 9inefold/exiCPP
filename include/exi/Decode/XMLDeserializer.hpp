@@ -105,7 +105,7 @@ public:
 
   /// Characters
   ExiError CH(StrRef Value) override {
-    if (PreserveCDATA) {
+    if (PreserveCDATA == CDATA_PRESERVE) {
       if (auto I = Value.find("<![CDATA["); I != StrRef::npos)
         return this->CH_CDATA(Value, I);
     }

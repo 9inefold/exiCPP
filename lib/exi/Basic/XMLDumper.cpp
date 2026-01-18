@@ -38,6 +38,8 @@
 
 using namespace exi;
 
+using PreserveCDATAKind = XMLCoderOptions::PreserveCDATAKind;
+
 namespace {
 class XMLDumper {
   static constexpr StrRef knode_unknown = "UNKNOWN-TYPE"; 
@@ -48,6 +50,7 @@ class XMLDumper {
   exi::indent Indent;
 
 public:
+  using enum PreserveCDATAKind;
   using enum raw_ostream::Colors;
   using Colors = raw_ostream::Colors;
 
@@ -61,7 +64,7 @@ public:
   bool PreservePIs      = true;
   bool PreservePrefixes = true;
   bool PreserveDecl     = false;
-  bool PreserveCDATA    = true;
+  PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
 
   Colors COLOR_default = CYAN;
   Colors COLOR_name    = BRIGHT_CYAN;
@@ -151,7 +154,8 @@ private:
   void printAttrsDocOrd(NodeT Node); // Document Order
   void printAttrs(NodeT Node);
   void printCDATAData(StrRef Data, Option<raw_ostream&> IOS = std::nullopt);
-  void printCDATAEscaped(StrRef Data, Option<raw_ostream&> IOS = std::nullopt);
+  template <bool Escaped>
+  void printCDATABlock(StrRef Data, Option<raw_ostream&> IOS = std::nullopt);
   void printDOCTYPEDecl(StrRef Data, raw_ostream& OS);
   void printDOCTYPEData(StrRef Data, Option<raw_ostream&> IOS = std::nullopt);
   void printPIData(StrRef Name, StrRef Data);
@@ -477,9 +481,10 @@ void XMLDumper::printCDATAData(StrRef Data, Option<raw_ostream&> IOS) {
   OS << '\n' << Indent;
 }
 
-void XMLDumper::printCDATAEscaped(StrRef Data, Option<raw_ostream&> IOS) {
+template <bool Escaped>
+void XMLDumper::printCDATABlock(StrRef Data, Option<raw_ostream&> IOS) {
   constexpr auto Filter = StrRef::filter_t::FromChars("\n\r\v\f");
-  exi_invariant(!PreserveCDATA);
+  exi_invariant(PreserveCDATA);
   raw_ostream& OS = IOS.value_or(this->OS);
  {
   WithColor Save(OS, COLOR_data);
@@ -489,8 +494,12 @@ void XMLDumper::printCDATAEscaped(StrRef Data, Option<raw_ostream&> IOS) {
   ListSeparator LS(Sep);
   while (!Str.first.empty()) {
     StrRef Out = Str.first.ltrim(' ');
-    if (!Out.empty())
-      OS << LS << escape::xml(Out);
+    if (!Out.empty()) {
+      if constexpr (Escaped)
+        OS << LS << escape::xml(Out);
+      else
+        OS << LS << Out;
+    }
     Str = getToken(Str.second, Filter);
   }
  }
@@ -707,12 +716,15 @@ void XMLDumper::printNode_cdata(NodeT Node) {
   raw_svector_ostream OS(Storage);
   StrRef Data = Node->value().trim();
 
-  if (PreserveCDATA) {
+  if (PreserveCDATA == CDATA_PRESERVE) {
     OS << "<![CDATA[";
     printCDATAData(Node->value(), OS);
     OS << "]]>\n";
   } else {
-    printCDATAEscaped(Node->value(), OS);
+    if (PreserveCDATA == CDATA_ESCAPE)
+      printCDATABlock<true>(Node->value(), OS);
+    else
+      printCDATABlock<false>(Node->value(), OS);
     OS << '\n';
   }
 

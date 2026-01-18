@@ -60,8 +60,19 @@ struct XMLOptions {
 };
 
 struct XMLCoderOptions {
+  enum PreserveCDATAKind : u8 {
+    // Preserves block and characters.
+    CDATA_PRESERVE,
+    /// Escapes reserved characters, removes block.
+    /// eg. `<![CDATA[&<"]]>` becomes `&amp;&lt;&quot;`.
+    CDATA_ESCAPE,
+    /// Leaves characters untouched, used for exificient compatibility.
+    /// eg. `<![CDATA[&<"]]>` becomes `&<"`.
+    CDATA_NONE,
+  };
+
   /// If CDATA blocks should be preserved.
-  bool PreserveCDATA = true;
+  PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
 };
 
 /// Classifies paths by their extension.

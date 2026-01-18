@@ -71,6 +71,7 @@ template <>
 class INTERNAL_LINKAGE XMLEncoderRunner<OrderedEncoder>
     : public GenericXMLEncoderRunner {
   using Base = GenericXMLEncoderRunner;
+  using enum XMLCoderOptions::PreserveCDATAKind;
   using enum SimpleEventTerm;
   using Encoder = OrderedEncoder; // TODO: Remove
   Encoder& BE;
@@ -370,10 +371,12 @@ private:
     switch (K) {
     case NodeKind::node_element:
       return handleElement</*IsRoot=*/false>(N);
+    case NodeKind::node_cdata:
+      if (Opts.PreserveCDATA != CDATA_NONE)
+        return handleCDATA(*N);
+      [[fallthrough]];
     case NodeKind::node_data:
       return BE.Characters(N->value());
-    case NodeKind::node_cdata:
-      return handleCDATA(*N);
     case NodeKind::node_comment:
       return handleCM(*N);
     case NodeKind::node_pi:
