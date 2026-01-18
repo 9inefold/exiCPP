@@ -666,6 +666,8 @@ inline raw_ostream& operator<<(raw_ostream& OS, const escape& Escape) {
   exi_unreachable("???");
 }
 
+std::string format_as(const escape& Escape);
+
 /// A helper class to return the specified delimiter string after the first
 /// invocation of operator StrRef().  Used to generate a comma-separated
 /// list from a loop like so:

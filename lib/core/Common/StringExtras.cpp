@@ -181,6 +181,13 @@ raw_ostream &exi::printHTMLEscaped(StrRef String, raw_ostream &Out) {
   return Out;
 }
 
+std::string exi::format_as(const escape& Escape) {
+  std::string Buf;
+  Buf.reserve(Escape.Text.size());
+  exi::wrap_stream(Buf) << Escape;
+  return Buf;
+}
+
 raw_ostream &exi::printLowerCase(StrRef String, raw_ostream &Out) {
   for (const char C : String)
     Out << toLower(C);
