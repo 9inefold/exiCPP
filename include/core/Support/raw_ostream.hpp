@@ -903,6 +903,10 @@ inline raw_ostream &operator<<(raw_ostream &OS, const indent &Indent) {
   return OS.indent(Indent.NumIndents * Indent.Scale);
 }
 
+inline std::string format_as(const indent &Indent) {
+  return std::string(Indent.NumIndents * Indent.Scale, ' ');
+}
+
 class Error;
 
 /// This helper creates an output stream and then passes it to \p Write.
