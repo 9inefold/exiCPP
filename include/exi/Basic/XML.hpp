@@ -59,6 +59,11 @@ struct XMLOptions {
   bool Strict = false;
 };
 
+struct XMLCoderOptions {
+  /// If CDATA blocks should be preserved.
+  bool PreserveCDATA = true;
+};
+
 /// Classifies paths by their extension.
 /// @param PathOrExt The path or extension of a file.
 /// @param Hint When extensions are ambiguous, this will decide if schema should

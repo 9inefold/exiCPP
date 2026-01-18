@@ -577,6 +577,8 @@ static void WriteExificientCmds(const CompareMetadata& Contents) {
   return WriteExificientCmds(Contents.RawCommands);
 }
 
+static constexpr bool kPreserveCDATA = true;
+
 int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
                                bool Diff, bool Dump, usize Skip) const {
   using enum raw_ostream::Colors;
@@ -584,7 +586,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
   root::DumpOptions DO {
     .Conforming = true,
     .PreserveDeclaration = false,
-    .PreserveCDATA = false
+    .PreserveCDATA = kPreserveCDATA
   };
 #if EXI_LOGGING
   ScopedSave LogLevelRestore(exi::DebugFlag, LogLevel::WARN);
@@ -646,6 +648,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     SetLogLevel(LogLevel::WARN);
     ExiDecoder& Decoder = EDecoder.emplace(Opts);
     XMLDeserializer& S = ExiS.emplace();
+    S.PreserveCDATA = false;
 
     SetLogLevel(CoderLogLevel);
     if (int Ret = Decode(Decoder, MB, &S)) {
@@ -687,7 +690,6 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     }
 
     ExiEncoder Encoder = std::move(*EncoderOrErr);
-    XMLSerializer S(Xml);
     Encoder.setHeaderOnly(HdrOnlyOpts)
       .expect("Options already compiled??");
     //Encoder.hdrHasCookie(HasCookie)
@@ -696,7 +698,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     //  .expect("Options already compiled??");
 
     XMLSerializer S(Xml);
-    S.PreserveCDATA = false;
+    S.PreserveCDATA = kPreserveCDATA;
 
     SetLogLevel(CoderLogLevel);
     LOG_INFO("Compiling header...");
@@ -722,19 +724,22 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     SetLogLevel(LogLevel::WARN);
     WithColor(errs(), BRIGHT_GREEN)
       << "Encoding successful!\n\n";
+    
+    if (!ExiFile.empty()) {
+      PrintDiffOrCmp(DecodeBuf.getBuffer(), EncodeBuf.str());
+      errs() << '\n';
+    }
   }
   /*Decoding, again*/ {
     WithColor(errs(), BRIGHT_CYAN)
       << format("Decoding: \"{}\"", OutExiFile) << '\n';
-    
-    if (!ExiFile.empty())
-      PrintDiffOrCmp(DecodeBuf.getBuffer(), EncodeBuf.str());
     auto MB = MemoryBuffer::getMemBuffer(EncodeBuf.n_str(), OutExiFile,
                                          /*RequiresNullTerminator=*/false);
 
     SetLogLevel(LogLevel::WARN);
     ExiDecoder Decoder(Opts);
     XMLDeserializer S;
+    S.PreserveCDATA = kPreserveCDATA;
 
     SetLogLevel(CoderLogLevel);
     if (int Ret = Decode(Decoder, MB->getMemBufferRef(), &S)) {
@@ -774,7 +779,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
           .Conforming           = false,
           .Preserve             = P,
           .PreserveDeclaration  = false,
-          .PreserveCDATA        = false
+          .PreserveCDATA        = kPreserveCDATA
         });
       };
       auto Diff = [] (sequence& LHS, sequence& RHS) {
@@ -920,6 +925,7 @@ int main(int Argc, char* Argv[]) {
     //Pfx().run("CustomersNooptB.exi",  "Customers.xml");
     //Pfx().run("StackedPPNooptB.exi",  "Stacked.xml");
     //All().run("NamespaceNooptB.exi",  "Namespace.xml");
+    All().run("CDATANooptB.exi",      "CDATA.xml", false, true);
 
     All().run("022NooptB.exi",        "022.xml", false, true);
     // TODO: Fix exificient replacing & with &amp; and pruning CDATA

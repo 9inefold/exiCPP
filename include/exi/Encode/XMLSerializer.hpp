@@ -31,12 +31,7 @@
 
 namespace exi {
 
-struct XMLSerializerOpts {
-  /// If CDATA blocks should be preserved.
-  bool PreserveCDATA = true;
-};
-
-class XMLSerializer final : public Serializer, public XMLSerializerOpts {
+class XMLSerializer final : public Serializer, public XMLCoderOptions {
   /// The document this serializer is bound to.
   XMLDocument* Doc = nullptr;
 public:
@@ -47,7 +42,7 @@ private:
   void anchor() override;
 };
 
-class OwningXMLSerializer final : public Serializer, public XMLSerializerOpts {
+class OwningXMLSerializer final : public Serializer, public XMLCoderOptions {
   XMLDocument Doc;
 public:
   OwningXMLSerializer() : Doc() {}

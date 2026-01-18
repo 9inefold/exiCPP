@@ -32,7 +32,7 @@
 namespace exi {
 
 // TODO: Definitely wanna do some caching here...
-class XMLDeserializer final : public Deserializer {
+class XMLDeserializer final : public Deserializer, public XMLCoderOptions {
   using enum xml::NodeKind;
 
   mutable XMLDocument Doc;
@@ -105,10 +105,49 @@ public:
 
   /// Characters
   ExiError CH(StrRef Value) override {
-    XMLNode* Node = allocValue(node_data, Value);
-    // Curr->value(Value);
-    // Curr->prepend_node(Node);
-    Curr->append_node(Node);
+    if (PreserveCDATA) {
+      if (auto I = Value.find("<![CDATA["); I != StrRef::npos)
+        return this->CH_CDATA(Value, I);
+    }
+    // No CDATA found.
+    this->makeCHValue(false, Value);
+    return ExiError::OK;
+  }
+
+  /// Characters + CDATA
+  ExiError CH_CDATA(StrRef Value, const usize First) {
+    constexpr auto CDATA_Start = "<![CDATA["_str;
+    constexpr auto CDATA_End = "]]>"_str;
+    static_assert(CDATA_Start.size() == 9);
+    exi_assert(First != StrRef::npos);
+
+    if (First) {
+      XMLNode* Node = allocValue(
+        node_data, Value.take_front(First));
+      Curr->append_node(Node);
+      Value = Value.drop_front(First);
+    }
+    
+    while (!Value.empty()) {
+      StrRef::size_type End = Value.find(
+        CDATA_End, CDATA_Start.size());
+      if EXI_UNLIKELY(End == StrRef::npos) {
+        LOG_WARN_WITH("XMLDeserializer",
+          "Unterminated CDATA block: {}", Value);
+        return ErrorCode::kUnexpectedError;
+      }
+      
+      this->makeCHValue(true, Value.substr(9, End - 9));
+      Value = Value.drop_front(End + 3);
+
+      StrRef::size_type Start = Value.find(CDATA_Start);
+      if (Start == StrRef::npos) break;
+      this->makeCHValue(false, Value.take_front(Start));
+      Value = Value.drop_front(Start);
+    }
+
+    // No CDATA found.
+    this->makeCHValue(false, Value);
     return ExiError::OK;
   }
 
@@ -147,6 +186,13 @@ public:
 private:
   bool hasUnboundPrefix() const {
     return Curr && UnboundURI != kInvalidLNI;
+  }
+
+  void makeCHValue(bool IsCDATA, StrRef Value) {
+    if (!IsCDATA && Value.empty()) return;
+    NodeKind Kind = IsCDATA ? node_cdata : node_data;
+    XMLNode* Node = allocValue(Kind, Value);
+    Curr->append_node(Node);
   }
 
   XMLNode* allocNode(NodeKind Kind, QName Name) {

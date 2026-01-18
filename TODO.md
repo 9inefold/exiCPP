@@ -24,12 +24,13 @@ This is a TODO list for the C++ version of exiCPP.
 - Fix repeated elements being stacked/lost (as seen in `044[r].xml`)
 - Add `EXI_GUARDRAILS` to handle invalid assumptions in release
 - Fixed colored output randomly resetting (removed `0;` from ansi codes)
+- Update `CDATA` parsing
 
 ## In Progress
 
 - Check depth when parsing
-- Update `CDATA` parsing
 - `exi` example test suite
+- Combine data & cdata nodes
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense
 - Real tests for `core`
 - Update `ABIBreak.*` for next version

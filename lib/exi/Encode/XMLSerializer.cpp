@@ -76,10 +76,10 @@ class INTERNAL_LINKAGE XMLEncoderRunner<OrderedEncoder>
   Encoder& BE;
   encode::Schema* TheSchema = nullptr;
   NodeKindBitset CurrKinds;
-  XMLSerializerOpts Opts;
+  XMLCoderOptions Opts;
 
 public:
-  XMLEncoderRunner(Encoder& BE, XMLSerializerOpts Opts)
+  XMLEncoderRunner(Encoder& BE, XMLCoderOptions Opts)
    : GenericXMLEncoderRunner(BE),
       BE(BE), TheSchema(BE.getSchema()),
       CurrKinds(0b1), Opts(Opts) {
@@ -397,15 +397,15 @@ private:
   }
 
 protected:
-  EXI_NO_INLINE ExiError handleCDATA(XMLNode& N) const {
+  ExiError handleCDATA(XMLNode& N) const {
     SmallStr<80> Buf;
     raw_svector_ostream OS(Buf);
-
+    // If CDATA block should be kept or not
     if (Opts.PreserveCDATA)
       OS << "<![CDATA[" << N.value() << "]]>";
     else
       OS << escape::xml(N.value());
-
+    // Write it out now...
     return BE.Characters(Buf.str());
   }
 
@@ -489,14 +489,14 @@ GenericXMLEncoderRunner::GenericXMLEncoderRunner(BodyEncoder& BE)
 
 template <class Encoder>
 static ExiError RunAs(XMLDocument& Doc, BodyEncoder* BE,
-                      const XMLSerializerOpts& Opts) {
+                      const XMLCoderOptions& Opts) {
   auto& EE = cast<Encoder>(*BE);
   XMLEncoderRunner<Encoder> Runner(EE, Opts);
   return Runner.run(Doc);
 }
 
 static ExiError Run(XMLDocument& Doc, BodyEncoder* BE,
-                    const XMLSerializerOpts& Opts) {
+                    const XMLCoderOptions& Opts) {
   if EXI_ALWAYS(isa<OrderedEncoder>(*BE))
     tail_return RunAs<OrderedEncoder>(Doc, BE, Opts);
   LOG_ERROR("Non-ordered encoders have not been implemented!");
