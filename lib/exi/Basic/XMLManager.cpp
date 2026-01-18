@@ -36,7 +36,7 @@
 
 using namespace exi;
 
-XMLManager::XMLManager(Option<XMLOptions> Opts) :
+XMLManager::XMLManager(Option<XMLParseOptions> Opts) :
  DefaultOpts(Opts), SeenFiles(4) {
 }
 

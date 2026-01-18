@@ -42,7 +42,7 @@ class raw_ostream;
 using XMLContainerRef = const XMLContainer&;
 
 class XMLManager : public ThreadSafeRefCountedBase<XMLManager> {
-  Option<XMLOptions> DefaultOpts;
+  Option<XMLParseOptions> DefaultOpts;
   SpecificBumpPtrAllocator<XMLContainer> FilesAlloc;
 
   xml::XMLBumpAllocator SharedDocAlloc;
@@ -55,7 +55,7 @@ class XMLManager : public ThreadSafeRefCountedBase<XMLManager> {
                                         bool IsVolatile = false);
 
 public:
-  XMLManager(Option<XMLOptions> Opts = std::nullopt);
+  XMLManager(Option<XMLParseOptions> Opts = std::nullopt);
   ~XMLManager();
 
   Expected<XMLContainerRef> getXMLRef(const Twine& Filepath,

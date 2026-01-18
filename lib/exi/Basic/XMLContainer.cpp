@@ -56,7 +56,7 @@ constexpr int kImmutable = kDefault
                          | xml::parse_non_destructive;
 } // namespace `anonymous`
 
-XMLContainer::XMLContainer(Option<XMLOptions> Opts, 
+XMLContainer::XMLContainer(Option<XMLParseOptions> Opts, 
                            Option<xml::XMLBumpAllocator&> Alloc) :
  TheDocument(Alloc), DocKind(kDefaultDocKind),
  Parsed(false), Immutable(false), Strict(false) {

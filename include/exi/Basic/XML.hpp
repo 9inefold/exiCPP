@@ -53,6 +53,7 @@ enum class XMLKind : unsigned {
 };
 
 struct XMLOptions {
+struct XMLParseOptions {
   /// If the source text will be modified.
   bool Immutable = false;
   /// Disables comment, DOCTYPE, and PI parsing.

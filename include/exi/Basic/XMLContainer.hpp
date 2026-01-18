@@ -67,7 +67,7 @@ private:
                 Option<XMLKind> Kind = std::nullopt);
 
   /// Sets options manually.
-  void setOptions(Option<XMLOptions> Opts) {
+  void setOptions(Option<XMLParseOptions> Opts) {
     exi_assert(!isParsed(),
               "Options cannot be set after initialization.");
     if (Opts && !Parsed) {
@@ -80,7 +80,7 @@ private:
   void setKind(Option<XMLKind> Kind);
 
 public:
-  XMLContainer(Option<XMLOptions> Opts,
+  XMLContainer(Option<XMLParseOptions> Opts,
                Option<xml::XMLBumpAllocator&> Alloc = std::nullopt);
   ~XMLContainer();
 
