@@ -22,37 +22,75 @@
 #include <core/Common/Twine.hpp>
 #include <core/Support/WithColor.hpp>
 #include <core/Support/raw_ostream.hpp>
+#include <exi/Basic/ExiOptions.hpp>
 #include <exi/Basic/XMLManager.hpp>
 
 namespace exi {
 
+/// Options used by the XML dumper.
 struct XMLDumpOptions {
+  static constexpr ExiOptions::PreserveOpts kPreserveAll = {
+    .Comments      = true,
+    .DTDs          = true,
+    .PIs           = true,
+    .Prefixes      = true
+  };
+  
+public:
+  /// The stream to write to. Defaults to `outs()`.
   Option<raw_ostream&> OS = std::nullopt;
-  int IdentLevel = 2; // Currently unused...
+  /// The size of indentation. Defaults to `2`.
+  int IndentScale = 2;
+  /// The initial indentation level. Defaults to `0` when a stream isn't
+  /// provided, and `1` if one is.
+  Option<int> InitialIndent = std::nullopt;
+  /// Determines the namespace ordering strategy.
+  /// If `true`, namespaces will be in document order.
+  /// Otherwise, namespaces will be in shortlex order.
   bool Conforming = false;
+  /// If comments, DOCTYPES, and Processing Instructions should be kept.
+  ExiOptions::PreserveOpts Preserve = kPreserveAll;
+  /// If `<?xml ...?>` should be kept. Defaults to Preserve.PIs.
+  Option<bool> PreserveDeclaration = std::nullopt;
+  /// Prints extra debugging info.
   bool Debug = false;
 };
 
+/// Wrapper for the XML dumper.
 struct XMLDump {
+  /// Dump XML from the file `Filepath`.
+  static void full(XMLManager& Mgr,
+                   const Twine& Filepath,
+                   const XMLDumpOptions& Opts);
+  
+  /// Dump XML from the file `Filepath`.
   static void full(XMLManager& Mgr,
                    const Twine& Filepath,
                    Option<raw_ostream&> InOS = std::nullopt,
-                   bool DbgPrintTypes = false,
-                   bool Conforming = false);
-
-  static void full(XMLDocument& Doc,
-                   Option<raw_ostream&> InOS = std::nullopt,
-                   bool DbgPrintTypes = false,
-                   bool Conforming = false);
-
-  static void full(XMLManager& Mgr,
-                   const Twine& Filepath,
-                   const XMLDumpOptions& Opts) {
-    XMLDump::full(Mgr, Filepath, Opts.OS, Opts.Debug, Opts.Conforming);
+                   bool Conforming = false,
+                   ExiOptions::PreserveOpts Preserve
+                     = XMLDumpOptions::kPreserveAll) {
+    XMLDump::full(Mgr, Filepath, {
+      .OS = InOS,
+      .Conforming = Conforming,
+      .Preserve = Preserve
+    });
   }
 
-  static void full(XMLDocument& Doc, const XMLDumpOptions& Opts) {
-    XMLDump::full(Doc, Opts.OS, Opts.Debug, Opts.Conforming);
+  /// Dump XML from the given document.
+  static void full(XMLDocument& Doc, const XMLDumpOptions& Opts);
+
+  /// Dump XML from the given document.
+  static void full(XMLDocument& Doc,
+                   Option<raw_ostream&> InOS = std::nullopt,
+                   bool Conforming = false,
+                   ExiOptions::PreserveOpts Preserve
+                     = XMLDumpOptions::kPreserveAll) {
+    XMLDump::full(Doc, {
+      .OS = InOS,
+      .Conforming = Conforming,
+      .Preserve = Preserve
+    });
   }
 };
 

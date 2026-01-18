@@ -758,10 +758,16 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
       using sequence = SmallVec<elem, 0>;
       using sesElem = std::pair<elem, dtl::elemInfo>;
 
-      auto Dump = [] (XMLDocument& D, SmallVecImpl<char>& V) {
+      auto Dump = [P = Opts.Preserve] (XMLDocument& D, SmallVecImpl<char>& V) {
         raw_svector_ostream OS(V);
         OS.enable_colors(false);
-        XMLDump::full(D, OS, false, true);
+        XMLDump::full(D, XMLDumpOptions {
+          .OS                   = OS,
+          .InitialIndent        = 0,
+          .Conforming           = false,
+          .Preserve             = P,
+          .PreserveDeclaration  = false,
+        });
       };
       auto Diff = [] (sequence& LHS, sequence& RHS) {
         dtl::Diff<elem> diff(LHS, RHS);
@@ -782,17 +788,19 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
       if (ExiS)
         Dump(ExiS->document(), Dec);
 
-      errs() << "Og : " << Og.size() << '\n';
-      errs() << "Enc: " << Enc.size() << '\n';
-      if (ExiS)
-        errs() << "Dec: " << Dec.size() << '\n';
+      //errs() << "Og : " << Og.size() << '\n';
+      //errs() << "Enc: " << Enc.size() << '\n';
+      //if (ExiS)
+      //  errs() << "Dec: " << Dec.size() << '\n';
 
       sequence OgLines, EncLines, DecLines;
       Og.str().split(OgLines, '\n', -1, false);
-      Enc.str().split(EncLines, '\n', -1, false);
 
-      Diff(OgLines, EncLines);
-      if (ExiS) {
+      if (Og.str() != Enc.str()) {
+        Enc.str().split(EncLines, '\n', -1, false);
+        Diff(OgLines, EncLines);
+      }
+      if (ExiS && Og.str() != Dec.str()) {
         Dec.str().split(DecLines, '\n', -1, false);
         Diff(OgLines, DecLines);
       }
@@ -903,10 +911,10 @@ int main(int Argc, char* Argv[]) {
     //Pfx().run("StackedPPNooptB.exi",  "Stacked.xml");
     //All().run("NamespaceNooptB.exi",  "Namespace.xml");
 
-    //All().run("022NooptB.exi",        "022.xml", false, true);
+    All().run("022NooptB.exi",        "022.xml", false, true);
     // TODO: Fix exificient replacing & with &amp; and pruning CDATA
     // Also fix outputs being in the wrong order...
-    //All().run("044NooptB.exi",        "044.xml", false, true);
+    All().run("044NooptB.exi",        "044.xml", false, true);
     //SetLogLevel(LogLevel::EXTRA);
     All().run("044rNooptB.exi",       "044r.xml", true);
     
@@ -916,7 +924,6 @@ int main(int Argc, char* Argv[]) {
     // White space is required between the '%' and the entity name in the parameter
     // entity declaration.class javax.xml.transform.TransformerException
     All().run("085NooptB.exi",        "085.xml", true);
-    return 0;
     All().run("116NooptB.exi",        "116.xml", false, true);
   }
   ExificientFileData.RawCommands.push_back("");

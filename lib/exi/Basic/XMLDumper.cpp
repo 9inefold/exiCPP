@@ -56,6 +56,12 @@ public:
   /// Otherwise, namespaces will be in shortlex order.
   bool ConformingSort = false;
 
+  bool PreserveComments = true;
+  bool PreserveDTDs     = true;
+  bool PreservePIs      = true;
+  bool PreservePrefixes = true;
+  bool PreserveDecl     = false;
+
   Colors COLOR_default = CYAN;
   Colors COLOR_name    = BRIGHT_CYAN;
   Colors COLOR_dtname  = BRIGHT_YELLOW;
@@ -68,6 +74,8 @@ public:
   Colors COLOR_comment = BRIGHT_BLACK;
   Colors COLOR_entity  = BRIGHT_RED;
   Colors COLOR_data    = BRIGHT_WHITE;
+  Colors COLOR_error   = BRIGHT_RED;
+  Colors COLOR_debug   = BRIGHT_BLACK;
 
 public:
   using NodeT = const XMLNode*;
@@ -75,6 +83,18 @@ public:
             Option<raw_ostream&> OS = std::nullopt) :
    TopLevel(Doc), OS(OS.value_or(nulls())),
    Indent(0, IndentLevel) {
+  }
+
+  void setup(const XMLDumpOptions& Opts) {
+    /// Preserve.*
+    PreserveComments  = Opts.Preserve.Comments;
+    PreserveDTDs      = Opts.Preserve.DTDs;
+    PreservePIs       = Opts.Preserve.PIs;
+    PreservePrefixes  = Opts.Preserve.Prefixes;
+    PreserveDecl      = Opts.PreserveDeclaration.value_or(PreservePIs);
+    /// Misc
+    ConformingSort    = Opts.Conforming;
+    DebugPrint        = Opts.Debug;
   }
 
   /// Returns the type name of the node type.
@@ -124,6 +144,7 @@ private:
   void printName(NodeT Node);
   void printAttrName(const XMLAttribute* Attr);
   void printAttr(const XMLAttribute* Attr);
+  void printAttrsArr(const auto& Attrs);
   void printAttrsSlxOrd(NodeT Node); // Shortlex Order
   void printAttrsDocOrd(NodeT Node); // Document Order
   void printAttrs(NodeT Node);
@@ -131,6 +152,7 @@ private:
   void printDOCTYPEDecl(StrRef Data, raw_ostream& OS);
   void printDOCTYPEData(StrRef Data, Option<raw_ostream&> IOS = std::nullopt);
   void printPIData(StrRef Name, StrRef Data);
+  void printDiscarded(NodeT Node, StrRef Extra = "");
   void printType(NodeT Node, StrRef Extra = "");
   void printErr(NodeT Node, StrRef Err = "err");
 
@@ -147,6 +169,8 @@ private:
 
   bool expectData(NodeT Node, StrRef Err = "err");
   bool expectName(NodeT Node, StrRef Err = "err");
+
+  inline bool preserved(NodeT Node);
 };
 } // namespace `anonymous`
 
@@ -210,6 +234,23 @@ bool XMLDumper::expectData(NodeT Node, StrRef Err) {
   return false;
 }
 
+EXI_INLINE bool XMLDumper::preserved(NodeT Node) {
+  using namespace xml;
+  exi_invariant(Node != nullptr);
+  switch (Node->type()) {
+  case node_comment:
+    return PreserveComments;
+  case node_declaration:
+    return PreserveDecl;
+  case node_doctype:
+    return PreserveDTDs;
+  case node_pi:
+    return PreservePIs;
+  default:
+    return true;
+  }
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Atoms
 
@@ -261,12 +302,17 @@ void XMLDumper::putEntity(StrRef Data) {
 // Fragments
 
 void XMLDumper::printType(NodeT Node, StrRef Extra) {
-  WithColor Save(OS, COLOR_comment);
+  WithColor Save(OS, COLOR_debug);
   Save << '@' << Type(Node) << Extra;
 }
 
+void XMLDumper::printDiscarded(NodeT Node, StrRef Extra) {
+  WithColor Save(OS, COLOR_debug);
+  Save << '@' << Extra << "::" << Type(Node);
+}
+
 void XMLDumper::printErr(NodeT Node, StrRef Val) {
-  WithColor Save(OS, BRIGHT_RED);
+  WithColor Save(OS, COLOR_error);
   Save << '@' << Val << "::" << Type(Node);
 }
 
@@ -277,7 +323,8 @@ void XMLDumper::printName(NodeT Node) {
   }
 
   auto [Ns, Name] = SplitNodeName(Node);
-  if (!Ns.empty()) {
+  // TODO: Check if prefix is xml/xsi
+  if (PreservePrefixes && !Ns.empty()) {
     this->putNs(Ns);
     this->putSplit(':');
   }
@@ -292,7 +339,8 @@ void XMLDumper::printAttrName(const XMLAttribute* Attr) {
   }
 
   auto [Ns, Name] = SplitNodeName(Attr);
-  if (!Ns.empty()) {
+  // TODO: Check if prefix is xml/xsi
+  if (PreservePrefixes && !Ns.empty()) {
     this->putAttrNs(Ns);
     this->putSplit(':');
   }
@@ -303,6 +351,22 @@ void XMLDumper::printAttr(const XMLAttribute* Attr) {
   printAttrName(Attr);
   putSplit('=');
   putString(Attr->value());
+}
+
+void XMLDumper::printAttrsArr(const auto& Attrs) {
+  if (PreservePrefixes) {
+    for (const XMLAttribute* Attr : Attrs) {
+      OS << ' ';
+      printAttr(Attr);
+    }
+  } else {
+    for (const XMLAttribute* Attr : Attrs) {
+      if (Attr->is_namespace())
+        continue;
+      OS << ' ';
+      printAttr(Attr);
+    }
+  }
 }
 
 static bool SortAttrsXmlns(const XMLAttribute* LHS, const XMLAttribute* RHS) {
@@ -371,34 +435,20 @@ void XMLDumper::printAttrsSlxOrd(NodeT Node) {
   SmallVec<const XMLAttribute*, 16> Attrs;
   if (!SortAttrs(Node, Attrs))
     return;
-  auto** Back = &Attrs.back();
-  for (auto*& Attr : Attrs) {
-    printAttr(Attr);
-    if (&Attr == Back)
-      break;
-    OS << ' ';
-  }
+  printAttrsArr(Attrs);
 }
 void XMLDumper::printAttrsDocOrd(NodeT Node) {
-  using AttrT = const XMLAttribute*;
-  SmallVec<AttrT, 4> NS;
-  SmallVec<AttrT, 12> Attrs;
+  SmallVec<const XMLAttribute*, 4> NS;
+  SmallVec<const XMLAttribute*, 12> Attrs;
   if (!SortAttrs(Node, Attrs, &NS))
     return;
-  AttrT* Back = Attrs.empty()
-    ? &NS.back() : &Attrs.back();
-  for (auto*& Attr : exi::concat<AttrT>(NS, Attrs)) {
-    printAttr(Attr);
-    if (&Attr == Back)
-      break;
-    OS << ' ';
-  }
+  auto NSAndAttrs = exi::concat<const XMLAttribute*>(NS, Attrs);
+  printAttrsArr(NSAndAttrs);
 }
 
 void XMLDumper::printAttrs(NodeT Node) {
   if (!XMLDumper::HasAttributes(Node))
     return;
-  
   if (ConformingSort)
     tail_return printAttrsDocOrd(Node);
   else
@@ -409,10 +459,10 @@ void XMLDumper::printCDATAData(StrRef Data, Option<raw_ostream&> IOS) {
   constexpr auto Filter = StrRef::filter_t::FromChars("\n\r\v\f");
   raw_ostream& OS = IOS.value_or(this->OS);
  {
+  WithColor Save(OS, COLOR_data);
   ScopedSave S(Indent);
   ++Indent;
 
-  WithColor Save(OS, COLOR_data);
   std::pair<StrRef, StrRef> Str = getToken(Data, Filter);
   while (!Str.first.empty()) {
     OS << '\n' << Indent << Str.first;
@@ -449,7 +499,7 @@ void XMLDumper::printDOCTYPEDecl(StrRef Tok, raw_ostream& OS) {
     }
 
     const char C = Tok[Start];
-    if (C == '\"' || C == '\"' || C == '(') {
+    if (mmatch_value(C).is('\"', '\'', '(')) {
       const char F = (C == '(') ? ')' : C;
       usize End = Tok.find_first_of(F, Start + 1);
       End += (End != StrRef::npos);
@@ -577,7 +627,6 @@ void XMLDumper::printNode_element(NodeT Node) {
   OS << '<';
   this->printName(Node);
   if (HasAttributes(Node)) {
-    OS << ' ';
     printAttrs(Node);
   }
   if (!HasChildren(Node))
@@ -728,6 +777,14 @@ void XMLDumper::printHead(NodeT Node) {
   if (Node == nullptr)
     return;
   
+  if (!preserved(Node)) {
+    if (DebugPrint) {
+      OS << Indent;
+      printDiscarded(Node, "not-preserved");
+    }
+    return;
+  }
+  
   OS << Indent;
   if (DebugPrint)
     printType(Node, ": ");
@@ -793,11 +850,20 @@ static void HandleErr(XMLManager& Mgr, StrRef Name, raw_ostream& OS) {
   }
 }
 
-void XMLDump::full(XMLDocument& Doc,
-                   Option<raw_ostream&> InOS,
-                   bool DbgPrintTypes, bool Conforming) {
-  raw_ostream& OutS = InOS.value_or(outs());
-  const bool OSProvided = InOS.has_value();
+static int CalcInitialIndent(const XMLDumpOptions& Opts) {
+  if (Opts.InitialIndent)
+    return *Opts.InitialIndent;
+  if (auto OS = Opts.OS) {
+    if (!OS->is_displayed())
+      return 0;
+  }
+  return 1;
+}
+
+void XMLDump::full(XMLDocument& Doc, const XMLDumpOptions& Opts) {
+  raw_ostream& OutS = Opts.OS.value_or(outs());
+  const bool OSProvided = Opts.OS.has_value();
+  const int InitialIndent = CalcInitialIndent(Opts);
 
   if (!OSProvided)
     OutS.flush();
@@ -806,25 +872,23 @@ void XMLDump::full(XMLDocument& Doc,
   raw_svector_ostream OS(PrintBuf);
   OS.enable_colors(OutS.has_colors());
 
-  XMLDumper Dumper(Doc, 2, OS);
-  Dumper.ConformingSort = Conforming;
-  Dumper.DebugPrint = DbgPrintTypes;
-  Dumper.dump(/*InitialIndent=*/ OSProvided ? 0 : 1);
+  XMLDumper Dumper(Doc, Opts.IndentScale, OS);
+  Dumper.setup(Opts);
+  Dumper.dump(InitialIndent);
 
   OutS << PrintBuf.str() << '\n';
   OutS.changeColor(raw_ostream::RESET).flush();
 }
 
-
 void XMLDump::full(XMLManager& Mgr,
                    const Twine& Filepath,
-                   Option<raw_ostream&> InOS,
-                   bool DbgPrintTypes, bool Conforming) {
+                   const XMLDumpOptions& Opts) {
   SmallStr<80> Storage;
   StrRef Name = Filepath.toStrRef(Storage);
 
-  raw_ostream& OutS = InOS.value_or(outs());
-  const bool OSProvided = InOS.has_value();
+  raw_ostream& OutS = Opts.OS.value_or(outs());
+  const bool OSProvided = Opts.OS.has_value();
+  const int InitialIndent = CalcInitialIndent(Opts);
 
   if (auto Doc = TryLoad(Mgr, Name)) {
     if (!OSProvided) {
@@ -837,10 +901,9 @@ void XMLDump::full(XMLManager& Mgr,
     raw_svector_ostream OS(PrintBuf);
     OS.enable_colors(OutS.has_colors());
 
-    XMLDumper Dumper(*Doc, 2, OS);
-    Dumper.ConformingSort = Conforming;
-    Dumper.DebugPrint = DbgPrintTypes;
-    Dumper.dump(/*InitialIndent=*/ OSProvided ? 0 : 1);
+    XMLDumper Dumper(*Doc, Opts.IndentScale, OS);
+    Dumper.setup(Opts);
+    Dumper.dump(InitialIndent);
 
     OutS << PrintBuf.str() << '\n';
   } else {

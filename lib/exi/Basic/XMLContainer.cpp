@@ -49,6 +49,7 @@ constexpr int kValidate = 0;
 
 constexpr int kDefault = xml::parse_no_entity_translation
                        /*| xml::parse_no_data_nodes*/
+                       | xml::parse_normalize_newlines
                        | kValidate;
 
 constexpr int kImmutable = kDefault
