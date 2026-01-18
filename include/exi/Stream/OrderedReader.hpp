@@ -224,7 +224,8 @@ public:
       auto Buf = RuneEncoder::Encode(*Rune);
       Data.append(Buf.data(), Buf.data() + Buf.size());
       
-      LOG_EXTRA(">>> {}: {}", Buf.str(), 
+      LOG_EXTRA(">>> {}: {}",
+        isPrintRune(*Rune) ? Buf.str() : u8"�"_str, 
         fmt::format("0x{:02X}", fmt::join(Buf, " 0x")));
     }
 
@@ -475,7 +476,8 @@ public:
       auto Buf = RuneEncoder::Encode(*Rune);
       Data.append(Buf.data(), Buf.data() + Buf.size());
       
-      LOG_EXTRA(">>> {}: {}", Buf.str(), 
+      LOG_EXTRA(">>> {}: {}",
+        isPrintRune(*Rune) ? Buf.str() : u8"�"_str, 
         fmt::format("0x{:02X}", fmt::join(Buf, " 0x")));
     }
 

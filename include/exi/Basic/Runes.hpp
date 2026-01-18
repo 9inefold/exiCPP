@@ -1,6 +1,6 @@
 //===- exi/Basic/Runes.hpp ------------------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2025-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,6 +47,20 @@ template <usize N>
 concept is_valid_utf8_count = N >= 1 && N <= 4;
 
 } // namespace H
+
+/// Returns whether or not a `Rune` has a printable value.
+/// TODO: Make more efficient?
+EXI_READNONE inline bool isPrintRune(Rune C) {
+  // ASCII Control Characters + Basic UTF
+  if EXI_LIKELY(C <= 0x9F)
+    return (0x20 <= C) && (C <= 0x7E);
+  // This works because all the runes are in order.
+# define NP_S(X) else if (C <= X) return (X != C);
+# define NP_R(FROM, TO) else if (C <= TO) return !(FROM <= C);
+# include "Runes/NonPrintable.mac"
+  // All other characters are theoretically printable.
+  return (C <= 0x10ffff);
+}
 
 /// A simple 4-byte buffer to hold encoded runes. Can be freely passed by value.
 class RuneBuf {

@@ -1,0 +1,247 @@
+//===- exi/Basic/Runes/NonPrintable.mac -----------------------------===//
+//
+// Copyright (C) 2026 Ninefold
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+//     limitations under the License.
+//
+//===----------------------------------------------------------------===//
+///
+/// \file
+/// This file lists non-printable UTF-32 characters.
+/// See https://www.compart.com/en/unicode/category/Cf
+///
+//===----------------------------------------------------------------===//
+
+/*
+  U+0x00AD  : Soft Hyphen (SHY)
+
+  U+0x0600  : Arabic Number Sign
+  U+0x0601  : Arabic Sign Sanah
+  U+0x0602  : Arabic Footnote Marker
+  U+0x0603  : Arabic Sign Safha
+  U+0x0604  : Arabic Sign Samvat
+  U+0x0605  : Arabic Number Mark Above
+  U+0x061C  : Arabic Letter Mark (ALM)
+
+  U+0x06DD  : Arabic End of Ayah
+  U+0x070F  : Syriac Abbreviation Mark
+  U+0x08E2  : Arabic Disputed End of Ayah
+  U+0x180E  : Mongolian Vowel Separator (MVS)
+
+  U+0x200B  : Zero Width Space (ZWSP)
+  U+0x200C  : Zero Width Non-Joiner (ZWNJ)
+  U+0x200D  : Zero Width Joiner (ZWJ)
+  U+0x200E  : Left-to-Right Mark (LRM)
+  U+0x200F  : Right-to-Left Mark (RLM)
+
+  U+0x202A  : Left-to-Right Embedding (LRE)
+  U+0x202B  : Right-to-Left Embedding (RLE)
+  U+0x202C  : Pop Directional Formatting (PDF)
+  U+0x202D  : Left-to-Right Override (LRO)
+  U+0x202E  : Right-to-Left Override (RLO)
+
+  U+0x2060  : Word Joiner (WJ)
+  U+0x2061  : Function Application
+  U+0x2062  : Invisible Times
+  U+0x2063  : Invisible Separator
+  U+0x2064  : Invisible Plus
+  U+0x2066  : Left-to-Right Isolate (LRI)
+  U+0x2067  : Right-to-Left Isolate (RLI)
+  U+0x2068  : First Strong Isolate (FSI)
+  U+0x2069  : Pop Directional Isolate (PDI)
+  U+0x206A  : Inhibit Symmetric Swapping
+  U+0x206B  : Activate Symmetric Swapping
+  U+0x206C  : Inhibit Arabic Form Shaping
+  U+0x206D  : Activate Arabic Form Shaping
+  U+0x206E  : National Digit Shapes
+  U+0x206F  : Nominal Digit Shapes
+
+  U+0xFEFF  : Zero Width No-Break Space (BOM, ZWNBSP)
+
+  U+0xFFF9  : Interlinear Annotation Anchor
+  U+0xFFFA  : Interlinear Annotation Separator
+  U+0xFFFB  : Interlinear Annotation Terminator
+
+  U+0x110BD : Kaithi Number Sign
+  U+0x110CD : Kaithi Number Sign Above
+
+  U+0x13430 : Egyptian Hieroglyph Vertical Joiner
+  U+0x13431 : Egyptian Hieroglyph Horizontal Joiner
+  U+0x13432 : Egyptian Hieroglyph Insert at Top Start
+  U+0x13433 : Egyptian Hieroglyph Insert at Bottom Start
+  U+0x13434 : Egyptian Hieroglyph Insert at Top End
+  U+0x13435 : Egyptian Hieroglyph Insert at Bottom End
+  U+0x13436 : Egyptian Hieroglyph Overlay Middle
+  U+0x13437 : Egyptian Hieroglyph Begin Segment
+  U+0x13438 : Egyptian Hieroglyph End Segment
+
+  U+0x1BCA0 : Shorthand Format Letter Overlap
+  U+0x1BCA1 : Shorthand Format Continuing Overlap
+  U+0x1BCA2 : Shorthand Format Down Step
+  U+0x1BCA3 : Shorthand Format Up Step
+
+  U+0x1D173 : Musical Symbol Begin Beam
+  U+0x1D174 : Musical Symbol End Beam
+  U+0x1D175 : Musical Symbol Begin Tie
+  U+0x1D176 : Musical Symbol End Tie
+  U+0x1D177 : Musical Symbol Begin Slur
+  U+0x1D178 : Musical Symbol End Slur
+  U+0x1D179 : Musical Symbol Begin Phrase
+  U+0x1D17A : Musical Symbol End Phrase
+
+  U+0xE0001 : Language Tag
+  U+0xE0020 : Tag Space
+  U+0xE0021 : Tag Exclamation Mark
+  U+0xE0022 : Tag Quotation Mark
+  U+0xE0023 : Tag Number Sign
+  U+0xE0024 : Tag Dollar Sign
+  U+0xE0025 : Tag Percent Sign
+  U+0xE0026 : Tag Ampersand
+  U+0xE0027 : Tag Apostrophe
+  U+0xE0028 : Tag Left Parenthesis
+  U+0xE0029 : Tag Right Parenthesis
+  U+0xE002A : Tag Asterisk
+  U+0xE002B : Tag Plus Sign
+  U+0xE002C : Tag Comma
+  U+0xE002D : Tag Hyphen-Minus
+  U+0xE002E : Tag Full Stop
+  U+0xE002F : Tag Solidus
+  U+0xE0030 : Tag Digit Zero
+  U+0xE0031 : Tag Digit One
+  U+0xE0032 : Tag Digit Two
+  U+0xE0033 : Tag Digit Three
+  U+0xE0034 : Tag Digit Four
+  U+0xE0035 : Tag Digit Five
+  U+0xE0036 : Tag Digit Six
+  U+0xE0037 : Tag Digit Seven
+  U+0xE0038 : Tag Digit Eight
+  U+0xE0039 : Tag Digit Nine
+  U+0xE003A : Tag Colon
+  U+0xE003B : Tag Semicolon
+  U+0xE003C : Tag Less-Than Sign
+  U+0xE003D : Tag Equals Sign
+  U+0xE003E : Tag Greater-Than Sign
+  U+0xE003F : Tag Question Mark
+  U+0xE0040 : Tag Commercial At
+  U+0xE0041 : Tag Latin Capital Letter A
+  U+0xE0042 : Tag Latin Capital Letter B
+  U+0xE0043 : Tag Latin Capital Letter C
+  U+0xE0044 : Tag Latin Capital Letter D
+  U+0xE0045 : Tag Latin Capital Letter E
+  U+0xE0046 : Tag Latin Capital Letter F
+  U+0xE0047 : Tag Latin Capital Letter G
+  U+0xE0048 : Tag Latin Capital Letter H
+  U+0xE0049 : Tag Latin Capital Letter I
+  U+0xE004A : Tag Latin Capital Letter J
+  U+0xE004B : Tag Latin Capital Letter K
+  U+0xE004C : Tag Latin Capital Letter L
+  U+0xE004D : Tag Latin Capital Letter M
+  U+0xE004E : Tag Latin Capital Letter N
+  U+0xE004F : Tag Latin Capital Letter O
+  U+0xE0050 : Tag Latin Capital Letter P
+  U+0xE0051 : Tag Latin Capital Letter Q
+  U+0xE0052 : Tag Latin Capital Letter R
+  U+0xE0053 : Tag Latin Capital Letter S
+  U+0xE0054 : Tag Latin Capital Letter T
+  U+0xE0055 : Tag Latin Capital Letter U
+  U+0xE0056 : Tag Latin Capital Letter V
+  U+0xE0057 : Tag Latin Capital Letter W
+  U+0xE0058 : Tag Latin Capital Letter X
+  U+0xE0059 : Tag Latin Capital Letter Y
+  U+0xE005A : Tag Latin Capital Letter Z
+  U+0xE005B : Tag Left Square Bracket
+  U+0xE005C : Tag Reverse Solidus
+  U+0xE005D : Tag Right Square Bracket
+  U+0xE005E : Tag Circumflex Accent
+  U+0xE005F : Tag Low Line
+  U+0xE0060 : Tag Grave Accent
+  U+0xE0061 : Tag Latin Small Letter A
+  U+0xE0062 : Tag Latin Small Letter B
+  U+0xE0063 : Tag Latin Small Letter C
+  U+0xE0064 : Tag Latin Small Letter D
+  U+0xE0065 : Tag Latin Small Letter E
+  U+0xE0066 : Tag Latin Small Letter F
+  U+0xE0067 : Tag Latin Small Letter G
+  U+0xE0068 : Tag Latin Small Letter H
+  U+0xE0069 : Tag Latin Small Letter I
+  U+0xE006A : Tag Latin Small Letter J
+  U+0xE006B : Tag Latin Small Letter K
+  U+0xE006C : Tag Latin Small Letter L
+  U+0xE006D : Tag Latin Small Letter M
+  U+0xE006E : Tag Latin Small Letter N
+  U+0xE006F : Tag Latin Small Letter O
+  U+0xE0070 : Tag Latin Small Letter P
+  U+0xE0071 : Tag Latin Small Letter Q
+  U+0xE0072 : Tag Latin Small Letter R
+  U+0xE0073 : Tag Latin Small Letter S
+  U+0xE0074 : Tag Latin Small Letter T
+  U+0xE0075 : Tag Latin Small Letter U
+  U+0xE0076 : Tag Latin Small Letter V
+  U+0xE0077 : Tag Latin Small Letter W
+  U+0xE0078 : Tag Latin Small Letter X
+  U+0xE0079 : Tag Latin Small Letter Y
+  U+0xE007A : Tag Latin Small Letter Z
+  U+0xE007B : Tag Left Curly Bracket
+  U+0xE007C : Tag Vertical Line
+  U+0xE007D : Tag Right Curly Bracket
+  U+0xE007E : Tag Tilde
+  U+0xE007F : Cancel Tag
+*/
+
+#ifndef NP_S
+# define NP_S(X)
+#endif
+#ifndef NP_R
+# define NP_R(FROM, TO)
+#endif
+
+NP_S(0x00AD)
+
+// Arabic Signs
+NP_R(0x0600, 0x061C)
+
+// Miscellaneous Language Format
+NP_S(0x06DD)
+NP_S(0x070F)
+NP_S(0x08E2)
+NP_S(0x180E)
+
+// General Punctuation Format
+NP_R(0x200B, 0x200F)
+NP_R(0x202A, 0x202E)
+NP_R(0x2060, 0x206F)
+
+// Zero Width No-Break Space
+NP_S(0xFEFF)
+
+// Interlinear Annotation Specials
+NP_R(0xFFF9, 0xFFFB)
+
+// Kaithi Number Signs
+NP_S(0x110BD)
+NP_S(0x110CD)
+
+// Block: Egyptian Hieroglyph Format Controls
+NP_R(0x13430, 0x13438)
+
+// Block: Shorthand Format Controls
+NP_R(0x1BCA0, 0x1BCA3)
+
+// Block: Musical Symbols
+NP_R(0x1D173, 0x1D17A)
+
+// Block: Tags
+NP_R(0xE0001, 0xE007F)
+
+#undef NP_S
+#undef NP_R

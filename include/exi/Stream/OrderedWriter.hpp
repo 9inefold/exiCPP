@@ -266,7 +266,8 @@ public:
       this->writeNByteUInt<UnicodeReads>(Val);
 #if EXI_HAS_LOG_LEVEL(VERBOSE)
       auto Buf = Decoder.decodeChars();
-      LOG_EXTRA(">>> {}: {}", Buf.str(), 
+      LOG_EXTRA(">>> {}: {}",
+        isPrintRune(Val) ? Buf.str() : u8"�"_str, 
         fmt::format("0x{:02X}", fmt::join(Buf, " 0x")));
     }
 #endif
@@ -279,7 +280,8 @@ public:
       if constexpr (Validate)
         if EXI_NEVER(u8(Val) >= (1u << 7))
           this->failUInt<1>();
-      LOG_EXTRA(">>> {}: 0x{:02X}", Val, u8(Val));
+      LOG_EXTRA(">>> {}: 0x{:02X}",
+        isPrint(Val) ? Val : ' ', u8(Val));
       this->writeNBits(u8(Val), 8);
     }
   }
