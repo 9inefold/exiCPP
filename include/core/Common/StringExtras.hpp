@@ -644,16 +644,12 @@ struct escape {
 public:
   explicit escape(StrRef Text, StyleKind Style = CSTYLE)
    : Text(Text), Style(Style) {}
-  
-  static escape Classic(StrRef Text) { return escape(Text, CLASSIC); }
-  static escape CStyle(StrRef Text) { return escape(Text, CSTYLE); }
-  static escape CStyleNQ(StrRef Text) { return escape(Text, CSTYLE_NQ); }
-  static escape Html(StrRef Text) { return escape(Text, HTML); }
 
   static escape classic(StrRef Text) { return escape(Text, CLASSIC); }
   static escape cstyle(StrRef Text) { return escape(Text, CSTYLE); }
   static escape cstylenq(StrRef Text) { return escape(Text, CSTYLE_NQ); }
   static escape html(StrRef Text) { return escape(Text, HTML); }
+  static escape xml(StrRef Text) { return escape(Text, HTML); }
 };
 
 inline raw_ostream& operator<<(raw_ostream& OS, const escape& Escape) {
