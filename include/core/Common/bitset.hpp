@@ -113,7 +113,7 @@ public:
 
   ALWAYS_INLINE constexpr reference operator[](size_type I) {
     exi_invariant(I < size(), "Invalid offset!");
-    return reference(*this, I);
+    return reference(Bits, I);
   }
   ALWAYS_INLINE constexpr bool operator[](size_type I) const {
     exi_invariant(I < size(), "Invalid offset!");
@@ -378,6 +378,9 @@ private:
       Bits[N / kBitwordSize] &= BitWord((BitWord(1) << Remainder) - 1ull);
   }
 };
+
+/// Instantiated in `Common/StrRef.cpp`, used for filtering.
+extern template class bitset<1 << CHAR_BIT>;
 
 template <usize N>
 inline raw_ostream& operator<<(raw_ostream& OS, const bitset<N>& B) {

@@ -80,6 +80,9 @@ class EXI_GSL_POINTER StrRef {
 public:
   static constexpr usize npos = ~usize(0);
 
+  /// The type used for `find_[first|last][_not]_of` under the hood.
+  using filter_t = exi::bitset<1 << CHAR_BIT>;
+
   using iterator = const char *;
   using const_iterator = const char *;
   using size_type = usize;
@@ -470,9 +473,6 @@ public:
   /// \returns The index of the last occurrence of \p Str, or npos if not
   /// found.
   [[nodiscard]] usize rfind_insensitive(StrRef Str) const;
-
-  /// The type used for `find_[first|last][_not]_of` under the hood.
-  using filter_t = exi::bitset<1 << CHAR_BIT>;
 
   /// Find the first character in the string that is \p C, or npos if not
   /// found. Same as find.

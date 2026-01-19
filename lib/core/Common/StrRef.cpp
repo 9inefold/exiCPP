@@ -43,6 +43,10 @@ using namespace exi;
 constexpr usize StrRef::npos;
 #endif
 
+/// Instantiate filter_t.
+static_assert(StrRef::filter_t::size() == (1 << CHAR_BIT), "Out of sync!");
+template class exi::bitset<1 << CHAR_BIT>;
+
 // strncasecmp() is not available on non-POSIX systems, so define an
 // alternative function here.
 static int AsciiStrncasecmp(const char *LHS, const char *RHS, usize Length) {
