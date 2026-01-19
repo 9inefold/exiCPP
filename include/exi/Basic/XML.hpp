@@ -52,7 +52,7 @@ enum class XMLKind : unsigned {
   Unknown,          // Unknown document type.
 };
 
-struct XMLOptions {
+/// Options for the parsing of XML data.
 struct XMLParseOptions {
   /// If the source text will be modified.
   bool Immutable = false;
@@ -60,7 +60,9 @@ struct XMLParseOptions {
   bool Strict = false;
 };
 
+/// Options for the encoding/decoding of EXI and XML.
 struct XMLCoderOptions {
+  /// The methods for handling CDATA blocks.
   enum PreserveCDATAKind : u8 {
     // Preserves block and characters.
     CDATA_PRESERVE,
