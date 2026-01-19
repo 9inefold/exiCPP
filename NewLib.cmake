@@ -228,3 +228,6 @@ endif()
 
 add_executable(exi-xml-compare XMLCompareDriver.cpp)
 target_link_libraries(exi-xml-compare PUBLIC exi::exicpp)
+
+add_executable(exi-xml-print XMLPrintDriver.cpp)
+target_link_libraries(exi-xml-print PUBLIC exi::exicpp)
