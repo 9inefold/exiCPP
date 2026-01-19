@@ -42,9 +42,18 @@
 
 namespace exi {
 
+class raw_ostream;
 template <typename T> class Option;
 
 namespace option_detail {
+
+template <typename T>
+struct is_abstract : std::is_abstract<T> {};
+
+template <>
+struct is_abstract<raw_ostream> : std::true_type {};
+
+//////////////////////////////////////////////////////////////////////////
 
 template <typename T>
 concept is_const = std::is_const_v<T>;
@@ -53,7 +62,7 @@ template <typename T>
 concept not_const = !is_const<T>;
 
 template <typename T>
-concept abstract = std::is_abstract_v<T>;
+concept abstract = is_abstract<T>::value;
 
 template <typename T>
 concept concrete = !abstract<T>;
