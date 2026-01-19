@@ -33,6 +33,7 @@
 #include <exi/Encode/DTDParser.hpp>
 #include <algorithm>
 #include <rapidxml.hpp>
+#include <dtl/dtl.hpp>
 
 #define DEBUG_TYPE "XMLDumper"
 
@@ -942,24 +943,29 @@ static int CalcInitialIndent(const XMLDumpOptions& Opts) {
   return 1;
 }
 
-void XMLDump::full(XMLDocument& Doc, const XMLDumpOptions& Opts) {
-  raw_ostream& OutS = Opts.OS.value_or(outs());
+template <unsigned N>
+static void Dump(XMLDocument& Doc,
+                 const XMLDumpOptions& Opts,
+                 SmallStr<N>& PrintBuf) {
+  WithColor OutS(Opts.OS.value_or(outs()));
   const bool OSProvided = Opts.OS.has_value();
   const int InitialIndent = CalcInitialIndent(Opts);
 
-  if (!OSProvided)
-    OutS.flush();
-
-  SmallStr<512> PrintBuf;
   raw_svector_ostream OS(PrintBuf);
-  OS.enable_colors(OutS.has_colors());
+  OS.enable_colors(OutS->has_colors());
 
   XMLDumper Dumper(Doc, Opts.IndentScale, OS);
   Dumper.setup(Opts);
   Dumper.dump(InitialIndent);
 
   OutS << PrintBuf.str() << '\n';
-  OutS.changeColor(raw_ostream::RESET).flush();
+}
+
+void XMLDump::full(XMLDocument& Doc, const XMLDumpOptions& Opts) {
+  SmallStr<512> PrintBuf;
+  Dump(Doc, Opts, PrintBuf);
+  if (!Opts.OS)
+    outs().flush();
 }
 
 void XMLDump::full(XMLManager& Mgr,
@@ -968,29 +974,55 @@ void XMLDump::full(XMLManager& Mgr,
   SmallStr<80> Storage;
   StrRef Name = Filepath.toStrRef(Storage);
 
-  raw_ostream& OutS = Opts.OS.value_or(outs());
-  const bool OSProvided = Opts.OS.has_value();
-  const int InitialIndent = CalcInitialIndent(Opts);
-
   if (auto Doc = TryLoad(Mgr, Name)) {
-    if (!OSProvided) {
-      OutS << "'" << Name << "':\n";
-      OutS.flush();
-    }
+    if (!Opts.OS)
+      outs() << "'" << Name << "':\n";
 
     SmallStr<512> PrintBuf;
     PrintBuf.reserve(ReserveSize(Mgr, Name));
-    raw_svector_ostream OS(PrintBuf);
-    OS.enable_colors(OutS.has_colors());
+    Dump(*Doc, Opts, PrintBuf);
 
-    XMLDumper Dumper(*Doc, Opts.IndentScale, OS);
-    Dumper.setup(Opts);
-    Dumper.dump(InitialIndent);
-
-    OutS << PrintBuf.str() << '\n';
+    if (!Opts.OS)
+      outs().flush();
   } else {
     HandleErr(Mgr, Name, errs());
     errs() << '\n';
   }
-  OutS.changeColor(raw_ostream::RESET).flush();
+}
+
+void XMLDump::diff(XMLDocument& DocA, XMLDocument& DocB,
+                   const XMLDumpOptions& Opts) {
+  SmallStr<512> PrintBufA, PrintBufB;
+  XMLDumpOptions OptsCopy = Opts;
+  // Eat the output, we just need the buffers.
+  OptsCopy.OS = nulls();
+  nulls().enable_colors(false);
+
+  Dump(DocA, OptsCopy, PrintBufA);
+  Dump(DocB, OptsCopy, PrintBufB);
+
+  if (PrintBufA.str() == PrintBufB.str())
+    return;
+
+  {
+    SmallVec<StrRef, 0> LinesA, LinesB;
+    PrintBufA.str().split(LinesA, '\n');
+    PrintBufB.str().split(LinesB, '\n');
+
+    dtl::Diff<StrRef> diff(LinesA, LinesB);
+    diff.onHuge();
+    diff.compose();
+
+    if (diff.getEditDistance() == 0)
+      return;
+    
+    WithColor OutS(Opts.OS.value_or(outs()));
+    OutS << raw_ostream::BRIGHT_WHITE;
+
+    diff.composeUnifiedHunks();
+    diff.printUnifiedFormat(OutS.get());
+  }
+
+  if (!Opts.OS)
+    outs().flush();
 }

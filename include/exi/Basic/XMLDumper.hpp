@@ -99,6 +99,10 @@ struct XMLDump {
     });
   }
 
+  /// Dump XML from the given document.
+  static void diff(XMLDocument& DocA, XMLDocument& DocB,
+                   const XMLDumpOptions& Opts);
+
   /// Dump XML from the file `Filepath`.
   static void info_tree(XMLManager& Mgr,
                         const Twine& Filepath,

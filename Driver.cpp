@@ -781,7 +781,6 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     } else if (Xml) {
       using elem = StrRef;
       using sequence = SmallVec<elem, 0>;
-      using sesElem = std::pair<elem, dtl::elemInfo>;
 
       auto Dump = [P = Opts.Preserve] (XMLDocument& D, SmallVecImpl<char>& V) {
         raw_svector_ostream OS(V);
