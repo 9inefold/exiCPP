@@ -1,6 +1,6 @@
 //===- XMLCompareDriver.cpp -----------------------------------------===//
 //
-// Copyright (C) 2025 Ninefold
+// Copyright (C) 2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 
 #include <Common/SmallStr.hpp>
 #include <Support/Filesystem.hpp>
+#include <Support/InitDriver.hpp>
 #include <Support/Logging.hpp>
 #include <Support/MemoryBuffer.hpp>
 #include <Support/Path.hpp>
@@ -81,10 +82,7 @@ static void ParsePreserveOpts(ExiOptions::PreserveOpts& Opts, StrRef A) {
 
 int main(int Argc, char* Argv[]) {
   using enum raw_ostream::Colors;
-  exi::DebugFlag = LogLevel::WARN;
-  outs().enable_colors(true);
-  errs().enable_colors(true);
-  dbgs().enable_colors(true);
+  InitDriver X(Argc, Argv);
 
   StrRef Location = *Argv;
   --Argc; ++Argv;
@@ -113,11 +111,11 @@ int main(int Argc, char* Argv[]) {
 
   bool Res = compareXMLWithPreserve(&In, &Out, Preserve);
   if (Res) {
-    WithColor(outs(), raw_ostream::BRIGHT_GREEN)
+    WithColor(outs(), BRIGHT_GREEN)
       << format("'{}' is equal to '{}'\n", Argv[0], Argv[1]);
   } else {
-    WithColor(outs(), raw_ostream::BRIGHT_RED)
+    WithColor(outs(), BRIGHT_RED)
       << format("'{}' is NOT equal to '{}'\n", Argv[0], Argv[1]);
   }
-  outs() << raw_ostream::BRIGHT_WHITE << "\n";
+  outs() << BRIGHT_WHITE << "\n";
 }

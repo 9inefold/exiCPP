@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Relicensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -69,7 +69,7 @@ namespace exi {
 /// Exported flag set by the -debug option.
 bool IsDebuggingFlag = false;
 /// Exported flag set by the -debug option.
-LogLevelType DebugFlag = LogLevel::NONE;
+LogLevelType DebugFlag = LogLevel::WARN;
 
 static ManagedStatic<DbgTVec> CurrentDebugType;
 

@@ -30,6 +30,7 @@
 #include <Common/Twine.hpp>
 
 #include <Support/Filesystem.hpp>
+#include <Support/InitDriver.hpp>
 #include <Support/Logging.hpp>
 #include <Support/MemoryBuffer.hpp>
 #include <Support/MemoryBufferRef.hpp>
@@ -68,97 +69,10 @@ using namespace exi;
 
 static constinit Option<String> EXIFICIENT_DIR = std::nullopt;
 
-static void AddExificientCmdOpts(raw_ostream& OS, const ExiOptions& Opts) {
-  if (!Opts.SchemaID || !*Opts.SchemaID)
-    OS << "-noSchema ";
-  else
-    OS << "-schema " << *Opts.SchemaID->get() << ' ';
-  
-  if (Opts.Strict)
-    OS << "-strict ";
-  if (Opts.Preserve.Prefixes)
-    OS << "-preservePrefixes ";
-  if (Opts.Preserve.Comments)
-    OS << "-preserveComments ";
-  if (Opts.Preserve.PIs)
-    OS << "-preservePIs ";
-  if (Opts.Preserve.DTDs)
-    OS << "-preserveDTDs ";
-  if (Opts.Preserve.LexicalValues)
-    OS << "-preserveLexicalValues ";
-  
-  if (Opts.Alignment != AlignKind::BitPacked) {
-    if (Opts.Alignment == AlignKind::BytePacked)
-      OS << "-bytePacked ";
-    else if (!Opts.Compression)
-      OS << "-preCompression ";
-    else
-      OS << "-compression ";
-  }
-}
-
 ALWAYS_INLINE static constexpr 
  void SetLogLevel([[maybe_unused]] LogLevelType NewLevel) {
 #if EXI_LOGGING
   exi::DebugFlag = NewLevel;
-#endif
-}
-
-static Option<bool> EnvAsBoolean(StrRef Env) {
-  return StringSwitch<Option<bool>>(Env)
-    .Cases("TRUE", "YES", "ON", true)
-    .Cases("FALSE", "NO", "OFF", false)
-    .Default(std::nullopt);
-}
-
-static bool CheckEnvTruthiness(StrRef Env, bool EmptyResult = false) {
-  if (Env.empty())
-    return false;
-  // Handle integral values.
-  i64 Int = 0;
-  if (!Env.consumeInteger(10, Int))
-    return (Int != 0);
-  // Parse string.
-  return EnvAsBoolean(Env)
-    .value_or(EmptyResult);
-}
-
-static bool CheckEnvTruthiness(Option<String>& Env,
-                               bool EmptyResult = false) {
-  if (!Env)
-    return EmptyResult;
-  return CheckEnvTruthiness(
-    *Env, EmptyResult);
-}
-
-static bool HandleEscapeCodeSetup() {
-  using sys::Process;
-  if (Process::IsReallyDebugging()) {
-    Option<String> NoAnsiEnv
-      = Process::GetEnv("EXICPP_NO_ANSI");
-    if (CheckEnvTruthiness(NoAnsiEnv, /*EmptyResult=*/false)) {
-      LOG_EXTRA("ANSI escape codes disabled.");
-      Process::UseANSIEscapeCodes(false);
-      return false;
-    }
-  }
-
-  LOG_EXTRA("ANSI escape codes enabled.");
-  Process::UseANSIEscapeCodes(true);
-  Process::UseUTF8Codepage(true);
-  return true;
-}
-
-static void HandleDebugSetup() {
-#if EXI_DEBUG
-  using sys::Process;
-  Option<String> TrappingEnv
-    = Process::GetEnv("EXICPP_TRAP_ERRORS");
-  if (CheckEnvTruthiness(TrappingEnv)) {
-    exi::IsDebuggingFlag = true;
-    LOG_EXTRA("Debugging enabled.");
-  } else
-    LOG_EXTRA("Debugging disabled.");
 #endif
 }
 
@@ -577,6 +491,35 @@ static void WriteExificientCmds(const CompareMetadata& Contents) {
   return WriteExificientCmds(Contents.RawCommands);
 }
 
+static void AddExificientCmdOpts(raw_ostream& OS, const ExiOptions& Opts) {
+  if (!Opts.SchemaID || !*Opts.SchemaID)
+    OS << "-noSchema ";
+  else
+    OS << "-schema " << *Opts.SchemaID->get() << ' ';
+  
+  if (Opts.Strict)
+    OS << "-strict ";
+  if (Opts.Preserve.Prefixes)
+    OS << "-preservePrefixes ";
+  if (Opts.Preserve.Comments)
+    OS << "-preserveComments ";
+  if (Opts.Preserve.PIs)
+    OS << "-preservePIs ";
+  if (Opts.Preserve.DTDs)
+    OS << "-preserveDTDs ";
+  if (Opts.Preserve.LexicalValues)
+    OS << "-preserveLexicalValues ";
+  
+  if (Opts.Alignment != AlignKind::BitPacked) {
+    if (Opts.Alignment == AlignKind::BytePacked)
+      OS << "-bytePacked ";
+    else if (!Opts.Compression)
+      OS << "-preCompression ";
+    else
+      OS << "-compression ";
+  }
+}
+
 static constexpr auto kPreserveCDATA = XMLCoderOptions::CDATA_NONE;
 
 int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
@@ -887,12 +830,7 @@ void ECDCTestRunner::run(StrRef ExiFile, StrRef XmlFile,
 int main(int Argc, char* Argv[]) {
   using enum raw_ostream::Colors;
   SetLogLevel(LogLevel::WARN);
-  HandleDebugSetup();
-  const bool HaveEscapeCodes
-    = HandleEscapeCodeSetup();
-  outs().enable_colors(HaveEscapeCodes);
-  errs().enable_colors(HaveEscapeCodes);
-  dbgs().enable_colors(HaveEscapeCodes);
+  InitDriver X(Argc, Argv);
 
   XMLManagerRef Mgr = make_refcounted<XMLManager>();
 

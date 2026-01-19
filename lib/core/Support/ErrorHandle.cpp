@@ -1,6 +1,6 @@
 //===- Support/ErrorHandle.cpp --------------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -149,6 +149,25 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
   std::abort();
 #endif
 }
+
+#if !EXI_EXCEPTIONS
+void exi::install_out_of_memory_new_handler() {}
+#else
+// Causes crash on allocation failure. It is called prior to the handler set by
+// 'install_bad_alloc_error_handler'.
+static void out_of_memory_new_handler() {
+  exi::fatal_alloc_error("Allocation failed");
+}
+
+// Installs new handler that causes crash on allocation failure.
+// It is called by `InitDriver`.
+void exi::install_out_of_memory_new_handler() {
+  std::new_handler old = std::set_new_handler(&out_of_memory_new_handler);
+  (void)old;
+  exi_assert(old == nullptr || old == &out_of_memory_new_handler,
+            "new-handler already installed");
+}
+#endif
 
 // Used for clang.
 #include "GetFileRelStart.hpp"

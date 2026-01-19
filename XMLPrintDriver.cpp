@@ -19,6 +19,7 @@
 #include <Common/SmallStr.hpp>
 #include <Common/StringSwitch.hpp>
 #include <Support/Filesystem.hpp>
+#include <Support/InitDriver.hpp>
 #include <Support/Logging.hpp>
 #include <Support/MemoryBuffer.hpp>
 #include <Support/Path.hpp>
@@ -31,51 +32,6 @@
 #define DEBUG_TYPE "__DRIVER__"
 
 using namespace exi;
-
-static Option<bool> EnvAsBoolean(StrRef Env) {
-  return StringSwitch<Option<bool>>(Env)
-    .Cases("TRUE", "YES", "ON", true)
-    .Cases("FALSE", "NO", "OFF", false)
-    .Default(std::nullopt);
-}
-
-static bool CheckEnvTruthiness(StrRef Env, bool EmptyResult = false) {
-  if (Env.empty())
-    return false;
-  // Handle integral values.
-  i64 Int = 0;
-  if (!Env.consumeInteger(10, Int))
-    return (Int != 0);
-  // Parse string.
-  return EnvAsBoolean(Env)
-    .value_or(EmptyResult);
-}
-
-static bool CheckEnvTruthiness(Option<String>& Env,
-                               bool EmptyResult = false) {
-  if (!Env)
-    return EmptyResult;
-  return CheckEnvTruthiness(
-    *Env, EmptyResult);
-}
-
-static bool HandleEscapeCodeSetup() {
-  using sys::Process;
-  if (Process::IsReallyDebugging()) {
-    Option<String> NoAnsiEnv
-      = Process::GetEnv("EXICPP_NO_ANSI");
-    if (CheckEnvTruthiness(NoAnsiEnv, /*EmptyResult=*/false)) {
-      LOG_EXTRA("ANSI escape codes disabled.");
-      Process::UseANSIEscapeCodes(false);
-      return false;
-    }
-  }
-
-  LOG_EXTRA("ANSI escape codes enabled.");
-  Process::UseANSIEscapeCodes(true);
-  Process::UseUTF8Codepage(true);
-  return true;
-}
 
 static Box<MemoryBuffer> LoadFile(const Twine& Path) {
   SmallStr<80> Storage;
@@ -95,11 +51,7 @@ static Box<MemoryBuffer> LoadFile(const Twine& Path) {
 
 int main(int Argc, char* Argv[]) {
   using enum raw_ostream::Colors;
-  exi::DebugFlag = LogLevel::WARN;
-  bool HaveEscapeCodes = HandleEscapeCodeSetup();
-  outs().enable_colors(HaveEscapeCodes);
-  errs().enable_colors(HaveEscapeCodes);
-  dbgs().enable_colors(HaveEscapeCodes);
+  InitDriver X(Argc, Argv);
   
   if (Argc < 2) {
     errs() << "USAGE: <file-in>.xml\n";

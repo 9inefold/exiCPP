@@ -1,6 +1,6 @@
 //===- Support/ErrorHandle.hpp --------------------------------------===//
 //
-// Copyright (C) 2024-2025 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -66,6 +66,8 @@ class Twine;
 /// @brief Reports a fatal allocation error.
 /// If exceptions are enabled, throws `std::bad_alloc`, otherwise aborts.
 [[noreturn]] EXI_COLD void fatal_alloc_error(const char* Msg) EXI_NOEXCEPT;
+
+void install_out_of_memory_new_handler();
 
 [[noreturn]] EXI_ERROR_CC void exi_assert_impl(
  H::AssertionKind Kind, const char* Msg = nullptr,
