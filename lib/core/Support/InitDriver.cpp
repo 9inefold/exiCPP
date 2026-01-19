@@ -114,7 +114,7 @@ void CleanupStdHandles(void*) {
 }
 
 InitDriver::InitDriver(int& Argc, const char**& Argv,
-                   bool InstallPipeSignalExitHandler) {
+                       bool InstallPipeSignalExitHandler) {
 #if EXI_ASSERTS || EXI_ENABLE_GUARDRAILS
   static std::atomic<bool> Initialized{false};
   exi_guard_assert(!Initialized, "InitDriver was already initialized!");
@@ -124,7 +124,6 @@ InitDriver::InitDriver(int& Argc, const char**& Argv,
   // Bring stdin/stdout/stderr into a known state.
   sys::AddSignalHandler(CleanupStdHandles, nullptr);
 
-#if 0
   if (InstallPipeSignalExitHandler)
     // The pipe signal handler must be installed before any other handlers are
     // registered. This is because the Unix \ref RegisterHandlers function does
@@ -134,9 +133,8 @@ InitDriver::InitDriver(int& Argc, const char**& Argv,
     sys::SetOneShotPipeSignalFunction(sys::DefaultOneShotPipeSignalHandler);
   // Initialize the stack printer after installing the one-shot pipe signal
   // handler, so we can perform a sigaction() for SIGPIPE on Unix if requested.
-  StackPrinter.emplace(Argc, Argv);
+  //StackPrinter.emplace(Argc, Argv);
   sys::PrintStackTraceOnErrorSignal(Argv[0]);
-#endif
   exi::install_out_of_memory_new_handler();
 
   // Check if EXICPP_TRAP_ERRORS is enabled
