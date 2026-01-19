@@ -115,12 +115,8 @@ public:
   /// Returns if the node type has attributes.
   static bool HasAttributes(NodeT Node);
 
-  static std::pair<StrRef, StrRef> SplitNodeName(StrRef IName) {
-    auto [NameOrNs, Name] = IName.split(':');
-    if (Name.empty())
-      return {"", NameOrNs};
-    else
-      return {NameOrNs, Name};
+  static std::pair<StrRef, StrRef> SplitNodeName(StrRef Name) {
+    return Name.split_back(':');
   }
   static std::pair<StrRef, StrRef>
    SplitNodeName(const XMLBase* Node) {

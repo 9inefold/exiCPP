@@ -869,6 +869,18 @@ public:
     return std::make_pair(slice(0, Idx), substr(Idx + 1));
   }
 
+  /// Same as split, except if \p Separator is not in the string, then the
+  /// result is a pair (LHS, RHS) where (LHS == "") and (*this == RHS).
+  ///
+  /// \param Separator The character to split on.
+  /// \returns The split substrings.
+  [[nodiscard]] std::pair<StrRef, StrRef> split_back(char Separator) const {
+    usize Idx = find(Separator);
+    if (Idx == npos)
+      return std::make_pair(StrRef(), *this);
+    return std::make_pair(slice(0, Idx), substr(Idx + 1));
+  }
+
   /// Split into two substrings around the first occurrence of a separator
   /// string.
   ///
