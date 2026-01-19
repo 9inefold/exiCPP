@@ -1,0 +1,10 @@
+<root>
+  <j:x xmlns:j="https://example.com/first">
+      <j:x xmlns:j="https://example.com/second">
+          Hello,
+      </j:x>
+      <j:x>
+          world!
+      </j:x>
+  </j:x>
+</root>

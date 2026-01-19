@@ -1,0 +1,21 @@
+<ns:x xmlns:ns="http://www.a.com" xmlns:ns2="http://www.a.com">
+  <ns:x xmlns:ns="http://www.b.com" xmlns:ns2="http://www.b.com">
+    <ns:x xmlns:ns="http://www.c.com" xmlns:ns2="http://www.c.com">
+      <ns:x xmlns:ns="http://www.d.com" xmlns:ns2="http://www.d.com">
+        <ns:x xmlns:ns="http://www.e.com" xmlns:ns2="http://www.e.com">
+          <ns:x xmlns:ns="http://www.f.com" xmlns:ns2="http://www.f.com">
+            <ns:x xmlns:ns="http://www.g.com" xmlns:ns2="http://www.g.com">
+              <ns2:y />
+            </ns:x>
+            <ns2:y />
+          </ns:x>
+          <ns2:y />
+        </ns:x>
+        <ns2:y />
+      </ns:x>
+      <ns2:y />
+    </ns:x>
+    <ns2:y />
+  </ns:x>
+  <ns2:y />
+</ns:x>
