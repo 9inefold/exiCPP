@@ -47,7 +47,8 @@ constexpr int kValidate = xml::parse_validate_closing_tags;
 constexpr int kValidate = 0;
 #endif
 
-constexpr int kDefault = xml::parse_no_entity_translation
+constexpr int kDefault = xml::parse_no_string_terminators
+                       | xml::parse_no_entity_translation
                        /*| xml::parse_no_data_nodes*/
                        | xml::parse_normalize_newlines
                        | kValidate;

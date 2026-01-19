@@ -77,6 +77,7 @@ This is a TODO list for the C++ version of exiCPP.
 - Entity references are not correctly handled (`&e;` becomes `&amp;e;`)
 - Crashes on DOCTYPE `<!ENTITY % X ...>` as it removes the space between the `%` and `X`
 - Converts escape sequences to their real value, which should be a flag
+- Always removes `CDATA` blocks, should be a flag
 
 ## Stretch Goals
 

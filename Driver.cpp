@@ -753,18 +753,31 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
       << "Decoding (again) successful!\n\n";
     
     if (Dump) {
-      bool DOk = !Xml || !ExiS || compareXML(Xml, &ExiS->document());
-      bool EOk = !Xml || compareXML(Xml, &S.document());
+      auto CompareXml = [Xml] (XMLDocument* Other, SmallVecImpl<char>& V) {
+        if (!Xml)
+          return true;
+        raw_svector_ostream OS(V);
+        return compareXML(Xml, Other, OS);
+      };
+
+      SmallStr<0> DErr, EErr;
+      bool DOk = !ExiS || CompareXml(&ExiS->document(), DErr);
+      bool EOk = CompareXml(&S.document(), EErr);
+
       if (Xml) {
         WithColor(errs(), MAGENTA) << "Original:\n";
         XMLDump::full(*Xml, DO);
       }
-      if (ExiS) {
-        WithColor(errs(), DOk ? MAGENTA : RED) << "Decoding result:\n";
+      if (ExiS && !DOk) {
+        WithColor OS(errs(), BRIGHT_RED);
+        OS << "Decoding result:\n" << DErr.str();
         XMLDump::full(ExiS->document(), DO);
       }
-      WithColor(errs(), EOk ? MAGENTA : RED) << "Encoding result:\n";
-      XMLDump::full(S.document(), DO);
+      if (!EOk) {
+        WithColor OS(errs(), BRIGHT_RED);
+        OS << "Encoding result:\n" << EErr.str();
+        XMLDump::full(S.document(), DO);
+      }
     } else if (Xml) {
       using elem = StrRef;
       using sequence = SmallVec<elem, 0>;
@@ -800,11 +813,6 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
       Dump(S.document(), Enc);
       if (ExiS)
         Dump(ExiS->document(), Dec);
-
-      //errs() << "Og : " << Og.size() << '\n';
-      //errs() << "Enc: " << Enc.size() << '\n';
-      //if (ExiS)
-      //  errs() << "Dec: " << Dec.size() << '\n';
 
       sequence OgLines, EncLines, DecLines;
       Og.str().split(OgLines, '\n', -1, false);
@@ -918,13 +926,13 @@ int main(int Argc, char* Argv[]) {
     auto Zil = MAKE_EXTEST_RUNNER(AlignKind::BytePacked);
     auto Pfx = MAKE_EXTEST_RUNNER(AlignKind::BytePacked, Prefixes);
     auto All = MAKE_EXTEST_RUNNER(AlignKind::BytePacked, All & ~LexicalValues);
-    //Zil().run("SpecExampleB.exi",     "SpecExample.xml");
-    //Zil().run("BasicNooptB.exi",      "Basic.xml");
-    //Zil().run("ThaiNooptB.exi",       "Thai.xml");
-    //Zil().run("StackedPNNooptB.exi",  "Stacked.xml");
-    //Pfx().run("CustomersNooptB.exi",  "Customers.xml");
-    //Pfx().run("StackedPPNooptB.exi",  "Stacked.xml");
-    //All().run("NamespaceNooptB.exi",  "Namespace.xml");
+    Zil().run("SpecExampleB.exi",     "SpecExample.xml");
+    Zil().run("BasicNooptB.exi",      "Basic.xml");
+    Zil().run("ThaiNooptB.exi",       "Thai.xml");
+    Zil().run("StackedPNNooptB.exi",  "Stacked.xml");
+    Pfx().run("CustomersNooptB.exi",  "Customers.xml");
+    Pfx().run("StackedPPNooptB.exi",  "Stacked.xml");
+    All().run("NamespaceNooptB.exi",  "Namespace.xml");
     All().run("CDATANooptB.exi",      "CDATA.xml", false, true);
 
     All().run("022NooptB.exi",        "022.xml", false, true);
@@ -974,15 +982,37 @@ int main(int Argc, char* Argv[]) {
 #endif
     WithColor(errs(), BRIGHT_GREEN)
       << "Wrote to 'examples/out/ExificientCmds.*'\n\n";
-    
+
     errs() << "Running comparisons...\n";
     for (auto& [In, Out, P] : ExificientFileData.OldToNewMapping) {
       errs() << "  " << In << ": " << sys::path::filename(Out) << ' ';
       auto& InDoc = Mgr->getOptXMLDocument(In, errs()).expect("???");
-      auto& OutDoc = Mgr->getOptXMLDocument(Out, errs()).expect("Parsing failed.");
-      const bool IsEqual = exi::compareXMLWithPreserve(&InDoc, &OutDoc, P);
-      const auto Color = IsEqual ? raw_ostream::BRIGHT_GREEN : raw_ostream::BRIGHT_RED;
-      WithColor(errs(), Color) << (IsEqual ? "[SUCCEEDED]" : "[FAILED]") << '\n';
+      auto OutDoc = Mgr->getOptXMLDocument(Out, errs());
+      if (!OutDoc) {
+        errs() << '\n';
+        continue;
+      }
+
+      SmallStr<0> ErrMsg;
+      raw_svector_ostream OS(ErrMsg);
+      XMLCompareOptions Opts {
+        .OS = OS,
+        .Preserve = P,
+        .PreserveCDATA = XMLCompareOptions::CDATA_NONE
+      };
+
+      const bool IsEqual = exi::compareXML(&InDoc, &*OutDoc, Opts);
+      if (IsEqual)
+        WithColor(errs(), raw_ostream::BRIGHT_GREEN) << "[SUCCEEDED]\n";
+      else {
+        WithColor Save(errs(), raw_ostream::BRIGHT_RED);
+        Save << "[FAILED]\n";
+
+        SmallVec<StrRef, 2> Errs;
+        ErrMsg.str().split(Errs, '\n', -1, false);
+        for (StrRef Err : Errs)
+          Save << "    " << Err << '\n';
+      }
     }
     errs() << '\n';
   }

@@ -32,7 +32,21 @@
 
 namespace exi {
 
+class raw_ostream;
 template <typename T> class SmallVecImpl;
+
+/// Options used by the XML comparer.
+struct XMLCompareOptions {
+  using enum XMLCoderOptions::PreserveCDATAKind;
+  /// The stream to write to. Defaults to `nulls()`.
+  Option<raw_ostream&> OS = std::nullopt;
+  /// If comments, DOCTYPES, and Processing Instructions should be kept.
+  Option<ExiOptions::PreserveOpts> Preserve = std::nullopt;
+  /// If CDATA blocks should be kept untouched or escaped.
+  XMLCoderOptions::PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
+};
+
+//////////////////////////////////////////////////////////////////////////
 
 enum class MatchFailureKind : u32 {
   None,
@@ -59,30 +73,33 @@ struct MatchResult {
 /// @brief Matches two XML documents.
 /// @param Opts Options for ignoring parts of the XML in the output.
 /// @return Whether or not the comparison was true.
-bool matchXMLWithPreserve(const XMLDocument* In, const XMLDocument* Out,
-                          ExiOptions::PreserveOpts Opts,
-                          SmallVecImpl<MatchResult>& Matches);
+bool matchXML(const XMLDocument* In, const XMLDocument* Out,
+              SmallVecImpl<MatchResult>& Matches,
+              const XMLCompareOptions& Opts);
 
 /// @brief Matches two XML documents.
 /// @param Opts Options for ignoring parts of the XML in the output.
 /// @return Whether or not the comparison was true.
 inline bool matchXMLWithPreserve(const XMLDocument* In, const XMLDocument* Out,
-                                 const ExiOptions& Header,
-                                 SmallVecImpl<MatchResult>& Matches) {
-  return matchXMLWithPreserve(In, Out, Header.Preserve, Matches);
+                                 SmallVecImpl<MatchResult>& Matches,
+                                 ExiOptions::PreserveOpts Opts) {
+  return matchXML(In, Out, Matches, { .Preserve = Opts });
+}
+
+/// @brief Matches two XML documents.
+/// @param Opts Options for ignoring parts of the XML in the output.
+/// @return Whether or not the comparison was true.
+inline bool matchXMLWithPreserve(const XMLDocument* In, const XMLDocument* Out,
+                                 SmallVecImpl<MatchResult>& Matches,
+                                 const ExiOptions& Header) {
+  return matchXML(In, Out, Matches, { .Preserve = Header.Preserve });
 }
 
 /// @brief Matches two XML documents with all options.
 /// @return Whether or not the comparison was true.
 inline bool matchXML(const XMLDocument* In, const XMLDocument* Out,
                      SmallVecImpl<MatchResult>& Matches) {
-  static constexpr ExiOptions::PreserveOpts Opts {
-    .Comments      = true,
-    .DTDs          = true,
-    .PIs           = true,
-    .Prefixes      = true
-  };
-  return matchXMLWithPreserve(In, Out, Opts, Matches);
+  return matchXML(In, Out, Matches, XMLCompareOptions{});
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -90,27 +107,32 @@ inline bool matchXML(const XMLDocument* In, const XMLDocument* Out,
 /// @brief Compares two XML documents.
 /// @param Opts Options for ignoring parts of the XML in the output.
 /// @return Whether or not the comparison was true.
-bool compareXMLWithPreserve(const XMLDocument* In, const XMLDocument* Out,
-                            ExiOptions::PreserveOpts Opts);
+bool compareXML(const XMLDocument* In, const XMLDocument* Out,
+                const XMLCompareOptions& Opts);
 
 /// @brief Compares two XML documents.
 /// @param Opts Options for ignoring parts of the XML in the output.
 /// @return Whether or not the comparison was true.
 inline bool compareXMLWithPreserve(const XMLDocument* In, const XMLDocument* Out,
-                                   const ExiOptions& Header) {
-  return compareXMLWithPreserve(In, Out, Header.Preserve);
+                                   ExiOptions::PreserveOpts Opts,
+                                   Option<raw_ostream&> OS = std::nullopt) {
+  return compareXML(In, Out, { .OS = OS, .Preserve = Opts });
+}
+
+/// @brief Compares two XML documents.
+/// @param Opts Options for ignoring parts of the XML in the output.
+/// @return Whether or not the comparison was true.
+inline bool compareXMLWithPreserve(const XMLDocument* In, const XMLDocument* Out,
+                                   const ExiOptions& Header,
+                                   Option<raw_ostream&> OS = std::nullopt) {
+  return compareXML(In, Out, { .OS = OS, .Preserve = Header.Preserve });
 }
 
 /// @brief Compares two XML documents with all options.
 /// @return Whether or not the comparison was true.
-inline bool compareXML(const XMLDocument* In, const XMLDocument* Out) {
-  static constexpr ExiOptions::PreserveOpts Opts {
-    .Comments      = true,
-    .DTDs          = true,
-    .PIs           = true,
-    .Prefixes      = true
-  };
-  return compareXMLWithPreserve(In, Out, Opts);
+inline bool compareXML(const XMLDocument* In, const XMLDocument* Out,
+                       Option<raw_ostream&> OS = std::nullopt) {
+  return compareXML(In, Out, XMLCompareOptions { .OS = OS });
 }
 
 } // namespace exi
