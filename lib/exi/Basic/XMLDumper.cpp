@@ -58,6 +58,8 @@ public:
   /// If `true`, namespaces will be in document order.
   /// Otherwise, namespaces will be in shortlex order.
   bool ConformingSort = false;
+  /// If `true`, names will be printed without splitting.
+  bool PrintRawNames = false;
 
   bool PreserveComments = true;
   bool PreserveDTDs     = true;
@@ -99,6 +101,7 @@ public:
     PreserveCDATA     = Opts.PreserveCDATA;
     /// Misc
     ConformingSort    = Opts.Conforming;
+    PrintRawNames     = Opts.PrintRawNames;
     DebugPrint        = Opts.Debug;
   }
 
@@ -325,6 +328,11 @@ void XMLDumper::printName(NodeT Node) {
     return;
   }
 
+  if (PrintRawNames) {
+    this->putName(Node->name());
+    return;
+  }
+
   auto [Ns, Name] = SplitNodeName(Node);
   // TODO: Check if prefix is xml/xsi
   if (PreservePrefixes && !Ns.empty()) {
@@ -341,6 +349,11 @@ void XMLDumper::printName(NodeT Node) {
 void XMLDumper::printAttrName(const XMLAttribute* Attr) {
   if (!Attr || Attr->name().empty()) [[unlikely]] {
     WithColor(OS, BRIGHT_RED) << "@no-attr-name::attribute";
+    return;
+  }
+
+  if (PrintRawNames) {
+    this->putAttr(Attr->name());
     return;
   }
 

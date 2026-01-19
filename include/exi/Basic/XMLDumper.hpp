@@ -49,6 +49,9 @@ public:
   /// If `true`, namespaces will be in document order.
   /// Otherwise, namespaces will be in shortlex order.
   bool Conforming = false;
+  /// If names should be printed in chunks or directly.
+  /// @note If enabled, `:` will not be printed in a different color.
+  bool PrintRawNames = false;
   /// If comments, DOCTYPES, and Processing Instructions should be kept.
   ExiOptions::PreserveOpts Preserve = kPreserveAll;
   /// If `<?xml ...?>` should be kept. Defaults to Preserve.PIs.

@@ -790,6 +790,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
           .OS                   = OS,
           .InitialIndent        = 0,
           .Conforming           = false,
+          .PrintRawNames        = true,
           .Preserve             = P,
           .PreserveDeclaration  = false,
           .PreserveCDATA        = kPreserveCDATA
@@ -853,12 +854,14 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
 
     Cmds->RawCommands.emplace_back(std::move(Cmd));
     if (Opts.Preserve.Prefixes) {
+    //if (Opts.Preserve.Prefixes) {
       Cmds->OldToNewMapping.emplace_back(
         fmt::format("{}/{}", ExamplePath, XmlFile.str()),
         fmt::format("{}.xml", FilenameStore.str()),
         this->Opts.Preserve
       );
     }
+    //}
   }
   
   return 0;
@@ -1007,7 +1010,6 @@ int main(int Argc, char* Argv[]) {
       else {
         WithColor Save(errs(), raw_ostream::BRIGHT_RED);
         Save << "[FAILED]\n";
-
         SmallVec<StrRef, 2> Errs;
         ErrMsg.str().split(Errs, '\n', -1, false);
         for (StrRef Err : Errs)
