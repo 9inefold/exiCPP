@@ -85,7 +85,7 @@ public:
   /// Namespace Declaration
   ExiError NS(StrRef URI, StrRef Prefix) override {
     const auto Name = QName::New(URI, Prefix, "xmlns"_str);
-    this->Attr = allocAttr(Name, URI);
+    this->Attr = allocAttr</*IsNS=*/true>(Name, URI);
     Curr->prepend_attribute(Attr);
     return ExiError::OK;
   }
@@ -98,7 +98,7 @@ public:
       Throw<argument_error>("local-name-ns does not match SE URI!");
     // TODO: Verify this is correct?
     UnboundURI = kInvalidPrefix;
-    StrRef FullName = intern(Prefix, Curr->name());
+    StrRef FullName = getFullName(Prefix, Curr->name());
     Curr->name(FullName);
     return this->NS(URI, Prefix);
   }
@@ -214,8 +214,9 @@ private:
     return Doc.allocate_node(Kind, Name, Value);
   }
 
+  template <bool IsNS = false>
   ALWAYS_INLINE XMLAttribute* allocAttr(QName Name, StrRef Value) {
-    StrRef FullName = getFullName(Name);
+    StrRef FullName = getFullName<IsNS>(Name);
     return Doc.allocate_attribute(FullName, Value);
   }
 
@@ -230,10 +231,36 @@ private:
     );
   }
 
+  StrRef getFullName(StrRef Pfx, StrRef Name) {
+    // TODO: Handle Name.empty()
+    if (Name.empty()) {
+      LOG_WARN_WITH("XMLDeserializer",
+        "Empty name SE: {}:{}", Pfx, Name);
+      return Pfx;
+    }
+    if (!Pfx.empty())
+      return intern(Pfx, Name);
+    return Name;
+  }
+
+  template <bool IsNS = false>
   EXI_INLINE StrRef getFullName(const QName& Name) {
     StrRef FullName = Name.name();
-    if (Name.hasPrefix())
-      return intern(Name.pfx(), FullName);
+    if constexpr (IsNS) {
+      if (FullName.empty())
+        return "xmlns"_str;
+      return intern("xmlns"_str, FullName);
+    } else if (Name.hasPrefix()) {
+      auto Pfx = Name.pfx();
+      // TODO: Handle FullName.empty() when !IsNS
+      if (FullName.empty()) {
+        LOG_WARN_WITH("XMLDeserializer",
+          "Empty name AT: {}:=\"{}\"", Pfx, Name.uri());
+        return Pfx;
+      }
+      if (!Pfx.empty())
+        return intern(Name.pfx(), FullName);
+    }
     return FullName;
   }
 

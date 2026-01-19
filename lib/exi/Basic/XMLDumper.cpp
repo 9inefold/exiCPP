@@ -330,14 +330,22 @@ void XMLDumper::printName(NodeT Node) {
   if (PreservePrefixes && !Ns.empty()) {
     this->putNs(Ns);
     this->putSplit(':');
+    if EXI_UNLIKELY(Name.empty()) {
+      WithColor(OS, BRIGHT_RED) << "@no-name";
+      return;
+    }
   }
   this->putName(Name);
 }
 
 void XMLDumper::printAttrName(const XMLAttribute* Attr) {
   if (!Attr || Attr->name().empty()) [[unlikely]] {
-    WithColor Save(OS, BRIGHT_RED);
-    Save << "@no-attr-name::attribute";
+    WithColor(OS, BRIGHT_RED) << "@no-attr-name::attribute";
+    return;
+  }
+
+  if (Attr->id_kind() == xml::IK_AnonNS) {
+    this->putAttrNs("xmlns");
     return;
   }
 
@@ -346,6 +354,10 @@ void XMLDumper::printAttrName(const XMLAttribute* Attr) {
   if (PreservePrefixes && !Ns.empty()) {
     this->putAttrNs(Ns);
     this->putSplit(':');
+    if EXI_UNLIKELY(Name.empty()) {
+      WithColor(OS, BRIGHT_RED) << "@no-attr-name";
+      return;
+    }
   }
   this->putAttr(Name);
 }
