@@ -889,8 +889,7 @@ public:
         || id_kind() == IK_XsiType;
   }
   bool is_namespace() const {
-    return id_kind() == IK_AnonNS
-        || id_kind() == IK_NamedNS;
+    return id_rank() >= unsigned(IK_AnonNS);
   }
 
   ///////////////////////////////////////////////////////////////////////////
