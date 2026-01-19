@@ -44,6 +44,8 @@ struct XMLCompareOptions {
   Option<ExiOptions::PreserveOpts> Preserve = std::nullopt;
   /// If CDATA blocks should be kept untouched or escaped.
   XMLCoderOptions::PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
+  /// Enables certain features for exificient compatibility.
+  bool ExificientCompatibility = false;
 };
 
 //////////////////////////////////////////////////////////////////////////

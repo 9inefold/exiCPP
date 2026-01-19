@@ -790,7 +790,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
           .OS                   = OS,
           .InitialIndent        = 0,
           .Conforming           = false,
-          .PrintRawNames        = true,
+          .PrintRawNames        = P.Prefixes,
           .Preserve             = P,
           .PreserveDeclaration  = false,
           .PreserveCDATA        = kPreserveCDATA
@@ -853,14 +853,12 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     OS << format("-i \"{0}\" -o \"{0}.xml\"", FilenameStore.str());
 
     Cmds->RawCommands.emplace_back(std::move(Cmd));
-    if (Opts.Preserve.Prefixes) {
     //if (Opts.Preserve.Prefixes) {
       Cmds->OldToNewMapping.emplace_back(
         fmt::format("{}/{}", ExamplePath, XmlFile.str()),
         fmt::format("{}.xml", FilenameStore.str()),
         this->Opts.Preserve
       );
-    }
     //}
   }
   
@@ -992,7 +990,7 @@ int main(int Argc, char* Argv[]) {
       auto& InDoc = Mgr->getOptXMLDocument(In, errs()).expect("???");
       auto OutDoc = Mgr->getOptXMLDocument(Out, errs());
       if (!OutDoc) {
-        errs() << '\n';
+        WithColor(errs(), BRIGHT_YELLOW) << " [Failed to load]\n";
         continue;
       }
 
@@ -1001,14 +999,15 @@ int main(int Argc, char* Argv[]) {
       XMLCompareOptions Opts {
         .OS = OS,
         .Preserve = P,
-        .PreserveCDATA = XMLCompareOptions::CDATA_NONE
+        .PreserveCDATA = XMLCompareOptions::CDATA_NONE,
+        .ExificientCompatibility = true
       };
 
       const bool IsEqual = exi::compareXML(&InDoc, &*OutDoc, Opts);
       if (IsEqual)
-        WithColor(errs(), raw_ostream::BRIGHT_GREEN) << "[SUCCEEDED]\n";
+        WithColor(errs(), BRIGHT_GREEN) << "[SUCCEEDED]\n";
       else {
-        WithColor Save(errs(), raw_ostream::BRIGHT_RED);
+        WithColor Save(errs(), BRIGHT_RED);
         Save << "[FAILED]\n";
         SmallVec<StrRef, 2> Errs;
         ErrMsg.str().split(Errs, '\n', -1, false);

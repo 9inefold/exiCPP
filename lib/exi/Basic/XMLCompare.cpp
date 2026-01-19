@@ -209,6 +209,8 @@ class XMLMatcher<false> {
   bool PreservePrefixes = true;
   /// What to expect from CDATA nodes.
   XMLCoderOptions::PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
+  /// ...
+  bool ExificientCompatibility = false;
   /// Output stream for error messages.
   raw_ostream& OS;
   /// List of matches, if applicable.
@@ -225,6 +227,7 @@ public:
       PreservePrefixes = Opts.Preserve->Prefixes;
     }
     PreserveCDATA = Opts.PreserveCDATA;
+    ExificientCompatibility = Opts.ExificientCompatibility;
   }
   
   bool run() {
@@ -418,6 +421,13 @@ private:
     }
   }
 
+  /// This is needed because for some reason exificient adds it!
+  bool isTopLevel_xmlnsxsi(const XMLAttribute* A) {
+    if (Depth > 1)
+      return false;
+    return A->name() == "xmlns:xsi";
+  }
+
   template <bool Validate = false>
   bool loadAttrs(SmallVecImpl<LoadedAttrT>& V, const XMLNode* N) {
     if (PreservePrefixes) {
@@ -428,14 +438,14 @@ private:
     const XMLAttribute* A = N->first_attribute();
     while (A) {
       if (!A->is_namespace()) {
-        if (Validate)
+        if (Validate && !ExificientCompatibility)
           V.emplace_back(A->name(), A);
         else {
           auto [NS, Name] = A->name().split(':');
           V.emplace_back(Name, A);
         }
-      } else {
-        if constexpr (Validate) {
+      } else if constexpr (Validate) {
+        if (!ExificientCompatibility && !isTopLevel_xmlnsxsi(A)) {
           log("AT") << format("prefixes not preserved, "
                               "but namespace '{}' found in Out\n",
                               A->name());
@@ -486,6 +496,30 @@ private:
   }
 
   template <typename NodeT>
+  EXI_NO_INLINE bool compareNamesExificientNP(const NodeT* LHS, const NodeT* RHS) {
+    auto [LNS, LName] = LHS->name().split_back(':');
+    auto [RNS, RName] = RHS->name().split_back(':');
+
+    auto LogName = [this] (StrRef NS, StrRef Name) {
+      if (NS.empty())
+        OS << Name;
+      else
+        OS << format("({}:){}", NS, Name);
+    };
+
+    if (LName != RName) {
+      log(LHS) << "names do not match: ";
+      LogName(LNS, LName);
+      OS << " / ";
+      LogName(RNS, RName);
+      OS << '\n';
+      return false;
+    }
+
+    return true;
+  }
+
+  template <typename NodeT>
   bool compareNames(const NodeT* LHS, const NodeT* RHS) {
     if (PreservePrefixes) {
       if (LHS->name() != RHS->name()) {
@@ -496,15 +530,19 @@ private:
       return true;
     }
 
+    if (ExificientCompatibility)
+      tail_return compareNamesExificientNP(LHS, RHS);
+
     auto [NS, Name] = LHS->name().split_back(':');
     if (Name != RHS->name()) {
-      log(LHS) << "names do not match: ";
+      log(RHS) << "names do not match: ";
       if (NS.empty())
         OS << format("{} / {}\n", Name, RHS->name());
       else
         OS << format("({}:){} / {}\n", NS, Name, RHS->name());
       return false;
     }
+
     return true;
   }
 
@@ -589,7 +627,28 @@ private:
     if (OutDTD.is_err())
       return false;
     //return DebugCompareDTDs(*InDTD, *OutDTD);
-    return *InDTD == *OutDTD;
+    if (InDTD->Kind != OutDTD->Kind) {
+      log() << format("doctype types did not match: {} / {}\n",
+                      get_doctype_name(InDTD->Kind),
+                      get_doctype_name(OutDTD->Kind));
+      return false;
+    } else if (InDTD->name() != OutDTD->name()) {
+      log() << format("doctype names did not match: {} / {}\n",
+                       InDTD->name(),
+                      OutDTD->name());
+      return false;
+    } else if (InDTD->publicID() != OutDTD->publicID()) {
+      log() << format("doctype publicIDs did not match: {} / {}\n",
+                       InDTD->publicID(),
+                      OutDTD->publicID());
+      return false;
+    } else if (InDTD->systemID() != OutDTD->systemID()) {
+      log() << format("doctype systemIDs did not match: {} / {}\n",
+                       InDTD->systemID(),
+                      OutDTD->systemID());
+      return false;
+    }
+    return compareText(InDTD->text(), OutDTD->text());
   }
 
   bool comparePIs() {

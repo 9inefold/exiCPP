@@ -29,6 +29,7 @@ This is a TODO list for the C++ version of exiCPP.
 ## In Progress
 
 - Check depth when parsing
+- Make XML comparison match failures more useful
 - `exi` example test suite
 - Combine data & cdata nodes
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense
@@ -46,13 +47,13 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## Not Started
 
+- **Split out implementation of `ExiDecoder` like with `ExiEncoder`**
+- Match exificient namespaces generated with `Preserve.Prefixes=0`
 - Add `ANSIState` class for colored output + rethink strategy
-- Make XML comparison match failures more useful
 - `sys::` implementation on linux
 - Fully test `IntCast` and friends, improve support for non-integral types
 - Change schema from `Box<String>` to regular `String`
 - Implement `StackExhaustionHandler`
-- Split out implementation of `ExiDecoder` like with `ExiEncoder`
 - Schema parser
 - Refactor `PagedVec`
 - Add some more major in-source TODOs here...
@@ -78,6 +79,7 @@ This is a TODO list for the C++ version of exiCPP.
 - Crashes on DOCTYPE `<!ENTITY % X ...>` as it removes the space between the `%` and `X`
 - Converts escape sequences to their real value, which should be a flag
 - Always removes `CDATA` blocks, should be a flag
+- Sometimes adds `xmlns:xsi="..."` with `Preserve.Prefixes=0` at the top level??
 
 ## Stretch Goals
 
