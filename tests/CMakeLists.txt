@@ -14,22 +14,36 @@ if(NOT TARGET Python3::Interpreter)
   message(FATAL_ERROR "Python3 could not be found!")
 endif()
 
-if(DEFINED EXIFICIENT_DIR)
-  set(EXIFICIENT_JAR "${EXIFICIENT_DIR}/exificient-jar-with-dependencies.jar")
-  if (NOT EXISTS "${EXIFICIENT_JAR}")
-    message(FATAL_ERROR "Could not find exificient-jar-with-dependencies.jar in EXIFICIENT_DIR!")
-  endif()
-else()
+if(NOT DEFINED EXIFICIENT_DIR)
   set(EXIFICIENT_JAR "${EXI_BASE_FOLDER}/resources/exificient-jar-with-dependencies.jar")
 endif()
 
-add_subdirectory(ordered)
+#add_subdirectory(ordered)
+
+configure_file(
+  run-tests.py.in
+  ${CMAKE_CURRENT_SOURCE_DIR}/run-tests.py
+  @ONLY
+)
+
+add_custom_target(tests-target)
+#add_custom_command(
+#  TARGET tests-target POST_BUILD
+#  COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/run-tests.py
+#  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+#)
+
+add_executable(xml-test-driver xml-test-driver.cpp)
+target_link_libraries(xml-test-driver PUBLIC exi::exicpp)
+
+add_executable(exi-test-driver exi-test-driver.cpp)
+target_link_libraries(exi-test-driver PUBLIC exi::exicpp)
+
+#add_dependencies(exi-exicpp tests-target)
 
 add_test(
   NAME roundtrip
-  COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/Tests.py
-    --java ${Java_JAVA_EXECUTABLE}
-    --jar ${EXIFICIENT_JAR}
+  COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/run-tests.py
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
   COMMAND_EXPAND_LISTS
 )

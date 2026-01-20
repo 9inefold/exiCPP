@@ -1,0 +1,65 @@
+#!@Python3_EXECUTABLE@
+# -*- coding: utf-8 -*-
+
+import argparse
+import sys, os, subprocess
+from glob import glob
+from os.path import isfile, join, normpath
+from subprocess import run as run_proc
+
+EXI_VERSION = "@EXI_VERSION@"
+BUILD_MODE  = "@CMAKE_BUILD_TYPE@"
+
+EXI_BASE_FOLDER = normpath("@EXI_BASE_FOLDER@")
+EXI_TEST_FOLDER = join(EXI_BASE_FOLDER, "tests", "s")
+EXI_BIN_FOLDER  = normpath("@CMAKE_LIBRARY_OUTPUT_DIRECTORY@")
+
+JAVA_EXECUTABLE = normpath("@Java_JAVA_EXECUTABLE@")
+EXIFICIENT_JAR  = normpath("@EXIFICIENT_JAR@")
+
+cwd = os.getcwd()
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-q', '--quiet', action='store_true', help='silence output')
+args = parser.parse_args()
+QUIET = args.quiet
+
+def lprint(*args):
+  if not QUIET:
+    print("[test]", *args)
+
+def run_process(args):
+  return run_proc(args, cwd=cwd, capture_output=True, text=True, check=True)
+
+def run_exificient(args) -> bool:
+  proc = run_process(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
+  if proc.returncode != 0:
+    return False
+  elif proc.stdout.startswith("[ERROR]") or proc.stderr.startswith("[Fatal Error]"):
+    return False
+  return True
+
+if __name__ == "__main__":
+  all_files = list(glob(
+    '**/*.xml',
+    root_dir=EXI_TEST_FOLDER,
+    recursive=True
+  ))
+
+  all_files = [
+    'at\\attr-02.xml',
+    'ch\\ch-07.xml',
+    'el2\\element-09.xml',
+    'me\\CDATA.xml',
+    'xml\\022.xml',
+    'xml\\044.xml',
+    'xml\\085.xml',
+    'xml\\116.xml',
+  ]
+
+  print([f.replace('\\', '/') for f in filenames])
+  filenames = [join(EXI_TEST_FOLDER, f) for f in all_files]
+
+  #parser.print_help()
+  #lprint(invocation, f"-i {cwd}/FileXYZ.exi -i {cwd}/FileXYZ.xml")
+  sys.exit(1)

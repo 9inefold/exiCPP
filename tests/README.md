@@ -8,6 +8,6 @@ Folders have the following meanings:
 - `x*` for *exificient* outputs
 - `i*` for *exicpp* outputs
 - `*d` for *decoded* xml
-- `*e` for *encoded* xml
+- `*e` for *encoded* exi
 
 Tests are roundtripped and run against exificient, if java is supported.
