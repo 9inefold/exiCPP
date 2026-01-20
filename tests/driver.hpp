@@ -19,6 +19,7 @@
 #pragma once
 
 #include <Common/MMatch.hpp>
+#include <Common/Result.hpp>
 #include <Common/SmallStr.hpp>
 #include <Common/StringSwitch.hpp>
 #include <Support/Filesystem.hpp>
