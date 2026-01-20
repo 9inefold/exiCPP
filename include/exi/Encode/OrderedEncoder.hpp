@@ -312,7 +312,8 @@ public:
     exi_try_unwrap(PfxOrErr);
 
     if constexpr (!IsRoot)
-      CtxStack.add(Strings, *PfxOrErr);
+      if (!PfxOrErr->second)
+        CtxStack.add(Strings, PfxOrErr->first);
     
     LOG_POSITION(this);
     LOG_INFO(">> {}", NS.IsLocal ? "LOCAL" : "NON-LOCAL");
@@ -502,7 +503,7 @@ public:
 
   /// Encodes a NS event prefix.
   template <typename StrmT>
-  ExiResult<PrefixEntry*> encodePfx(URIEntry* URI, StrRef Pfx) {
+  ExiResult<std::pair<PrefixEntry*, bool>> encodePfx(URIEntry* URI, StrRef Pfx) {
 #if EXI_DEBUG
     if (!this->PreservePrefixes()) {
       LOG_ERROR("Encoded NS prefix with prefixes disabled!");
@@ -510,14 +511,15 @@ public:
     }
 #endif
     if (PrefixEntry* PfxV = Strings.lookupPfxForURI(URI, Pfx))
-      return encodePfxID<StrmT>(URI, PfxV);
+      /// TODO: Verify this...
+      return std::make_pair(encodePfxID<StrmT>(URI, PfxV), false);
     LOG_POSITION(this);
     unsigned Bits = Strings.getPfxLog(URI);
     writer<StrmT>().writeBits64(0, Bits);
     writer<StrmT>().encodeString(Pfx);
-    PrefixEntry* PfxV = Strings.addPrefix(URI, Pfx);
+    auto [PfxV, IsNew] = Strings.addPrefix(URI, Pfx);
     LOG_INFO(">> PXNS (Miss) @{}: \"{}\"", Strings.GetID(PfxV), Pfx);
-    return PfxV;
+    return std::make_pair(PfxV, IsNew);
   }
   template <typename StrmT>
   PrefixEntry* encodePfxID(URIEntry* URI, PrefixEntry* Pfx) {

@@ -753,14 +753,15 @@ public:
     return X(&*It);
   }
   /// Creates a new Prefix entry for a URI.
-  STPrefixEntry* addPrefix(STURIEntry* URI, ImplicitHashStrRef Pfx) {
+  std::pair<STPrefixEntry*, bool> addPrefix(STURIEntry* URI,
+                                            ImplicitHashStrRef Pfx) {
     exi_invariant(URI != nullptr);
     auto [PI, IsNewPfx] = createPfxOnly(Pfx);
     if (IsNewPfx)
       BindPrefixToNewURI(&PI->second, X(URI));
     else
       pushURIContext(PI, X(URI));
-    return X(PI);
+    return {X(PI), IsNewPfx};
   }
   /// Creates a new LocalName for a URI.
   LocalNameInfo* addLocalName(STURIEntry* URI, StrRef Name, LocalNameInsert*);
