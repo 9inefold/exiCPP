@@ -112,6 +112,7 @@ IDPair StringTable::addPrefix(CompactID URI, StrRef Pfx) {
   const CompactID ID = URIMap[URI].PrefixElts++;
   InlineStr* PfxP = intern(Pfx);
   PrefixMap[URI].push_back(PfxP);
+  exi_invariant(URIMap[URI].PrefixElts == PrefixMap[URI].size());
 
   return {PfxP->str(), ID};
 }
@@ -171,7 +172,6 @@ std::pair<URIInfo*, CompactID>
   if (Pfx) {
     InlineStr* PfxP = intern(*Pfx);
     PfxPart.push_back(PfxP);
-    ++URIPart->PrefixElts;
     LOG_EXTRA("Created <xmlns:{}=\"{}\">", PfxP->str(), Interned);
   }
 

@@ -39,6 +39,7 @@
 #include <exi/Basic/CompactID.hpp>
 #include <exi/Basic/EventCodes.hpp>
 #include <exi/Basic/Except.hpp>
+//#include <core/Support/Logging.hpp>
 
 // TODO: Refactor to use embedded counters with RTTI handles
 // TODO: Replace some assertions with Throw(...)?
