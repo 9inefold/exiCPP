@@ -1,10 +1,11 @@
 #!@Python3_EXECUTABLE@
 # -*- coding: utf-8 -*-
 
-import argparse
+import argparse, json
 import sys, os, subprocess
 from glob import glob
-from os.path import isfile, join, normpath
+from os.path import join, normpath
+from pathlib import Path
 from subprocess import run as run_proc
 
 EXI_VERSION = "@EXI_VERSION@"
@@ -14,6 +15,8 @@ EXI_BASE_FOLDER = normpath("@EXI_BASE_FOLDER@")
 EXI_TEST_FOLDER = join(EXI_BASE_FOLDER, "tests", "s")
 EXI_BIN_FOLDER  = normpath("@CMAKE_LIBRARY_OUTPUT_DIRECTORY@")
 
+EXI_EXECUTABLE  = normpath(f'{EXI_BIN_FOLDER}/exi-test-driver.exe')
+XML_EXECUTABLE  = normpath(f'{EXI_BIN_FOLDER}/xml-test-driver.exe')
 JAVA_EXECUTABLE = normpath("@Java_JAVA_EXECUTABLE@")
 EXIFICIENT_JAR  = normpath("@EXIFICIENT_JAR@")
 
@@ -21,23 +24,129 @@ cwd = os.getcwd()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-q', '--quiet', action='store_true', help='silence output')
+parser.add_argument('--color', action='store_true', help='print with color')
 args = parser.parse_args()
 QUIET = args.quiet
+COLOR = '' if args.color else '-T'
 
-def lprint(*args):
+def lprint(*args, **kwargs):
   if not QUIET:
-    print("[test]", *args)
+    print(*args)
+
+PRESERVE_OPTS = ['', 'cdi']
+ALIGN_OPTS = ['i', 'y']
+FOLDER_NAMES = ['xd', 'xe', 'id', 'ie']
+
+def exificient_parse_opts(preserve: str, align: str) -> list[str]:
+  mapping = {
+    #'p': '-preservePrefixes',
+    'c': '-preserveComments',
+    'd': '-preserveDTDs',
+    'i': '-preservePIs'
+  }
+  out = ['-noSchema', '-preservePrefixes', '-retainEntityReference']
+  for p in preserve:
+    if p in mapping:
+      out.append(mapping[p])
+  if align == 'y':
+    out.append('-bytePacked')
+  return out
+
+def gen_subfolder_mappings() -> dict[str, tuple[str, str]]:
+  out = {}
+  for p in PRESERVE_OPTS:
+    for a in ALIGN_OPTS:
+      out[f'O{a}P{p}p'] = (p, a)
+  return out
+
+# Maps mangled name to (preserve, align)
+subfolders = gen_subfolder_mappings()
+
+# Generates all the required folders so we don't run into issues later
+def make_folders(root_name):
+  root = join(EXI_BASE_FOLDER, "tests", root_name)
+  for folder in ['xx', 'ii']:
+    f = join(root, folder)
+    if not os.path.exists(f):
+      os.makedirs(f)
+  for subfolder in subfolders:
+    for folder in FOLDER_NAMES:
+      f = join(root, folder, subfolder)
+      if not os.path.exists(f):
+        os.makedirs(f)
+
+################################################################################
 
 def run_process(args):
-  return run_proc(args, cwd=cwd, capture_output=True, text=True, check=True)
+  return run_proc(args, cwd=cwd, capture_output=True, text=True)
 
+# Directly runs exificient
 def run_exificient(args) -> bool:
   proc = run_process(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
   if proc.returncode != 0:
-    return False
-  elif proc.stdout.startswith("[ERROR]") or proc.stderr.startswith("[Fatal Error]"):
-    return False
-  return True
+    return proc.returncode
+  elif proc.stderr.startswith("[Fatal Error]"):
+    print(proc.stderr, flush=True)
+    return 1
+  elif proc.stdout.startswith("[ERROR]"):
+    print(proc.stdout, flush=True)
+    return 1
+  return 0
+
+# Runs exi-test-driver
+def run_exi(name, args) -> bool:
+  proc = run_process(f"{EXI_EXECUTABLE} {args} {COLOR}")
+  if proc.returncode != 0:
+    print(name, ':')
+    print(proc.stderr, flush=True)
+    pass
+  return proc.returncode
+
+# Runs xml-test-driver
+def run_xml(name, args) -> bool:
+  proc = run_process(f"{EXI_EXECUTABLE} {args} {COLOR}")
+  return proc.returncode
+
+################################################################################
+
+def get_test_folder(folder, subfolder):
+  return join(EXI_BASE_FOLDER, 'tests', 'o', 'ie', subfolder)
+
+# xml -> exi -> xml
+def exificient_identity(subfolder: str, opts: tuple[str, str], files):
+  preserve, align = opts
+  args = ' '.join(exificient_parse_opts(preserve, align))
+
+  encode_folder = get_test_folder('xe', subfolder)
+  decode_folder = get_test_folder('xx', subfolder)
+
+  for filename, name in files.items():
+    print(name, ':')
+    exi = join(encode_folder, name + '.exi')
+    xml = join(decode_folder, name + '.xml')
+    if run_exificient(f'-encode {args} -i {filename} -o {exi}') == 0:
+      run_exificient(f'-decode {args} -i {exi} -o {xml}')
+  pass
+
+# xml -> exi -> xml
+def exicpp_identity(subfolder: str, opts: tuple[str, str], files):
+  preserve, align = opts
+  args = f'-O{preserve} -C0 -A{align}'
+
+  encode_folder = get_test_folder('ie', subfolder)
+  decode_folder = get_test_folder('ii', subfolder)
+
+  for filename, name in files.items():
+    exi = join(encode_folder, name + '.exi')
+    xml = join(decode_folder, name + '.xml')
+    run_exi(name, f'{filename} {exi} -X{xml} {args}')
+  pass
+
+def run_tests_with_opts(subfolder: str, opts: tuple[str, str], files):
+  exificient_identity(subfolder, opts, files)
+  exicpp_identity(subfolder, opts, files)
+  # preserve, align = opts
+  pass
 
 if __name__ == "__main__":
   all_files = list(glob(
@@ -46,19 +155,52 @@ if __name__ == "__main__":
     recursive=True
   ))
 
-  all_files = [
-    'at\\attr-02.xml',
-    'ch\\ch-07.xml',
-    'el2\\element-09.xml',
-    'me\\CDATA.xml',
-    'xml\\022.xml',
-    'xml\\044.xml',
-    'xml\\085.xml',
-    'xml\\116.xml',
+  #all_files = [
+  #  'at\\at-02.xml',
+  #  'ch\\ch-07.xml',
+  #  'el2\\el2-09.xml',
+  #  'me\\CDATA.xml',
+  #  'xml\\022.xml',
+  #  'xml\\044.xml',
+  #  'xml\\085.xml',
+  #  'xml\\116.xml',
+  #]
+
+  make_folders('o')
+
+  # Filtered for using xsi:type, which is currently unsupported.
+  skiplist = ['at-02', 'SortTest', 'IPO']
+  # Currently crash...
+  crashlist = [
+    'el2-03', 'el2-04', 'el2-05', '017', # PI - decode
+    'el2-07', # local-name-ns does not match SE URI - encode?
+    'el2-10'  # "invalid child content" (pi?) - decode
   ]
 
-  print([f.replace('\\', '/') for f in filenames])
-  filenames = [join(EXI_TEST_FOLDER, f) for f in all_files]
+  # exificient = ['012', '079', '085']
+
+  file_dict = {}
+  for f in all_files:
+    name = Path(f).stem
+    #if name in skiplist:
+    if name in skiplist:
+      continue
+    if name in crashlist:
+    #if not (name in crashlist):
+      continue
+    file_dict[join(EXI_TEST_FOLDER, f)] = name
+
+  #for k, (p, a) in subfolders.items():
+  #  opts = parse_mangled_opts(p, a)
+  #  print(k, ':', ' '.join(opts))
+
+  #for k, v in subfolders.items():
+  #  run_tests_with_opts(k, v, file_dict)
+  #  pass
+
+  k = 'OyPcdip'
+  v = subfolders[k]
+  run_tests_with_opts(k, v, file_dict)
 
   #parser.print_help()
   #lprint(invocation, f"-i {cwd}/FileXYZ.exi -i {cwd}/FileXYZ.xml")

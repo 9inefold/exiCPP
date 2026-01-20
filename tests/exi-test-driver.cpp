@@ -37,7 +37,7 @@ using namespace driver;
 
 static void PrintHelp() {
   outs() << "USAGE: <xml-in> <exi-out> -X<xml-out> "
-                   "-O[c|d|p] -C<cdata-mode> -A[i|y]\n";
+                   "-O[c|d|i] -C<cdata-mode> -A[i|y] [-T]\n";
   exit(1);
 }
 
@@ -60,7 +60,9 @@ static void ParseRemainingArgs(ArrayRef<char*> Args, ExtraOptions& Out) {
         Out.Align = *Align;
       else
         LOG_WARN("Invalid input for '-A': '{}'", Arg);
-    } else
+    } else if (Arg.consume_front("-T"))
+      DisableColors();
+    else
       LOG_WARN("Invalid argument '{}'", Arg);
   }
 }

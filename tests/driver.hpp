@@ -56,10 +56,10 @@ inline void ParsePreserveOpts(ExiOptions::PreserveOpts& Opts, StrRef A) {
       break;
     case 'l':
     case 'L':
-      Opts.LexicalValues = true;
+      //Opts.LexicalValues = true;
       break;
-    case 'p':
-    case 'P':
+    case 'i':
+    case 'I':
       Opts.PIs = true;
       break;
     default:
@@ -103,6 +103,14 @@ inline Option<AlignKind> ParseAlignOpt(StrRef A) {
   default:
     return std::nullopt;
   }
+}
+
+inline void DisableColors() {
+  outs().enable_colors(false);
+  errs().enable_colors(false);
+#if EXI_DEBUG
+  dbgs().enable_colors(false);
+#endif
 }
 
 //////////////////////////////////////////////////////////////
