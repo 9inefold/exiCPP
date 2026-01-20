@@ -2,78 +2,106 @@
 # -*- coding: utf-8 -*-
 
 import argparse, json
-import sys, os, subprocess
+import sys, os, subprocess, traceback
 from glob import glob
-from os.path import join, normpath
 from pathlib import Path
 from subprocess import run as run_proc
 
 EXI_VERSION = "@EXI_VERSION@"
 BUILD_MODE  = "@CMAKE_BUILD_TYPE@"
 
+"""
 EXI_BASE_FOLDER = normpath("@EXI_BASE_FOLDER@")
-EXI_TEST_FOLDER = join(EXI_BASE_FOLDER, "tests", "s")
-EXI_BIN_FOLDER  = normpath("@CMAKE_LIBRARY_OUTPUT_DIRECTORY@")
+TEST_SRC_FOLDER = normpath("@TEST_SRC_FOLDER@")
+TEST_OUT_FOLDER = normpath("@TEST_OUT_FOLDER@")
 
-EXI_EXECUTABLE  = normpath(f'{EXI_BIN_FOLDER}/exi-test-driver.exe')
-XML_EXECUTABLE  = normpath(f'{EXI_BIN_FOLDER}/xml-test-driver.exe')
+EXI_BIN_FOLDER  = normpath("@CMAKE_LIBRARY_OUTPUT_DIRECTORY@")
+EXI_EXECUTABLE  = joinpath(EXI_BIN_FOLDER, 'exi-test-driver.exe')
+XML_EXECUTABLE  = joinpath(EXI_BIN_FOLDER, 'xml-test-driver.exe')
+
 JAVA_EXECUTABLE = normpath("@Java_JAVA_EXECUTABLE@")
 EXIFICIENT_JAR  = normpath("@EXIFICIENT_JAR@")
+"""
+
+EXI_BASE_FOLDER = Path("@EXI_BASE_FOLDER@")
+TEST_SRC_FOLDER = Path("@TEST_SRC_FOLDER@")
+TEST_OUT_FOLDER = Path("@TEST_OUT_FOLDER@")
+
+EXI_BIN_FOLDER  = Path("@CMAKE_LIBRARY_OUTPUT_DIRECTORY@")
+EXI_EXECUTABLE  = EXI_BIN_FOLDER / 'exi-test-driver.exe'
+XML_EXECUTABLE  = EXI_BIN_FOLDER / 'xml-test-driver.exe'
+
+JAVA_EXECUTABLE = Path("@Java_JAVA_EXECUTABLE@")
+EXIFICIENT_JAR  = Path("@EXIFICIENT_JAR@")
 
 cwd = os.getcwd()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-q', '--quiet', action='store_true', help='silence output')
+parser.add_argument('--verbose', action='store_true', help='verbose output')
 parser.add_argument('--color', action='store_true', help='print with color')
 args = parser.parse_args()
-QUIET = args.quiet
-COLOR = '' if args.color else '-T'
 
-def lprint(*args, **kwargs):
+VERBOSE = args.verbose
+QUIET = false if VERBOSE else args.quiet
+COLOR = args.color
+
+def qprint(*args, **kwargs):
   if not QUIET:
     print(*args)
 
-PRESERVE_OPTS = ['', 'cdi']
-ALIGN_OPTS = ['i', 'y']
-FOLDER_NAMES = ['xd', 'xe', 'id', 'ie']
+def vprint(*args, **kwargs):
+  if VERBOSE:
+    print(*args)
 
-def exificient_parse_opts(preserve: str, align: str) -> list[str]:
-  mapping = {
-    #'p': '-preservePrefixes',
-    'c': '-preserveComments',
-    'd': '-preserveDTDs',
-    'i': '-preservePIs'
-  }
-  out = ['-noSchema', '-preservePrefixes', '-retainEntityReference']
-  for p in preserve:
-    if p in mapping:
-      out.append(mapping[p])
-  if align == 'y':
-    out.append('-bytePacked')
+class ParseOpt:
+  PRESERVE_OPTS = ['p', 'cdip']
+  ALIGN_OPTS = ['i', 'y']
+
+  def __init__(self, preserve: str, align: str):
+    if preserve in ParseOpt.PRESERVE_OPTS:
+      self.preserve = preserve
+    else:
+      self.preserve = ParseOpt.PRESERVE_OPTS[0]
+    if align in ParseOpt.ALIGN_OPTS:
+      self.align = align
+    else:
+      self.align = ParseOpt.ALIGN_OPTS[0]
+    self.mangled = f'O{self.align}P{self.preserve}'
+
+  def exificient_parse_opts(self) -> list[str]:
+    mapping = {
+      'p': '-preservePrefixes',
+      'c': '-preserveComments',
+      'd': '-preserveDTDs',
+      'i': '-preservePIs'
+    }
+    out = ['-noSchema', '-retainEntityReference']
+    for p in self.preserve:
+      if p in mapping:
+        out.append(mapping[p])
+    if self.align == 'y':
+      out.append('-bytePacked')
+    return out
+
+def gen_subfolders() -> list[ParseOpt]:
+  out = []
+  for p in ParseOpt.PRESERVE_OPTS:
+    for a in ParseOpt.ALIGN_OPTS:
+      out.append(ParseOpt(p, a))
   return out
 
-def gen_subfolder_mappings() -> dict[str, tuple[str, str]]:
-  out = {}
-  for p in PRESERVE_OPTS:
-    for a in ALIGN_OPTS:
-      out[f'O{a}P{p}p'] = (p, a)
-  return out
-
+FOLDER_NAMES = ['xd', 'xe', 'xx', 'id', 'ie', 'ii']
 # Maps mangled name to (preserve, align)
-subfolders = gen_subfolder_mappings()
+subfolders = gen_subfolders()
 
 # Generates all the required folders so we don't run into issues later
-def make_folders(root_name):
-  root = join(EXI_BASE_FOLDER, "tests", root_name)
-  for folder in ['xx', 'ii']:
-    f = join(root, folder)
-    if not os.path.exists(f):
-      os.makedirs(f)
+def make_folders():
   for subfolder in subfolders:
     for folder in FOLDER_NAMES:
-      f = join(root, folder, subfolder)
-      if not os.path.exists(f):
-        os.makedirs(f)
+      f = TEST_OUT_FOLDER / folder / subfolder.mangled
+      if not f.exists():
+        f.mkdir(parents=True)
 
 ################################################################################
 
@@ -81,92 +109,233 @@ def run_process(args):
   return run_proc(args, cwd=cwd, capture_output=True, text=True)
 
 # Directly runs exificient
-def run_exificient(args) -> bool:
+def run_exificient(name, args) -> bool:
   proc = run_process(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
   if proc.returncode != 0:
+    print(f'{name}[{proc.returncode}]:')
+    vprint(proc.stdout, flush=True)
     return proc.returncode
   elif proc.stderr.startswith("[Fatal Error]"):
-    print(proc.stderr, flush=True)
+    print(f'{name}[?]:')
+    vprint(proc.stderr)
+    vprint(proc.stdout, flush=True)
     return 1
   elif proc.stdout.startswith("[ERROR]"):
-    print(proc.stdout, flush=True)
+    print(f'{name}[?]:')
+    vprint(proc.stdout, flush=True)
     return 1
   return 0
 
 # Runs exi-test-driver
 def run_exi(name, args) -> bool:
-  proc = run_process(f"{EXI_EXECUTABLE} {args} {COLOR}")
+  color_arg = '' if COLOR else '-T'
+  proc = run_process(f"{EXI_EXECUTABLE} {args} {color_arg}")
   if proc.returncode != 0:
-    print(name, ':')
-    print(proc.stderr, flush=True)
+    print(f'{name}[{proc.returncode}]:')
+    vprint(proc.stderr, flush=True)
     pass
   return proc.returncode
 
 # Runs xml-test-driver
 def run_xml(name, args) -> bool:
-  proc = run_process(f"{EXI_EXECUTABLE} {args} {COLOR}")
+  color_arg = '' if COLOR else '-T'
+  proc = run_process(f"{EXI_EXECUTABLE} {args} {color_arg}")
   return proc.returncode
 
 ################################################################################
 
-def get_test_folder(folder, subfolder):
-  return join(EXI_BASE_FOLDER, 'tests', 'o', 'ie', subfolder)
+"""
+cache: {
+  "version" : "...",
+  "data" : {
+    "OyPcdip" : {
+      "ie": [ ... ],
+      "ii": [ ... ],
+      "xe": [ ... ],
+      "xx": [ ... ],
+      "id": [ ... ],
+      "xd": [ ... ]
+    },
+    ...
+  }
+}
+"""
+class CacheJSONEncoder(json.JSONEncoder):
+  def default(self, obj):
+    if isinstance(obj, set):
+      return list(obj)
+    # Let the base class default method raise the TypeError
+    return super().default(obj)
 
-# xml -> exi -> xml
-def exificient_identity(subfolder: str, opts: tuple[str, str], files):
-  preserve, align = opts
-  args = ' '.join(exificient_parse_opts(preserve, align))
+class ProcessCache:
+  # self.__cache: dict[mode, dict[key, set[str]]]
+  # self.__cachefile: Path
 
-  encode_folder = get_test_folder('xe', subfolder)
-  decode_folder = get_test_folder('xx', subfolder)
+  @staticmethod
+  def as_entry(dct):
+    if '__entry__' in dct:
+      dct['xd'] = set(dct['xd'])
+      dct['xe'] = set(dct['xe'])
+      dct['xx'] = set(dct['xx'])
+      dct['id'] = set(dct['id'])
+      dct['ii'] = set(dct['ii'])
+    return dct
 
-  for filename, name in files.items():
-    print(name, ':')
-    exi = join(encode_folder, name + '.exi')
-    xml = join(decode_folder, name + '.xml')
-    if run_exificient(f'-encode {args} -i {filename} -o {exi}') == 0:
-      run_exificient(f'-decode {args} -i {exi} -o {xml}')
-  pass
+  def __init__(self, cache_path=None):
+    self.__cache = {}
+    if cache_path is None:
+      cache_path = TEST_OUT_FOLDER
+    # Open cache!
+    cachefile = Path(cache_path) / '.testcache'
+    if cachefile.exists():
+      try:
+        raw_text = cachefile.read_text(encoding='utf8')
+        cache_data = json.loads(raw_text,
+          object_hook=ProcessCache.as_entry)
+        if cache_data['version'] == EXI_VERSION:
+          self.__cache = cache_data['data']
+      except json.JSONDecodeError as json_err:
+        qprint(json_err.msg)
+        pass
+      except FileNotFoundError:
+        #print('bro.')
+        pass
+    self.__cachefile = cachefile
+    # ...
+    if bool(self.__cache):
+      qprint('Cache loaded from file.')
+    else:
+      qprint('Cache is unset.')
+  
+  # Prints cache data
+  def dump(self):
+    raw_text = json.dumps({
+      'version': EXI_VERSION,
+      'data': self.__cache
+    }, cls=CacheJSONEncoder, indent=2)
+    qprint(raw_text)
 
-# xml -> exi -> xml
-def exicpp_identity(subfolder: str, opts: tuple[str, str], files):
-  preserve, align = opts
-  args = f'-O{preserve} -C0 -A{align}'
+  # Saves cache to file
+  def save(self):
+    cachefile = self.__cachefile
+    raw_text = json.dumps({
+      'version': EXI_VERSION,
+      'data': self.__cache
+    }, cls=CacheJSONEncoder, indent=2)
+    cachefile.write_text(raw_text, encoding='utf8')
+  
+  # Loads top level entry from cache:
+  def load_entry(self, name: str) -> dict[str, [str]]:
+    # subfolders contain full list of allowed names
+    #assert name in subfolders
+    if name in self.__cache:
+      return self.__cache[name]
+    # Make new entry:
+    self.__cache[name] = {
+      '__entry__': True,
+      'xd': set(), 'xe': set(), 'xx': set(),
+      'id': set(),              'ii': set()
+    }
+    return self.__cache[name]
+# end ProcessCache
 
-  encode_folder = get_test_folder('ie', subfolder)
-  decode_folder = get_test_folder('ii', subfolder)
+class TestRunner:
+  @property
+  def subfolder(self) -> str:
+    return self.opts.mangled
 
-  for filename, name in files.items():
-    exi = join(encode_folder, name + '.exi')
-    xml = join(decode_folder, name + '.xml')
-    run_exi(name, f'{filename} {exi} -X{xml} {args}')
-  pass
+  @property
+  def preserve(self) -> str:
+    return self.opts.preserve
 
-def run_tests_with_opts(subfolder: str, opts: tuple[str, str], files):
-  exificient_identity(subfolder, opts, files)
-  exicpp_identity(subfolder, opts, files)
-  # preserve, align = opts
-  pass
+  @property
+  def align(self) -> str:
+    return self.opts.align
+
+  @property
+  def cache_entry(self) -> dict[str, list[str]]:
+    return self.cache.load_entry(self.subfolder)
+  
+  def __init__(self, opts: ParseOpt, cache: ProcessCache, files):
+    self.opts  = opts
+    self.cache = cache
+    self.files = files
+
+  # xml -> exi -> xml
+  def exificient_identity(self):
+    cache = self.cache_entry
+    args = ' '.join(self.opts.exificient_parse_opts())
+    encode_folder = TEST_OUT_FOLDER / 'xe' / self.subfolder
+    decode_folder = TEST_OUT_FOLDER / 'xx' / self.subfolder
+
+    for filename, name in self.files.items():
+      # Run the encoder
+      exi = encode_folder / (name + '.exi')
+      if not (name in cache['xe']):
+        code = run_exificient(name, f'-encode {args} -i {filename} -o {exi}')
+        if code == 0:
+          cache['xe'].add(name)
+      # Run the decoder
+      xml = decode_folder / (name + '.xml')
+      if not (name in cache['xx']):
+        code = run_exificient(name, f'-decode {args} -i {exi} -o {xml}')
+        if code == 0:
+          cache['xx'].add(name)
+    pass
+
+  # xml -> exi -> xml
+  def exicpp_identity(self):
+    cache = self.cache_entry
+    args = f'-O{self.preserve} -C0 -A{self.align}'
+    encode_folder = TEST_OUT_FOLDER / 'ie' / self.subfolder
+    decode_folder = TEST_OUT_FOLDER / 'ii' / self.subfolder
+
+    for filename, name in self.files.items():
+      if name in cache['ii']:
+        continue
+      exi = encode_folder / (name + '.exi')
+      xml = decode_folder / (name + '.xml')
+      code = run_exi(name, f'{filename} {exi} -X{xml} {args}')
+      if code == 0:
+        cache['ii'].add(name)
+    pass
+
+  def run(self):
+    try:
+      self.exicpp_identity()
+      self.exificient_identity()
+      #raise Exception("xyz")
+      #self.cache.dump()
+    except Exception:
+      print(traceback.format_exc(), flush=True)
+      return False
+    finally:
+      self.cache.save()
+    return True
+# end TestRunner
 
 if __name__ == "__main__":
   all_files = list(glob(
     '**/*.xml',
-    root_dir=EXI_TEST_FOLDER,
+    root_dir=TEST_SRC_FOLDER,
     recursive=True
   ))
 
-  #all_files = [
-  #  'at\\at-02.xml',
-  #  'ch\\ch-07.xml',
-  #  'el2\\el2-09.xml',
-  #  'me\\CDATA.xml',
-  #  'xml\\022.xml',
-  #  'xml\\044.xml',
-  #  'xml\\085.xml',
-  #  'xml\\116.xml',
-  #]
+  """
+  all_files = [
+    'at\\at-02.xml',
+    'ch\\ch-07.xml',
+    'el2\\el2-09.xml',
+    'me\\CDATA.xml',
+    'xml\\022.xml',
+    'xml\\044.xml',
+    'xml\\085.xml',
+    'xml\\116.xml',
+  ]
+  """
 
-  make_folders('o')
+  make_folders()
+  cache = ProcessCache()
 
   # Filtered for using xsi:type, which is currently unsupported.
   skiplist = ['at-02', 'SortTest', 'IPO']
@@ -182,26 +351,21 @@ if __name__ == "__main__":
   file_dict = {}
   for f in all_files:
     name = Path(f).stem
-    #if name in skiplist:
     if name in skiplist:
       continue
     if name in crashlist:
     #if not (name in crashlist):
       continue
-    file_dict[join(EXI_TEST_FOLDER, f)] = name
+    file_dict[str(TEST_SRC_FOLDER / f)] = name
 
-  #for k, (p, a) in subfolders.items():
-  #  opts = parse_mangled_opts(p, a)
-  #  print(k, ':', ' '.join(opts))
-
-  #for k, v in subfolders.items():
-  #  run_tests_with_opts(k, v, file_dict)
-  #  pass
-
-  k = 'OyPcdip'
-  v = subfolders[k]
-  run_tests_with_opts(k, v, file_dict)
+  to_check = 'OyPcdip'
+  for opt in subfolders:
+    if opt.mangled != to_check:
+      continue
+    runner = TestRunner(opt, cache, file_dict)
+    if not runner.run():
+      sys.exit(1)
 
   #parser.print_help()
-  #lprint(invocation, f"-i {cwd}/FileXYZ.exi -i {cwd}/FileXYZ.xml")
+  #qprint(invocation, f"-i {cwd}/FileXYZ.exi -i {cwd}/FileXYZ.xml")
   sys.exit(1)

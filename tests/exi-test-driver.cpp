@@ -43,26 +43,15 @@ static void PrintHelp() {
 
 static void ParseRemainingArgs(ArrayRef<char*> Args, ExtraOptions& Out) {
   for (StrRef Arg : Args) {
-    if (Arg.consume_front("-O"))
-      ParsePreserveOpts(Out.Preserve, Arg);
-    else if (Arg.consume_front("-X")) {
+    auto CodeOrErr = ParseCommonArgs(Arg, Out);
+    if (CodeOrErr.is_err()) {
+      StrRef ErrCmd = CodeOrErr.error();
+      Arg.consume_front(ErrCmd);
+      LOG_WARN("Invalid input for '{}': {}", ErrCmd, Arg);
+    } else if (*CodeOrErr && Arg.consume_front("-X")) {
       Arg.consume_pinch("\"");
       Out.FileOut.emplace(Arg.str());
-    } else if (Arg.consume_front("-C")) {
-      auto CDATA = ParseCDATAOpt(Arg);
-      if (CDATA.has_value())
-        Out.PreserveCDATA = *CDATA;
-      else
-        LOG_WARN("Invalid input for '-C': '{}'", Arg);
-    } else if (Arg.consume_front("-A")) {
-      auto Align = ParseAlignOpt(Arg);
-      if (Align.has_value())
-        Out.Align = *Align;
-      else
-        LOG_WARN("Invalid input for '-A': '{}'", Arg);
-    } else if (Arg.consume_front("-T"))
-      DisableColors();
-    else
+    } else
       LOG_WARN("Invalid argument '{}'", Arg);
   }
 }
@@ -106,7 +95,7 @@ int main(int Argc, char* Argv[]) {
   if (classifyXMLKind(OutExi) != XMLKind::ExiDocument) {
     WithColor(errs(), BRIGHT_RED)
       << "Invalid out-file '" << OutExi << "', expected .exi\n\n";
-    return 2;
+    return 1;
   }
 
   auto InData = LoadFile(InXml);
@@ -163,7 +152,7 @@ int main(int Argc, char* Argv[]) {
 
   if (auto E = WriteFile(OutExi, EncodeBuf.str())) {
     logAllUnhandledErrors(std::move(E), errs());
-    return 4;
+    return 2;
   }
 
   if (!Opts.FileOut)
@@ -220,6 +209,6 @@ int main(int Argc, char* Argv[]) {
 
   if (auto E = WriteFile(*Opts.FileOut, DecodeBuf.str())) {
     logAllUnhandledErrors(std::move(E), errs());
-    return 4;
+    return 3;
   }
 }

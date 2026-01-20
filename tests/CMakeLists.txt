@@ -19,6 +19,8 @@ if(NOT DEFINED EXIFICIENT_DIR)
 endif()
 
 #add_subdirectory(ordered)
+set(TEST_SRC_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/s")
+set(TEST_OUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/o")
 
 configure_file(
   run-tests.py.in

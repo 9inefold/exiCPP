@@ -62,6 +62,11 @@ inline void ParsePreserveOpts(ExiOptions::PreserveOpts& Opts, StrRef A) {
     case 'I':
       Opts.PIs = true;
       break;
+    case 'p':
+    case 'P':
+      // Always true:
+      // Opts.Prefixes = true;
+      break;
     default:
       //LOG_WARN("Unknown character '{}'", C);
       break;
@@ -111,6 +116,30 @@ inline void DisableColors() {
 #if EXI_DEBUG
   dbgs().enable_colors(false);
 #endif
+}
+
+/// Returns command name if failed.
+inline Result<bool, StrRef> ParseCommonArgs(StrRef Arg, ExtraOptions& Out) {
+  if (Arg.consume_front("-O"))
+    ParsePreserveOpts(Out.Preserve, Arg);
+  else if (Arg.consume_front("-C")) {
+    auto CDATA = ParseCDATAOpt(Arg);
+    if (CDATA.has_value())
+      Out.PreserveCDATA = *CDATA;
+    else
+      return Err("-C");
+  } else if (Arg.consume_front("-A")) {
+    auto Align = ParseAlignOpt(Arg);
+    if (Align.has_value())
+      Out.Align = *Align;
+    else
+      return Err("-A");
+  } else if (Arg.consume_front("-T"))
+    DisableColors();
+  else
+    return false;
+  // Found command.
+  return true;
 }
 
 //////////////////////////////////////////////////////////////
