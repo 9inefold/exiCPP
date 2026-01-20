@@ -4,6 +4,8 @@
 !/*Noopt.exi
 !/*NooptB.exi
 
+!/el2-*.xml.exi
+
 !/Orders.exi
 !/LineItem.exi
 !/Treebank.exi
