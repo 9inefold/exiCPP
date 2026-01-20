@@ -951,6 +951,7 @@ static void Dump(XMLDocument& Doc,
   const bool OSProvided = Opts.OS.has_value();
   const int InitialIndent = CalcInitialIndent(Opts);
 
+  /// TODO: Optimize case where OutS is a raw_svector_ostream
   raw_svector_ostream OS(PrintBuf);
   OS.enable_colors(OutS->has_colors());
 

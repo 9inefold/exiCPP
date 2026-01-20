@@ -35,25 +35,30 @@ namespace exi {
 class XMLDeserializer final : public Deserializer, public XMLCoderOptions {
   using enum xml::NodeKind;
 
-  mutable XMLDocument Doc;
+  mutable Option<XMLDocument> SelfDoc;
+  XMLDocument* Doc = nullptr;
   XMLNode* Curr = nullptr;
   XMLAttribute* Attr = nullptr;
   u64 UnboundURI = kInvalidPrefix;
 
 public:
-  XMLDeserializer() : Doc(), Curr(Doc.document()) {}
+  XMLDeserializer(XMLDocument& Doc) : Doc(&Doc), Curr(Doc.document()) {}
+  XMLDeserializer() {
+    Doc = &SelfDoc.emplace();
+    Curr = Doc->document();
+  }
 
   /// Start Document
   ExiError SD() override {
-    this->Doc.clear();
-    this->Curr = Doc.document();
+    Doc->clear();
+    this->Curr = Doc->document();
     this->Attr = nullptr;
     return ExiError::OK;
   }
 
   /// End Document
   ExiError ED() override {
-    this->Curr = Doc.document();
+    this->Curr = Doc->document();
     this->Attr = nullptr;
     return ExiError::DONE;
   }
@@ -71,7 +76,7 @@ public:
   ExiError EE(QName Name) override {
     Curr = Curr->parent();
     if EXI_UNLIKELY(!Curr)
-      Curr = Doc.document();
+      Curr = Doc->document();
     return ExiError::OK;
   }
 
@@ -179,7 +184,7 @@ public:
     return ExiError::OK;
   }
 
-  XMLDocument& document() { return Doc; }
+  XMLDocument& document() { exi_invariant(Doc); return *Doc; }
   bool needsPersistence() const override { return true; }
   bool simpleDoctype() const override { return true; }
 
@@ -197,35 +202,35 @@ private:
 
   XMLNode* allocNode(NodeKind Kind, QName Name) {
     StrRef FullName = getFullName(Name);
-    return Doc.allocate_node(Kind,
+    return Doc->allocate_node(Kind,
       FullName.data(), nullptr,
       FullName.size(), 0
     );
   }
 
   XMLNode* allocValue(NodeKind Kind, StrRef Value) {
-    return Doc.allocate_node(Kind,
+    return Doc->allocate_node(Kind,
       nullptr, Value.data(),
             0, Value.size()
     );
   }
   
   ALWAYS_INLINE XMLNode* allocNode(NodeKind Kind, StrRef Name, StrRef Value) {
-    return Doc.allocate_node(Kind, Name, Value);
+    return Doc->allocate_node(Kind, Name, Value);
   }
 
   template <bool IsNS = false>
   ALWAYS_INLINE XMLAttribute* allocAttr(QName Name, StrRef Value) {
     StrRef FullName = getFullName<IsNS>(Name);
-    return Doc.allocate_attribute(FullName, Value);
+    return Doc->allocate_attribute(FullName, Value);
   }
 
   ALWAYS_INLINE XMLAttribute* allocAttr(StrRef Name, StrRef Value) {
-    return Doc.allocate_attribute(Name, Value);
+    return Doc->allocate_attribute(Name, Value);
   }
 
   ALWAYS_INLINE XMLAttribute* allocAttr(StrRef Name) {
-    return Doc.allocate_attribute(
+    return Doc->allocate_attribute(
       Name.data(), nullptr,
       Name.size(), 0
     );
@@ -276,7 +281,7 @@ private:
 
   StrRef intern(StrRef FullName) {
     const usize Size = FullName.size();
-    const char* Out = Doc.allocString(FullName.data(), Size);
+    const char* Out = Doc->allocString(FullName.data(), Size);
     return {Out, Size};
   }
 
