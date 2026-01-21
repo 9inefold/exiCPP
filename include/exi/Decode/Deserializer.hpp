@@ -62,7 +62,7 @@ public:
   StrRef uri() const { return {URI, URISize}; }
   StrRef name() const { return {Name, NameSize}; }
   StrRef pfx() const { return Pfx ? StrRef(Pfx, PfxSizeOrID) : "?"_str; }
-  u64 id() const { return EXI_ALWAYS(!Pfx) ? PfxSizeOrID : kInvalidPrefix; }
+  u64 id() const { return EXI_ALWAYS(!Pfx) ? PfxSizeOrID : kInvalidLNI; }
   bool hasPrefix() const { return Pfx; }
   bool hasID() const { return !Pfx; }
 };

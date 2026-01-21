@@ -40,6 +40,8 @@ class XMLDeserializer final : public Deserializer, public XMLCoderOptions {
   XMLNode* Curr = nullptr;
   XMLAttribute* Attr = nullptr;
   u64 UnboundURI = kInvalidPrefix;
+  // For exificient compat
+  bool HasPrefix = false;
 
 public:
   XMLDeserializer(XMLDocument& Doc) : Doc(&Doc), Curr(Doc.document()) {}
@@ -67,6 +69,7 @@ public:
   ExiError SE(QName Name) override {
     XMLNode* Node = allocNode(node_element, Name);
     UnboundURI = Name.id();
+    HasPrefix = Name.hasPrefix();
     Curr->append_node(Node);
     Curr = Node;
     return ExiError::OK;
@@ -97,12 +100,14 @@ public:
 
   /// Namespace Declaration - Local
   ExiError NS_Local(StrRef URI, StrRef Prefix, u64 ID) override {
+    if (this->HasPrefix)
+      return this->NS(URI, Prefix);
     if EXI_NEVER(!hasUnboundPrefix())
       Throw<argument_error>("local-name-ns set without valid SE!");
     if EXI_UNLIKELY(UnboundURI != ID)
       Throw<argument_error>("local-name-ns does not match SE URI!");
     // TODO: Verify this is correct?
-    UnboundURI = kInvalidPrefix;
+    UnboundURI = kInvalidLNI;
     StrRef FullName = getFullName(Prefix, Curr->name());
     Curr->name(FullName);
     return this->NS(URI, Prefix);
