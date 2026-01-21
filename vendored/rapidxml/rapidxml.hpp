@@ -822,7 +822,7 @@ public:
   /// Sets value of node to a zero-terminated string.
   /// See also \ref ownership_of_strings and XMLNode::value(const Ch *, usize).
   /// \param value Vame of node to set. Must be zero terminated.
-  void value(StrRefT Str) { this->name(Str.data(), Str.size()); }
+  void value(StrRefT Str) { this->value(Str.data(), Str.size()); }
 
   ///////////////////////////////////////////////////////////////////////////
   // Related nodes access
