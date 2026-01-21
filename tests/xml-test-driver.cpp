@@ -33,9 +33,11 @@
 using namespace exi;
 using namespace driver;
 
+static bool VerboseFail = false;
+
 static void PrintHelp() {
   outs() << "USAGE: <file-in> <file-out> "
-                   "-O[c|d|i] -C<cdata-mode> -A[i|y] [-T]\n";
+                   "-O[c|d|i] -C<cdata-mode> -A[i|y] [-V] [-T]\n";
   exit(1);
 }
 
@@ -46,7 +48,9 @@ static void ParseRemainingArgs(ArrayRef<char*> Args, ExtraOptions& Out) {
       StrRef ErrCmd = CodeOrErr.error();
       Arg.consume_front(ErrCmd);
       LOG_WARN("Invalid input for '{}': {}", ErrCmd, Arg);
-    } else if (!*CodeOrErr)
+    } else if (Arg.consume_front("-V"))
+      VerboseFail = true;
+    else if (!*CodeOrErr)
       LOG_WARN("Invalid argument '{}'", Arg);
   }
 }
@@ -109,7 +113,8 @@ int main(int Argc, char* Argv[]) {
 
     ExiDecoder& Decoder = EDecoder.emplace(std::move(O));
     XMLDeserializer& S = ExiS.emplace(Out);
-    S.PreserveCDATA = XMLCoderOptions::CDATA_ESCAPE;
+    S.PreserveCDATA = Opts.PreserveCDATA;
+    S.SkipEmptyCH = true;
 
     if (auto E = Decoder.decodeHeader(MB)) {
       WithColor(errs(), BRIGHT_RED)
@@ -159,8 +164,37 @@ int main(int Argc, char* Argv[]) {
       << format("'{}' is equal to '{}'\n", Args[0], Args[1]);
     return 0;
   } else {
-    WithColor(outs(), BRIGHT_RED)
+    WithColor(errs(), BRIGHT_RED)
       << format("'{}' is NOT equal to '{}'\n", Args[0], Args[1]);
+    if (VerboseFail) {
+      XMLDump::diff(In, Out, XMLDumpOptions {
+        .OS                   = errs(),
+        .IndentScale          = 2,
+        .Conforming           = false,
+        .PrintRawNames        = Opts.Preserve.Prefixes,
+        .Preserve             = Opts.Preserve,
+        .PreserveDeclaration  = false,
+        .PreserveCDATA        = Opts.PreserveCDATA
+      });
+      //XMLDump::full(In, XMLDumpOptions {
+      //  .OS                   = errs(),
+      //  .IndentScale          = 2,
+      //  .Conforming           = false,
+      //  .PrintRawNames        = Opts.Preserve.Prefixes,
+      //  .Preserve             = Opts.Preserve,
+      //  .PreserveDeclaration  = false,
+      //  .PreserveCDATA        = Opts.PreserveCDATA
+      //});
+      //XMLDump::full(Out, XMLDumpOptions {
+      //  .OS                   = errs(),
+      //  .IndentScale          = 2,
+      //  .Conforming           = false,
+      //  .PrintRawNames        = Opts.Preserve.Prefixes,
+      //  .Preserve             = Opts.Preserve,
+      //  .PreserveDeclaration  = false,
+      //  .PreserveCDATA        = Opts.PreserveCDATA
+      //});
+    }
     return 4;
   }
 }

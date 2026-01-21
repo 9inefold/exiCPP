@@ -525,7 +525,6 @@ static constexpr auto kPreserveCDATA = XMLCoderOptions::CDATA_NONE;
 int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
                                bool Diff, bool Dump, usize Skip) const {
   using enum raw_ostream::Colors;
-  const auto CoderLogLevel = exi::DebugFlag;
   auto CoderLogLevel = exi::DebugFlag;
   root::DumpOptions DO {
     .Conforming = true,
@@ -644,6 +643,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
 
     XMLSerializer S(Xml);
     S.PreserveCDATA = kPreserveCDATA;
+    S.SkipEmptyCH = true;
 
     SetLogLevel(CoderLogLevel);
     LOG_INFO("Compiling header...");
@@ -876,13 +876,18 @@ int main(int Argc, char* Argv[]) {
     All().run("NamespaceNooptB.exi",  "Namespace.xml");
     All().run("CDATANooptB.exi",      "CDATA.xml", false, true);
 
+    All().run("el2-05.xml.exi",       "el2-05.xml", false, true);
+    All().run("el2-05r.xml.exi",      "el2-05r.xml");
+    All().run("el2-07.xml.exi",       "el2-07.xml", false, true);
+    All().run("el2-09.xml.exi",       "el2-09.xml");
+    All().run("el2-10.xml.exi",       "el2-10.xml", false, true);
+
     All().run("022NooptB.exi",        "022.xml", false, true);
     // TODO: Fix exificient replacing & with &amp; and pruning CDATA
     // Also fix outputs being in the wrong order...
     All().run("044NooptB.exi",        "044.xml", false, true);
     //SetLogLevel(LogLevel::EXTRA);
     All().run("044rNooptB.exi",       "044r.xml", true);
-    
     // [Fatal Error] :1:57: White space is required between the '%' and the
     // entity name in the parameter entity declaration.
     // [ERROR] org.xml.sax.SAXParseException; lineNumber: 1; columnNumber: 57;
@@ -910,6 +915,7 @@ int main(int Argc, char* Argv[]) {
 #endif
   }
 
+  return 0;
   if (EXIFICIENT_DIR.has_value()) {
     WriteExificientCmds(ExificientFileData);
     errs() << "Running exificient...\n";

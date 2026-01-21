@@ -48,10 +48,10 @@ static void ParseRemainingArgs(ArrayRef<char*> Args, ExtraOptions& Out) {
       StrRef ErrCmd = CodeOrErr.error();
       Arg.consume_front(ErrCmd);
       LOG_WARN("Invalid input for '{}': {}", ErrCmd, Arg);
-    } else if (*CodeOrErr && Arg.consume_front("-X")) {
+    } else if (Arg.consume_front("-X")) {
       Arg.consume_pinch("\"");
       Out.FileOut.emplace(Arg.str());
-    } else
+    } else if (!*CodeOrErr)
       LOG_WARN("Invalid argument '{}'", Arg);
   }
 }
@@ -209,6 +209,6 @@ int main(int Argc, char* Argv[]) {
 
   if (auto E = WriteFile(*Opts.FileOut, DecodeBuf.str())) {
     logAllUnhandledErrors(std::move(E), errs());
-    return 3;
+    return 4;
   }
 }

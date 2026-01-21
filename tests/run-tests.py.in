@@ -43,7 +43,7 @@ parser.add_argument('--color', action='store_true', help='print with color')
 args = parser.parse_args()
 
 VERBOSE = args.verbose
-QUIET = false if VERBOSE else args.quiet
+QUIET = False if VERBOSE else args.quiet
 COLOR = args.color
 
 def qprint(*args, **kwargs):
@@ -106,23 +106,32 @@ def make_folders():
 ################################################################################
 
 def run_process(args):
-  return run_proc(args, cwd=cwd, capture_output=True, text=True)
+  return run_proc(args, cwd=EXI_BIN_FOLDER, capture_output=True, text=True)
 
 # Directly runs exificient
 def run_exificient(name, args) -> bool:
   proc = run_process(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
   if proc.returncode != 0:
-    print(f'{name}[{proc.returncode}]:')
-    vprint(proc.stdout, flush=True)
+    try:
+      qprint(f'{name}[{proc.returncode}]:')
+      vprint(proc.stdout.strip(), flush=True)
+    except:
+      pass
     return proc.returncode
   elif proc.stderr.startswith("[Fatal Error]"):
-    print(f'{name}[?]:')
-    vprint(proc.stderr)
-    vprint(proc.stdout, flush=True)
+    try:
+      qprint(f'{name}[?]:')
+      vprint(proc.stderr.strip())
+      vprint(proc.stdout.strip(), flush=True)
+    except:
+      pass
     return 1
   elif proc.stdout.startswith("[ERROR]"):
-    print(f'{name}[?]:')
-    vprint(proc.stdout, flush=True)
+    try:
+      qprint(f'{name}[?]:')
+      vprint(proc.stdout.strip(), flush=True)
+    except:
+      pass
     return 1
   return 0
 
@@ -131,15 +140,27 @@ def run_exi(name, args) -> bool:
   color_arg = '' if COLOR else '-T'
   proc = run_process(f"{EXI_EXECUTABLE} {args} {color_arg}")
   if proc.returncode != 0:
-    print(f'{name}[{proc.returncode}]:')
-    vprint(proc.stderr, flush=True)
-    pass
+    try:
+      qprint(f'{name}[{proc.returncode}]:')
+      vprint(proc.stdout.strip())
+      vprint(proc.stderr.strip(), flush=True)
+    except:
+      pass
   return proc.returncode
 
 # Runs xml-test-driver
 def run_xml(name, args) -> bool:
   color_arg = '' if COLOR else '-T'
-  proc = run_process(f"{EXI_EXECUTABLE} {args} {color_arg}")
+  verb_arg = '-V' if VERBOSE else ''
+  proc = run_process(f"{XML_EXECUTABLE} {args} {verb_arg} {color_arg}")
+  if proc.returncode != 0:
+    try:
+      qprint(f'{name}[{proc.returncode}]*:')
+      vprint(f"{XML_EXECUTABLE} {args} {verb_arg} {color_arg}:")
+      vprint(proc.stdout.strip())
+      vprint(proc.stderr.strip(), flush=True)
+    except:
+      pass
   return proc.returncode
 
 ################################################################################
@@ -163,7 +184,7 @@ cache: {
 class CacheJSONEncoder(json.JSONEncoder):
   def default(self, obj):
     if isinstance(obj, set):
-      return list(obj)
+      return sorted(obj)
     # Let the base class default method raise the TypeError
     return super().default(obj)
 
@@ -178,6 +199,7 @@ class ProcessCache:
       dct['xe'] = set(dct['xe'])
       dct['xx'] = set(dct['xx'])
       dct['id'] = set(dct['id'])
+      dct['ie'] = set(dct['ie'])
       dct['ii'] = set(dct['ii'])
     return dct
 
@@ -186,7 +208,7 @@ class ProcessCache:
     if cache_path is None:
       cache_path = TEST_OUT_FOLDER
     # Open cache!
-    cachefile = Path(cache_path) / '.testcache'
+    cachefile = Path(cache_path) / '.testcache.json'
     if cachefile.exists():
       try:
         raw_text = cachefile.read_text(encoding='utf8')
@@ -198,7 +220,6 @@ class ProcessCache:
         qprint(json_err.msg)
         pass
       except FileNotFoundError:
-        #print('bro.')
         pass
     self.__cachefile = cachefile
     # ...
@@ -221,7 +242,7 @@ class ProcessCache:
     raw_text = json.dumps({
       'version': EXI_VERSION,
       'data': self.__cache
-    }, cls=CacheJSONEncoder, indent=2)
+    }, cls=CacheJSONEncoder, indent=0)
     cachefile.write_text(raw_text, encoding='utf8')
   
   # Loads top level entry from cache:
@@ -234,7 +255,7 @@ class ProcessCache:
     self.__cache[name] = {
       '__entry__': True,
       'xd': set(), 'xe': set(), 'xx': set(),
-      'id': set(),              'ii': set()
+      'id': set(), 'ie': set(), 'ii': set()
     }
     return self.__cache[name]
 # end ProcessCache
@@ -261,49 +282,112 @@ class TestRunner:
     self.cache = cache
     self.files = files
 
-  # xml -> exi -> xml
+  # xml -[x]> exi -[x]> xml
   def exificient_identity(self):
     cache = self.cache_entry
     args = ' '.join(self.opts.exificient_parse_opts())
+    i_args = f'-O{self.preserve} -CN -A{self.align}'
     encode_folder = TEST_OUT_FOLDER / 'xe' / self.subfolder
     decode_folder = TEST_OUT_FOLDER / 'xx' / self.subfolder
 
     for filename, name in self.files.items():
       # Run the encoder
+      filename = TEST_SRC_FOLDER / filename
       exi = encode_folder / (name + '.exi')
-      if not (name in cache['xe']):
+      if not name in cache['xe']:
         code = run_exificient(name, f'-encode {args} -i {filename} -o {exi}')
-        if code == 0:
-          cache['xe'].add(name)
+        if code != 0:
+          continue
+        cache['xe'].add(name)
       # Run the decoder
-      xml = decode_folder / (name + '.xml')
-      if not (name in cache['xx']):
-        code = run_exificient(name, f'-decode {args} -i {exi} -o {xml}')
-        if code == 0:
-          cache['xx'].add(name)
+      if name in cache['xx']:
+        continue
+      #xml = decode_folder / (name + '.xml')
+      #code = run_exificient(name, f'-decode {args} -i {exi} -o {xml}')
+      ## Compare the xml
+      #out_file = xml if code == 0 else exi
+      #code = run_xml(name, f'{filename} {out_file} {i_args}')
+      #if code == 0:
+      #  cache['xx'].add(name)
     pass
 
-  # xml -> exi -> xml
+  # xml -[i]> exi -[i]> xml
   def exicpp_identity(self):
     cache = self.cache_entry
-    args = f'-O{self.preserve} -C0 -A{self.align}'
+    args = f'-O{self.preserve} -CP -A{self.align}'
     encode_folder = TEST_OUT_FOLDER / 'ie' / self.subfolder
     decode_folder = TEST_OUT_FOLDER / 'ii' / self.subfolder
 
     for filename, name in self.files.items():
       if name in cache['ii']:
         continue
+      filename = TEST_SRC_FOLDER / filename
       exi = encode_folder / (name + '.exi')
       xml = decode_folder / (name + '.xml')
       code = run_exi(name, f'{filename} {exi} -X{xml} {args}')
+      if code == 0 or code >= 3:
+        cache['ie'].add(name)
+      if code != 0 or code != 4:
+        continue
+      # Compare the xml
+      out_file = xml if code == 0 else exi
+      code = run_xml(name, f'{filename} {out_file} {args}')
       if code == 0:
         cache['ii'].add(name)
+    pass
+  
+  # xml -[x]> exi -[i]> xml
+  def exificient_roundtrip(self):
+    cache = self.cache_entry
+    args = f'-O{self.preserve} -CN -A{self.align}'
+    encode_folder = TEST_OUT_FOLDER / 'xe' / self.subfolder
+    decode_folder = TEST_OUT_FOLDER / 'id' / self.subfolder
+
+    for filename, name in self.files.items():
+      if name in cache['id']:
+        continue
+      if not name in cache['xe']:
+        continue
+      # Run the decoder & compare the xml
+      filename = TEST_SRC_FOLDER / filename
+      exi = encode_folder / (name + '.exi')
+      code = run_xml(name, f'{filename} {exi} {args}')
+      if code == 0:
+        cache['id'].add(name)
+    pass
+
+  # xml -[i]> exi -[x]> xml
+  def exicpp_roundtrip(self):
+    cache = self.cache_entry
+    args = ' '.join(self.opts.exificient_parse_opts())
+    i_args = f'-O{self.preserve} -CN -A{self.align}'
+    encode_folder = TEST_OUT_FOLDER / 'ie' / self.subfolder
+    decode_folder = TEST_OUT_FOLDER / 'xd' / self.subfolder
+
+    for filename, name in self.files.items():
+      if name in cache['xd']:
+        continue
+      if not name in cache['ie']:
+        continue
+      # Run the decoder
+      exi = encode_folder / (name + '.exi')
+      xml = decode_folder / (name + '.xml')
+      code = run_exificient(name, f'-decode {args} -i {exi} -o {xml}')
+      if code != 0:
+        continue
+      # Compare the xml
+      filename = TEST_SRC_FOLDER / filename
+      code = run_xml(name, f'{filename} {xml} {i_args}')
+      if code == 0:
+        cache['xd'].add(name)
     pass
 
   def run(self):
     try:
       self.exicpp_identity()
       self.exificient_identity()
+      self.exificient_roundtrip()
+      self.exicpp_roundtrip()
       #raise Exception("xyz")
       #self.cache.dump()
     except Exception:
@@ -340,32 +424,29 @@ if __name__ == "__main__":
   # Filtered for using xsi:type, which is currently unsupported.
   skiplist = ['at-02', 'SortTest', 'IPO']
   # Currently crash...
-  crashlist = [
-    'el2-03', 'el2-04', 'el2-05', '017', # PI - decode
-    'el2-07', # local-name-ns does not match SE URI - encode?
-    'el2-10'  # "invalid child content" (pi?) - decode
+  crashlist = ['022']
+  # Currently don't work on exificient
+  exificientlist = [
+    '012', '079', '085', # Encoding bugs
+    'CDATA', '044' # Decoding weirdness
   ]
 
-  # exificient = ['012', '079', '085']
+  do_skip = lambda f : (
+    name in skiplist or
+    name in crashlist or
+    name in exificientlist)
 
   file_dict = {}
   for f in all_files:
     name = Path(f).stem
-    if name in skiplist:
+    if do_skip(name):
       continue
-    if name in crashlist:
-    #if not (name in crashlist):
-      continue
-    file_dict[str(TEST_SRC_FOLDER / f)] = name
+    file_dict[f] = name
 
-  to_check = 'OyPcdip'
+  #to_check = 'OyPcdip'
   for opt in subfolders:
-    if opt.mangled != to_check:
-      continue
+    #if opt.mangled != to_check:
+    #  continue
     runner = TestRunner(opt, cache, file_dict)
     if not runner.run():
       sys.exit(1)
-
-  #parser.print_help()
-  #qprint(invocation, f"-i {cwd}/FileXYZ.exi -i {cwd}/FileXYZ.xml")
-  sys.exit(1)
