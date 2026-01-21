@@ -34,6 +34,7 @@
 #include <exi/Encode/DepthValidator.hpp>
 #include <exi/Encode/DTDParser.hpp>
 #include <exi/Encode/Event.hpp>
+#include <Common/StrRef-inl.hpp>
 //#include <Encode/ChannelEncoder-inl.hpp>
 #include <Encode/OrderedEncoder-inl.hpp>
 
@@ -376,6 +377,13 @@ private:
         return handleCDATA(*N);
       [[fallthrough]];
     case NodeKind::node_data:
+      //if (Opts.SkipEmptyCH) {
+      //  static constexpr auto Filter
+      //    = StrRef::filter_t::FromChars(" \t\r\n");
+      //  StrRef Val = N->value().ltrim(Filter);
+      //  if (Val.empty())
+      //    return ExiError::OK;
+      //}
       return BE.Characters(N->value());
     case NodeKind::node_comment:
       return handleCM(*N);

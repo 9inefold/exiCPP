@@ -31,6 +31,7 @@
 #include <exi/Basic/XMLManager.hpp>
 #include <exi/Basic/XMLContainer.hpp>
 #include <exi/Encode/DTDParser.hpp>
+#include <Common/StrRef-inl.hpp>
 #include <algorithm>
 #include <rapidxml.hpp>
 #include <dtl/dtl.hpp>
@@ -115,7 +116,7 @@ public:
   /// Returns if the node type has data.
   static bool HasName(NodeT Node);
   /// Returns if the node type has children.
-  static bool HasChildren(NodeT Node);
+  bool HasChildren(NodeT Node);
   /// Returns if the node type has attributes.
   static bool HasAttributes(NodeT Node);
 
@@ -219,7 +220,23 @@ bool XMLDumper::HasData(NodeT Node) {
 }
 
 bool XMLDumper::HasChildren(NodeT Node) {
-  return Node ? !!Node->first_node() : false;
+  constexpr StrRef::filter_t Filter
+    = StrRef::filter_t::FromChars(" \n\r\v\f");
+  if (!Node)
+    return false;
+  Node = Node->first_node();
+  if (PreserveCDATA == CDATA_PRESERVE)
+    return !!Node;
+  while (Node) {
+    using enum NodeKind;
+    NodeKind K = Node->type();
+    if (MMatch(K).isnt(node_data, node_cdata))
+      return true;
+    if (!Node->value().trim(Filter).empty())
+      return true;
+    Node = Node->next_sibling();
+  }
+  return false;
 }
 
 bool XMLDumper::HasAttributes(NodeT Node) {

@@ -171,8 +171,8 @@ raw_ostream &exi::printHTMLEscaped(StrRef String, raw_ostream &Out) {
       Out << "&lt;";
     else if (C == '>')
       Out << "&gt;";
-    else if (C == '\"')
-      Out << "&quot;";
+    //else if (C == '\"')
+    //  Out << "&quot;";
     else if (C == '\'')
       Out << "&apos;";
     else
