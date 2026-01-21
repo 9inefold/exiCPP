@@ -110,8 +110,15 @@ public:
 
   /// Characters
   ExiError CH(StrRef Value) override {
+    usize From = 0;
+    if (SkipEmptyCH) {
+      // Save result.
+      From = Value.find_first_not_of(" \t\r\n");
+      if (From == StrRef::npos)
+        return ExiError::OK;
+    }
     if (PreserveCDATA == CDATA_PRESERVE) {
-      if (auto I = Value.find("<![CDATA["); I != StrRef::npos)
+      if (auto I = Value.find("<![CDATA[", From); I != StrRef::npos)
         return this->CH_CDATA(Value, I);
     }
     // No CDATA found.

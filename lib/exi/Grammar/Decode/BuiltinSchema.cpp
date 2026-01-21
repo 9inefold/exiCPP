@@ -105,7 +105,8 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final
   using Get = Schema::Get<ExiDecoder, StrmT>;
   using BaseT = TrailingArray<OrderedBuiltinSchema, EventTerm>;
   using MatchT = MMatch<EventTerm, EventTerm>;
-  using GrammarT = PointerIntPair<decode::BuiltinGrammar*, 1, bool>;
+  using GrammarT = decode::BuiltinGrammar*;
+  //using GrammarT = PointerIntPair<decode::BuiltinGrammar*, 1, bool>;
 
   /// Contains info on the compressed grammars.
   BIInfoArray Info;
@@ -115,7 +116,7 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final
   BIGrammarState Current = Document;
   /// The grammar stack.
   /// TODO: Profile...
-  Vec<GrammarT> GStack;
+  SmallVec<BuiltinGrammar*, 0> GStack;
   /// The generated grammars.
   DenseMap<SmallQName, BuiltinGrammar*> Grammars;
 
@@ -207,8 +208,10 @@ private:
   inline GrammarTerm getGrammarTerm(ExiDecoder* D) {
     exi_invariant(!GStack.empty());
     GrammarT G = GStack.back();
+    exi_invariant(Current == StartTagContent
+               || Current == ElementContent);
     return G->getTerm<StrmT>(
-      Get::Reader(D), G.getInt());
+      Get::Reader(D), Current != ElementContent);
   }
 
   EventUID decodeTermGrammar(ExiDecoder* D) {
@@ -220,8 +223,7 @@ private:
     }
 
     auto* Strm = Get::Reader(D);
-    [[maybe_unused]] const MatchT M
-      = this->decodeTerm(Strm, 1, Ret.error());
+    (void) this->decodeTerm(Strm, 1, Ret.error());
     return this->Event;
   }
 
@@ -379,6 +381,8 @@ private:
     case ER:
     case CM:
     case PI:
+      //if constexpr (IsStart)
+      //  GStack.back().setInt(false);
       this->pushGrammar(ElementContent);
       return NewTerm(Term);
     default:
@@ -412,7 +416,8 @@ private:
     this->pushGrammar(StartTagContent);
 
     Event.setTerm(IsCached ? SEQName : SE);
-    GStack.emplace_back(G, /*IsStart=*/true);
+    //GStack.emplace_back(G, /*IsStart=*/true);
+    GStack.push_back(G);
     return Event;
   }
 
@@ -427,7 +432,7 @@ private:
 
     if EXI_LIKELY(!GStack.empty()) {
       this->pushGrammar(ElementContent);
-      GStack.back().setInt(false);
+      //GStack.back().setInt(false);
     } else
       this->pushGrammar(DocEnd);
     
@@ -493,7 +498,7 @@ private:
     }
     
     this->pushGrammar(ElementContent);
-    GStack.back().setInt(false);
+    //GStack.back().setInt(false);
 
     Event.setTerm(Cached ? CHExtern : CH);
     return Event;

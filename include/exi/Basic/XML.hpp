@@ -76,6 +76,8 @@ struct XMLCoderOptions {
 
   /// If CDATA blocks should be preserved.
   PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
+  /// Skip empty CH events
+  bool SkipEmptyCH = false;
 };
 
 /// Classifies paths by their extension.

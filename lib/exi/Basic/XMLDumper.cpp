@@ -666,10 +666,12 @@ void XMLDumper::printPIData(StrRef Name, StrRef Data) {
   raw_svector_ostream OS(Storage);
 
   OS << "<?" << Name;
-  SmallVec<StrRef, 2> PIVec;
-  Data.split(PIVec, ' ', -1, false);
-  for (StrRef PI : PIVec)
-    OS << ' ' << PI;
+  if (!Data.empty()) {
+    SmallVec<StrRef, 2> PIVec;
+    Data.split(PIVec, ' ', -1, false);
+    for (StrRef PI : PIVec)
+      OS << ' ' << PI;
+  }
   OS << "?>";
 
   WithColor(this->OS, COLOR_dtname) << Storage.str();
@@ -814,11 +816,12 @@ void XMLDumper::printNode_doctype(NodeT Node) {
 }
 
 void XMLDumper::printNode_pi(NodeT Node) {
-  if (expectName(Node, "no-PI-target"))
+  if (expectName(Node, "no-pi-target")) {
+    if (!Node->value().empty())
+      OS << '*';
+    OS << '\n';
     return;
-  if (expectData(Node, "no-PI-directives"))
-    return;
-  
+  }
   printPIData(Node->name(), Node->value());
   OS << '\n';
 }
