@@ -526,6 +526,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
                                bool Diff, bool Dump, usize Skip) const {
   using enum raw_ostream::Colors;
   const auto CoderLogLevel = exi::DebugFlag;
+  auto CoderLogLevel = exi::DebugFlag;
   root::DumpOptions DO {
     .Conforming = true,
     .PreserveDeclaration = false,
@@ -592,6 +593,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     ExiDecoder& Decoder = EDecoder.emplace(Opts);
     XMLDeserializer& S = ExiS.emplace();
     S.PreserveCDATA = XMLCoderOptions::CDATA_ESCAPE;
+    S.SkipEmptyCH = true;
 
     SetLogLevel(CoderLogLevel);
     if (int Ret = Decode(Decoder, MB, &S)) {
@@ -683,6 +685,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     ExiDecoder Decoder(Opts);
     XMLDeserializer S;
     S.PreserveCDATA = kPreserveCDATA;
+    S.SkipEmptyCH = true;
 
     SetLogLevel(CoderLogLevel);
     if (int Ret = Decode(Decoder, MB->getMemBufferRef(), &S)) {
