@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------===//
 //
-// Copyright (C) 2024-2025 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Relicensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@
 // Revision $DateTime: 2009/05/13 01:46:17 $
 /// \file rapidxml.hpp This file contains xml parser and DOM implementation
 
+#include <Common/ConstexprLists.hpp>
 #include <Common/Fundamental.hpp>
 #include <Common/MaybeBox.hpp>
 #include <Common/Option.hpp>
@@ -276,6 +277,11 @@ constexpr int parse_normalize_whitespace = 0x800;
 /// use of | operator. <br><br> See XMLDocument::parse() function.
 constexpr int parse_normalize_newlines = 0x1000;
 
+/// Parse flag instructing the parser to ignore all CDATA sections. By default,
+/// they are placed in their own unique nodes. If this flag is specified, they
+/// will be combined with data nodes.
+constexpr int parse_merge_cdata = 0x2000;
+
 // Compound flags
 
 /// Parse flags which represent default behaviour of the parser.
@@ -323,7 +329,7 @@ namespace internal {
 template <int Dummy> struct LookupTables {
   static const u8 whitespace[256];            // Whitespace table
   static const u8 node_name[256];             // Node name table
-  static const u8 Text[256];                  // Text table
+  static const u8 text[256];                  // Text table
   static const u8 text_pure_no_ws[256];       // Text table
   static const u8 text_pure_with_ws[256];     // Text table
   static const u8 attribute_name[256];        // Attribute name table
@@ -985,7 +991,7 @@ public:
   /// Constructs an empty node with the specified type.
   /// Consider using MemoryPool of appropriate document to allocate nodes
   /// manually. \param type Type of node to construct.
-  XMLNode(NodeKind type) : m_first_node(0), m_first_attribute(0), m_type(type) {}
+  constexpr XMLNode(NodeKind type) : m_first_node(0), m_first_attribute(0), m_type(type) {}
 
   ///////////////////////////////////////////////////////////////////////////
   // Node data access
@@ -1403,7 +1409,7 @@ private:
   // otherwise they contain garbage
 
   NodeType* m_first_node; // Pointer to first child node, or 0 if none; always valid
-  NodeType* m_last_node;  // Pointer to last child node, or 0 if none; this value is only valid if m_first_node is non-zero
+  NodeType* m_last_node = 0;  // Pointer to last child node, or 0 if none; this value is only valid if m_first_node is non-zero
   AttrType* m_first_attribute; // Pointer to first attribute of node, or 0 if none; always valid
   AttrType* m_last_attribute; // Pointer to last attribute of node, or 0 if none; this value is only valid if m_first_attribute is non-zero
   NodeType* m_prev_sibling; // Pointer to previous sibling of node, or 0 if none; this value is only valid if m_parent is non-zero
@@ -1507,7 +1513,7 @@ private:
   // Detect Text character (PCDATA)
   struct text_pred {
     static u8 test(Ch ch) {
-      return internal::LookupTables<0>::Text[u8(ch)];
+      return internal::LookupTables<0>::text[u8(ch)];
     }
   };
 
@@ -1546,6 +1552,17 @@ private:
       exi_unreachable("Invalid attribute_value_pure_pred");
     }
   };
+
+  template <usize Off, char...CC>
+  ALWAYS_INLINE EXI_FLATTEN static bool check(Ch*& Text) {
+    return [] <usize...II> (Ch*& Text, exi::idxseq<II...>) -> bool {
+      return (... && (Text[Off + II] == Ch(CC)));
+    } (Text, exi::make_idxseq<sizeof...(CC)>{});
+  }
+  template <char...CC>
+  ALWAYS_INLINE static bool check2(Ch*& Text) {
+    return check<2, CC...>(Text);
+  }
 
   // Insert coded character, using UTF8 or 8-bit ASCII
   template <int Flags> static void insert_coded_character(Ch*& Text, unsigned long Code) {
@@ -1600,30 +1617,27 @@ private:
     Text = tmp;
   }
 
+  /// Assumes you checked `check<0,'<','!','['>(Text)`.
+  template <usize Off = 2>
+  ALWAYS_INLINE static bool is_cdata_start(Ch* Text) {
+    return check<Off, 'C','D','A','T','A','['>(Text);
+  }
+
+  ALWAYS_INLINE static void skip_cdata_content(Ch*& Text) {
+    while (Text[0] != Ch(']') || Text[1] != Ch(']') || Text[2] != Ch('>')) {
+      if (!Text[0])
+        RAPIDXML_PARSE_ERROR("unexpected end of data", Text);
+      ++Text;
+    }
+  }
+
   // Skip characters until predicate evaluates to true while doing the
   // following:
   // - replacing XML character entity references with proper characters (&apos;
   // &amp; &quot; &lt; &gt; &#...;)
   // - condensing whitespace sequences to single space character
-  template <class StopPred, class StopPredPure, int Flags>
-  static Ch* skip_and_expand_character_refs(Ch*& Text) {
-    // If entity translation, whitespace condense and whitespace trimming is
-    // disabled, use plain skip
-    if constexpr (
-           Flags & parse_no_entity_translation
-      && !(Flags & parse_normalize_whitespace)
-      && !(Flags & parse_trim_whitespace))
-    {
-      skip<StopPred, Flags>(Text);
-      return Text;
-    }
-
-    // Use simple skip until first modification is detected
-    skip<StopPredPure, Flags>(Text);
-
-    // Use translation skip
-    Ch* src = Text;
-    Ch* dest = src;
+  template <class StopPred, int Flags>
+  ALWAYS_INLINE static void skip_and_expand_character_refs_loop(Ch*& src, Ch*& dest) {
     while (StopPred::test(*src)) {
       // If entity translation is enabled
       if constexpr (!(Flags & parse_no_entity_translation)) {
@@ -1633,13 +1647,13 @@ private:
 
           // &amp; &apos;
           case Ch('a'):
-            if (src[2] == Ch('m') && src[3] == Ch('p') && src[4] == Ch(';')) {
+            if (check2<'m','p',';'>(src)) {
               *dest = Ch('&');
               ++dest;
               src += 5;
               continue;
             }
-            if (src[2] == Ch('p') && src[3] == Ch('o') && src[4] == Ch('s') && src[5] == Ch(';')) {
+            if (check2<'p','o','s',';'>(src)) {
               *dest = Ch('\'');
               ++dest;
               src += 6;
@@ -1649,7 +1663,7 @@ private:
 
           // &quot;
           case Ch('q'):
-            if (src[2] == Ch('u') && src[3] == Ch('o') && src[4] == Ch('t') && src[5] == Ch(';')) {
+            if (check2<'u','o','t',';'>(src)) {
               *dest = Ch('"');
               ++dest;
               src += 6;
@@ -1737,10 +1751,70 @@ private:
       // No replacement, only copy character
       *dest++ = *src++;
     }
+  }
 
-    // Return new end
-    Text = src;
-    return dest;
+  // Skip characters until predicate evaluates to true while doing the
+  // following:
+  // - replacing XML character entity references with proper characters (&apos;
+  // &amp; &quot; &lt; &gt; &#...;)
+  // - condensing whitespace sequences to single space character
+  template <class StopPred, class StopPredPure, int Flags>
+  static Ch* skip_and_expand_character_refs(Ch*& Text) {
+    // If entity translation, whitespace condense and whitespace trimming is
+    // disabled, use plain skip
+    if constexpr (
+           Flags & parse_no_entity_translation
+      && !(Flags & parse_normalize_whitespace)
+      && !(Flags & parse_trim_whitespace))
+    {
+      skip<StopPred, Flags>(Text);
+      return Text;
+    } else {
+      // Use simple skip until first modification is detected
+      skip<StopPredPure, Flags>(Text);
+
+      // Use translation skip
+      Ch* src = Text;
+      Ch* dest = src;
+      skip_and_expand_character_refs_loop<StopPred, Flags>(src, dest);
+
+      // Return new end
+      Text = src;
+      return dest;
+    }
+  }
+
+  // Skip characters until predicate evaluates to true while doing the
+  // following:
+  // - replacing XML character entity references with proper characters (&apos;
+  // &amp; &quot; &lt; &gt; &#...;)
+  // - condensing whitespace sequences to single space character
+  template <class StopPred, class StopPredPure, int Flags>
+  static void skip_and_expand_character_refs(Ch*& Text, Ch*& end) {
+    // If entity translation, whitespace condense and whitespace trimming is
+    // disabled, use plain skip
+    if constexpr (
+           Flags & parse_no_entity_translation
+      && !(Flags & parse_normalize_whitespace)
+      && !(Flags & parse_trim_whitespace)
+      && !(Flags & parse_merge_cdata))
+    {
+      skip<StopPred, Flags>(Text);
+      end = Text;
+      return;
+    } else {
+      // Use simple skip until first modification is detected
+      skip<StopPredPure, Flags>(Text);
+
+      // Use translation skip
+      Ch* src = Text;
+      Ch* dest = end;
+      skip_and_expand_character_refs_loop<StopPred, Flags>(src, dest);
+
+      // Set new end
+      Text = src;
+      end = dest;
+    }
   }
 
   ///////////////////////////////////////////////////////////////////////
@@ -1931,16 +2005,53 @@ private:
   // terminating 0
   template <int Flags>
   Ch parse_and_append_data(NodeType* node, Ch*& Text, Ch* contents_start) {
+    constexpr bool should_loop_checking_cdata = bool(Flags & parse_merge_cdata);
     // Backup to contents start if whitespace trimming is disabled
     if (!(Flags & parse_trim_whitespace))
       Text = contents_start;
 
     // Skip until end of data
-    Ch *value = Text, *end;
-    if (Flags & parse_normalize_whitespace)
-      end = skip_and_expand_character_refs<text_pred, text_pure_with_ws_pred, Flags>(Text);
+    Ch* const value = Text;
+    Ch* end = Text;
+
+   do {
+    if constexpr (Flags & parse_normalize_whitespace)
+      //end = skip_and_expand_character_refs<text_pred, text_pure_with_ws_pred, Flags>(Text);
+      skip_and_expand_character_refs<text_pred, text_pure_with_ws_pred, Flags>(Text, end);
     else
-      end = skip_and_expand_character_refs<text_pred, text_pure_no_ws_pred, Flags>(Text);
+      //end = skip_and_expand_character_refs<text_pred, text_pure_no_ws_pred, Flags>(Text);
+      skip_and_expand_character_refs<text_pred, text_pure_no_ws_pred, Flags>(Text, end);
+
+    if constexpr (Flags & parse_merge_cdata) {
+      if (!(check<0, '<','!','['>(Text) &&
+            is_cdata_start<3>(Text))) {
+        // Exit early, this isn't a CDATA node.
+        break;
+      }
+      // '<![CDATA[' - cdata
+      Ch* const cdata_begin = Text;
+      Text += 9; // Skip '<![CDATA['
+      skip_cdata_content(Text);
+      Text += 3; // Skip ']]>'
+
+      //  xml&quot;  <![CDATA[]]> xml<hello>
+      //  xml"  ot;  <![CDATA[]]> xml<hello>
+      //  [     ]    ^
+      //  [     ]                ^
+      //  xml"  <![CDATA[]]>A[]]> xml<hello>
+      //  [                 ]    ^
+
+      const usize cdata_size = (Text - cdata_begin);
+      if (cdata_begin != end)
+        // We only have to copy if the data has been modified.
+        std::memmove(end, cdata_begin, cdata_size * sizeof(Ch));
+      end += cdata_size;
+
+      if EXI_UNLIKELY(Text[0] == '\0')
+        break;
+    }
+    // Only loops if we have to merge CDATA sections.
+   } while (should_loop_checking_cdata);
 
     // Trim trailing whitespace if flag is set; leading was already trimmed by
     // whitespace skip after >
@@ -1985,24 +2096,15 @@ private:
   // Parse CDATA
   template <int Flags> NodeType* parse_cdata(Ch*& Text) {
     // If CDATA is disabled
-    if (Flags & parse_no_data_nodes) {
-      // Skip until end of cdata
-      while (Text[0] != Ch(']') || Text[1] != Ch(']') || Text[2] != Ch('>')) {
-        if (!Text[0])
-          RAPIDXML_PARSE_ERROR("unexpected end of data", Text);
-        ++Text;
-      }
+    if constexpr (Flags & parse_no_data_nodes) {
+      skip_cdata_content(Text);
       Text += 3; // Skip ]]>
       return 0;  // Do not produce CDATA node
     }
 
     // Skip until end of cdata
     Ch* value = Text;
-    while (Text[0] != Ch(']') || Text[1] != Ch(']') || Text[2] != Ch('>')) {
-      if (!Text[0])
-        RAPIDXML_PARSE_ERROR("unexpected end of data", Text);
-      ++Text;
-    }
+    skip_cdata_content(Text);
 
     // Create new cdata node
     NodeType* cdata = this->allocate_node(node_cdata);
@@ -2062,7 +2164,7 @@ private:
     // <...
     default:
       // Parse and append element node
-      return parse_element<Flags>(Text);
+      tail_return parse_element<Flags>(Text);
 
     // <?...
     case Ch('?'):
@@ -2072,10 +2174,10 @@ private:
           (Text[2] == Ch('l') || Text[2] == Ch('L')) && whitespace_pred::test(Text[3])) {
         // '<?xml ' - xml declaration
         Text += 4; // Skip 'xml '
-        return parse_xml_declaration<Flags>(Text);
+        tail_return parse_xml_declaration<Flags>(Text);
       } else {
         // Parse PI
-        return parse_pi<Flags>(Text);
+        tail_return parse_pi<Flags>(Text);
       }
 
     // <!...
@@ -2089,17 +2191,16 @@ private:
         if (Text[2] == Ch('-')) {
           // '<!--' - xml comment
           Text += 3; // Skip '!--'
-          return parse_comment<Flags>(Text);
+          tail_return parse_comment<Flags>(Text);
         }
         break;
 
       // <![
       case Ch('['):
-        if (Text[2] == Ch('C') && Text[3] == Ch('D') && Text[4] == Ch('A') &&
-            Text[5] == Ch('T') && Text[6] == Ch('A') && Text[7] == Ch('[')) {
+        if (is_cdata_start<2>(Text)) {
           // '<![CDATA[' - cdata
           Text += 8; // Skip '![CDATA['
-          return parse_cdata<Flags>(Text);
+          tail_return parse_cdata<Flags>(Text);
         }
         break;
 
@@ -2109,7 +2210,7 @@ private:
             Text[6] == Ch('P') && Text[7] == Ch('E') && whitespace_pred::test(Text[8])) {
           // '<!DOCTYPE ' - doctype
           Text += 9; // skip '!DOCTYPE '
-          return parse_doctype<Flags>(Text);
+          tail_return parse_doctype<Flags>(Text);
         }
 
       } // switch
@@ -2149,7 +2250,7 @@ private:
         if (Text[1] == Ch('/')) {
           // Node closing
           Text += 2; // Skip '</'
-          if (Flags & parse_validate_closing_tags) {
+          if constexpr (Flags & parse_validate_closing_tags) {
             // Skip and validate closing tag name
             Ch* closing_name = Text;
             skip<node_name_pred, Flags>(Text);
@@ -2168,6 +2269,21 @@ private:
           return; // Node closed, finished parsing contents
         } else {
           // Child node
+          if constexpr (Flags & parse_merge_cdata) {
+            // Check for CDATA to skip
+            if (Text[1] == Ch('!') && Text[2] == Ch('[') &&
+                is_cdata_start<3>(Text)) {
+              // '<![CDATA[' - cdata
+              // Only skip if this flag is on, otherwise all our work is discarded.
+              if constexpr (Flags & parse_trim_whitespace) {
+                Text += 9; // Skip '<![CDATA['
+                skip_cdata_content(Text);
+                Text += 3; // Skip ]]>
+              }
+              next_char = parse_and_append_data<Flags>(node, Text, contents_start);
+              goto after_data_node; // Bypass regular processing after data nodes
+            }
+          }
           ++Text; // Skip '<'
           if (NodeType* child = parse_node<Flags>(Text))
             node->append_node(child);
@@ -2300,7 +2416,7 @@ namespace internal {
 
   // Text (i.e. PCDATA) (anything but < \0)
   template <int Dummy>
-  inline constexpr u8 LookupTables<Dummy>::Text[256] = {
+  inline constexpr u8 LookupTables<Dummy>::text[256] = {
   // 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
      0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  // 0
      1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  // 1
