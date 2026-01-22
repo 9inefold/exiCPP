@@ -205,6 +205,7 @@ class CacheJSONEncoder(json.JSONEncoder):
 
 class ProcessCache:
   # self.__cache: dict[mode, dict[key, set[str]]]
+  # self.__files: set[str]
   # self.__cachefile: Path
 
   @staticmethod
@@ -220,7 +221,8 @@ class ProcessCache:
 
   def __init__(self, cache_path=None):
     self.__cache = {}
-    if cache_path is None:
+    self.__files = set([])
+    if cache_path is None or cache_path == '-':
       cache_path = TEST_OUT_FOLDER
     # Open cache!
     cachefile = Path(cache_path) / '.testcache.json'
@@ -231,6 +233,8 @@ class ProcessCache:
           object_hook=ProcessCache.as_entry)
         if cache_data['version'] == EXI_VERSION:
           self.__cache = cache_data['data']
+          if cache_data['files']:
+            self.__files.update(cache_data['files'])
       except json.JSONDecodeError as json_err:
         qprint(json_err.msg)
         pass
@@ -245,10 +249,8 @@ class ProcessCache:
   
   # Prints cache data
   def dump(self):
-    raw_text = json.dumps({
-      'version': EXI_VERSION,
-      'data': self.__cache
-    }, cls=CacheJSONEncoder, indent=2)
+    raw_text = json.dumps(self.__cache,
+      cls=CacheJSONEncoder, indent=2)
     qprint(raw_text)
 
   # Saves cache to file
@@ -256,6 +258,7 @@ class ProcessCache:
     cachefile = self.__cachefile
     raw_text = json.dumps({
       'version': EXI_VERSION,
+      'files': self.__files,
       'data': self.__cache
     }, cls=CacheJSONEncoder, indent=0)
     cachefile.write_text(raw_text, encoding='utf8')
