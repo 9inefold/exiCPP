@@ -1,0 +1,15 @@
+<doc>
+  Testing,
+  testing,
+  1, 2, 3!
+  <data>
+    Testing,
+  testing,
+    1, 2, 3!
+  </data>
+  <data><a>
+    Testing,
+  testing,</a><a>
+    1, 2, 3!</a>
+  </data>
+</doc>

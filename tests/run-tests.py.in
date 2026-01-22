@@ -40,6 +40,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-q', '--quiet', action='store_true', help='silence output')
 parser.add_argument('--verbose', action='store_true', help='verbose output')
 parser.add_argument('--color', action='store_true', help='print with color')
+parser.add_argument('--restrict', action='extend', nargs='*', type=str, default=[],
+                                  help='restrict to specific encodings')
 args = parser.parse_args()
 
 VERBOSE = args.verbose
@@ -84,16 +86,25 @@ class ParseOpt:
       out.append('-bytePacked')
     return out
 
-def gen_subfolders() -> list[ParseOpt]:
+def gen_subfolders() -> tuple [list[ParseOpt], list[str]]:
   out = []
+  names = []
   for p in ParseOpt.PRESERVE_OPTS:
     for a in ParseOpt.ALIGN_OPTS:
-      out.append(ParseOpt(p, a))
-  return out
+      opt = ParseOpt(p, a)
+      out.append(opt)
+      names.append(opt.mangled)
+  return out, names
 
 FOLDER_NAMES = ['xd', 'xe', 'xx', 'id', 'ie', 'ii']
 # Maps mangled name to (preserve, align)
-subfolders = gen_subfolders()
+subfolders, subfolder_names = gen_subfolders()
+
+RESTRICTIONS = []
+if len(args.restrict):
+  RESTRICTIONS = [r for r in args.restrict if r in subfolder_names]
+else:
+  RESTRICTIONS = subfolder_names
 
 # Generates all the required folders so we don't run into issues later
 def make_folders():
@@ -114,6 +125,7 @@ def run_exificient(name, args) -> bool:
   if proc.returncode != 0:
     try:
       qprint(f'{name}[{proc.returncode}]:')
+      vprint(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
       vprint(proc.stdout.strip(), flush=True)
     except:
       pass
@@ -121,6 +133,7 @@ def run_exificient(name, args) -> bool:
   elif proc.stderr.startswith("[Fatal Error]"):
     try:
       qprint(f'{name}[?]:')
+      vprint(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
       vprint(proc.stderr.strip())
       vprint(proc.stdout.strip(), flush=True)
     except:
@@ -129,6 +142,7 @@ def run_exificient(name, args) -> bool:
   elif proc.stdout.startswith("[ERROR]"):
     try:
       qprint(f'{name}[?]:')
+      vprint(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
       vprint(proc.stdout.strip(), flush=True)
     except:
       pass
@@ -142,6 +156,7 @@ def run_exi(name, args) -> bool:
   if proc.returncode != 0:
     try:
       qprint(f'{name}[{proc.returncode}]:')
+      vprint(f"{EXI_EXECUTABLE} {args}:")
       vprint(proc.stdout.strip())
       vprint(proc.stderr.strip(), flush=True)
     except:
@@ -156,7 +171,7 @@ def run_xml(name, args) -> bool:
   if proc.returncode != 0:
     try:
       qprint(f'{name}[{proc.returncode}]*:')
-      vprint(f"{XML_EXECUTABLE} {args} {verb_arg} {color_arg}:")
+      vprint(f"{XML_EXECUTABLE} {args}:")
       vprint(proc.stdout.strip())
       vprint(proc.stderr.strip(), flush=True)
     except:
@@ -302,8 +317,8 @@ class TestRunner:
       # Run the decoder
       if name in cache['xx']:
         continue
-      #xml = decode_folder / (name + '.xml')
-      #code = run_exificient(name, f'-decode {args} -i {exi} -o {xml}')
+      xml = decode_folder / (name + '.xml')
+      code = run_exificient(name, f'-decode {args} -i {exi} -o {xml}')
       ## Compare the xml
       #out_file = xml if code == 0 else exi
       #code = run_xml(name, f'{filename} {out_file} {i_args}')
@@ -417,6 +432,7 @@ if __name__ == "__main__":
     'xml\\116.xml',
   ]
   """
+  #all_files = ['me\\Newlines.xml', 'me\\Newlines2.xml']
 
   make_folders()
   cache = ProcessCache()
@@ -428,7 +444,8 @@ if __name__ == "__main__":
   # Currently don't work on exificient
   exificientlist = [
     '012', '079', '085', # Encoding bugs
-    'CDATA', '044' # Decoding weirdness
+    'CDATA', '044', # Decoding weirdness
+    'Newlines', 'Newlines2' # Index 0 out of bounds for length 0class javax.xml.transform.TransformerException
   ]
 
   do_skip = lambda f : (
@@ -445,8 +462,8 @@ if __name__ == "__main__":
 
   #to_check = 'OyPcdip'
   for opt in subfolders:
-    #if opt.mangled != to_check:
-    #  continue
+    if not opt.mangled in RESTRICTIONS:
+      continue
     runner = TestRunner(opt, cache, file_dict)
     if not runner.run():
       sys.exit(1)
