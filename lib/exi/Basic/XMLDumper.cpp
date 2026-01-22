@@ -1055,6 +1055,9 @@ static void printHeadRaw(RAW_ARGS) {
   }
 }
 
+#undef RAW_ARGS
+#undef RAW_NEXT
+
 void XMLDump::raw(XMLDocument& Doc, const XMLDumpOptions& Opts) {
   const bool OSProvided = Opts.OS.has_value();
   
@@ -1074,8 +1077,22 @@ void XMLDump::raw(XMLDocument& Doc, const XMLDumpOptions& Opts) {
     outs().flush();
 }
 
-#undef RAW_ARGS
-#undef RAW_NEXT
+/// Dump XML from the file `Filepath`.
+void XMLDump::raw(XMLManager& Mgr,
+                  const Twine& Filepath,
+                  const XMLDumpOptions& Opts) {
+  SmallStr<80> Storage;
+  StrRef Name = Filepath.toStrRef(Storage);
+
+  if (auto Doc = TryLoad(Mgr, Name)) {
+    //if (!Opts.OS)
+    //  outs() << "'" << Name << "':\n";
+    XMLDump::raw(*Doc, Opts);
+  } else {
+    HandleErr(Mgr, Name, errs());
+    errs() << '\n';
+  }
+}
 
 //////////////////////////////////////////////////////////////////////////
 // full
