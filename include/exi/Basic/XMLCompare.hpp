@@ -1,6 +1,6 @@
 //===- exi/Basic/XMLCompare.hpp -------------------------------------===//
 //
-// Copyright (C) 2025 Ninefold
+// Copyright (C) 2025-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,13 +37,13 @@ template <typename T> class SmallVecImpl;
 
 /// Options used by the XML comparer.
 struct XMLCompareOptions {
-  using enum XMLCoderOptions::PreserveCDATAKind;
+  using enum PreserveCDATAKind;
   /// The stream to write to. Defaults to `nulls()`.
   Option<raw_ostream&> OS = std::nullopt;
   /// If comments, DOCTYPES, and Processing Instructions should be kept.
   Option<ExiOptions::PreserveOpts> Preserve = std::nullopt;
   /// If CDATA blocks should be kept untouched or escaped.
-  XMLCoderOptions::PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
+  PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
   /// Enables certain features for exificient compatibility.
   bool ExificientCompatibility = false;
 };

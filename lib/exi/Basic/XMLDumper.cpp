@@ -40,8 +40,6 @@
 
 using namespace exi;
 
-using PreserveCDATAKind = XMLCoderOptions::PreserveCDATAKind;
-
 static constexpr auto kWSFilter = StrRef::filter_t::FromChars(" \t\n\r\v\f");
 static constexpr auto kNLFilter = StrRef::filter_t::FromChars("\n\r\v\f");
 

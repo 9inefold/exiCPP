@@ -34,8 +34,7 @@ using namespace exi;
 
 namespace driver {
 
-using PreserveCDATAKind = XMLCoderOptions::PreserveCDATAKind;
-using enum XMLCoderOptions::PreserveCDATAKind;
+using enum PreserveCDATAKind;
 
 struct ExtraOptions {
   ExiOptions::PreserveOpts Preserve { .Prefixes = true };

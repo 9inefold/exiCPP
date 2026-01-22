@@ -520,7 +520,8 @@ static void AddExificientCmdOpts(raw_ostream& OS, const ExiOptions& Opts) {
   }
 }
 
-static constexpr auto kPreserveCDATA = XMLCoderOptions::CDATA_NONE;
+static constexpr auto kPreserveCDATA = PreserveCDATAKind::CDATA_NONE;
+//static constexpr auto kPreserveCDATA = PreserveCDATAKind::CDATA_PRESERVE;
 
 int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
                                bool Diff, bool Dump, usize Skip) const {
@@ -591,8 +592,9 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     SetLogLevel(LogLevel::WARN);
     ExiDecoder& Decoder = EDecoder.emplace(Opts);
     XMLDeserializer& S = ExiS.emplace();
-    S.PreserveCDATA = XMLCoderOptions::CDATA_ESCAPE;
-    S.SkipEmptyCH = true;
+    //S.PreserveCDATA = PreserveCDATAKind::CDATA_ESCAPE;
+    S.PreserveCDATA = PreserveCDATAKind::CDATA_NONE;
+    //S.SkipEmptyCH = true;
 
     SetLogLevel(CoderLogLevel);
     if (int Ret = Decode(Decoder, MB, &S)) {
@@ -643,7 +645,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
 
     XMLSerializer S(Xml);
     S.PreserveCDATA = kPreserveCDATA;
-    S.SkipEmptyCH = true;
+    //S.SkipEmptyCH = true;
 
     SetLogLevel(CoderLogLevel);
     LOG_INFO("Compiling header...");
@@ -705,6 +707,12 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
         raw_svector_ostream OS(V);
         return compareXML(Xml, Other, OS);
       };
+      auto Dump = [&DO] (XMLDocument& Doc) {
+        WithColor OS(errs(), BRIGHT_WHITE);
+        //XMLDump::full(Doc, DO);
+        XMLDump::raw(Doc, DO);
+        //XMLDump::info_tree(Doc, DO);
+      };
 
       SmallStr<0> DErr, EErr;
       bool DOk = !ExiS || CompareXml(&ExiS->document(), DErr);
@@ -712,17 +720,17 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
 
       if (Xml) {
         WithColor(errs(), MAGENTA) << "Original:\n";
-        XMLDump::full(*Xml, DO);
+        Dump(*Xml);
       }
       if (ExiS && !DOk) {
         WithColor OS(errs(), BRIGHT_RED);
         OS << "Decoding result:\n" << DErr.str();
-        XMLDump::full(ExiS->document(), DO);
+        Dump(ExiS->document());
       }
       if (!EOk) {
         WithColor OS(errs(), BRIGHT_RED);
         OS << "Encoding result:\n" << EErr.str();
-        XMLDump::full(S.document(), DO);
+        Dump(S.document());
       }
     } else if (Xml) {
       using elem = StrRef;
@@ -835,7 +843,8 @@ int main(int Argc, char* Argv[]) {
   SetLogLevel(LogLevel::WARN);
   InitDriver X(Argc, Argv);
 
-  XMLManagerRef Mgr = make_refcounted<XMLManager>();
+  const XMLParseOptions ParseOpts { .MergeData = true };
+  XMLManagerRef Mgr = make_refcounted<XMLManager>(ParseOpts);
 
 #if STRESS_TEST_DECODING
 

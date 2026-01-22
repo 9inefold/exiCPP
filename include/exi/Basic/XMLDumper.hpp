@@ -29,7 +29,7 @@ namespace exi {
 
 /// Options used by the XML dumper.
 struct XMLDumpOptions {
-  using enum XMLCoderOptions::PreserveCDATAKind;
+  using enum PreserveCDATAKind;
   static constexpr ExiOptions::PreserveOpts kPreserveAll = {
     .Comments      = true,
     .DTDs          = true,

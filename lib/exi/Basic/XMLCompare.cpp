@@ -196,7 +196,7 @@ class XMLMatcher;
 template <>
 class XMLMatcher<false> {
   static constexpr bool ReturnMatch = false;
-  using enum XMLCoderOptions::PreserveCDATAKind;
+  using enum PreserveCDATAKind;
   static constexpr StrRef knode_unknown = "??";
   static constexpr StrRef knode_null = "NULL"; 
 
@@ -208,7 +208,7 @@ class XMLMatcher<false> {
   /// Compare with prefixes?
   bool PreservePrefixes = true;
   /// What to expect from CDATA nodes.
-  XMLCoderOptions::PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
+  PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
   /// ...
   bool ExificientCompatibility = false;
   /// Output stream for error messages.

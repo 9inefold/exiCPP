@@ -63,22 +63,22 @@ struct XMLParseOptions {
   bool MergeData = false;
 };
 
+/// The methods for handling CDATA blocks. TODO: Move this out
+enum class PreserveCDATAKind : u8 {
+  // Preserves block and characters.
+  CDATA_PRESERVE,
+  /// Escapes reserved characters, removes block.
+  /// eg. `<![CDATA[&<"]]>` becomes `&amp;&lt;&quot;`.
+  CDATA_ESCAPE,
+  /// Leaves characters untouched, used for exificient compatibility.
+  /// eg. `<![CDATA[&<"]]>` becomes `&<"`.
+  CDATA_NONE,
+};
+
 /// Options for the encoding/decoding of EXI and XML.
 struct XMLCoderOptions {
-  /// The methods for handling CDATA blocks.
-  enum PreserveCDATAKind : u8 {
-    // Preserves block and characters.
-    CDATA_PRESERVE,
-    /// Escapes reserved characters, removes block.
-    /// eg. `<![CDATA[&<"]]>` becomes `&amp;&lt;&quot;`.
-    CDATA_ESCAPE,
-    /// Leaves characters untouched, used for exificient compatibility.
-    /// eg. `<![CDATA[&<"]]>` becomes `&<"`.
-    CDATA_NONE,
-  };
-
   /// If CDATA blocks should be preserved.
-  PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
+  PreserveCDATAKind PreserveCDATA = PreserveCDATAKind::CDATA_PRESERVE;
   /// Skip empty CH events
   bool SkipEmptyCH = false;
 };

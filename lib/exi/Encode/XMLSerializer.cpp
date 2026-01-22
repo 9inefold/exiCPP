@@ -72,7 +72,7 @@ template <>
 class INTERNAL_LINKAGE XMLEncoderRunner<OrderedEncoder>
     : public GenericXMLEncoderRunner {
   using Base = GenericXMLEncoderRunner;
-  using enum XMLCoderOptions::PreserveCDATAKind;
+  using enum PreserveCDATAKind;
   using enum SimpleEventTerm;
   using Encoder = OrderedEncoder; // TODO: Remove
   Encoder& BE;
