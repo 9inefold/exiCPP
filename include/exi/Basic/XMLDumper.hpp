@@ -64,6 +64,9 @@ public:
 
 /// Wrapper for the XML dumper.
 struct XMLDump {
+  /// Dump XML from the given document.
+  static void raw(XMLDocument& Doc, const XMLDumpOptions& Opts);
+
   /// Dump XML from the file `Filepath`.
   static void full(XMLManager& Mgr,
                    const Twine& Filepath,

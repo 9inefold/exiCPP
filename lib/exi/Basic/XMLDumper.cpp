@@ -116,7 +116,9 @@ public:
   /// Returns if the node type has data.
   static bool HasName(NodeT Node);
   /// Returns if the node type has children.
-  bool HasChildren(NodeT Node);
+  static bool HasChildren(NodeT Node);
+  /// Returns if the node type has children.
+  bool hasChildren(NodeT Node);
   /// Returns if the node type has attributes.
   static bool HasAttributes(NodeT Node);
 
@@ -220,6 +222,10 @@ bool XMLDumper::HasData(NodeT Node) {
 }
 
 bool XMLDumper::HasChildren(NodeT Node) {
+  return Node ? !!Node->first_node() : false;
+}
+
+bool XMLDumper::hasChildren(NodeT Node) {
   constexpr StrRef::filter_t Filter
     = StrRef::filter_t::FromChars(" \n\r\v\f");
   if (!Node)
@@ -703,7 +709,7 @@ void XMLDumper::printNode_element(NodeT Node) {
   if (HasAttributes(Node)) {
     printAttrs(Node);
   }
-  if (!HasChildren(Node))
+  if (!hasChildren(Node))
     OS << '/';
   OS << ">\n";
 }
@@ -865,7 +871,7 @@ void XMLDumper::print(NodeT Node) {
 void XMLDumper::printIndividual(NodeT Node) {
   printHead(Node);
 
-  if (HasChildren(Node)) {
+  if (hasChildren(Node)) {
     ScopedSave S(Indent);
     ++Indent;
     print(Node->first_node());
@@ -912,7 +918,7 @@ void XMLDumper::printHead(NodeT Node) {
 }
 
 void XMLDumper::printTail(NodeT Node) {
-  if (HasChildren(Node)) {
+  if (hasChildren(Node)) {
     OS << Indent << "</";
     this->printName(Node);
     OS << ">\n";
@@ -963,8 +969,123 @@ static int CalcInitialIndent(const XMLDumpOptions& Opts) {
   return 1;
 }
 
+//////////////////////////////////////////////////////////////////////////
+// raw
+
+#define RAW_ARGS const XMLNode* Node, raw_ostream& OS, const XMLDumpOptions& Opts
+#define RAW_NEXT Node, OS, Opts
+
+static void printIndividualRaw(RAW_ARGS);
+static void printHeadRaw(RAW_ARGS);
+
+static void printRaw(RAW_ARGS) {
+  while (Node) {
+    printIndividualRaw(RAW_NEXT);
+    if (!Node->parent())
+      break;
+    Node = Node->next_sibling();
+  }
+}
+
+static void printIndividualRaw(RAW_ARGS) {
+  printHeadRaw(RAW_NEXT);
+  if (XMLDumper::HasChildren(Node)) {
+    printRaw(Node->first_node(), OS, Opts);
+    OS << "</" << Node->name() << ">\n";
+  }
+}
+
+static void printAttrsRaw(RAW_ARGS) {
+  SmallVec<const XMLAttribute*, 16> Attrs;
+  if (!SortAttrs(Node, Attrs))
+    return;
+  for (const XMLAttribute* Attr : Attrs) {
+    OS << ' ' << Attr->name()
+     << "=\"" << Attr->value() << "\"";
+  }
+}
+
+static void printElementRaw(RAW_ARGS) {
+  OS << '<' << Node->name();
+  if (XMLDumper::HasAttributes(Node))
+    printAttrsRaw(RAW_NEXT);
+  if (!XMLDumper::HasChildren(Node))
+    OS << '/';
+  OS << ">\n";
+}
+
+static void printHeadRaw(RAW_ARGS) {
+  using namespace xml;
+  using enum XMLCoderOptions::PreserveCDATAKind;
+  exi_assert(Node != nullptr);
+  if (Node == nullptr)
+    return;
+  
+  switch (Node->type()) {
+  case node_element:
+    return printElementRaw(RAW_NEXT);
+  case node_data:
+    OS << Node->value() << '\n';
+    return;
+  case node_cdata:
+    if (Opts.PreserveCDATA == CDATA_PRESERVE)
+      OS << "<![CDATA[" << Node->value() << "]]>\n";
+    else if (Opts.PreserveCDATA == CDATA_ESCAPE)
+      OS << escape::xml(Node->value()) << "\n";
+    else if (Opts.PreserveCDATA == CDATA_NONE)
+      OS << Node->value() << "\n";
+    else
+      exi_unreachable("invalid PreserveCDATA");
+    return;
+  case node_comment:
+    OS << "<!--" << Node->value() << "-->\n";
+    return;
+  case node_declaration:
+    OS << "<?xml ";
+    printAttrsRaw(RAW_NEXT);
+    OS << "?>\n";
+    return;
+  case node_doctype:
+    OS << "<!DOCTYPE " << Node->value() << ">\n";
+    return;
+  case node_pi:
+    OS << "<?" << Node->name();
+    if (XMLDumper::HasData(Node))
+      OS << ' ' << Node->value();
+    OS << "?>\n";
+    return;
+  default:
+    return;
+  }
+}
+
+void XMLDump::raw(XMLDocument& Doc, const XMLDumpOptions& Opts) {
+  const bool OSProvided = Opts.OS.has_value();
+  
+  SmallStr<512> PrintBuf;
+  raw_svector_ostream OS(PrintBuf);
+
+  {
+    WithColor OutS(Opts.OS.value_or(outs()));
+    OS.enable_colors(OutS->has_colors());
+    // TODO: Stuff...
+    printRaw(Doc.first_node(), OS, Opts);
+    //exi_todo("Implement XMLDump::raw!");
+    OutS << PrintBuf.str() << '\n';
+  }
+
+  if (!OSProvided)
+    outs().flush();
+}
+
+#undef RAW_ARGS
+#undef RAW_NEXT
+
+//////////////////////////////////////////////////////////////////////////
+// full
+
 template <unsigned N>
-static void Dump(XMLDocument& Doc,
+static void Full(XMLDocument& Doc,
                  const XMLDumpOptions& Opts,
                  SmallStr<N>& PrintBuf) {
   WithColor OutS(Opts.OS.value_or(outs()));
@@ -984,7 +1105,7 @@ static void Dump(XMLDocument& Doc,
 
 void XMLDump::full(XMLDocument& Doc, const XMLDumpOptions& Opts) {
   SmallStr<512> PrintBuf;
-  Dump(Doc, Opts, PrintBuf);
+  Full(Doc, Opts, PrintBuf);
   if (!Opts.OS)
     outs().flush();
 }
@@ -1001,7 +1122,7 @@ void XMLDump::full(XMLManager& Mgr,
 
     SmallStr<512> PrintBuf;
     PrintBuf.reserve(ReserveSize(Mgr, Name));
-    Dump(*Doc, Opts, PrintBuf);
+    Full(*Doc, Opts, PrintBuf);
 
     if (!Opts.OS)
       outs().flush();
@@ -1019,8 +1140,8 @@ void XMLDump::diff(XMLDocument& DocA, XMLDocument& DocB,
   OptsCopy.OS = nulls();
   nulls().enable_colors(false);
 
-  Dump(DocA, OptsCopy, PrintBufA);
-  Dump(DocB, OptsCopy, PrintBufB);
+  Full(DocA, OptsCopy, PrintBufA);
+  Full(DocB, OptsCopy, PrintBufB);
 
   if (PrintBufA.str() == PrintBufB.str())
     return;
@@ -1046,4 +1167,18 @@ void XMLDump::diff(XMLDocument& DocA, XMLDocument& DocB,
 
   if (!Opts.OS)
     outs().flush();
+}
+
+//////////////////////////////////////////////////////////////////////////
+// info_tree
+
+void XMLDump::info_tree(XMLManager& Mgr,
+                        const Twine& Filepath,
+                        const XMLDumpOptions& Opts) {
+  exi_todo("Implement XMLDump::info_tree!");
+}
+
+/// Dump XML from the given document.
+void XMLDump::info_tree(XMLDocument& Doc, const XMLDumpOptions& Opts) {
+  exi_todo("Implement XMLDump::info_tree!");
 }

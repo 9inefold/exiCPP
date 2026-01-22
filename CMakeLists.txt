@@ -3,7 +3,7 @@ include_guard(DIRECTORY)
 
 project(
   exi-cpp
-  VERSION 0.8.8
+  VERSION 0.8.9
   LANGUAGES CXX C
 )
 
@@ -62,15 +62,19 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 else()
   # TODO: Add function for this?
   set(EXI_WARNING_FLAGS -Wall -Wextra
-    -Wno-unused-variable -Wno-unused-function
-    -Wno-unused-parameter -Wno-ignored-qualifiers
-    -Wmismatched-new-delete) # TODO: Remove -Wmismatched-new-delete
+    -Wno-unused-variable
+    -Wno-unused-function
+    -Wno-unused-parameter
+    -Wno-ignored-qualifiers
+    -Wmismatched-new-delete
+  ) # TODO: Remove -Wmismatched-new-delete
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GCC")
     # GCC only flags
     #set(EXI_FLAGS "${EXI_FLAGS} -Wuninitialized=precise")
     set(EXI_FLAGS "${EXI_FLAGS} $<$<NOT:$<CONFIG:Debug>>:\"-ftrivial-auto-var-init=zero\">")
   elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     # Clang only flags
+    list(APPEND EXI_WARNING_FLAGS -Werror=undefined-inline)
     list(APPEND EXI_FLAGS -fdiagnostics-show-template-tree)
     if(NOT EXI_USE_THREADS)
       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-threadsafe-statics")
