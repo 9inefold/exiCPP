@@ -280,7 +280,7 @@ constexpr int parse_normalize_newlines = 0x1000;
 /// Parse flag instructing the parser to ignore all CDATA sections. By default,
 /// they are placed in their own unique nodes. If this flag is specified, they
 /// will be combined with data nodes.
-constexpr int parse_merge_cdata = 0x2000;
+constexpr int parse_merge_cdata_nodes = 0x2000;
 
 // Compound flags
 
@@ -1797,7 +1797,7 @@ private:
            Flags & parse_no_entity_translation
       && !(Flags & parse_normalize_whitespace)
       && !(Flags & parse_trim_whitespace)
-      && !(Flags & parse_merge_cdata))
+      && !(Flags & parse_merge_cdata_nodes))
     {
       skip<StopPred, Flags>(Text);
       end = Text;
@@ -2005,7 +2005,7 @@ private:
   // terminating 0
   template <int Flags>
   Ch parse_and_append_data(NodeType* node, Ch*& Text, Ch* contents_start) {
-    constexpr bool should_loop_checking_cdata = bool(Flags & parse_merge_cdata);
+    constexpr bool should_loop_checking_cdata = bool(Flags & parse_merge_cdata_nodes);
     // Backup to contents start if whitespace trimming is disabled
     if (!(Flags & parse_trim_whitespace))
       Text = contents_start;
@@ -2022,7 +2022,7 @@ private:
       //end = skip_and_expand_character_refs<text_pred, text_pure_no_ws_pred, Flags>(Text);
       skip_and_expand_character_refs<text_pred, text_pure_no_ws_pred, Flags>(Text, end);
 
-    if constexpr (Flags & parse_merge_cdata) {
+    if constexpr (Flags & parse_merge_cdata_nodes) {
       if (!(check<0, '<','!','['>(Text) &&
             is_cdata_start<3>(Text))) {
         // Exit early, this isn't a CDATA node.
@@ -2269,7 +2269,7 @@ private:
           return; // Node closed, finished parsing contents
         } else {
           // Child node
-          if constexpr (Flags & parse_merge_cdata) {
+          if constexpr (Flags & parse_merge_cdata_nodes) {
             // Check for CDATA to skip
             if (Text[1] == Ch('!') && Text[2] == Ch('[') &&
                 is_cdata_start<3>(Text)) {
