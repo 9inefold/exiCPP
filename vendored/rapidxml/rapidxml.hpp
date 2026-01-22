@@ -1808,7 +1808,7 @@ private:
 
       // Use translation skip
       Ch* src = Text;
-      Ch* dest = end;
+      Ch* dest = src;
       skip_and_expand_character_refs_loop<StopPred, Flags>(src, dest);
 
       // Set new end
