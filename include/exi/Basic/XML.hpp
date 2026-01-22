@@ -1,6 +1,6 @@
 //===- exi/Basic/XML.hpp --------------------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,9 +55,12 @@ enum class XMLKind : unsigned {
 /// Options for the parsing of XML data.
 struct XMLParseOptions {
   /// If the source text will be modified.
+  /// @deprecated This option is unused and will soon be removed.
   bool Immutable = false;
   /// Disables comment, DOCTYPE, and PI parsing.
   bool Strict = false;
+  /// Merges data and CDATA nodes.
+  bool MergeData = false;
 };
 
 /// Options for the encoding/decoding of EXI and XML.

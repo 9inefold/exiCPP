@@ -1,6 +1,6 @@
 //===- exi/Basic/XMLContainer.hpp -----------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -61,6 +61,11 @@ private:
   EXI_PREFER_TYPE(bool)
   unsigned Strict : 1;
 
+  EXI_PREFER_TYPE(bool)
+  unsigned MergeData : 1;
+
+  // 25 bits remaining...
+
   /// Sets MapEntry and DocKind.
   /// @param Kind Allows the `XMLKind` to be forced.
   void setEntry(const MapEntry& ME,
@@ -68,11 +73,16 @@ private:
 
   /// Sets options manually.
   void setOptions(Option<XMLParseOptions> Opts) {
-    exi_assert(!isParsed(),
-              "Options cannot be set after initialization.");
-    if (Opts && !Parsed) {
+    if (Parsed)
+      exi_guardrail("Options cannot be set after initialization.");
+    if (Opts) {
       Immutable = Opts->Immutable;
-      Strict = Opts->Strict;
+      Strict    = Opts->Strict;
+      MergeData = Opts->MergeData;
+    } else {
+      Immutable = false;
+      Strict    = false;
+      MergeData = false;
     }
   }
 
@@ -91,6 +101,7 @@ public:
   bool isParsed() const { return Parsed; }
   bool isImmutable() const { return Immutable; }
   bool isStrict() const { return Strict; }
+  bool isMergeData() const { return MergeData; }
 
   bool hasBuffer() const { return !!TheBuffer; }
   bool hasEntry() const { return ME; }
@@ -128,8 +139,13 @@ private:
 };
 
 /// Parses document with a writable memory buffer.
+[[deprecated("The immutable flag will be removed soon.")]]
 Error parseXMLFromBuffer(XMLDocument& Doc, WritableMemoryBuffer& MB,
                          bool Immutable = false, bool Strict = false);
+
+/// Parses document with a writable memory buffer.
+Error parseXMLFromBuffer(XMLDocument& Doc, WritableMemoryBuffer& MB,
+                         XMLParseOptions Opts);
 
 /// Parses document with an immutable memory buffer.
 Error parseXMLFromBuffer(XMLDocument& Doc, MemoryBuffer& MB, bool Strict = false);

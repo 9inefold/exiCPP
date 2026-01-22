@@ -1,6 +1,6 @@
 //===- exi/Basic/XMLManager.hpp -------------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ class raw_ostream;
 
 using XMLContainerRef = const XMLContainer&;
 
+/// TODO: Move this to exi/Driver/*
 class XMLManager : public ThreadSafeRefCountedBase<XMLManager> {
   Option<XMLParseOptions> DefaultOpts;
   SpecificBumpPtrAllocator<XMLContainer> FilesAlloc;

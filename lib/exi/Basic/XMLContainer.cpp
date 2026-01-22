@@ -1,6 +1,6 @@
 //===- exi/Basic/XMLContainer.cpp -----------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,17 +50,20 @@ constexpr int kValidate = 0;
 constexpr int kDefault = xml::parse_no_string_terminators
                        | xml::parse_no_entity_translation
                        /*| xml::parse_no_data_nodes*/
-                       | xml::parse_normalize_newlines
+                       //| xml::parse_normalize_newlines
+                       //| xml::parse_merge_cdata_nodes
                        | kValidate;
 
 constexpr int kImmutable = kDefault
                          | xml::parse_non_destructive;
+
+constexpr int kMergeData = kDefault
+                         | xml::parse_merge_cdata_nodes;
 } // namespace `anonymous`
 
 XMLContainer::XMLContainer(Option<XMLParseOptions> Opts, 
                            Option<xml::XMLBumpAllocator&> Alloc) :
- TheDocument(Alloc), DocKind(kDefaultDocKind),
- Parsed(false), Immutable(false), Strict(false) {
+ TheDocument(Alloc), DocKind(kDefaultDocKind), Parsed(false) {
   this->setOptions(Opts);
 }
           
@@ -122,24 +125,26 @@ void XMLContainer::setEntry(const MapEntry& ME, Option<XMLKind> Kind) {
   }
 }
 
-static void ParseWithQuals(XMLDocument& Doc, WritableMemoryBuffer& MB,
-                           bool Immutable, bool Strict) {
-  char* MBS = MB.getBufferStart();
-  exi_assert(MBS && MB.getBufferSize());
-
-  if (Immutable) {
-    if (!Strict)
-      Doc.parse<kImmutable | xml::parse_all>(MBS);
-    else
-      Doc.parse<kImmutable>(MBS);
-    return;
-  }
-
-  // !Immutable
-  if (!Strict)
-    Doc.parse<kDefault | xml::parse_all>(MBS);
+template <int Base>
+static void ParseWithStrict(XMLDocument& Doc, char* MBS, bool OptsStrict) {
+  if (!OptsStrict)
+    Doc.parse<Base | xml::parse_all>(MBS);
   else
-    Doc.parse<kDefault>(MBS);
+    Doc.parse<Base>(MBS);
+}
+
+static void ParseWithQuals(XMLDocument& Doc, WritableMemoryBuffer& MB,
+                           XMLParseOptions Opts) {
+  char* MBS = MB.getBufferStart();
+  exi_relassert(MBS && MB.getBufferSize());
+
+  if (Opts.Immutable)
+    LOG_WARN("'XMLParseOptions.Immutable' has been deprecated and is ignored.");
+
+  if (!Opts.MergeData)
+    ParseWithStrict<kDefault>(Doc, MBS, Opts.Strict);
+  else
+    ParseWithStrict<kMergeData>(Doc, MBS, Opts.Strict);
 }
 
 static String FormatParseError(MemoryBuffer& MB,
@@ -181,13 +186,13 @@ static String FormatParseError(MemoryBuffer& MB,
 }
 
 Error exi::parseXMLFromBuffer(XMLDocument& Doc, WritableMemoryBuffer& MB,
-                              bool Immutable, bool Strict) {
+                              XMLParseOptions Opts) {
   LOG_EXTRA("Parsing '{}'.", MB.getBufferIdentifier());
   try {
     // FIXME: Make this an atomic increment in threaded mode.
     ScopedSave S(xml::use_exceptions_anyway, true);
     // Try to parse with the container's qualifiers.
-    ParseWithQuals(Doc, MB, Immutable, Strict);
+    ParseWithQuals(Doc, MB, Opts);
     return Error::success();
   } catch (const std::exception& Ex) {
     LOG_ERROR("Failed to parse file '{}'", MB.getBufferStart());
@@ -202,10 +207,18 @@ Error exi::parseXMLFromBuffer(XMLDocument& Doc, WritableMemoryBuffer& MB,
   }
 }
 
+Error exi::parseXMLFromBuffer(XMLDocument& Doc, WritableMemoryBuffer& MB,
+                              bool Immutable, bool Strict) {
+  return exi::parseXMLFromBuffer(Doc, MB, XMLParseOptions {
+    .Immutable  = Immutable,
+    .Strict     = Strict 
+  });
+}
+
 Error exi::parseXMLFromBuffer(XMLDocument& Doc, MemoryBuffer& MB, bool Strict) {
   LOG_EXTRA("Parsing '{}'.", MB.getBufferIdentifier());
   try {
-    // FIXME: Make this an atomic increment in threaded mode.
+    // FIXME: Make this an atomic increment in threaded mode?
     ScopedSave S(xml::use_exceptions_anyway, true);
     char* MBS = const_cast<char*>(MB.getBufferStart());
     if (!Strict)
@@ -240,8 +253,11 @@ Expected<XMLDocument&> XMLContainer::parse() const {
     // FIXME: Make this an atomic increment in threaded mode.
     ScopedSave S(xml::use_exceptions_anyway, true);
     // Try to parse with the container's qualifiers.
-    ParseWithQuals(TheDocument, *TheBuffer,
-                   Immutable, Strict);
+    ParseWithQuals(TheDocument, *TheBuffer, {
+      .Immutable  = bool(Immutable),
+      .Strict     = bool(Strict),
+      .MergeData  = bool(MergeData)
+    });
     this->Parsed = true;
     return TheDocument;
   } catch (const std::exception& Ex) {
@@ -298,7 +314,7 @@ Expected<MemoryBufferRef> XMLContainer::loadBuffer(bool IsVolatile) const {
     if (std::error_code EC = Buffer.getError())
       return makeError(EC);
 
-    if (!Buffer->get()) [[unlikely]] {
+    if EXI_UNLIKELY(!Buffer->get()) {
       /// Clear the buffer, this state shouldn't happen.
       TheBuffer.reset();
       LOG_ERROR("Recieved null buffer, resetting...");
