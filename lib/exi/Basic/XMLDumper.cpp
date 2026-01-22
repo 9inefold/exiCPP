@@ -42,6 +42,9 @@ using namespace exi;
 
 using PreserveCDATAKind = XMLCoderOptions::PreserveCDATAKind;
 
+static constexpr auto kWSFilter = StrRef::filter_t::FromChars(" \t\n\r\v\f");
+static constexpr auto kNLFilter = StrRef::filter_t::FromChars("\n\r\v\f");
+
 namespace {
 class XMLDumper {
   static constexpr StrRef knode_unknown = "UNKNOWN-TYPE"; 
@@ -139,7 +142,6 @@ private:
   void print(NodeT Node);
   void printIndividual(NodeT Node);
   void printHead(NodeT Node);
-  void printTail(NodeT Node);
 
   void printNode_element(NodeT Node);
   void printNode_data(NodeT Node);
@@ -156,6 +158,7 @@ private:
   void printAttrsSlxOrd(NodeT Node); // Shortlex Order
   void printAttrsDocOrd(NodeT Node); // Document Order
   void printAttrs(NodeT Node);
+  void printDataData(StrRef Data);
   void printCDATAData(StrRef Data, Option<raw_ostream&> IOS = std::nullopt);
   template <bool Escaped>
   void printCDATABlock(StrRef Data, Option<raw_ostream&> IOS = std::nullopt);
@@ -194,7 +197,7 @@ StrRef XMLDumper::NodeTypeName(NodeKind Kind) {
   };
 
   const int Off = exi::to_underlying(Kind);
-  if (Off < int(NodeKind::node_last))
+  if (Off < int(xml::node_last))
     return Names[Off];
   return XMLDumper::knode_unknown;
 }
@@ -209,7 +212,7 @@ bool XMLDumper::HasName(NodeT Node) {
   const MMatch M(Node->type());
   if (M.isnt(xml::node_element, xml::node_pi))
     return false;
-  return !Node->name().empty();
+  return Node->name_size() != 0;
 }
 
 bool XMLDumper::HasData(NodeT Node) {
@@ -218,7 +221,7 @@ bool XMLDumper::HasData(NodeT Node) {
   const MMatch M(Node->type());
   if (M.is(xml::node_document, xml::node_declaration))
     return false;
-  return !Node->value().empty();
+  return Node->value_size() != 0;
 }
 
 bool XMLDumper::HasChildren(NodeT Node) {
@@ -226,21 +229,23 @@ bool XMLDumper::HasChildren(NodeT Node) {
 }
 
 bool XMLDumper::hasChildren(NodeT Node) {
-  constexpr StrRef::filter_t Filter
-    = StrRef::filter_t::FromChars(" \n\r\v\f");
   if (!Node)
     return false;
-  Node = Node->first_node();
+  NodeT Child = Node->first_node();
+  // TODO: Fix this?
   if (PreserveCDATA == CDATA_PRESERVE)
-    return !!Node;
-  while (Node) {
-    using enum NodeKind;
-    NodeKind K = Node->type();
-    if (MMatch(K).isnt(node_data, node_cdata))
-      return true;
-    if (!Node->value().trim(Filter).empty())
-      return true;
-    Node = Node->next_sibling();
+    return Child != nullptr;
+  while (Child) {
+    const MMatch M(Child->type());
+    if (M.isnt(xml::node_data, xml::node_cdata)) {
+      if (preserved(Child))
+        return true;
+    } else {
+      StrRef V = Child->value();
+      if (!V.trim(kWSFilter).empty())
+        return true;
+    }
+    Child = Child->next_sibling();
   }
   return false;
 }
@@ -507,20 +512,53 @@ void XMLDumper::printAttrs(NodeT Node) {
     tail_return printAttrsSlxOrd(Node);
 }
 
+void XMLDumper::printDataData(StrRef Data) {
+  if (Data.empty())
+    return;
+  
+  auto PutData = [this] (StrRef Data) {
+    while (!Data.empty()) {
+      auto [Front, Back] = Data.split('&');
+      if (Back.empty())
+        break;
+      
+      StrRef Entity;
+      std::tie(Entity, Data) = Back.split(';');
+
+      this->putData(Front);
+      this->putEntity(Entity);
+    }
+
+    this->putData(Data);
+  };
+  
+  std::pair<StrRef, StrRef> Str = getToken(Data, kNLFilter);
+
+  auto Sep = fmt::format("\n{}", Indent);
+  ListSeparator LS(Sep);
+  while (!Str.first.empty()) {
+    StrRef Out = Str.first.ltrim(' ');
+    if (!Out.empty()) {
+      OS << LS;
+      PutData(Out);
+    }
+    Str = getToken(Str.second, kNLFilter);
+  }
+}
+
 void XMLDumper::printCDATAData(StrRef Data, Option<raw_ostream&> IOS) {
-  constexpr auto Filter = StrRef::filter_t::FromChars("\n\r\v\f");
   raw_ostream& OS = IOS.value_or(this->OS);
  {
   WithColor Save(OS, COLOR_data);
   ScopedSave S(Indent);
   ++Indent;
 
-  std::pair<StrRef, StrRef> Str = getToken(Data, Filter);
+  std::pair<StrRef, StrRef> Str = getToken(Data, kNLFilter);
   while (!Str.first.empty()) {
     StrRef Out = Str.first.ltrim(' ');
     if (!Out.empty())
       OS << '\n' << Indent << Out;
-    Str = getToken(Str.second, Filter);
+    Str = getToken(Str.second, kNLFilter);
   }
  }
   OS << '\n' << Indent;
@@ -528,12 +566,11 @@ void XMLDumper::printCDATAData(StrRef Data, Option<raw_ostream&> IOS) {
 
 template <bool Escaped>
 void XMLDumper::printCDATABlock(StrRef Data, Option<raw_ostream&> IOS) {
-  constexpr auto Filter = StrRef::filter_t::FromChars("\n\r\v\f");
   exi_invariant(PreserveCDATA);
   raw_ostream& OS = IOS.value_or(this->OS);
  {
   WithColor Save(OS, COLOR_data);
-  std::pair<StrRef, StrRef> Str = getToken(Data, Filter);
+  std::pair<StrRef, StrRef> Str = getToken(Data, kNLFilter);
 
   auto Sep = fmt::format("\n{}", Indent);
   ListSeparator LS(Sep);
@@ -545,7 +582,7 @@ void XMLDumper::printCDATABlock(StrRef Data, Option<raw_ostream&> IOS) {
       else
         OS << LS << Out;
     }
-    Str = getToken(Str.second, Filter);
+    Str = getToken(Str.second, kNLFilter);
   }
  }
 }
@@ -715,43 +752,10 @@ void XMLDumper::printNode_element(NodeT Node) {
 }
 
 void XMLDumper::printNode_data(NodeT Node) {
-  if (expectData(Node, "no-data"))
+  //if (expectData(Node, "no-data"))
+  if (!HasData(Node))
     return;
-  
-  auto PutData = [this] (StrRef Data) {
-    while (!Data.empty()) {
-      auto [Front, Back] = Data.split('&');
-      if (Back.empty())
-        break;
-      
-      StrRef Entity;
-      std::tie(Entity, Data) = Back.split(';');
-
-      this->putData(Front);
-      this->putEntity(Entity);
-    }
-
-    this->putData(Data);
-  };
-  
-  StrRef Data = Node->value().trim();
-  if (Data.empty())
-    return;
-  
-  constexpr auto Filter = StrRef::filter_t::FromChars("\n\r\v\f");
-  std::pair<StrRef, StrRef> Str = getToken(Data, Filter);
-  
-  auto Sep = fmt::format("\n{}", Indent);
-  ListSeparator LS(Sep);
-  while (!Str.first.empty()) {
-    StrRef Out = Str.first.ltrim(' ');
-    if (!Out.empty()) {
-      OS << LS;
-      PutData(Out);
-    }
-    Str = getToken(Str.second, Filter);
-  }
-
+  this->printDataData(Node->value().trim());
   OS << '\n';
 }
 
@@ -872,12 +876,14 @@ void XMLDumper::printIndividual(NodeT Node) {
   printHead(Node);
 
   if (hasChildren(Node)) {
-    ScopedSave S(Indent);
     ++Indent;
     print(Node->first_node());
+    --Indent;
+    // printTail:
+    OS << Indent << "</";
+    this->printName(Node);
+    OS << ">\n";
   }
-  
-  printTail(Node);
 }
 
 void XMLDumper::printHead(NodeT Node) {
@@ -914,14 +920,6 @@ void XMLDumper::printHead(NodeT Node) {
     return printNode_pi(Node);
   default:
     return;
-  }
-}
-
-void XMLDumper::printTail(NodeT Node) {
-  if (hasChildren(Node)) {
-    OS << Indent << "</";
-    this->printName(Node);
-    OS << ">\n";
   }
 }
 
