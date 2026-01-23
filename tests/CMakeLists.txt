@@ -4,9 +4,12 @@ if(NOT TARGET gtest)
   message(FATAL_ERROR "gtest must be included before tests!")
 endif()
 
-find_package(Java QUIET COMPONENTS Runtime)
-if(NOT Java_FOUND)
-  message(FATAL_ERROR "Java could not be found!")
+if(NOT DEFINED EXI_JAVA_EXECUTABLE)
+  find_package(Java QUIET COMPONENTS Runtime)
+  if(NOT Java_FOUND)
+    message(FATAL_ERROR "Java could not be found!")
+  endif()
+  set(EXI_JAVA_EXECUTABLE "${Java_JAVA_EXECUTABLE}")
 endif()
 
 find_package(Python3 QUIET COMPONENTS Interpreter)
@@ -18,7 +21,7 @@ if(NOT DEFINED EXIFICIENT_DIR)
   set(EXIFICIENT_JAR "${EXI_BASE_FOLDER}/resources/exificient-jar-with-dependencies.jar")
 endif()
 
-#add_subdirectory(ordered)
+# TODO: Test the EXI jar is runnable with the java version?
 set(TEST_SRC_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/s")
 set(TEST_OUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/o")
 

@@ -1,1 +1,4 @@
-<doc>&amp;&lt;&gt;&quot;'</doc>
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc>&amp;&lt;&gt;&quot;&apos;</doc>

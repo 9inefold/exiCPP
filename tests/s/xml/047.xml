@@ -1,1 +1,5 @@
-<doc>X&#10;Y</doc>
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc>X
+Y</doc>

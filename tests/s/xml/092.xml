@@ -1,1 +1,10 @@
-<doc>&#10;<a></a>&#10;    <a></a>&#9;<a></a>&#10;&#10;&#10;</doc>
+<!DOCTYPE doc [
+<!ELEMENT doc (a)*>
+<!ELEMENT a EMPTY>
+]>
+<doc>
+<a/>
+    <a/>	<a/>
+
+
+</doc>

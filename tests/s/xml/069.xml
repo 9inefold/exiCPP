@@ -1,4 +1,5 @@
 <!DOCTYPE doc [
-<!NOTATION n PUBLIC 'whatever'>
+<!ELEMENT doc (#PCDATA)>
+<!NOTATION n PUBLIC "whatever">
 ]>
 <doc></doc>

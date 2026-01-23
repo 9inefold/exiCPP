@@ -1,1 +1,4 @@
-<doc>&lt;&amp;]&gt;]</doc>
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc><![CDATA[<&]>]]]></doc>
