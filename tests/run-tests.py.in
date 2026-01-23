@@ -402,7 +402,7 @@ class TestRunner:
   def exicpp_roundtrip(self):
     cache = self.cache_entry
     args = ' '.join(self.opts.exificient_parse_opts())
-    i_args = f'-O{self.preserve} -CN -A{self.align}'
+    i_args = f'-O{self.preserve} -CN -E -A{self.align}'
     encode_folder = TEST_OUT_FOLDER / 'ie' / self.subfolder
     decode_folder = TEST_OUT_FOLDER / 'xd' / self.subfolder
 
@@ -459,7 +459,7 @@ if __name__ == "__main__":
     'xml\\116.xml',
   ]
   """
-  #all_files = ['me\\Newlines.xml', 'me\\Newlines2.xml']
+  #all_files = ['me\\Newlines2.xml', 'me\\CDATA2.xml']
 
   make_folders()
   cache = ProcessCache()

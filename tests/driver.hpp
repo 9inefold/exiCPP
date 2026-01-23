@@ -41,6 +41,8 @@ struct ExtraOptions {
   PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
   AlignKind Align = AlignKind::BitPacked;
   Option<std::string> FileOut;
+  bool MergeData = true;
+  bool EscapeData = false;
 };
 
 inline void ParsePreserveOpts(ExiOptions::PreserveOpts& Opts, StrRef A) {
@@ -158,12 +160,21 @@ static Expected<std::string> GetAbsoluteFilename(StrRef File) {
   return FileName;
 }
 
-inline Box<MemoryBuffer> LoadFile(const Twine& Path) {
+template <bool IsWritable = false>
+inline auto LoadFileImpl(StrRef Path) {
+  if constexpr (IsWritable)
+    return WritableMemoryBuffer::getFileEx(Path, true);
+  else
+    return MemoryBuffer::getFile(Path);
+}
+
+template <bool IsWritable = false>
+inline auto LoadFile(const Twine& Path) {
   SmallStr<80> Storage;
   Path.toVector(Storage);
   sys::fs::make_absolute(Storage);
 
-  auto ErrOrBuf = MemoryBuffer::getFile(Storage.str());
+  auto ErrOrBuf = LoadFileImpl<IsWritable>(Storage.str());
   if (!ErrOrBuf) {
     WithColor(errs(), raw_ostream::BRIGHT_RED)
       << "Error opening file: " << ErrOrBuf.getError().message() << "\n\n";
@@ -174,7 +185,18 @@ inline Box<MemoryBuffer> LoadFile(const Twine& Path) {
 }
 
 inline bool ParseXMLFromBuf(XMLDocument& Doc, MemoryBuffer& MB) {
+  static constexpr XMLParseOptions Default = {};
   if (Error E = exi::parseXMLFromBuffer(Doc, MB)) {
+    logAllUnhandledErrors(std::move(E), errs());
+    return true;
+  }
+  return false;
+}
+
+inline bool ParseXMLFromBuf(XMLDocument& Doc, WritableMemoryBuffer& MB,
+                            Option<XMLParseOptions> Opts = std::nullopt) {
+  static constexpr XMLParseOptions Default = {};
+  if (Error E = exi::parseXMLFromBuffer(Doc, MB, Opts.value_or(Default))) {
     logAllUnhandledErrors(std::move(E), errs());
     return true;
   }

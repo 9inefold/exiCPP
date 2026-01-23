@@ -98,14 +98,15 @@ int main(int Argc, char* Argv[]) {
     return 1;
   }
 
-  auto InData = LoadFile(InXml);
+  auto InData = LoadFile<true>(InXml);
   ExtraOptions Opts {};
   ParseRemainingArgs(Args.drop_front(2), Opts);
 
   xml::XMLBumpAllocator Alloc;
   XMLDocument In(Alloc);
   
-  if (ParseXMLFromBuf(In, *InData))
+  XMLParseOptions ParseOpts { .MergeData = true };
+  if (ParseXMLFromBuf(In, *InData, ParseOpts))
     return 1;
   
   //////////////////////////////////////////////////////////////
@@ -169,10 +170,11 @@ int main(int Argc, char* Argv[]) {
 
   XMLDocument Out(Alloc);
   XMLDeserializer DS(Out);
-  if (Opts.PreserveCDATA != CDATA_NONE)
-    DS.PreserveCDATA = CDATA_ESCAPE;
-  else
-    DS.PreserveCDATA = Opts.PreserveCDATA;
+  //if (Opts.PreserveCDATA != CDATA_NONE)
+  //  DS.PreserveCDATA = CDATA_ESCAPE;
+  //else
+  //  DS.PreserveCDATA = Opts.PreserveCDATA;
+  DS.PreserveCDATA = CDATA_NONE;
 
   if (auto E = Decoder.decodeBody(&DS)) {
     WithColor(errs(), BRIGHT_RED)
@@ -193,14 +195,15 @@ int main(int Argc, char* Argv[]) {
   auto Dump = [&Opts] (XMLDocument& D, SmallVecImpl<char>& V) {
     raw_svector_ostream OS(V);
     OS.enable_colors(false);
-    XMLDump::full(D, XMLDumpOptions {
+    XMLDump::raw(D, XMLDumpOptions {
       .OS                   = OS,
       .IndentScale          = 0,
       .Conforming           = false,
       .PrintRawNames        = Opts.Preserve.Prefixes,
       .Preserve             = Opts.Preserve,
       .PreserveDeclaration  = false,
-      .PreserveCDATA        = Opts.PreserveCDATA
+      .PreserveCDATA        = Opts.PreserveCDATA,
+      .EmbeddedCDATA        = true
     });
   };
 

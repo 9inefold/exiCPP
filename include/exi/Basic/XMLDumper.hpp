@@ -60,6 +60,9 @@ public:
   PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
   /// If CDATA is embedded in data nodes or not.
   bool EmbeddedCDATA = false;
+  /// If data nodes are also escaped. This is really only for exificient compat.
+  /// TODO: Implement this for `XMLDump::full`.
+  bool EscapeData = false;
   /// Prints extra debugging info.
   bool Debug = false;
 };
@@ -108,6 +111,10 @@ struct XMLDump {
       .Preserve = Preserve
     });
   }
+
+  /// Dump XML from the given document.
+  static void diff_raw(XMLDocument& DocA, XMLDocument& DocB,
+                       const XMLDumpOptions& Opts);
 
   /// Dump XML from the given document.
   static void diff(XMLDocument& DocA, XMLDocument& DocB,

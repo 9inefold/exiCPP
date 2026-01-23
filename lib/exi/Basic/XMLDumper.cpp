@@ -970,6 +970,7 @@ static int CalcInitialIndent(const XMLDumpOptions& Opts) {
 
 #define RAW_ARGS const XMLNode* Node, raw_ostream& OS, const XMLDumpOptions& Opts
 #define RAW_NEXT Node, OS, Opts
+#define NL ""
 
 static void printIndividualRaw(RAW_ARGS);
 static void printHeadRaw(RAW_ARGS);
@@ -987,7 +988,7 @@ static void printIndividualRaw(RAW_ARGS) {
   printHeadRaw(RAW_NEXT);
   if (XMLDumper::HasChildren(Node)) {
     printRaw(Node->first_node(), OS, Opts);
-    OS << "</" << Node->name() << ">\n";
+    OS << "</" << Node->name() << ">" << NL;
   }
 }
 
@@ -996,8 +997,11 @@ static void printAttrsRaw(RAW_ARGS) {
   if (!SortAttrs(Node, Attrs))
     return;
   for (const XMLAttribute* Attr : Attrs) {
-    OS << ' ' << Attr->name()
-     << "=\"" << Attr->value() << "\"";
+    OS << ' ' << Attr->name() << "=\"";
+    if (!Opts.EscapeData)
+      OS << Attr->value() << "\"";
+    else
+      OS << escape::xml(Attr->value()) << "\"";
   }
 }
 
@@ -1007,7 +1011,68 @@ static void printElementRaw(RAW_ARGS) {
     printAttrsRaw(RAW_NEXT);
   if (!XMLDumper::HasChildren(Node))
     OS << '/';
-  OS << ">\n";
+  OS << ">" << NL;
+}
+
+template <bool Escape = false>
+static void PrintXML(StrRef String, raw_ostream& Out) {
+  for (char C : String) {
+    if (C == '\r')
+      continue;
+    if constexpr (Escape) {
+      if (C == '&')
+        Out << "&amp;";
+      else if (C == '<')
+        Out << "&lt;";
+      else if (C == '>')
+        Out << "&gt;";
+      else
+        Out << C;
+    } else
+      Out << C;
+  }
+}
+
+static void printData(RAW_ARGS) {
+  if (!Opts.EscapeData)
+    PrintXML(Node->value(), OS);
+  else
+    PrintXML</*Escape=*/true>(Node->value(), OS);
+}
+
+static void printEmbeddedCDATARaw(RAW_ARGS) {
+  using enum PreserveCDATAKind;
+  exi_invariant(Opts.PreserveCDATA != CDATA_PRESERVE);
+
+  StrRef Value = Node->value();
+  const StrRef::size_type First = Value.find("<![CDATA[");
+  if (First == StrRef::npos)
+    return printData(RAW_NEXT);
+  else if (First) {
+    OS << Value.take_front(First);
+    Value = Value.drop_front(First);
+  }
+
+  while (!Value.empty()) {
+    StrRef::size_type End = Value.find("]]>", 9);
+    if EXI_UNLIKELY(End == StrRef::npos) {
+      LOG_WARN("Unterminated CDATA block: {}", Value);
+      return;
+    }
+    
+    if (Opts.PreserveCDATA == CDATA_ESCAPE)
+      OS << escape::xml(Value.substr(9, End - 9));
+    else
+      OS << Value.substr(9, End - 9);
+    Value = Value.drop_front(End + 3);
+
+    StrRef::size_type Start = Value.find("<![CDATA[");
+    if (Start == StrRef::npos) break;
+    OS << Value.take_front(Start);
+    Value = Value.drop_front(Start);
+  }
+
+  OS << Value << NL;
 }
 
 static void printHeadRaw(RAW_ARGS) {
@@ -1021,34 +1086,43 @@ static void printHeadRaw(RAW_ARGS) {
   case node_element:
     return printElementRaw(RAW_NEXT);
   case node_data:
-    OS << Node->value() << '\n';
-    return;
+    if (Opts.EmbeddedCDATA &&
+        Opts.PreserveCDATA != CDATA_PRESERVE)
+      return printEmbeddedCDATARaw(RAW_NEXT);
+    return printData(RAW_NEXT);
   case node_cdata:
-    if (Opts.PreserveCDATA == CDATA_PRESERVE)
-      OS << "<![CDATA[" << Node->value() << "]]>\n";
-    else if (Opts.PreserveCDATA == CDATA_ESCAPE)
-      OS << escape::xml(Node->value()) << "\n";
+    exi_invariant(!Opts.EmbeddedCDATA);
+    if (Opts.PreserveCDATA == CDATA_PRESERVE) {
+      OS << "<![CDATA[";
+      PrintXML(Node->value(), OS);
+      OS << "]]>" << NL;
+    } else if (Opts.PreserveCDATA == CDATA_ESCAPE)
+      PrintXML<true>(Node->value(), OS);
     else if (Opts.PreserveCDATA == CDATA_NONE)
-      OS << Node->value() << "\n";
+      PrintXML(Node->value(), OS);
     else
       exi_unreachable("invalid PreserveCDATA");
     return;
   case node_comment:
-    OS << "<!--" << Node->value() << "-->\n";
+    OS << "<!--";
+    PrintXML(Node->value(), OS);
+    OS << "-->" << NL;
     return;
   case node_declaration:
     OS << "<?xml ";
     printAttrsRaw(RAW_NEXT);
-    OS << "?>\n";
+    OS << "?>" << NL;
     return;
   case node_doctype:
-    OS << "<!DOCTYPE " << Node->value() << ">\n";
+    OS << "<!DOCTYPE ";
+    PrintXML(Node->value(), OS);
+    OS << ">" << NL;
     return;
   case node_pi:
     OS << "<?" << Node->name();
     if (XMLDumper::HasData(Node))
       OS << ' ' << Node->value();
-    OS << "?>\n";
+    OS << "?>" << NL;
     return;
   default:
     return;
@@ -1058,21 +1132,21 @@ static void printHeadRaw(RAW_ARGS) {
 #undef RAW_ARGS
 #undef RAW_NEXT
 
+static void Raw(XMLDocument& Doc,
+                const XMLDumpOptions& Opts,
+                SmallStr<512>& PrintBuf) {
+  WithColor OutS(Opts.OS.value_or(outs()));
+  raw_svector_ostream OS(PrintBuf);
+  OS.enable_colors(OutS->has_colors());
+  // TODO: Stuff...
+  printRaw(Doc.first_node(), OS, Opts);
+  OutS << PrintBuf.str() << '\n';
+}
+
 void XMLDump::raw(XMLDocument& Doc, const XMLDumpOptions& Opts) {
   const bool OSProvided = Opts.OS.has_value();
-  
   SmallStr<512> PrintBuf;
-  raw_svector_ostream OS(PrintBuf);
-
-  {
-    WithColor OutS(Opts.OS.value_or(outs()));
-    OS.enable_colors(OutS->has_colors());
-    // TODO: Stuff...
-    printRaw(Doc.first_node(), OS, Opts);
-    //exi_todo("Implement XMLDump::raw!");
-    OutS << PrintBuf.str() << '\n';
-  }
-
+  Raw(Doc, Opts, PrintBuf);
   if (!OSProvided)
     outs().flush();
 }
@@ -1085,8 +1159,10 @@ void XMLDump::raw(XMLManager& Mgr,
   StrRef Name = Filepath.toStrRef(Storage);
 
   if (auto Doc = TryLoad(Mgr, Name)) {
-    //if (!Opts.OS)
-    //  outs() << "'" << Name << "':\n";
+    if (!Opts.OS) {
+      WithColor OS(outs(), raw_ostream::BRIGHT_MAGENTA);
+      OS << "'" << Name << "':\n";
+    }
     XMLDump::raw(*Doc, Opts);
   } else {
     HandleErr(Mgr, Name, errs());
@@ -1097,10 +1173,9 @@ void XMLDump::raw(XMLManager& Mgr,
 //////////////////////////////////////////////////////////////////////////
 // full
 
-template <unsigned N>
 static void Full(XMLDocument& Doc,
                  const XMLDumpOptions& Opts,
-                 SmallStr<N>& PrintBuf) {
+                 SmallStr<512>& PrintBuf) {
   WithColor OutS(Opts.OS.value_or(outs()));
   const bool OSProvided = Opts.OS.has_value();
   const int InitialIndent = CalcInitialIndent(Opts);
@@ -1130,8 +1205,10 @@ void XMLDump::full(XMLManager& Mgr,
   StrRef Name = Filepath.toStrRef(Storage);
 
   if (auto Doc = TryLoad(Mgr, Name)) {
-    if (!Opts.OS)
-      outs() << "'" << Name << "':\n";
+    if (!Opts.OS) {
+      WithColor OS(outs(), raw_ostream::BRIGHT_MAGENTA);
+      OS << "'" << Name << "':\n";
+    }
 
     SmallStr<512> PrintBuf;
     PrintBuf.reserve(ReserveSize(Mgr, Name));
@@ -1145,16 +1222,20 @@ void XMLDump::full(XMLManager& Mgr,
   }
 }
 
-void XMLDump::diff(XMLDocument& DocA, XMLDocument& DocB,
-                   const XMLDumpOptions& Opts) {
+//////////////////////////////////////////////////////////////////////////
+// diff
+
+template <auto* Func>
+static void Diff(XMLDocument& DocA, XMLDocument& DocB,
+                 const XMLDumpOptions& Opts) {
   SmallStr<512> PrintBufA, PrintBufB;
   XMLDumpOptions OptsCopy = Opts;
   // Eat the output, we just need the buffers.
   OptsCopy.OS = nulls();
   nulls().enable_colors(false);
 
-  Full(DocA, OptsCopy, PrintBufA);
-  Full(DocB, OptsCopy, PrintBufB);
+  Func(DocA, OptsCopy, PrintBufA);
+  Func(DocB, OptsCopy, PrintBufB);
 
   if (PrintBufA.str() == PrintBufB.str())
     return;
@@ -1180,6 +1261,16 @@ void XMLDump::diff(XMLDocument& DocA, XMLDocument& DocB,
 
   if (!Opts.OS)
     outs().flush();
+}
+
+void XMLDump::diff_raw(XMLDocument& DocA, XMLDocument& DocB,
+                       const XMLDumpOptions& Opts) {
+  Diff<&Raw>(DocA, DocB, Opts);
+}
+
+void XMLDump::diff(XMLDocument& DocA, XMLDocument& DocB,
+                   const XMLDumpOptions& Opts) {
+  Diff<&Full>(DocA, DocB, Opts);
 }
 
 //////////////////////////////////////////////////////////////////////////

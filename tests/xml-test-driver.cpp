@@ -37,7 +37,7 @@ static bool VerboseFail = false;
 
 static void PrintHelp() {
   outs() << "USAGE: <file-in> <file-out> "
-                   "-O[c|d|i] -C<cdata-mode> -A[i|y] [-V] [-T]\n";
+                   "-O[c|d|i] -C<cdata-mode> -A[i|y] [-E] [-V] [-T]\n";
   exit(1);
 }
 
@@ -50,6 +50,8 @@ static void ParseRemainingArgs(ArrayRef<char*> Args, ExtraOptions& Out) {
       LOG_WARN("Invalid input for '{}': {}", ErrCmd, Arg);
     } else if (Arg.consume_front("-V"))
       VerboseFail = true;
+    else if (Arg.consume_front("-E"))
+      Out.EscapeData = true;
     else if (!*CodeOrErr)
       LOG_WARN("Invalid argument '{}'", Arg);
   }
@@ -82,17 +84,18 @@ int main(int Argc, char* Argv[]) {
     return 1;
   }
 
-  auto InData = LoadFile(InFile);
-  auto OutData = LoadFile(OutFile);
+  auto InData = LoadFile<true>(InFile);
+  auto OutData = LoadFile<true>(OutFile);
 
   ExtraOptions Opts {};
   ParseRemainingArgs(Args.drop_front(2), Opts);
+  XMLParseOptions ParseOpts { .MergeData = Opts.MergeData };
 
   xml::XMLBumpAllocator Alloc;
   XMLDocument In(Alloc);
   
-  if (ParseXMLFromBuf(In, *InData))
-    return 2;
+  if (ParseXMLFromBuf(In, *InData, ParseOpts))
+    return 1;
   
   //////////////////////////////////////////////////////////////
   
@@ -114,7 +117,7 @@ int main(int Argc, char* Argv[]) {
     ExiDecoder& Decoder = EDecoder.emplace(std::move(O));
     XMLDeserializer& S = ExiS.emplace(Out);
     S.PreserveCDATA = Opts.PreserveCDATA;
-    S.SkipEmptyCH = true;
+    //S.SkipEmptyCH = true;
 
     if (auto E = Decoder.decodeHeader(MB)) {
       WithColor(errs(), BRIGHT_RED)
@@ -141,23 +144,25 @@ int main(int Argc, char* Argv[]) {
 
   //////////////////////////////////////////////////////////////
 
-  auto Dump = [&Opts] (XMLDocument& D, SmallVecImpl<char>& V) {
+  auto Dump = [&Opts] (XMLDocument& D, SmallVecImpl<char>& V, bool Escape) {
     raw_svector_ostream OS(V);
     OS.enable_colors(false);
-    XMLDump::full(D, XMLDumpOptions {
+    XMLDump::raw(D, XMLDumpOptions {
       .OS                   = OS,
       .IndentScale          = 0,
       .Conforming           = false,
       .PrintRawNames        = Opts.Preserve.Prefixes,
       .Preserve             = Opts.Preserve,
       .PreserveDeclaration  = false,
-      .PreserveCDATA        = Opts.PreserveCDATA
+      .PreserveCDATA        = Opts.PreserveCDATA,
+      .EmbeddedCDATA        = !Escape,
+      .EscapeData           = Escape
     });
   };
 
   SmallStr<0> InDump, OutDump;
-  Dump(In,  InDump);
-  Dump(Out, OutDump);
+  Dump(In,  InDump, Opts.EscapeData);
+  Dump(Out, OutDump, false);
 
   if (InDump.str() == OutDump.str()) {
     WithColor(outs(), BRIGHT_GREEN)
@@ -167,14 +172,16 @@ int main(int Argc, char* Argv[]) {
     WithColor(errs(), BRIGHT_RED)
       << format("'{}' is NOT equal to '{}'\n", Args[0], Args[1]);
     if (VerboseFail) {
-      XMLDump::diff(In, Out, XMLDumpOptions {
+      XMLDump::diff_raw(In, Out, XMLDumpOptions {
         .OS                   = errs(),
         .IndentScale          = 2,
         .Conforming           = false,
         .PrintRawNames        = Opts.Preserve.Prefixes,
         .Preserve             = Opts.Preserve,
         .PreserveDeclaration  = false,
-        .PreserveCDATA        = Opts.PreserveCDATA
+        .PreserveCDATA        = Opts.PreserveCDATA,
+        .EmbeddedCDATA        = !Opts.EscapeData,
+        .EscapeData           = Opts.EscapeData
       });
       //XMLDump::full(In, XMLDumpOptions {
       //  .OS                   = errs(),

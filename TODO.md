@@ -28,6 +28,7 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## In Progress
 
+- Add compatibility for exificient's terrible escaping scheme
 - Check depth when parsing
 - Make XML comparison match failures more useful
 - `exi` example test suite
@@ -77,7 +78,8 @@ This is a TODO list for the C++ version of exiCPP.
 
 - Entity references are not correctly handled (`&e;` becomes `&amp;e;`)
 - Crashes on DOCTYPE `<!ENTITY % X ...>` as it removes the space between the `%` and `X`
-- Converts escape sequences to their real value, which should be a flag
+- Converts escape sequences to their real value, when encoding, which should be a flag
+- Escapes all characters (even already escaped sequences and CDATA) when decoding
 - Always removes `CDATA` blocks, should be a flag
 - Sometimes adds `xmlns:xsi="..."` with `Preserve.Prefixes=0` at the top level??
 
