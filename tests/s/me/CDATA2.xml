@@ -1,0 +1,33 @@
+<doc><![CDATA[
+  Testing,
+  testing,
+  1, 2, 3!
+  ]]><data><![CDATA[Testing!]]></data>
+  <data> <![CDATA[Testing!]]> </data>
+  <data>
+<![CDATA[Testing!]]> 
+  </data>
+  <data>
+<![CDATA[
+    Testing,
+  testing,
+    1, 2, 3!
+]]> 
+  </data>
+  <data><![CDATA[
+    Testing,]]><![CDATA[
+  testing,]]><![CDATA[
+    1, 2, 3!]]><![CDATA[
+  ]]></data>
+  <data>
+
+  <![CDATA[    
+    Testing,
+
+  testing,
+  
+    1, 2, 3!
+  ]]>    
+
+  </data>
+</doc>

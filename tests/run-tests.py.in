@@ -34,14 +34,14 @@ XML_EXECUTABLE  = EXI_BIN_FOLDER / 'xml-test-driver.exe'
 JAVA_EXECUTABLE = Path("@Java_JAVA_EXECUTABLE@")
 EXIFICIENT_JAR  = Path("@EXIFICIENT_JAR@")
 
-cwd = os.getcwd()
-
 parser = argparse.ArgumentParser()
 parser.add_argument('-q', '--quiet', action='store_true', help='silence output')
 parser.add_argument('--verbose', action='store_true', help='verbose output')
 parser.add_argument('--color', action='store_true', help='print with color')
 parser.add_argument('--restrict', action='extend', nargs='*', type=str, default=[],
                                   help='restrict to specific encodings')
+parser.add_argument('--clear', action='extend', nargs='*', type=str,
+                               help='clears cache (or specific entries)')
 args = parser.parse_args()
 
 VERBOSE = args.verbose
@@ -204,7 +204,7 @@ class CacheJSONEncoder(json.JSONEncoder):
     return super().default(obj)
 
 class ProcessCache:
-  # self.__cache: dict[mode, dict[key, set[str]]]
+  # self.__cache: dict[mode, dict[name, set[str]]]
   # self.__files: set[str]
   # self.__cachefile: Path
 
@@ -247,6 +247,30 @@ class ProcessCache:
     else:
       qprint('Cache is unset.')
   
+  # Clears entry (or entries)
+  def clear(self, to_clear):
+    if type(to_clear) == str:
+      to_clear = [to_clear]
+    # Clear everything
+    if len(to_clear) == 0:
+      print('Clearing cache.')
+      mappings: dict
+      for mode, mappings in self.__cache.items():
+        vals: set
+        for k, vals in mappings.items():
+          if k != '__entry__':
+            vals.clear()
+      pass
+    else:
+      print(f'Clearing entries {to_clear}.')
+      mappings: dict
+      for mode, mappings in self.__cache.items():
+        vals: set
+        for k, vals in mappings.items():
+          if k != '__entry__':
+            vals.difference_update(to_clear)
+      pass
+
   # Prints cache data
   def dump(self):
     raw_text = json.dumps(self.__cache,
@@ -439,6 +463,11 @@ if __name__ == "__main__":
 
   make_folders()
   cache = ProcessCache()
+
+  if not args.clear is None:
+    cache.clear(args.clear)
+    cache.save()
+    sys.exit(0)
 
   # Filtered for using xsi:type, which is currently unsupported.
   skiplist = ['at-02', 'SortTest', 'IPO']
