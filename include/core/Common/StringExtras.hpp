@@ -514,6 +514,10 @@ raw_ostream &printCStyleEscapedString(StrRef Name, raw_ostream &Out,
 /// characters.
 raw_ostream &printHTMLEscaped(StrRef String, raw_ostream &Out);
 
+/// Print each character of the specified string, escaping XML special
+/// characters.
+raw_ostream &printXMLEscaped(StrRef String, raw_ostream &Out);
+
 /// printLowerCase - Print each character as lowercase if it is uppercase.
 raw_ostream &printLowerCase(StrRef String, raw_ostream &Out);
 
@@ -637,7 +641,7 @@ inline String join_items(Sep Separator, Args &&... Items) {
 /// OS << escape::html(String) << '\n';
 /// ```
 struct escape {
-  enum StyleKind { CLASSIC, CSTYLE, CSTYLE_NQ, HTML };
+  enum StyleKind { CLASSIC, CSTYLE, CSTYLE_NQ, HTML, XML };
   StrRef Text;
   StyleKind Style = CSTYLE;
   
@@ -649,7 +653,7 @@ public:
   static escape cstyle(StrRef Text) { return escape(Text, CSTYLE); }
   static escape cstylenq(StrRef Text) { return escape(Text, CSTYLE_NQ); }
   static escape html(StrRef Text) { return escape(Text, HTML); }
-  static escape xml(StrRef Text) { return escape(Text, HTML); }
+  static escape xml(StrRef Text) { return escape(Text, XML); }
 };
 
 inline raw_ostream& operator<<(raw_ostream& OS, const escape& Escape) {
@@ -662,6 +666,8 @@ inline raw_ostream& operator<<(raw_ostream& OS, const escape& Escape) {
     return printCStyleEscapedString(Escape.Text, OS, /*IgnoreQuotes=*/true);
   case escape::HTML:
     return printHTMLEscaped(Escape.Text, OS);
+  case escape::XML:
+    return printXMLEscaped(Escape.Text, OS);
   }
   exi_unreachable("???");
 }

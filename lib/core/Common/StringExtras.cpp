@@ -181,6 +181,20 @@ raw_ostream &exi::printHTMLEscaped(StrRef String, raw_ostream &Out) {
   return Out;
 }
 
+raw_ostream &exi::printXMLEscaped(StrRef String, raw_ostream &Out) {
+  for (char C : String) {
+    if (C == '&')
+      Out << "&amp;";
+    else if (C == '<')
+      Out << "&lt;";
+    else if (C == '>')
+      Out << "&gt;";
+    else
+      Out << C;
+  }
+  return Out;
+}
+
 std::string exi::format_as(const escape& Escape) {
   std::string Buf;
   Buf.reserve(Escape.Text.size());
