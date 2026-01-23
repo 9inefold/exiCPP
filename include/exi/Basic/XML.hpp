@@ -63,7 +63,7 @@ struct XMLParseOptions {
   bool MergeData = false;
 };
 
-/// The methods for handling CDATA blocks. TODO: Move this out
+/// The methods for handling CDATA blocks.
 enum class PreserveCDATAKind : u8 {
   // Preserves block and characters.
   CDATA_PRESERVE,

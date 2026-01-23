@@ -78,7 +78,7 @@ inline Option<PreserveCDATAKind> ParseCDATAOpt(StrRef A) {
   if (A.empty())
     return std::nullopt;
   
-  int V = CDATA_PRESERVE;
+  int V = unsigned(CDATA_PRESERVE);
   if (!A.consumeInteger(10, V)) {
     if (0 <= V && V <= 2)
       return PreserveCDATAKind(V);

@@ -412,7 +412,7 @@ protected:
     SmallStr<80> Buf;
     raw_svector_ostream OS(Buf);
     // If CDATA block should be kept or not
-    if (Opts.PreserveCDATA)
+    if (Opts.PreserveCDATA == CDATA_PRESERVE)
       OS << "<![CDATA[" << N.value() << "]]>";
     else
       OS << escape::xml(N.value());

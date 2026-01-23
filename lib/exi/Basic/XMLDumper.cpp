@@ -1012,7 +1012,7 @@ static void printElementRaw(RAW_ARGS) {
 
 static void printHeadRaw(RAW_ARGS) {
   using namespace xml;
-  using enum XMLCoderOptions::PreserveCDATAKind;
+  using enum PreserveCDATAKind;
   exi_assert(Node != nullptr);
   if (Node == nullptr)
     return;

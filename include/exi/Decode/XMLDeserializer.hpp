@@ -122,7 +122,7 @@ public:
       if (From == StrRef::npos)
         return ExiError::OK;
     }
-    if (PreserveCDATA == CDATA_PRESERVE) {
+    if (PreserveCDATA == PreserveCDATAKind::CDATA_PRESERVE) {
       if (auto I = Value.find("<![CDATA[", From); I != StrRef::npos)
         return this->CH_CDATA(Value, I);
     }

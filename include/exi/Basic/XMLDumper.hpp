@@ -57,7 +57,9 @@ public:
   /// If `<?xml ...?>` should be kept. Defaults to Preserve.PIs.
   Option<bool> PreserveDeclaration = std::nullopt;
   /// If CDATA blocks should be kept untouched or escaped.
-  XMLCoderOptions::PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
+  PreserveCDATAKind PreserveCDATA = CDATA_PRESERVE;
+  /// If CDATA is embedded in data nodes or not.
+  bool EmbeddedCDATA = false;
   /// Prints extra debugging info.
   bool Debug = false;
 };
@@ -84,7 +86,7 @@ struct XMLDump {
                    bool Conforming = false,
                    ExiOptions::PreserveOpts Preserve
                      = XMLDumpOptions::kPreserveAll) {
-    XMLDump::full(Mgr, Filepath, {
+    XMLDump::full(Mgr, Filepath, XMLDumpOptions {
       .OS = InOS,
       .Conforming = Conforming,
       .Preserve = Preserve
@@ -100,7 +102,7 @@ struct XMLDump {
                    bool Conforming = false,
                    ExiOptions::PreserveOpts Preserve
                      = XMLDumpOptions::kPreserveAll) {
-    XMLDump::full(Doc, {
+    XMLDump::full(Doc, XMLDumpOptions {
       .OS = InOS,
       .Conforming = Conforming,
       .Preserve = Preserve
