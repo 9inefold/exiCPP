@@ -1896,6 +1896,16 @@ private:
     return comment;
   }
 
+  template <char ToSkip>
+  static void skip_doctype_quoted(Ch*& Text) {
+    ++Text;
+    while (Text[0] != Ch(ToSkip)) {
+      if EXI_UNLIKELY(Text[0] == '\0')
+        RAPIDXML_PARSE_ERROR("unexpected end of data", Text);
+      ++Text;
+    }
+  }
+
   // Parse DOCTYPE
   template <int Flags> NodeType* parse_doctype(Ch*& Text) {
     // Remember value start
@@ -1913,6 +1923,8 @@ private:
         int depth = 1;
         while (depth > 0) {
           switch (*Text) {
+          case Ch('\"'): skip_doctype_quoted<'\"'>(Text); break;
+          case Ch('\''): skip_doctype_quoted<'\''>(Text); break;
           case Ch('['): ++depth; break;
           case Ch(']'): --depth; break;
           case 0: RAPIDXML_PARSE_ERROR("unexpected end of data", Text);
