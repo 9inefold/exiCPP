@@ -23,6 +23,8 @@
 
 #include <exi/Basic/XMLContainer.hpp>
 #include <core/Common/SmallStr.hpp>
+#include <core/Common/StringExtras.hpp>
+#include <core/Common/STLExtras.hpp>
 #include <core/Support/Alignment.hpp>
 #include <core/Support/Error.hpp>
 #include <core/Support/Format.hpp>
@@ -31,6 +33,7 @@
 #include <core/Support/MemoryBufferRef.hpp>
 #include <core/Support/Path.hpp>
 #include <core/Support/ScopedSave.hpp>
+#include <core/Support/WithColor.hpp>
 #include <rapidxml.hpp>
 #include <fmt/format.h>
 
@@ -147,40 +150,60 @@ static void ParseWithQuals(XMLDocument& Doc, WritableMemoryBuffer& MB,
     ParseWithStrict<kMergeData>(Doc, MBS, Opts.Strict);
 }
 
-static String FormatParseError(MemoryBuffer& MB,
-                               const xml::parse_error& Ex) {
-  usize Off = MB.getBufferOffset(Ex.where<Char>());
+static String FormatParseError(MemoryBuffer& MB, const xml::parse_error& Ex,
+                               bool Color = false) {
+  const char* const OffPtr = Ex.where<Char>();
+  usize Off = MB.getBufferOffset(OffPtr);
   if (Off == StrRef::npos)
     return Ex.what();
   
-  String Out;
-  raw_string_ostream OS(Out);
-  OS << "\n  ";
-
-  StrRef Str(MB.getBufferStart(), Off);
+  StrRef Str = MB.getBuffer();
+  Str = Str.rtrim(" \n\r\t\v\0");
   /// Eat BOM and adjust Offset
   if (Str.consume_front("\xEF\xBB\xBF"))
     Off -= 3;
   
-  auto [Front, Data] = Str.rsplit('\n');
-  if (Data.empty()) {
-    Data = Front;
-    Front = "";
-  }
-  exi_assert(Off > Front.size());
-  usize LineOff = Off - Front.size();
+  usize End = StrRef::npos;
+  if (Off < Str.size())
+    End = Str.find_first_of("\n\r", Off);
+  Str = Str.substr(0, End);
 
-  {
-    constexpr usize kLineMax = 80;
-    StrRef Full(Data.begin(), (MB.getBufferEnd() - Data.begin()));
-    usize Off = Full.find_first_of("\r\n", Data.size());
-    Data = Full.take_front(std::min(Off, kLineMax));
-  }
+  usize Start = Str.rfind('\n', Off);
+  usize Beg = Start;
+  if (Start == StrRef::npos)
+    Start = 0;
+  else
+    Start += 1;
   
-  OS << "At character " << Off << ", \"" << Ex.what() << "\"\n  ";
-  OS << "'" << Data << "'\n  ";
-  // FIXME: Use utf8 distance
-  OS << format("{: >{}}", '^', LineOff);
+  StrRef Line = Str.substr(Start);
+  SmallVec<StrRef, 4> Lines;
+  Lines.push_back(Line);
+  Str = Str.take_front(Beg);
+
+ {
+  int LineCount = 3;
+  while (Beg != StrRef::npos && LineCount) {
+    LineCount -= 1;
+    Str = Str.rtrim("\n\r\t\v\0");
+    Beg = Str.rfind('\n');
+    Start = (Beg == StrRef::npos) ? 0 : Beg + 1;
+    Lines.push_back(Str.substr(Start));
+    Str = Str.take_front(Beg);
+  }
+ }
+
+  String Out;
+  raw_string_ostream OS(Out);
+  OS.enable_colors(Color);
+
+  WithColor(OS, raw_ostream::BRIGHT_MAGENTA)
+    << format("at offset {}: '{}'\n", Off, Ex.what());
+  if (Lines.size() == 4 && Start != 0)
+    OS << " ... \n";
+  for (auto L : exi::reverse(Lines))
+    OS << L << '\n';
+  // FIXME: Use utf8 distance?
+  OS << indent(OffPtr - Line.data()) << '^';
 
   return Out;
 }
@@ -195,7 +218,7 @@ Error exi::parseXMLFromBuffer(XMLDocument& Doc, WritableMemoryBuffer& MB,
     ParseWithQuals(Doc, MB, Opts);
     return Error::success();
   } catch (const std::exception& Ex) {
-    LOG_ERROR("Failed to parse file '{}'", MB.getBufferStart());
+    LOG_ERROR("Failed to parse file '{}'", MB.getBufferIdentifier());
 #if !RAPIDXML_NO_EXCEPTIONS
     /// Check if it's rapidxml's wee type
     if (auto* PEx = dynamic_cast<const xml::parse_error*>(&Ex)) {
