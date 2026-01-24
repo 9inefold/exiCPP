@@ -35,6 +35,8 @@ class StreamDeserializer final : public Deserializer {
   raw_ostream& OS;
   exi::indent Indent;
   u64 UnboundURI = kInvalidPrefix;
+  // For exificient compat
+  bool HasPrefix = false;
 
 public:
   StreamDeserializer(raw_ostream& OS, unsigned Scale = 2)
@@ -60,6 +62,7 @@ public:
   /// Start Element
   ExiError SE(QName Name) override {
     UnboundURI = Name.id();
+    HasPrefix = Name.hasPrefix();
     start() << "SE: ";
     this->write(Name) << '\n';
     ++Indent;
@@ -95,12 +98,16 @@ public:
 
   /// Namespace Declaration - Local
   ExiError NS_Local(StrRef URI, StrRef Prefix, u64 ID) override {
+    if (this->HasPrefix) {
+      HasPrefix = false;
+      return this->NS_Full(URI, Prefix, /*Local=*/true);
+    }
     if EXI_NEVER(!hasUnboundPrefix())
       Throw<argument_error>("local-name-ns set without valid SE!");
     if EXI_UNLIKELY(UnboundURI != ID)
       Throw<argument_error>("local-name-ns does not match SE URI!");
     // TODO: Verify this is correct?
-    UnboundURI = kInvalidPrefix;
+    UnboundURI = kInvalidLNI;
     return this->NS_Full(URI, Prefix, /*Local=*/true);
   }
 

@@ -100,8 +100,10 @@ public:
 
   /// Namespace Declaration - Local
   ExiError NS_Local(StrRef URI, StrRef Prefix, u64 ID) override {
-    if (this->HasPrefix)
+    if (this->HasPrefix) {
+      HasPrefix = false;
       return this->NS(URI, Prefix);
+    }
     if EXI_NEVER(!hasUnboundPrefix())
       Throw<argument_error>("local-name-ns set without valid SE!");
     if EXI_UNLIKELY(UnboundURI != ID)
