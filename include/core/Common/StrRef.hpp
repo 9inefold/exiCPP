@@ -915,6 +915,35 @@ public:
     return std::make_pair(slice(0, Idx), substr(Idx + Separator.size()));
   }
 
+  /// Split into two substrings around the last occurrence of a separator
+  /// character.
+  ///
+  /// If \p Separator is in the string, then the result is a pair (LHS, RHS)
+  /// such that (*this == LHS + Separator + RHS) is true and RHS is
+  /// minimal. If \p Separator is not in the string, then the result is a
+  /// pair (LHS, RHS) where (*this == LHS) and (RHS == "").
+  ///
+  /// \param Separator - The character to split on.
+  /// \return - The split substrings.
+  [[nodiscard]] std::pair<StrRef, StrRef> rsplit(char Separator) const {
+    usize Idx = rfind(Separator);
+    if (Idx == npos)
+      return std::make_pair(*this, StrRef());
+    return std::make_pair(slice(0, Idx), substr(Idx + 1));
+  }
+
+  /// Same as rsplit, except if \p Separator is not in the string, then the
+  /// result is a pair (LHS, RHS) where (LHS == "") and (*this == RHS).
+  ///
+  /// \param Separator The character to split on.
+  /// \returns The split substrings.
+  [[nodiscard]] std::pair<StrRef, StrRef> rsplit_back(char Separator) const {
+    usize Idx = rfind(Separator);
+    if (Idx == npos)
+      return std::make_pair(StrRef(), *this);
+    return std::make_pair(slice(0, Idx), substr(Idx + 1));
+  }
+
   /// Split into substrings around the occurrences of a separator string.
   ///
   /// Each substring is stored in \p A. If \p MaxSplit is >= 0, at most
@@ -949,20 +978,6 @@ public:
   /// \param KeepEmpty - True if empty substring should be added.
   void split(SmallVecImpl<StrRef> &A, char Separator, int MaxSplit = -1,
              bool KeepEmpty = true) const;
-
-  /// Split into two substrings around the last occurrence of a separator
-  /// character.
-  ///
-  /// If \p Separator is in the string, then the result is a pair (LHS, RHS)
-  /// such that (*this == LHS + Separator + RHS) is true and RHS is
-  /// minimal. If \p Separator is not in the string, then the result is a
-  /// pair (LHS, RHS) where (*this == LHS) and (RHS == "").
-  ///
-  /// \param Separator - The character to split on.
-  /// \return - The split substrings.
-  [[nodiscard]] std::pair<StrRef, StrRef> rsplit(char Separator) const {
-    return rsplit(StrRef(&Separator, 1));
-  }
 
   /// Locates the start and end positions of a token delimited by \p C.
   ///
