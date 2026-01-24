@@ -132,7 +132,7 @@ def run_exificient(name, args) -> bool:
     return proc.returncode
   elif proc.stderr.startswith("[Fatal Error]"):
     try:
-      qprint(f'{name}[?]:')
+      qprint(f'{name}:')
       vprint(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
       vprint(proc.stderr.strip())
       vprint(proc.stdout.strip(), flush=True)
@@ -141,7 +141,7 @@ def run_exificient(name, args) -> bool:
     return 1
   elif proc.stdout.startswith("[ERROR]"):
     try:
-      qprint(f'{name}[?]:')
+      qprint(f'{name}:')
       vprint(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
       vprint(proc.stdout.strip(), flush=True)
     except:
