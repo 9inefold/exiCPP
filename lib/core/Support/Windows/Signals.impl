@@ -306,7 +306,7 @@ static bool printMarkupContext(exi::raw_ostream &OS,
 
 static void PrintStackTraceForThread(exi::raw_ostream &OS, HANDLE hProcess,
                                      HANDLE hThread, STACKFRAME64 &StackFrame,
-                                     CONTEXT *Context) {
+                                     CONTEXT *Context, int Depth) {
   // It's possible that DbgHelp.dll hasn't been loaded yet.
   // In this case, just return, no stacktrace will be printed.
   if (!isDebugHelpInitialized())
@@ -325,6 +325,11 @@ static void PrintStackTraceForThread(exi::raw_ostream &OS, HANDLE hProcess,
 
     if (StackFrame.AddrFrame.Offset == 0)
       break;
+    
+    if (Depth > 0) {
+      --Depth;
+      continue;
+    }
 
     using namespace exi;
     // Print the PC in hexadecimal.
@@ -366,6 +371,7 @@ static void PrintStackTraceForThread(exi::raw_ostream &OS, HANDLE hProcess,
       continue;
     }
 
+    // TODO: Add demangling?
     buffer[511] = 0;
     OS << format(", {}() + 0x{:X} byte(s)", static_cast<char *>(symbol->Name),
                  static_cast<long long>(dwDisp));
@@ -526,7 +532,7 @@ void sys::PrintStackTraceOnErrorSignal(StrRef Argv0,
 extern "C" VOID WINAPI RtlCaptureContext(PCONTEXT ContextRecord);
 #endif
 
-static void LocalPrintStackTrace(raw_ostream &OS, PCONTEXT C) {
+static void LocalPrintStackTrace(raw_ostream &OS, PCONTEXT C, int Depth = 2) {
   STACKFRAME64 StackFrame{};
   CONTEXT Context{};
   if (!C) {
@@ -554,12 +560,12 @@ static void LocalPrintStackTrace(raw_ostream &OS, PCONTEXT C) {
   StackFrame.AddrStack.Mode = AddrModeFlat;
   StackFrame.AddrFrame.Mode = AddrModeFlat;
   PrintStackTraceForThread(OS, GetCurrentProcess(), GetCurrentThread(),
-                           StackFrame, C);
+                           StackFrame, C, Depth);
 }
 
 void exi::sys::PrintStackTrace(raw_ostream &OS, int Depth) {
   // FIXME: Handle "Depth" parameter to print stack trace upto specified Depth
-  LocalPrintStackTrace(OS, nullptr);
+  LocalPrintStackTrace(OS, nullptr, Depth + 2);
 }
 
 void exi::sys::SetInterruptFunction(void (*IF)()) {
