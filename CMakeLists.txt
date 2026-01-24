@@ -76,6 +76,21 @@ else()
     # Clang only flags
     list(APPEND EXI_WARNING_FLAGS -Werror=undefined-inline)
     list(APPEND EXI_FLAGS -fdiagnostics-show-template-tree)
+    if(WIN32)
+      if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18.0")
+        include(CheckLinkerFlag)
+        # CMAKE_REQUIRED_QUIET?
+        check_linker_flag(CXX "-g;-Wl,--pdb=" HAVE_PDB_FLAGS)
+      elseif(CMAKE_LINKER_TYPE STREQUAL "LLD")
+        # TODO: Check this...
+        set(HAVE_PDB_FLAGS 1)
+      else()
+        set(HAVE_PDB_FLAGS 0)
+      endif()
+      if(HAVE_PDB_FLAGS)
+        add_link_options(-g -Wl,--pdb=)
+      endif()
+    endif(WIN32)
     if(NOT EXI_USE_THREADS)
       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-threadsafe-statics")
     endif()
@@ -262,7 +277,8 @@ if(EXI_ENABLE_STACKTRACES AND NOT EXI_USE_MIMALLOC)
   # TODO: Add check for debug symbols
   CPMAddPackage(
     URI "gh:jeremy-rifkin/cpptrace@1.0.4"
-    OPTIONS "CPPTRACE_DISABLE_CXX_20_MODULES ON")
+    OPTIONS "CPPTRACE_DISABLE_CXX_20_MODULES ON" "CMAKE_REQUIRED_QUIET ON"
+  )
   target_link_libraries(exi-cpptrace INTERFACE cpptrace::cpptrace)
 elseif(EXI_ENABLE_STACKTRACES)
   message(WARNING "cpptrace does not work with mimalloc!")
