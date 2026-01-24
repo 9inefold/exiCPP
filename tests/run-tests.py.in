@@ -10,19 +10,6 @@ from subprocess import run as run_proc
 EXI_VERSION = "@EXI_VERSION@"
 BUILD_MODE  = "@CMAKE_BUILD_TYPE@"
 
-"""
-EXI_BASE_FOLDER = normpath("@EXI_BASE_FOLDER@")
-TEST_SRC_FOLDER = normpath("@TEST_SRC_FOLDER@")
-TEST_OUT_FOLDER = normpath("@TEST_OUT_FOLDER@")
-
-EXI_BIN_FOLDER  = normpath("@CMAKE_LIBRARY_OUTPUT_DIRECTORY@")
-EXI_EXECUTABLE  = joinpath(EXI_BIN_FOLDER, 'exi-test-driver.exe')
-XML_EXECUTABLE  = joinpath(EXI_BIN_FOLDER, 'xml-test-driver.exe')
-
-JAVA_EXECUTABLE = normpath("@Java_JAVA_EXECUTABLE@")
-EXIFICIENT_JAR  = normpath("@EXIFICIENT_JAR@")
-"""
-
 EXI_BASE_FOLDER = Path("@EXI_BASE_FOLDER@")
 TEST_SRC_FOLDER = Path("@TEST_SRC_FOLDER@")
 TEST_OUT_FOLDER = Path("@TEST_OUT_FOLDER@")
