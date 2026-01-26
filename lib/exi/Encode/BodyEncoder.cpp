@@ -26,6 +26,8 @@
 #include <core/Support/Casting.hpp>
 #include <core/Support/Format.hpp>
 #include <core/Support/Logging.hpp>
+#include <core/Support/Signals.hpp>
+#include <core/Support/WithColor.hpp>
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/Except.hpp>
@@ -242,7 +244,13 @@ ExiError ExiEncoder::EncoderFactory::go(Serializer* S) const {
   try {
     return S->run(&*TheEncoder);
   } catch (const exi::runtime_error& e) {
-    LOG_ERROR("Exception thrown: ", e.what());
+# if EXI_LOGGING
+    if (hasDbgLogLevel(LogLevel::ERROR)) {
+      WithColor(dbgs(), raw_ostream::BRIGHT_RED)
+        << "Exception thrown: " << e.what() << '\n';
+      sys::PrintStackTrace(dbgs(), e.frames());
+    }
+#endif
     return ExiError::kUnexpectedError;
   }
 }
