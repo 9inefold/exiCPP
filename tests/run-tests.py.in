@@ -77,6 +77,15 @@ class ParseOpt:
     if self.align == 'y':
       out.append('-bytePacked')
     return out
+  
+  def lxml_parse_opts(self):
+    out = {
+      'remove_pis': 'i' not in self.preserve,
+      'remove_comments': 'c' not in self.preserve,
+      #'resolve_entities': False # Causes a MemoryError
+    }
+    print(out)
+    return out
 
 def gen_subfolders() -> tuple [list[ParseOpt], list[str]]:
   out = []
@@ -172,9 +181,9 @@ def run_xml(name, args) -> bool:
   return proc.returncode
 
 # Returns true if xml is not different.
-def diff_xml(name, file1, file2) -> bool:
+def diff_xml(name, file1, file2, parse_options=None) -> bool:
   try:
-    diff_list = diff_files(file1, file2)
+    diff_list = diff_files(file1, file2, parse_options=parse_options)
     real_diffs = []
     # Fixup diffs with empty data
     # TODO: Add option to compare without preserves
@@ -350,6 +359,7 @@ class TestRunner:
     cache = self.cache_entry
     args = ' '.join(self.opts.exificient_parse_opts())
     i_args = f'-O{self.preserve} -CN -A{self.align}'
+    x_args = self.opts.lxml_parse_opts()
     encode_folder = TEST_OUT_FOLDER / 'xe' / self.subfolder
     decode_folder = TEST_OUT_FOLDER / 'xx' / self.subfolder
 
@@ -373,7 +383,7 @@ class TestRunner:
       #out_file = xml if code == 0 else exi
       #code = run_xml(name, f'{filename} {out_file} {i_args}')
       #if code == 0:
-      if diff_xml(name + '[xx]', filename, xml):
+      if diff_xml(name + '[xx]', filename, xml, x_args):
         cache['xx'].add(name)
     pass
 
@@ -406,6 +416,7 @@ class TestRunner:
   def exificient_roundtrip(self):
     cache = self.cache_entry
     args = f'-O{self.preserve} -CN -A{self.align}'
+    x_args = self.opts.lxml_parse_opts()
     encode_folder = TEST_OUT_FOLDER / 'xe' / self.subfolder
     decode_folder = TEST_OUT_FOLDER / 'id' / self.subfolder
 
@@ -421,7 +432,7 @@ class TestRunner:
       code = run_xml(name + '[id]', f'{filename} {exi} -X{xml} {args}')
       if code != 0:
         continue
-      if diff_xml(name + '[id]', filename, xml):
+      if diff_xml(name + '[id]', filename, xml, x_args):
         cache['id'].add(name)
     pass
 
@@ -430,6 +441,7 @@ class TestRunner:
     cache = self.cache_entry
     args = ' '.join(self.opts.exificient_parse_opts())
     i_args = f'-O{self.preserve} -CN -E -A{self.align}'
+    x_args = self.opts.lxml_parse_opts()
     encode_folder = TEST_OUT_FOLDER / 'ie' / self.subfolder
     decode_folder = TEST_OUT_FOLDER / 'xd' / self.subfolder
 
@@ -448,7 +460,7 @@ class TestRunner:
       filename = TEST_SRC_FOLDER / filename
       #code = run_xml(name, f'{filename} {xml} {i_args}')
       #if code == 0:
-      if diff_xml(name + '[xd]', filename, xml):
+      if diff_xml(name + '[xd]', filename, xml, x_args):
         cache['xd'].add(name)
     pass
 

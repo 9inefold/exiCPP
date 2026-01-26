@@ -30,9 +30,11 @@ def diff_trees(left, right, diff_options=None, formatter=None):
     return formatter.format(diffs, left)
 
 
-def _diff(parse_method, left, right, diff_options=None, formatter=None):
+def _diff(parse_method, left, right, diff_options=None, parse_options=None, formatter=None):
+    if parse_options is None:
+        parse_options = {}
     normalize = bool(getattr(formatter, "normalize", 1) & formatting.WS_TAGS)
-    parser = etree.XMLParser(remove_blank_text=normalize)
+    parser = etree.XMLParser(remove_blank_text=normalize, **parse_options)
     left_tree = parse_method(left, parser)
     right_tree = parse_method(right, parser)
     return diff_trees(
@@ -40,17 +42,23 @@ def _diff(parse_method, left, right, diff_options=None, formatter=None):
     )
 
 
-def diff_texts(left, right, diff_options=None, formatter=None):
+def diff_texts(left, right, diff_options=None, parse_options=None, formatter=None):
     """Takes two Unicode strings containing XML"""
     return _diff(
-        etree.fromstring, left, right, diff_options=diff_options, formatter=formatter
+        etree.fromstring, left, right,
+        diff_options=diff_options,
+        parse_options=parse_options,
+        formatter=formatter
     )
 
 
-def diff_files(left, right, diff_options=None, formatter=None):
+def diff_files(left, right, diff_options=None, parse_options=None, formatter=None):
     """Takes two filenames or streams, and diffs the XML in those files"""
     return _diff(
-        etree.parse, left, right, diff_options=diff_options, formatter=formatter
+        etree.parse, left, right,
+        diff_options=diff_options,
+        parse_options=parse_options,
+        formatter=formatter
     )
 
 
