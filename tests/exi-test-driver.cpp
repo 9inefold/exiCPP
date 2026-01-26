@@ -56,23 +56,6 @@ static void ParseRemainingArgs(ArrayRef<char*> Args, ExtraOptions& Out) {
   }
 }
 
-static Error WriteFile(StrRef File, StrRef Contents) {
-  Expected<std::string> ErrOrFileName
-    = GetAbsoluteFilename(File);
-  if (!ErrOrFileName)
-    return ErrOrFileName.takeError();
-  std::string FileName = std::move(ErrOrFileName.get());
-  
-  std::error_code EC;
-  raw_fd_ostream OS(FileName, EC,
-    sys::fs::CD_CreateAlways,
-    sys::fs::FA_Write, sys::fs::OF_None);
-  if (EC)
-    return errorCodeToError(EC); 
-  OS.write(Contents.data(), Contents.size());
-  return Error::success();
-}
-
 int main(int Argc, char* Argv[]) {
   using enum raw_ostream::Colors;
   InitDriver X(Argc, Argv);

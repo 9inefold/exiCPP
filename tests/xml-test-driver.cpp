@@ -34,6 +34,7 @@ using namespace exi;
 using namespace driver;
 
 static bool VerboseFail = false;
+static Option<String> OutputXML = std::nullopt;
 
 static void PrintHelp() {
   outs() << "USAGE: <file-in> <file-out> "
@@ -50,7 +51,10 @@ static void ParseRemainingArgs(ArrayRef<char*> Args, ExtraOptions& Out) {
       LOG_WARN("Invalid input for '{}': {}", ErrCmd, Arg);
     } else if (Arg.consume_front("-V"))
       VerboseFail = true;
-    else if (Arg.consume_front("-E"))
+    else if (Arg.consume_front("-X")) {
+      OutputXML.emplace(Arg.str());
+      //OutputXML = true;
+    } else if (Arg.consume_front("-E"))
       Out.EscapeData = true;
     else if (!*CodeOrErr)
       LOG_WARN("Invalid argument '{}'", Arg);
@@ -84,7 +88,6 @@ int main(int Argc, char* Argv[]) {
     return 1;
   }
 
-  auto InData = LoadFile<true>(InFile);
   auto OutData = LoadFile<true>(OutFile);
 
   ExtraOptions Opts {};
@@ -93,9 +96,6 @@ int main(int Argc, char* Argv[]) {
 
   xml::XMLBumpAllocator Alloc;
   XMLDocument In(Alloc);
-  
-  if (ParseXMLFromBuf(In, *InData, ParseOpts))
-    return 1;
   
   //////////////////////////////////////////////////////////////
   
@@ -160,7 +160,22 @@ int main(int Argc, char* Argv[]) {
     });
   };
 
-  SmallStr<0> InDump, OutDump;
+  SmallStr<0> OutDump;
+
+  if (OutputXML) {
+    Dump(Out, OutDump, false);
+    if (auto E = WriteFile(*OutputXML, OutDump.str())) {
+      logAllUnhandledErrors(std::move(E), errs());
+      return 2;
+    }
+    return 0;
+  }
+
+  auto InData = LoadFile<true>(InFile);
+  if (ParseXMLFromBuf(In, *InData, ParseOpts))
+    return 1;
+
+  SmallStr<0> InDump;
   Dump(In,  InDump, Opts.EscapeData);
   Dump(Out, OutDump, false);
 

@@ -184,6 +184,23 @@ inline auto LoadFile(const Twine& Path) {
   return std::move(*ErrOrBuf);
 }
 
+inline Error WriteFile(StrRef File, StrRef Contents) {
+  Expected<std::string> ErrOrFileName
+    = GetAbsoluteFilename(File);
+  if (!ErrOrFileName)
+    return ErrOrFileName.takeError();
+  std::string FileName = std::move(ErrOrFileName.get());
+  
+  std::error_code EC;
+  raw_fd_ostream OS(FileName, EC,
+    sys::fs::CD_CreateAlways,
+    sys::fs::FA_Write, sys::fs::OF_None);
+  if (EC)
+    return errorCodeToError(EC); 
+  OS.write(Contents.data(), Contents.size());
+  return Error::success();
+}
+
 inline bool ParseXMLFromBuf(XMLDocument& Doc, MemoryBuffer& MB) {
   static constexpr XMLParseOptions Default = {};
   if (Error E = exi::parseXMLFromBuffer(Doc, MB)) {

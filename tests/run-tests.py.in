@@ -21,6 +21,11 @@ XML_EXECUTABLE  = EXI_BIN_FOLDER / 'xml-test-driver.exe'
 JAVA_EXECUTABLE = Path("@Java_JAVA_EXECUTABLE@")
 EXIFICIENT_JAR  = Path("@EXIFICIENT_JAR@")
 
+sys.path.insert(0, str(EXI_BASE_FOLDER / 'vendored' / 'xmldiff'))
+print(sys.path)
+from xmldiff.main import diff_files
+import lxml.etree as etree
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-q', '--quiet', action='store_true', help='silence output')
 parser.add_argument('--verbose', action='store_true', help='verbose output')
@@ -111,18 +116,19 @@ def run_exificient(name, args) -> bool:
   proc = run_process(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
   if proc.returncode != 0:
     try:
-      qprint(f'{name}[{proc.returncode}]:')
+      qprint(f'{name}:')
       vprint(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
       vprint(proc.stdout.strip(), flush=True)
     except:
       pass
+    vprint()
     return proc.returncode
   elif proc.stderr.startswith("[Fatal Error]"):
     try:
       qprint(f'{name}:')
       vprint(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
       vprint(proc.stderr.strip())
-      vprint(proc.stdout.strip(), flush=True)
+      vprint(proc.stdout.strip(), '\n', flush=True)
     except:
       pass
     return 1
@@ -130,7 +136,7 @@ def run_exificient(name, args) -> bool:
     try:
       qprint(f'{name}:')
       vprint(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
-      vprint(proc.stdout.strip(), flush=True)
+      vprint(proc.stdout.strip(), '\n', flush=True)
     except:
       pass
     return 1
@@ -142,7 +148,7 @@ def run_exi(name, args) -> bool:
   proc = run_process(f"{EXI_EXECUTABLE} {args} {color_arg}")
   if proc.returncode != 0:
     try:
-      qprint(f'{name}[{proc.returncode}]:')
+      qprint(f'{name} ({proc.returncode}):')
       vprint(f"{EXI_EXECUTABLE} {args}:")
       vprint(proc.stdout.strip())
       vprint(proc.stderr.strip(), flush=True)
@@ -157,13 +163,31 @@ def run_xml(name, args) -> bool:
   proc = run_process(f"{XML_EXECUTABLE} {args} {verb_arg} {color_arg}")
   if proc.returncode != 0:
     try:
-      qprint(f'{name}[{proc.returncode}]*:')
+      qprint(f'{name} ({proc.returncode})*:')
       vprint(f"{XML_EXECUTABLE} {args}:")
       vprint(proc.stdout.strip())
       vprint(proc.stderr.strip(), flush=True)
     except:
       pass
   return proc.returncode
+
+# Returns true if xml is not different.
+def diff_xml(name, file1, file2) -> bool:
+  try:
+    diff_list = diff_files(file1, file2)
+    if len(diff_list) != 0:
+      qprint(f'{name}*:')
+      vprint(f"'{file1}' is NOT equal to '{file2}'\n")
+      return False
+    return True
+  except Exception as e:
+    qprint(f'{name}*:')
+    if not isinstance(e, etree.XMLSyntaxError):
+      # Currently doesn't work with PIs
+      pass
+    vprint(traceback.format_exc())
+    vprint(e, '\n', flush=True)
+    return False
 
 ################################################################################
 
@@ -324,7 +348,7 @@ class TestRunner:
       filename = TEST_SRC_FOLDER / filename
       exi = encode_folder / (name + '.exi')
       if not name in cache['xe']:
-        code = run_exificient(name, f'-encode {args} -i {filename} -o {exi}')
+        code = run_exificient(name + '[xe]', f'-encode {args} -i {filename} -o {exi}')
         if code != 0:
           continue
         cache['xe'].add(name)
@@ -332,12 +356,15 @@ class TestRunner:
       if name in cache['xx']:
         continue
       xml = decode_folder / (name + '.xml')
-      code = run_exificient(name, f'-decode {args} -i {exi} -o {xml}')
+      code = run_exificient(name + '[xx]', f'-decode {args} -i {exi} -o {xml}')
       ## Compare the xml
+      if code != 0:
+        continue
       #out_file = xml if code == 0 else exi
       #code = run_xml(name, f'{filename} {out_file} {i_args}')
       #if code == 0:
-      #  cache['xx'].add(name)
+      if diff_xml(name + '[xx]', filename, xml):
+        cache['xx'].add(name)
     pass
 
   # xml -[i]> exi -[i]> xml
@@ -353,14 +380,14 @@ class TestRunner:
       filename = TEST_SRC_FOLDER / filename
       exi = encode_folder / (name + '.exi')
       xml = decode_folder / (name + '.xml')
-      code = run_exi(name, f'{filename} {exi} -X{xml} {args}')
+      code = run_exi(name + '[ie]', f'{filename} {exi} -X{xml} {args}')
       if code == 0 or code >= 3:
         cache['ie'].add(name)
       if code != 0 or code != 4:
         continue
       # Compare the xml
       out_file = xml if code == 0 else exi
-      code = run_xml(name, f'{filename} {out_file} {args}')
+      code = run_xml(name + '[ii]', f'{filename} {out_file} {args}')
       if code == 0:
         cache['ii'].add(name)
     pass
@@ -380,8 +407,11 @@ class TestRunner:
       # Run the decoder & compare the xml
       filename = TEST_SRC_FOLDER / filename
       exi = encode_folder / (name + '.exi')
-      code = run_xml(name, f'{filename} {exi} {args}')
-      if code == 0:
+      xml = decode_folder / (name + '.xml')
+      code = run_xml(name + '[id]', f'{filename} {exi} -X{xml} {args}')
+      if code != 0:
+        continue
+      if diff_xml(name + '[id]', filename, xml):
         cache['id'].add(name)
     pass
 
@@ -401,13 +431,14 @@ class TestRunner:
       # Run the decoder
       exi = encode_folder / (name + '.exi')
       xml = decode_folder / (name + '.xml')
-      code = run_exificient(name, f'-decode {args} -i {exi} -o {xml}')
+      code = run_exificient(name + '[xd]', f'-decode {args} -i {exi} -o {xml}')
       if code != 0:
         continue
       # Compare the xml
       filename = TEST_SRC_FOLDER / filename
-      code = run_xml(name, f'{filename} {xml} {i_args}')
-      if code == 0:
+      #code = run_xml(name, f'{filename} {xml} {i_args}')
+      #if code == 0:
+      if diff_xml(name + '[xd]', filename, xml):
         cache['xd'].add(name)
     pass
 
@@ -447,6 +478,7 @@ if __name__ == "__main__":
   ]
   """
   #all_files = ['me\\Newlines2.xml', 'me\\CDATA2.xml']
+  all_files = ['xml\\089.xml']
 
   make_folders()
   cache = ProcessCache()
