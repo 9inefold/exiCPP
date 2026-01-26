@@ -37,12 +37,13 @@
 // #include <Support/CommandLine.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <Support/ErrorOr.hpp>
+#include <Support/Except.hpp>
 #include <Support/Filesystem.hpp>
 // #include <Support/FileUtilities.hpp>
 #include <Support/Format.hpp>
 // #include <Support/FormatVariadic.hpp>
 #include <Support/ManagedStatic.hpp>
-// #include <Support/MemoryBuffer.hpp>
+#include <Support/MemoryBuffer.hpp>
 #include <Support/Path.hpp>
 #include <Support/Program.hpp>
 #include <Support/StringSaver.hpp>
@@ -147,6 +148,10 @@ EXI_USED static bool printMarkupStackTrace(
   }
 
   return true;
+}
+
+void runtime_error::captureFrames() {
+  sys::CaptureStackTrace(this->Frames, 4);
 }
 
 // Include the platform-specific parts of this class.

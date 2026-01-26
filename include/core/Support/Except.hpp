@@ -24,9 +24,11 @@
 #pragma once
 
 #include <Common/Features.hpp>
+#include <Common/SmallVec.hpp>
 #include <Common/StrRef.hpp>
 #include <Common/Twine.hpp>
 #include <Support/ErrorHandle.hpp>
+#include <Support/Signals.hpp>
 #include <type_traits>
 #include <stdexcept>
 
@@ -53,8 +55,21 @@ template <typename Ex>
 
 /// Thrown for invalid arguments.
 class runtime_error : public std::runtime_error {
+  SmallVec<sys::StackFrame, 0> Frames;
 public:
   using std::runtime_error::runtime_error;
+  runtime_error(const std::string& Msg) : std::runtime_error(Msg) {
+    this->captureFrames();
+  }
+  runtime_error(const char* Msg) : std::runtime_error(Msg) {
+    this->captureFrames();
+  }
+  const SmallVecImpl<sys::StackFrame>& frames() const {
+    return this->Frames;
+  }
+private:
+  /// Implemented in `Support/Signals.cpp`.
+  void captureFrames();
 };
 
 /// Implements "throwing" in a way that reduces register pressure.

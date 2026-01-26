@@ -305,7 +305,7 @@ static bool printMarkupContext(exi::raw_ostream &OS,
 }
 
 static void PrintStackTraceForThread(exi::raw_ostream &OS,
-                                     SmallVecImpl<uptr> &Frames,
+                                     const SmallVecImpl<uptr> &Frames,
                                      HANDLE hProcess, HANDLE hThread) {
   // It's possible that DbgHelp.dll hasn't been loaded yet.
   // In this case, just return, no stacktrace will be printed.
@@ -608,12 +608,12 @@ static void LocalCaptureStackTrace(SmallVecImpl<sys::StackFrame> &Frames,
   if EXI_UNLIKELY(Depth < 0)
     Depth = 0;
   
-  const usize NAddrs = Depth + 400;
+  const usize NAddrs = unsigned(Depth) + 400;
   OwningArrayRef<void*> Addrs(NAddrs);
-  usize NFrames = CaptureStackBackTrace(
+  usize NFrames = RtlCaptureStackBackTrace(
     IntCast<ULONG>(Depth + 1),
     IntCast<ULONG>(NAddrs),
-    Addrs.data(), nullptr
+    Addrs.data(), /*BackTraceHash=*/nullptr
   );
 
   Frames.clear();
@@ -622,7 +622,7 @@ static void LocalCaptureStackTrace(SmallVecImpl<sys::StackFrame> &Frames,
     // On x86/x64/arm, as far as I can tell, the frame return address is always one after the call
     // So we just decrement to get the pc back inside the `call` / `bl`
     // This is done with _Unwind too but conditionally based on info from _Unwind_GetIPInfo.
-    Frames.push_back(reinterpret_cast<sys::StackFrame>(Addr) - 1);
+    Frames.push_back(reinterpret_cast<sys::StackFrame>(Addr) - 1u);
   }
 }
 
@@ -631,8 +631,6 @@ void exi::sys::CaptureStackTrace(SmallVecImpl<StackFrame> &Frames, int Depth) {
 }
 
 static void LocalPrintStackTrace(raw_ostream &OS, PCONTEXT C, int Depth = 0) {
-  if EXI_UNLIKELY(Depth < 0)
-    Depth = 0;
   STACKFRAME64 StackFrame{};
   CONTEXT Context{};
   if (!C) {
@@ -667,8 +665,10 @@ void exi::sys::PrintStackTrace(raw_ostream &OS, int Depth) {
   LocalPrintStackTrace(OS, nullptr, Depth + 1);
 }
 
-void exi::sys::PrintStackTrace(raw_ostream &OS, SmallVecImpl<StackFrame> &Frames) {
-  PrintStackTraceForThread(OS, Frames, GetCurrentProcess(), GetCurrentThread());
+void exi::sys::PrintStackTrace(raw_ostream &OS,
+                               const SmallVecImpl<StackFrame> &Frames) {
+  PrintStackTraceForThread(OS, Frames,
+                           GetCurrentProcess(), GetCurrentThread());
 }
 
 void exi::sys::SetInterruptFunction(void (*IF)()) {
@@ -968,7 +968,8 @@ static LONG WINAPI EXIUnhandledExceptionFilter(LPEXCEPTION_POINTERS ep) {
   if (ep)
     memcpy(&ContextCopy, ep->ContextRecord, sizeof(ContextCopy));
 
-  LocalPrintStackTrace(exi::errs(), ep ? &ContextCopy : nullptr);
+  exi::errs().enable_colors(false);
+  LocalPrintStackTrace(exi::errs(), ep ? &ContextCopy : nullptr, -1);
 
   return EXCEPTION_EXECUTE_HANDLER;
 }

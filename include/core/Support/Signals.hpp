@@ -86,7 +86,7 @@ void PrintStackTrace(raw_ostream &OS, int Depth = 0);
 
 /// Print the stack trace using the given \c raw_ostream object.
 /// \param Frames refers to frames captured ahead of time.
-void PrintStackTrace(raw_ostream &OS, SmallVecImpl<StackFrame> &Frames);
+void PrintStackTrace(raw_ostream &OS, const SmallVecImpl<StackFrame> &Frames);
 
 // Run all registered signal handlers.
 void RunSignalHandlers();
