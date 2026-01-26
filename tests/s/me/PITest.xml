@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+]>
+<?start in the beginning... hor hor?>
+<doc><?middle there was only darkness?></doc>
+<?end the end.?>

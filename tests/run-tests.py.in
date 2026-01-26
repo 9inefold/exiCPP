@@ -22,8 +22,8 @@ JAVA_EXECUTABLE = Path("@Java_JAVA_EXECUTABLE@")
 EXIFICIENT_JAR  = Path("@EXIFICIENT_JAR@")
 
 sys.path.insert(0, str(EXI_BASE_FOLDER / 'vendored' / 'xmldiff'))
-print(sys.path)
 from xmldiff.main import diff_files
+from xmldiff.actions import UpdateTextIn, UpdateTextAfter
 import lxml.etree as etree
 
 parser = argparse.ArgumentParser()
@@ -175,17 +175,27 @@ def run_xml(name, args) -> bool:
 def diff_xml(name, file1, file2) -> bool:
   try:
     diff_list = diff_files(file1, file2)
-    if len(diff_list) != 0:
+    real_diffs = []
+    # Fixup diffs with empty data
+    # TODO: Add option to compare without preserves
+    for diff in diff_list:
+      if isinstance(diff, (UpdateTextIn, UpdateTextAfter)):
+        old = diff.oldtext if diff.oldtext is not None else ''
+        new = diff.text if diff.text is not None else ''
+        if old.strip() != new.strip():
+          real_diffs.append(diff)
+      else:
+        real_diffs.append(diff)
+    if len(real_diffs) != 0:
       qprint(f'{name}*:')
-      vprint(f"'{file1}' is NOT equal to '{file2}'\n")
+      vprint(f"'{file1}' is NOT equal to '{file2}'\n", diff_list, '\n')
       return False
     return True
   except Exception as e:
     qprint(f'{name}*:')
     if not isinstance(e, etree.XMLSyntaxError):
       # Currently doesn't work with PIs
-      pass
-    vprint(traceback.format_exc())
+      vprint(traceback.format_exc())
     vprint(e, '\n', flush=True)
     return False
 
@@ -478,7 +488,6 @@ if __name__ == "__main__":
   ]
   """
   #all_files = ['me\\Newlines2.xml', 'me\\CDATA2.xml']
-  all_files = ['xml\\089.xml']
 
   make_folders()
   cache = ProcessCache()

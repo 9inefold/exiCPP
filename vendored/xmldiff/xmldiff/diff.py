@@ -220,6 +220,12 @@ class Differ:
     def node_text(self, node):
         if node in self._text_cache:
             return self._text_cache[node]
+        if node.tag is etree.ProcessingInstruction:
+            text = repr(node)
+            #print(repr(node))
+            result = utils.cleanup_whitespace(text)
+            self._text_cache[node] = result
+            return result
         # Get the texts and the tag as a start
         texts = [node.tag] + node.xpath("text()")
 
