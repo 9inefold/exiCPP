@@ -304,6 +304,76 @@ static bool printMarkupContext(exi::raw_ostream &OS,
   return false;
 }
 
+static void PrintStackTraceForThread(exi::raw_ostream &OS,
+                                     SmallVecImpl<uptr> &Frames,
+                                     HANDLE hProcess, HANDLE hThread) {
+  // It's possible that DbgHelp.dll hasn't been loaded yet.
+  // In this case, just return, no stacktrace will be printed.
+  if (!isDebugHelpInitialized())
+    return;
+
+  // Initialize the symbol handler.
+  fSymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
+  fSymInitialize(hProcess, NULL, TRUE);
+
+  for (DWORD64 PC : Frames) {
+    using namespace exi;
+    // Print the PC in hexadecimal.
+#if defined(_M_X64) || defined(_M_ARM64)
+    OS << format("0x{:016X}", PC);
+#elif defined(_M_IX86) || defined(_M_ARM)
+    OS << format("0x{:08X}", static_cast<DWORD>(PC));
+#endif
+
+    // Verify the PC belongs to a module in this process.
+    if (!fSymGetModuleBase64(hProcess, PC)) {
+      OS << " <unknown module>\n";
+      continue;
+    }
+
+    IMAGEHLP_MODULE64 M;
+    memset(&M, 0, sizeof(IMAGEHLP_MODULE64));
+    M.SizeOfStruct = sizeof(IMAGEHLP_MODULE64);
+    if (fSymGetModuleInfo64(hProcess, fSymGetModuleBase64(hProcess, PC), &M)) {
+      DWORD64 const disp = PC - M.BaseOfImage;
+      OS << format(", {}(0x{:016X}) + 0x{:X} byte(s)",
+                   static_cast<char *>(M.ImageName), M.BaseOfImage,
+                   static_cast<long long>(disp));
+    } else {
+      OS << ", <unknown module>";
+    }
+
+    // Print the symbol name.
+    char buffer[512];
+    IMAGEHLP_SYMBOL64 *symbol = reinterpret_cast<IMAGEHLP_SYMBOL64 *>(buffer);
+    memset(symbol, 0, sizeof(IMAGEHLP_SYMBOL64));
+    symbol->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
+    symbol->MaxNameLength = 512 - sizeof(IMAGEHLP_SYMBOL64);
+
+    DWORD64 dwDisp;
+    if (!fSymGetSymFromAddr64(hProcess, PC, &dwDisp, symbol)) {
+      OS << '\n';
+      continue;
+    }
+
+    // TODO: Add demangling?
+    buffer[511] = 0;
+    OS << format(", {}() + 0x{:X} byte(s)", static_cast<char *>(symbol->Name),
+                 static_cast<long long>(dwDisp));
+
+    // Print the source file and line number information.
+    IMAGEHLP_LINE64 line = {};
+    DWORD dwLineDisp;
+    line.SizeOfStruct = sizeof(line);
+    if (fSymGetLineFromAddr64(hProcess, PC, &dwLineDisp, &line)) {
+      OS << format(", {}, line {} + 0x{:X} byte(s)", line.FileName,
+                   line.LineNumber, dwLineDisp);
+    }
+
+    OS << '\n';
+  }
+}
+
 static void PrintStackTraceForThread(exi::raw_ostream &OS, HANDLE hProcess,
                                      HANDLE hThread, STACKFRAME64 &StackFrame,
                                      CONTEXT *Context, int Depth) {
@@ -532,7 +602,37 @@ void sys::PrintStackTraceOnErrorSignal(StrRef Argv0,
 extern "C" VOID WINAPI RtlCaptureContext(PCONTEXT ContextRecord);
 #endif
 
-static void LocalPrintStackTrace(raw_ostream &OS, PCONTEXT C, int Depth = 2) {
+/// Adapted from cpptrace `/unwind/unwind_with_winapi.cpp`
+static void LocalCaptureStackTrace(SmallVecImpl<sys::StackFrame> &Frames,
+                                   int Depth = 0) {
+  if EXI_UNLIKELY(Depth < 0)
+    Depth = 0;
+  
+  const usize NAddrs = Depth + 400;
+  OwningArrayRef<void*> Addrs(NAddrs);
+  usize NFrames = CaptureStackBackTrace(
+    IntCast<ULONG>(Depth + 1),
+    IntCast<ULONG>(NAddrs),
+    Addrs.data(), nullptr
+  );
+
+  Frames.clear();
+  Frames.reserve(NFrames);
+  for (void* Addr : Addrs.take_front(NFrames)) {
+    // On x86/x64/arm, as far as I can tell, the frame return address is always one after the call
+    // So we just decrement to get the pc back inside the `call` / `bl`
+    // This is done with _Unwind too but conditionally based on info from _Unwind_GetIPInfo.
+    Frames.push_back(reinterpret_cast<sys::StackFrame>(Addr) - 1);
+  }
+}
+
+void exi::sys::CaptureStackTrace(SmallVecImpl<StackFrame> &Frames, int Depth) {
+  LocalCaptureStackTrace(Frames, Depth + 1);
+}
+
+static void LocalPrintStackTrace(raw_ostream &OS, PCONTEXT C, int Depth = 0) {
+  if EXI_UNLIKELY(Depth < 0)
+    Depth = 0;
   STACKFRAME64 StackFrame{};
   CONTEXT Context{};
   if (!C) {
@@ -560,12 +660,15 @@ static void LocalPrintStackTrace(raw_ostream &OS, PCONTEXT C, int Depth = 2) {
   StackFrame.AddrStack.Mode = AddrModeFlat;
   StackFrame.AddrFrame.Mode = AddrModeFlat;
   PrintStackTraceForThread(OS, GetCurrentProcess(), GetCurrentThread(),
-                           StackFrame, C, Depth);
+                           StackFrame, C, Depth + 1);
 }
 
 void exi::sys::PrintStackTrace(raw_ostream &OS, int Depth) {
-  // FIXME: Handle "Depth" parameter to print stack trace upto specified Depth
-  LocalPrintStackTrace(OS, nullptr, Depth + 2);
+  LocalPrintStackTrace(OS, nullptr, Depth + 1);
+}
+
+void exi::sys::PrintStackTrace(raw_ostream &OS, SmallVecImpl<StackFrame> &Frames) {
+  PrintStackTraceForThread(OS, Frames, GetCurrentProcess(), GetCurrentThread());
 }
 
 void exi::sys::SetInterruptFunction(void (*IF)()) {

@@ -40,7 +40,12 @@ namespace exi {
 class StrRef;
 class raw_ostream;
 
+template <typename>
+class SmallVecImpl;
+
 namespace sys {
+
+using StackFrame = uptr;
 
 /// This function runs all the registered interrupt handlers, including the
 /// removal of files registered by RemoveFileOnSignal.
@@ -69,10 +74,19 @@ void PrintStackTraceOnErrorSignal(StrRef Argv0,
 /// Disable all system dialog boxes that appear when the process crashes.
 void DisableSystemDialogsOnCrash();
 
+/// Capture the stack trace using the given \c SmallVec.
+/// \param Depth refers to the number of stackframes to skip. If not
+///        specified, the entire frame is captured.
+void CaptureStackTrace(SmallVecImpl<StackFrame> &Frames, int Depth = 0);
+
 /// Print the stack trace using the given \c raw_ostream object.
-/// \param Depth refers to the number of stackframes to print. If not
+/// \param Depth refers to the number of stackframes to skip. If not
 ///        specified, the entire frame is printed.
 void PrintStackTrace(raw_ostream &OS, int Depth = 0);
+
+/// Print the stack trace using the given \c raw_ostream object.
+/// \param Frames refers to frames captured ahead of time.
+void PrintStackTrace(raw_ostream &OS, SmallVecImpl<StackFrame> &Frames);
 
 // Run all registered signal handlers.
 void RunSignalHandlers();
