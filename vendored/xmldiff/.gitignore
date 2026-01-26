@@ -1,0 +1,16 @@
+*.pyc
+__pycache__
+*.bak
+*.egg-info
+*.wp?
+.eggs
+.tox
+.coverage
+htmlcov
+build
+docs/build
+venv
+build
+dist
+test.ipynb
+.venv/

@@ -2,7 +2,7 @@
 
 This folder contains tests based on the W3C conformance suite.
 Using the default exificient `.jar` requires java 8.
-Python tests require `xmldiff` (install with `pip install xmldiff`).
+Python tests require `lxml` (install with `pip install lxml`).
 
 Folders have the following meanings:
 
