@@ -19,45 +19,62 @@ SKIP_EMPTY = args.noempty
 SKIP_COMMENTS = args.nocomments
 SKIP_HEADER = not args.header
 
-IS_CPP_FILE = re.compile(r'.*\.(hpp|cpp|impl|mac|in)')
-CPP_COMMENT = '//'.encode()
-CMAKE_COMMENT = '#'.encode()
+IS_CPP_STYLE_FILE = re.compile(r'.*\.(hpp|cpp|impl|mac|in|java)')
+CSTYLE_COMMENT = '//'.encode()
+PYSTYLE_COMMENT = '#'.encode()
+
+class LineHandler:
+  def __init__(self, filename: str):
+    not_txt = not filename.endswith('txt')
+    cpp_style = IS_CPP_STYLE_FILE.match(filename)
+
+    self.line_count = 0
+    self.strip_lines = not_txt and (SKIP_EMPTY or SKIP_COMMENTS)
+    self.skip_comments = not_txt and SKIP_COMMENTS
+    self.skip_header = cpp_style and SKIP_HEADER
+
+    if cpp_style:
+      self.comment_str = CSTYLE_COMMENT
+    else:
+      self.comment_str = PYSTYLE_COMMENT
+  
+  def counts(self, line: AnyStr) -> int:
+    if strip_lines:
+      line = line.lstrip()
+    if SKIP_EMPTY and (len(line) == 0):
+      return 0
+    if self.skip_comments and line.startswith(self.comment_str):
+      return 0
+    return 1
+  
+  def add(self, line: AnyStr):
+    self.line_count = self.counts(line)
 
 # From https://stackoverflow.com/a/850962/17980859
 def mapcount(filename: str):
   if getsize(filename) == 0:
     return 0
 
-  not_txt = not filename.endswith('txt')
-  strip_lines = not_txt and (SKIP_EMPTY or SKIP_COMMENTS)
-  skip_comments = not_txt and SKIP_COMMENTS
-  comment_str = CMAKE_COMMENT if filename.endswith('cmake') else CPP_COMMENT
-
+  handler = LineHandler(filename)
   with open(filename, "r+") as f:
     buf = mmap.mmap(f.fileno(), 0)
-    lines = 0
     readline = buf.readline
     # Skip the header
-    if SKIP_HEADER and IS_CPP_FILE.match(filename):
+    if handler.skip_header:
       while True:
         line = readline()
         if not line:
-          return lines
-        if not line.startswith(CPP_COMMENT):
+          return handler.line_count
+        if not line.startswith(CSTYLE_COMMENT):
+          # There is always a gap here, so we don't need to count it.
           break
     # Do the actual counting
     while True:
       line = readline()
       if not line:
         break
-      if strip_lines:
-        line = line.lstrip()
-        if SKIP_EMPTY and (len(line) == 0):
-          continue
-        if skip_comments and line.startswith(comment_str):
-          continue
-      lines += 1
-    return lines
+      handler.add(line)
+  return handler.line_count
 
 def glob_files_in(pattern, lib):
   r = []
@@ -71,6 +88,7 @@ def glob_files(extension: str) -> [str]:
   f.extend(glob_files_in(recurse, 'include'))
   f.extend(glob_files_in(recurse, 'lib'))
   f.extend(glob_files_in(recurse, 'redirect'))
+  f.extend(glob_files_in(recurse, 'tests'))
   return f
 
 def get_files() -> [str]:
@@ -82,6 +100,8 @@ def get_files() -> [str]:
   f.extend(glob_files('mac'))
   f.extend(glob_files('impl'))
   f.extend(glob_files('in'))
+  f.extend(glob_files('java'))
+  f.extend(glob('./scripts/*.cmake'))
 
   p = re.compile(r'(.+[\/])*[^\/]+\.hidden[^\/]+')
   f = [normpath(s) for s in f]
