@@ -25,7 +25,7 @@ function(add_unittest test_suite test_name)
   set(test_target_name "${test_name}Tests")
   get_target_property(test_suite_NAME ${test_suite} EXI_SUBPROJECT_NAME)
 
-  add_executable(${test_target_name} ${EXI_BASE_FOLDER}/unittests/TestDriver.cpp ${ARGN})
+  add_executable(${test_target_name} ${EXI_BASE_DIR}/unittests/TestDriver.cpp ${ARGN})
   target_link_libraries(${test_target_name} PRIVATE gtest)
   #add_executable(${test_target_name} ${ARGN})
   #target_link_libraries(${test_target_name} PRIVATE gtest gtest_main)
@@ -35,8 +35,8 @@ function(add_unittest test_suite test_name)
     EXI_SUBPROJECT_NAME "${test_suite_NAME}"
   )
 
-  #get_target_property(test_FOLDER ${test_target_name} FOLDER)
-  #message(STATUS "${test_name}-FOLDER: ${test_FOLDER}")
+  #get_target_property(test_DIR ${test_target_name} FOLDER)
+  #message(STATUS "${test_name}-FOLDER: ${test_DIR}")
 
   #add_test(NAME ${test_name} COMMAND $<TARGET_FILE:${test_target_name}>)
   #set_property(TEST ${test_name} APPEND PROPERTY LABELS ${test_suite_NAME})

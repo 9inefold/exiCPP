@@ -1,7 +1,7 @@
 import sys, traceback
 from pathlib import Path
 
-EXI_BASE_FOLDER = Path("C:/Users/alex/Documents/GitHub/exiCPP")
+EXI_BASE_DIR = Path("C:/Users/alex/Documents/GitHub/exiCPP")
 
 import _jpype
 _jpype.enableStacktraces(True)
@@ -11,7 +11,7 @@ import jpype.imports
 from jpype.types import *
 
 jpype.startJVM(jpype.getDefaultJVMPath(), '-ea',
-  classpath=[EXI_BASE_FOLDER.as_posix() + '/bin/*'],
+  classpath=[EXI_BASE_DIR.as_posix() + '/bin/*'],
   convertStrings=False)
 
 if not jpype.isJVMStarted():
@@ -156,9 +156,9 @@ class MessageHandler(metaclass=Singleton):
 if __name__ == "__main__":
   CustomSAXParserFactory.printTypeOfParser()
 
-  xml_in = (EXI_BASE_FOLDER / 'tests/s/xml/042.xml').read_text('utf8')
+  xml_in = (EXI_BASE_DIR / 'tests/s/xml/042.xml').read_text('utf8')
   data = MessageHandler.encode(xml_in)
-  (EXI_BASE_FOLDER / 'tests/042.exi').write_bytes(data)
+  (EXI_BASE_DIR / 'tests/042.exi').write_bytes(data)
   xml_out = MessageHandler.decode(data)
   print(xml_out)
   pass

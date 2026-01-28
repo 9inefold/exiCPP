@@ -32,12 +32,12 @@ if(NOT TARGET Python3::Interpreter)
 endif()
 
 if(NOT DEFINED EXIFICIENT_DIR)
-  set(EXIFICIENT_JAR "${EXI_BASE_FOLDER}/bin/exificient-jar-with-dependencies.jar")
+  set(EXIFICIENT_JAR "${EXI_BASE_DIR}/bin/exificient-jar-with-dependencies.jar")
 endif()
 
 # TODO: Test the EXI jar is runnable with the java version?
-set(TEST_SRC_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/s")
-set(TEST_OUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/o")
+set(TEST_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/s")
+set(TEST_OUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/o")
 
 # Build our custom classes
 add_subdirectory(jarvis)

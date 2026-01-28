@@ -35,7 +35,7 @@ endif()
 
 target_include_directories(
   exi-redirect-patches PUBLIC
-  ${EXI_BASE_FOLDER}/include/core/Config
+  ${EXI_BASE_DIR}/include/core/Config
   include
 )
 
@@ -104,10 +104,10 @@ function(exi_minject tgt)
   if(EXI_REDIRECT)
     if(arg_CLASSIC)
       target_link_libraries(${tgt}
-        ${EXI_MI_FOLDER}/bin/mimalloc-redirect.lib)
+        ${EXI_MI_DIR}/bin/mimalloc-redirect.lib)
       add_custom_command(TARGET ${tgt} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
-        ${EXI_MI_FOLDER}/bin/mimalloc-redirect.dll
+        ${EXI_MI_DIR}/bin/mimalloc-redirect.dll
         $<TARGET_FILE_DIR:${tgt}>/mimalloc-redirect.dll)
     else()
       target_link_libraries(${tgt} exi::redirect)
@@ -136,7 +136,7 @@ function(exi_minject tgt)
 
   # message(STATUS "Postfix: ${var_POSTFIX}")
   add_custom_command(TARGET ${tgt} POST_BUILD
-    COMMAND ${EXI_MI_FOLDER}/bin/${MINJECT_FILE}
+    COMMAND ${EXI_MI_DIR}/bin/${MINJECT_FILE}
       --inplace --force
       --postfix=${var_POSTFIX} $<TARGET_FILE:${tgt}>)
 endfunction(exi_minject)

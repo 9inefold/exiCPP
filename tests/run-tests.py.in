@@ -10,18 +10,18 @@ from subprocess import run as run_proc
 EXI_VERSION = "@EXI_VERSION@"
 BUILD_MODE  = "@CMAKE_BUILD_TYPE@"
 
-EXI_BASE_FOLDER = Path("@EXI_BASE_FOLDER@")
-TEST_SRC_FOLDER = Path("@TEST_SRC_FOLDER@")
-TEST_OUT_FOLDER = Path("@TEST_OUT_FOLDER@")
+EXI_BASE_DIR = Path("@EXI_BASE_DIR@")
+TEST_SRC_DIR = Path("@TEST_SRC_DIR@")
+TEST_OUT_DIR = Path("@TEST_OUT_DIR@")
 
-EXI_BIN_FOLDER  = Path("@CMAKE_LIBRARY_OUTPUT_DIRECTORY@")
-EXI_EXECUTABLE  = EXI_BIN_FOLDER / 'exi-test-driver.exe'
-XML_EXECUTABLE  = EXI_BIN_FOLDER / 'xml-test-driver.exe'
+EXI_BIN_DIR  = Path("@CMAKE_LIBRARY_OUTPUT_DIRECTORY@")
+EXI_EXECUTABLE  = EXI_BIN_DIR / 'exi-test-driver.exe'
+XML_EXECUTABLE  = EXI_BIN_DIR / 'xml-test-driver.exe'
 
 JAVA_EXECUTABLE = Path("@Java_JAVA_EXECUTABLE@")
 EXIFICIENT_JAR  = Path("@EXIFICIENT_JAR@")
 
-sys.path.insert(0, str(EXI_BASE_FOLDER / 'vendored' / 'xmldiff'))
+sys.path.insert(0, str(EXI_BASE_DIR / 'vendored' / 'xmldiff'))
 from xmldiff.main import diff_files
 from xmldiff.actions import UpdateTextIn, UpdateTextAfter
 import lxml.etree as etree
@@ -111,14 +111,14 @@ else:
 def make_folders():
   for subfolder in subfolders:
     for folder in FOLDER_NAMES:
-      f = TEST_OUT_FOLDER / folder / subfolder.mangled
+      f = TEST_OUT_DIR / folder / subfolder.mangled
       if not f.exists():
         f.mkdir(parents=True)
 
 ################################################################################
 
 def run_process(args):
-  return run_proc(args, cwd=EXI_BIN_FOLDER, capture_output=True, text=True)
+  return run_proc(args, cwd=EXI_BIN_DIR, capture_output=True, text=True)
 
 # Directly runs exificient
 def run_exificient(name, args) -> bool:
@@ -253,7 +253,7 @@ class ProcessCache:
     self.__cache = {}
     self.__files = set([])
     if cache_path is None or cache_path == '-':
-      cache_path = TEST_OUT_FOLDER
+      cache_path = TEST_OUT_DIR
     # Open cache!
     cachefile = Path(cache_path) / '.testcache.json'
     if cachefile.exists():
@@ -360,12 +360,12 @@ class TestRunner:
     args = ' '.join(self.opts.exificient_parse_opts())
     i_args = f'-O{self.preserve} -CN -A{self.align}'
     x_args = self.opts.lxml_parse_opts()
-    encode_folder = TEST_OUT_FOLDER / 'xe' / self.subfolder
-    decode_folder = TEST_OUT_FOLDER / 'xx' / self.subfolder
+    encode_folder = TEST_OUT_DIR / 'xe' / self.subfolder
+    decode_folder = TEST_OUT_DIR / 'xx' / self.subfolder
 
     for filename, name in self.files.items():
       # Run the encoder
-      filename = TEST_SRC_FOLDER / filename
+      filename = TEST_SRC_DIR / filename
       exi = encode_folder / (name + '.exi')
       if not name in cache['xe']:
         code = run_exificient(name + '[xe]', f'-encode {args} -i {filename} -o {exi}')
@@ -391,13 +391,13 @@ class TestRunner:
   def exicpp_identity(self):
     cache = self.cache_entry
     args = f'-O{self.preserve} -CP -A{self.align}'
-    encode_folder = TEST_OUT_FOLDER / 'ie' / self.subfolder
-    decode_folder = TEST_OUT_FOLDER / 'ii' / self.subfolder
+    encode_folder = TEST_OUT_DIR / 'ie' / self.subfolder
+    decode_folder = TEST_OUT_DIR / 'ii' / self.subfolder
 
     for filename, name in self.files.items():
       if name in cache['ii']:
         continue
-      filename = TEST_SRC_FOLDER / filename
+      filename = TEST_SRC_DIR / filename
       exi = encode_folder / (name + '.exi')
       xml = decode_folder / (name + '.xml')
       code = run_exi(name + '[ie]', f'{filename} {exi} -X{xml} {args}')
@@ -417,8 +417,8 @@ class TestRunner:
     cache = self.cache_entry
     args = f'-O{self.preserve} -CN -A{self.align}'
     x_args = self.opts.lxml_parse_opts()
-    encode_folder = TEST_OUT_FOLDER / 'xe' / self.subfolder
-    decode_folder = TEST_OUT_FOLDER / 'id' / self.subfolder
+    encode_folder = TEST_OUT_DIR / 'xe' / self.subfolder
+    decode_folder = TEST_OUT_DIR / 'id' / self.subfolder
 
     for filename, name in self.files.items():
       if name in cache['id']:
@@ -426,7 +426,7 @@ class TestRunner:
       if not name in cache['xe']:
         continue
       # Run the decoder & compare the xml
-      filename = TEST_SRC_FOLDER / filename
+      filename = TEST_SRC_DIR / filename
       exi = encode_folder / (name + '.exi')
       xml = decode_folder / (name + '.xml')
       code = run_xml(name + '[id]', f'{filename} {exi} -X{xml} {args}')
@@ -442,8 +442,8 @@ class TestRunner:
     args = ' '.join(self.opts.exificient_parse_opts())
     i_args = f'-O{self.preserve} -CN -E -A{self.align}'
     x_args = self.opts.lxml_parse_opts()
-    encode_folder = TEST_OUT_FOLDER / 'ie' / self.subfolder
-    decode_folder = TEST_OUT_FOLDER / 'xd' / self.subfolder
+    encode_folder = TEST_OUT_DIR / 'ie' / self.subfolder
+    decode_folder = TEST_OUT_DIR / 'xd' / self.subfolder
 
     for filename, name in self.files.items():
       if name in cache['xd']:
@@ -457,7 +457,7 @@ class TestRunner:
       if code != 0:
         continue
       # Compare the xml
-      filename = TEST_SRC_FOLDER / filename
+      filename = TEST_SRC_DIR / filename
       #code = run_xml(name, f'{filename} {xml} {i_args}')
       #if code == 0:
       if diff_xml(name + '[xd]', filename, xml, x_args):
@@ -483,7 +483,7 @@ class TestRunner:
 if __name__ == "__main__":
   all_files = list(glob(
     '**/*.xml',
-    root_dir=TEST_SRC_FOLDER,
+    root_dir=TEST_SRC_DIR,
     recursive=True
   ))
 

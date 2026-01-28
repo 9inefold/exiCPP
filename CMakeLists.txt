@@ -3,7 +3,7 @@ include_guard(DIRECTORY)
 
 project(
   exi-cpp
-  VERSION 0.8.10
+  VERSION 0.8.11
   LANGUAGES CXX C
 )
 
@@ -226,9 +226,9 @@ if(EXI_ENABLE_STACKTRACES OR EXI_TESTS)
   include(scripts/CPM.cmake)
 endif()
 
-set(EXI_BASE_FOLDER ${CMAKE_CURRENT_SOURCE_DIR} CACHE FILEPATH "The root exi directory.")
-set(EXI_VENDORED_FOLDER "${EXI_BASE_FOLDER}/vendored" CACHE FILEPATH "The vendored directory.")
-set(EXI_MI_FOLDER "${EXI_VENDORED_FOLDER}/mimalloc" CACHE FILEPATH "The mimalloc directory.")
+set(EXI_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE FILEPATH "The root exi directory.")
+set(EXI_VENDORED_DIR "${EXI_BASE_DIR}/vendored" CACHE FILEPATH "The vendored directory.")
+set(EXI_MI_DIR "${EXI_VENDORED_DIR}/mimalloc" CACHE FILEPATH "The mimalloc directory.")
 add_subdirectory(include/core) # Configure files
 
 function(exi_minject tgt)
