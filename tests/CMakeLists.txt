@@ -14,6 +14,18 @@ if(NOT DEFINED EXI_JAVA_EXECUTABLE)
   set(EXI_JAVA_EXECUTABLE "${Java_JAVA_EXECUTABLE}")
 endif()
 
+find_package(Java QUIET COMPONENTS Development)
+if(NOT Java_Development_FOUND)
+  message(FATAL_ERROR "Javac could not be found!")
+endif()
+
+if(NOT DEFINED EXI_CLASS_BINARY_DIR)
+  set(EXI_CLASS_BINARY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/jarvis/build" CACHE FILEPATH "")
+  if(NOT EXISTS EXI_CLASS_BINARY_DIR)
+    file(MAKE_DIRECTORY "${EXI_CLASS_BINARY_DIR}")
+  endif()
+endif()
+
 find_package(Python3 QUIET COMPONENTS Interpreter)
 if(NOT TARGET Python3::Interpreter)
   message(FATAL_ERROR "Python3 could not be found!")
@@ -27,13 +39,16 @@ endif()
 set(TEST_SRC_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/s")
 set(TEST_OUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/o")
 
+# Build our custom classes
+add_subdirectory(jarvis)
+
 configure_file(
   run-tests.py.in
   ${CMAKE_CURRENT_SOURCE_DIR}/run-tests.py
   @ONLY
 )
 
-add_custom_target(tests-target)
+add_custom_target(exi-tests-target)
 #add_custom_command(
 #  TARGET tests-target POST_BUILD
 #  COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/run-tests.py
@@ -46,7 +61,7 @@ target_link_libraries(xml-test-driver PUBLIC exi::exicpp)
 add_executable(exi-test-driver exi-test-driver.cpp)
 target_link_libraries(exi-test-driver PUBLIC exi::exicpp)
 
-#add_dependencies(exi-exicpp tests-target)
+#add_dependencies(exi-exicpp exi-tests-target)
 
 add_test(
   NAME roundtrip
