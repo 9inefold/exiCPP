@@ -4,7 +4,7 @@
 ## Core
 ##########################################################################
 
-include_items(EXICPP_CORE "lib/core"
+include_items(CORE_COMMON "lib/core"
   Common/APInt.cpp
   Common/APSInt.cpp
   Common/BitSpan.cpp
@@ -15,9 +15,13 @@ include_items(EXICPP_CORE "lib/core"
   Common/StringMap.cpp
   Common/StrRef.cpp
   Common/Twine.cpp
+)
 
+include_items(CORE_CONFIG "lib/core"
   Config/ABIBreak.cpp
+)
 
+include_items(CORE_SUPPORT "lib/core"
   Support/Alloc.cpp
   Support/Allocator.cpp
   Support/AutoConvert.cpp
@@ -56,19 +60,14 @@ include_items(EXICPP_CORE "lib/core"
   Support/raw_ostream.cpp
 )
 
-##########################################################################
-
-add_library(exi-core STATIC ${EXICPP_CORE})
+add_library(exi-core STATIC ${CORE_COMMON} ${CORE_CONFIG} ${CORE_SUPPORT})
 add_library(exi::core ALIAS exi-core)
+exi_add_target_options(exi-core)
 
 target_include_directories(exi-core
   PUBLIC include include/core
   PRIVATE lib/core)
 target_link_libraries(exi-core PUBLIC fmt::fmt exi-cpptrace)
-target_compile_features(exi-core PUBLIC cxx_std_20)
-target_compile_options(exi-core
-  PUBLIC ${EXI_FLAGS}
-  PRIVATE ${EXI_WARNING_FLAGS})
 
 if(EXI_USE_MIMALLOC)
   target_link_libraries(exi-core PUBLIC mimalloc)
@@ -146,17 +145,16 @@ function(exi_add_library lib src)
   set(LIBNAME exi-${lib})
   add_library(${LIBNAME} STATIC ${${src}})
   add_library(exi::${lib} ALIAS ${LIBNAME})
-
+  exi_add_target_options(${LIBNAME})
   target_include_directories(${LIBNAME}
     PUBLIC include
     PRIVATE lib/core lib/exi)
   target_link_libraries(${LIBNAME} PUBLIC ${EXI_LINK_LIBS})
-  target_compile_options(${LIBNAME} PRIVATE ${EXI_WARNING_FLAGS})
 endfunction(exi_add_library)
 
-exi_add_library(basic   EXICPP_BASIC)
+exi_add_library(basic EXICPP_BASIC)
 list(APPEND EXI_LINK_LIBS exi::basic)
-exi_add_library(stream  EXICPP_STREAM)
+exi_add_library(stream EXICPP_STREAM)
 list(APPEND EXI_LINK_LIBS exi::stream)
 
 exi_add_library(decode  EXICPP_DECODE)
@@ -218,17 +216,19 @@ if(EXI_TESTS)
   add_subdirectory(tests)
 endif()
 
+macro(exi_add_driver target)
+  exi_add_executable(${target} ${ARGN})
+  target_link_libraries(${target} PUBLIC exi::exicpp)
+endmacro(exi_add_driver)
+
 if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
-  add_executable(exi-driver Driver.cpp
-    DriverTests.cpp #XMLDumper.cpp
-  )
+  #exi_add_driver(exi-driver Driver.cpp DriverTests.cpp)
+  add_executable(exi-driver Driver.cpp DriverTests.cpp)
   target_link_libraries(exi-driver PUBLIC exi::exicpp)
+  exi_add_pdb(exi-driver)
   exi_minject(exi-driver CLASSIC BACKUP)
   add_dependencies(exi-exicpp exi-irgen)
 endif()
 
-add_executable(exi-xml-compare XMLCompareDriver.cpp)
-target_link_libraries(exi-xml-compare PUBLIC exi::exicpp)
-
-add_executable(exi-xml-print XMLPrintDriver.cpp)
-target_link_libraries(exi-xml-print PUBLIC exi::exicpp)
+exi_add_driver(exi-xml-compare XMLCompareDriver.cpp)
+exi_add_driver(exi-xml-print XMLPrintDriver.cpp)

@@ -30,10 +30,10 @@ This is a TODO list for the C++ version of exiCPP.
 
 - Add compatibility for exificient's terrible escaping scheme
 - Check depth when parsing
+- Refactor initialization of `ExiDecoder`, it makes no fucking sense
 - Make XML comparison match failures more useful
 - `exi` example test suite
 - Combine data & cdata nodes
-- Refactor initialization of `ExiDecoder`, it makes no fucking sense
 - Real tests for `core`
 - Update `ABIBreak.*` for next version
 - Prepare for doxygen support

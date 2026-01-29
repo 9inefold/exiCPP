@@ -56,56 +56,15 @@ option(EXI_ANSI     "[DEPRECATED] If ANSI should be enabled." ON)
 if (NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
   message(FATAL_ERROR "Currently only supported on 64bit!")
 endif()
-
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC currently unsupported!")
-else()
-  # TODO: Add function for this?
-  set(EXI_WARNING_FLAGS -Wall -Wextra
-    -Wno-unused-variable
-    -Wno-unused-function
-    -Wno-unused-parameter
-    -Wno-ignored-qualifiers
-    -Wmismatched-new-delete
-  ) # TODO: Remove -Wmismatched-new-delete
-  if(CMAKE_CXX_COMPILER_ID STREQUAL "GCC")
-    # GCC only flags
-    #set(EXI_FLAGS "${EXI_FLAGS} -Wuninitialized=precise")
-    set(EXI_FLAGS "${EXI_FLAGS} $<$<NOT:$<CONFIG:Debug>>:\"-ftrivial-auto-var-init=zero\">")
-  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    # Clang only flags
-    list(APPEND EXI_WARNING_FLAGS -Werror=undefined-inline)
-    list(APPEND EXI_FLAGS -fdiagnostics-show-template-tree)
-    if(WIN32)
-      if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18.0")
-        include(CheckLinkerFlag)
-        # CMAKE_REQUIRED_QUIET?
-        check_linker_flag(CXX "-g;-Wl,--pdb=" HAVE_PDB_FLAGS)
-      elseif(CMAKE_LINKER_TYPE STREQUAL "LLD")
-        # TODO: Check this...
-        set(HAVE_PDB_FLAGS 1)
-      else()
-        set(HAVE_PDB_FLAGS 0)
-      endif()
-      if(HAVE_PDB_FLAGS)
-        add_link_options(-g -Wl,--pdb=)
-      endif()
-    endif(WIN32)
-    if(NOT EXI_USE_THREADS)
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-threadsafe-statics")
-    endif()
-  endif()
-  if(EXI_NATIVE_CODEGEN)
-    set(EXI_MARCH native CACHE STRING "" FORCE)
-    message(DEPRECATION "EXI_NATIVE_CODEGEN is deprecated!")
-  endif()
-  if(DEFINED EXI_MARCH AND NOT (EXI_MARCH STREQUAL ""))
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${EXI_MARCH}")
-    set(EXI_MARCH_ENABLED ON CACHE BOOL "")
-  else()
-    set(EXI_MARCH_ENABLED OFF CACHE BOOL "")
-  endif()
 endif()
+
+# EXI_ON_[GCC|CLANG|MSVC], EXI_ON_[WIN32|UNIX]
+# EXI_FLAGS, EXI_WARNING_FLAGS, EXI_MARCH
+# EXI_DEBUG_BUILD, EXI_FAST_DEBUG
+# exi_add_target_options
+include(SetupExiFlags)
 
 if(DEFINED ENV{EXIFICIENT_DIR} AND NOT DEFINED EXIFICIENT_DIR)
   set(EXIFICIENT_DIR "$ENV{EXIFICIENT_DIR}")
@@ -116,35 +75,6 @@ if(DEFINED EXIFICIENT_DIR)
     # Do this early so we can avoid doing tons of extra work :)
     message(FATAL_ERROR "Could not find exificient-jar-with-dependencies.jar in EXIFICIENT_DIR!")
   endif()
-endif()
-
-if(WIN32)
-  if(CYGWIN)
-    set(EXI_ON_WIN32 0)
-    set(EXI_ON_UNIX 1)
-  else()
-    set(EXI_ON_WIN32 1)
-    set(EXI_ON_UNIX 0)
-  endif()
-elseif(FUCHSIA OR UNIX)
-  set(EXI_ON_WIN32 0)
-  set(EXI_ON_UNIX 1)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Generic")
-  set(EXI_ON_WIN32 0)
-  set(EXI_ON_UNIX 0)
-else()
-  message(SEND_ERROR "Unable to determine platform")
-endif()
-
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(EXI_DEBUG_BUILD ON)
-else()
-  set(EXI_DEBUG_BUILD OFF)
-  set(EXI_FAST_DEBUG OFF CACHE BOOL "" FORCE)
-endif()
-
-if(EXI_FAST_DEBUG)
-  set(MI_DEBUG_FAST ON)
 endif()
 
 if(DEFINED EXI_CODEGEN_TESTS)
@@ -277,7 +207,9 @@ if(EXI_ENABLE_STACKTRACES AND NOT EXI_USE_MIMALLOC)
   # TODO: Add check for debug symbols
   CPMAddPackage(
     URI "gh:jeremy-rifkin/cpptrace@1.0.4"
-    OPTIONS "CPPTRACE_DISABLE_CXX_20_MODULES ON" "CMAKE_REQUIRED_QUIET ON"
+    OPTIONS
+      "CPPTRACE_DISABLE_CXX_20_MODULES ON"
+      "CMAKE_REQUIRED_QUIET ON"
   )
   target_link_libraries(exi-cpptrace INTERFACE cpptrace::cpptrace)
 elseif(EXI_ENABLE_STACKTRACES)
