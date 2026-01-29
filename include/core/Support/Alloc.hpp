@@ -133,24 +133,33 @@ static_assert(kHasFlexibleArrayMembers);
 
 // TODO: Add optional tracking?
 
+template <typename T>
 ALWAYS_INLINE EXI_FLATTEN void* _new_func(usize size) {
-#if 0
-  return (T*)exi::exi_zalloc(size);
-#else
-  return (T*)exi::exi_malloc(size);
-#endif
+  if constexpr (std::is_trivially_default_constructible_v<T>)
+    return exi::exi_zalloc(size);
+  else
+    return exi::exi_malloc(size);
 }
 
 template <typename T>
 ALWAYS_INLINE EXI_FLATTEN T* new_impl(auto&&...Args) {
-  T* Ptr = (T*)_new_func(sizeof(T));
+  T* Ptr = (T*)_new_func<T>(sizeof(T));
   return std::construct_at(Ptr, EXI_FWD(Args)...);
+}
+
+template <typename T>
+ALWAYS_INLINE EXI_FLATTEN T* new_arr_raw_impl(usize N) {
+  using BlockType = InlineArr<T>;
+  auto* Block = (BlockType*)exi::exi_malloc(
+    sizeof(T) * N + sizeof(BlockType));
+  Block->Size = N;
+  return Block->Data;
 }
 
 template <typename T>
 ALWAYS_INLINE EXI_FLATTEN T* new_arr_impl(usize N) {
   using BlockType = InlineArr<T>;
-  auto* Block = (BlockType*)_new_func(
+  auto* Block = (BlockType*)_new_func<T>(
     sizeof(T) * N + sizeof(BlockType));
   Block->Size = N;
   // TODO: Check Size == N
@@ -247,7 +256,6 @@ inline constexpr GlobalNew<T> _new;
 ///  X = _new<T>[N];
 ///  _delete[X];
 /// ```
-template <typename T = dummy_t>
-inline constexpr GlobalDelete<T> _delete;
+inline constexpr GlobalDelete<dummy_t> _delete;
 
 } // namespace exi

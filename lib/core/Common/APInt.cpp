@@ -54,13 +54,13 @@ using namespace exi;
 /// A utility function for allocating memory, checking for allocation failures,
 /// and ensuring the contents are zeroed.
 inline static u64* getClearedMemory(unsigned numWords) {
-  return new u64[numWords]();
+  return _new<u64>[numWords];
 }
 
 /// A utility function for allocating memory and checking for allocation
 /// failure.  The content is not zeroed.
 inline static u64* getMemory(unsigned numWords) {
-  return new u64[numWords];
+  return new_detail::new_arr_raw_impl<u64>(numWords);
 }
 
 /// A utility function that converts a character to a digit.
@@ -147,7 +147,7 @@ void APInt::reallocate(unsigned NewBitWidth) {
 
   // If we have an allocation, delete it.
   if (!isSingleWord())
-    delete [] U.pVal;
+    _delete[U.pVal];
 
   // Update BitWidth.
   BitWidth = NewBitWidth;
@@ -1504,11 +1504,11 @@ void APInt::divide(const WordType *LHS, unsigned lhsWords, const WordType *RHS,
     if (Remainder)
       R = &SPACE[(m+n+1) + n + (m+n)];
   } else {
-    U = new u32[m + n + 1];
-    V = new u32[n];
-    Q = new u32[m+n];
+    U = _new<u32>[m + n + 1];
+    V = _new<u32>[n];
+    Q = _new<u32>[m+n];
     if (Remainder)
-      R = new u32[n];
+      R = _new<u32>[n];
   }
 
   // Initialize the dividend
@@ -1592,10 +1592,10 @@ void APInt::divide(const WordType *LHS, unsigned lhsWords, const WordType *RHS,
 
   // Clean up the memory we allocated.
   if (U != &SPACE[0]) {
-    delete [] U;
-    delete [] V;
-    delete [] Q;
-    delete [] R;
+    _delete[U];
+    _delete[V];
+    _delete[Q];
+    _delete[R];
   }
 }
 

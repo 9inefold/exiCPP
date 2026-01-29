@@ -472,23 +472,23 @@ public:
 template <typename T> class OwningArrayRef : public MutArrayRef<T> {
 public:
   OwningArrayRef() = default;
-  OwningArrayRef(usize Size) : MutArrayRef<T>(new T[Size], Size) {}
+  OwningArrayRef(usize Size) : MutArrayRef<T>(_new<T>[Size], Size) {}
 
   OwningArrayRef(ArrayRef<T> Data)
-      : MutArrayRef<T>(new T[Data.size()], Data.size()) {
+      : MutArrayRef<T>(_new<T>[Data.size()], Data.size()) {
     FastUninitCopy(this->begin(), Data.begin(), Data.size());
   }
 
   OwningArrayRef(OwningArrayRef &&Other) { *this = std::move(Other); }
 
   OwningArrayRef &operator=(OwningArrayRef &&Other) {
-    delete[] this->data();
+    _delete[this->data()];
     this->MutArrayRef<T>::operator=(Other);
     Other.MutArrayRef<T>::operator=(MutArrayRef<T>());
     return *this;
   }
 
-  ~OwningArrayRef() { delete[] this->data(); }
+  ~OwningArrayRef() { _delete[this->data()]; }
 };
 
 /// @name ArrayRef Deduction guides

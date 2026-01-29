@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------===//
 //
-// Copyright (C) 2025 Ninefold
+// Copyright (C) 2025-2026 Ninefold
 //
 // Relicensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@
 #include <Common/Fundamental.hpp>
 #include <Common/SimpleArray.hpp>
 #include <Common/StrRef.hpp>
+#include <Support/Alloc.hpp>
 #include <Support/ErrorHandle.hpp>
 #include <Support/Limits.hpp>
 
@@ -190,7 +191,7 @@ class CachedHashString {
       return SSO.Data;
     }
 
-    this->P = new char[Size];
+    this->P = _new<char>[Size];
     return P;
   }
 
@@ -285,7 +286,7 @@ public:
 
   ~CachedHashString() {
     if (isDynamic())
-      delete[] P;
+      _delete[P];
   }
 
   StrRef val() const { return StrRef(ptr(), Size); }

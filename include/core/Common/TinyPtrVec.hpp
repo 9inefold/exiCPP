@@ -61,12 +61,12 @@ public:
 
   ~TinyPtrVec() {
     if (VecT* V = dyn_cast_if_present<VecT*>(Data))
-      delete V;
+      _delete(V);
   }
 
   TinyPtrVec(const TinyPtrVec& RHS) : Data(RHS.Data) {
     if (VecT* V = dyn_cast_if_present<VecT*>(Data))
-      Data = new VecT(*V);
+      Data = _new<VecT>(*V);
   }
 
   TinyPtrVec& operator=(const TinyPtrVec& RHS) {
@@ -83,7 +83,7 @@ public:
       if (RHS.size() == 1)
         Data = RHS.front();
       else
-        Data = new VecT(*cast<VecT*>(RHS.Data));
+        Data = _new<VecT>(*cast<VecT*>(RHS.Data));
       return *this;
     }
 
@@ -119,7 +119,7 @@ public:
         RHS.Data = T();
         return *this;
       }
-      delete V;
+      _delete(V);
     }
 
     Data = RHS.Data;
@@ -131,7 +131,7 @@ public:
       : Data(IL.size() == 0
                 ? PtrUnion()
                 : IL.size() == 1 ? PtrUnion(*IL.begin())
-                                 : PtrUnion(new VecT(IL.begin(), IL.end()))) {}
+                                 : PtrUnion(_new<VecT>(IL.begin(), IL.end()))) {}
 
   /// Constructor from an ArrayRef.
   ///
@@ -142,12 +142,12 @@ public:
                 ? PtrUnion()
                 : Elts.size() == 1
                       ? PtrUnion(Elts[0])
-                      : PtrUnion(new VecT(Elts.begin(), Elts.end()))) {}
+                      : PtrUnion(_new<VecT>(Elts.begin(), Elts.end()))) {}
 
   TinyPtrVec(size_t Count, T Value)
       : Data(Count == 0 ? PtrUnion()
                        : Count == 1 ? PtrUnion(Value)
-                                    : PtrUnion(new VecT(Count, Value))) {}
+                                    : PtrUnion(_new<VecT>(Count, Value))) {}
 
   // implicit conversion operator to ArrayRef.
   operator ArrayRef<T>() const {
@@ -268,11 +268,11 @@ public:
     // If we have a single value, convert to a vector.
     if (isa<T>(Data)) {
       T V = cast<T>(Data);
-      Data = new VecT();
+      Data = _new<VecT>();
       cast<VecT*>(Data)->push_back(V);
     }
 
-    // Add the new value, we know we have a vector.
+    // Add the new (global) value, we know we have a vector.
     cast<VecT*>(Data)->push_back(NewVal);
   }
 
@@ -294,14 +294,14 @@ public:
       // If we have a single value, convert to a vector.
       if (isa<T>(Data)) {
         T V = cast<T>(Data);
-        Data = new VecT();
+        Data = _new<VecT>();
         cast<VecT*>(Data)->push_back(V);
       } else {
-        Data = new VecT();
+        Data = _new<VecT>();
       }
     }
 
-    // Add the new value, we know we have a vector.
+    // Add the new (global) value, we know we have a vector.
     cast<VecT*>(Data)->reserve(NewSize);
   }
 
@@ -380,10 +380,10 @@ public:
         return begin();
       }
 
-      Data = new VecT();
+      Data = _new<VecT>();
     } else if (isa<T>(Data)) {
       T V = cast<T>(Data);
-      Data = new VecT();
+      Data = _new<VecT>();
       cast<VecT*>(Data)->push_back(V);
     }
     return cast<VecT*>(Data)->insert(begin() + Offset, From, To);
