@@ -17,6 +17,6 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/Alloc.hpp>
-#if EXI_USE_MIMALLOC
+#if EXI_USE_MIMALLOC && EXI_REDIRECT_GLOBAL_NEW
 # include <mimalloc-new-delete.h>
 #endif

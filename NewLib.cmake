@@ -71,6 +71,10 @@ target_link_libraries(exi-core PUBLIC fmt::fmt exi-cpptrace)
 
 if(EXI_USE_MIMALLOC)
   target_link_libraries(exi-core PUBLIC mimalloc)
+  if(EXI_REDIRECT)
+    target_compile_definitions(exi-core
+      PRIVATE EXI_REDIRECT_GLOBAL_NEW=1)
+  endif(EXI_REDIRECT)
 endif()
 if(WIN32)
   target_link_libraries(exi-core PRIVATE
@@ -78,9 +82,8 @@ if(WIN32)
 endif()
 
 if(NOT EXI_EXCEPTIONS)
-  target_compile_definitions(exi-core PUBLIC
-    EXI_NO_EXCEPTIONS=1
-  )
+  target_compile_definitions(exi-core
+    PUBLIC EXI_NO_EXCEPTIONS=1)
 endif()
 
 ##########################################################################

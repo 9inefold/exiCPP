@@ -103,7 +103,7 @@ function(exi_minject tgt)
 
   if(EXI_REDIRECT)
     if(arg_CLASSIC)
-      target_link_libraries(${tgt}
+      target_link_libraries(${tgt} PUBLIC
         ${EXI_MI_DIR}/bin/mimalloc-redirect.lib)
       add_custom_command(TARGET ${tgt} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
