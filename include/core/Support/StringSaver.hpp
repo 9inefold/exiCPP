@@ -36,18 +36,11 @@
 #include <Common/StrRef.hpp>
 #include <Common/Twine.hpp>
 #include <Support/Allocator.hpp>
+#include <Support/D/FlexArray.hpp>
 
 // TODO: Make InlineStr returns const...
 
 namespace exi {
-
-#ifdef _MSC_VER
-# define FLEX_ARRAY 1
-inline constexpr bool kHasFlexibleArrayMembers = false;
-#else
-# define FLEX_ARRAY
-inline constexpr bool kHasFlexibleArrayMembers = true;
-#endif
 
 struct InlineStr {
   /// As small as possible to pack things tightly.
