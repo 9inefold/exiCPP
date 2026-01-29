@@ -29,6 +29,7 @@ This is a TODO list for the C++ version of exiCPP.
 ## In Progress
 
 - Add compatibility for exificient's terrible escaping scheme
+- Implement fixes for exificient/openexi xerces parsing
 - Check depth when parsing
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense
 - Make XML comparison match failures more useful

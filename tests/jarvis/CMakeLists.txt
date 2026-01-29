@@ -1,41 +1,43 @@
 include_guard(DIRECTORY)
 
-#message(STATUS "javac: ${Java_JAVAC_EXECUTABLE}")
-#message(STATUS "bindir: ${EXI_CLASS_BINARY_DIR}")
-
-set(JAVA_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/com/exicpp")
-set(JAVA_DST_DIR "${EXI_CLASS_BINARY_DIR}/com/exicpp")
-
 set(exi_java_sources)
 set(exi_java_outputs)
 
-macro(exi_add_java_source path)
-  list(APPEND exi_java_sources "com/exicpp/${path}")
+macro(_exi_add_java_source dir name)
+  set(exi_java_sources ${exi_java_sources}
+    "${dir}/${name}.java" PARENT_SCOPE)
+  set(exi_java_outputs ${exi_java_outputs}
+    "${EXI_CLASS_BINARY_DIR}/${dir}/${name}.class" PARENT_SCOPE)
+endmacro()
+
+# Adds java file to list of sources/outputs.
+#  exi_add_java_source(<file>)
+function(exi_add_java_source path)
   get_filename_component(_path_name "${path}" NAME_WLE)
   get_filename_component(_dir_name "${path}" DIRECTORY)
-  #list(APPEND exi_java_outputs "${EXI_CLASS_BINARY_DIR}/${_path_name}.class")
-  list(APPEND exi_java_outputs "${JAVA_DST_DIR}/${_dir_name}/${_path_name}.class")
-  unset(_path_name)
-  unset(_dir_name)
-endmacro(exi_add_java_source)
+  _exi_add_java_source("${_dir_name}" ${_path_name})
+endfunction(exi_add_java_source)
 
-exi_add_java_source(openexi/CustomSAXParserFactory.java)
-exi_add_java_source(openexi/LoggingSAXHandlerWrapper.java)
-exi_add_java_source(openexi/Transmogrifier2.java)
+# Adds java files to list of sources/outputs.
+#  exi_add_java_source(<dir> <files>)
+function(exi_add_java_sources dir)
+  foreach(name IN LISTS ARGN)
+    get_filename_component(name "${name}" NAME_WLE)
+    _exi_add_java_source("${dir}" ${name})
+  endforeach()
+endfunction(exi_add_java_sources)
 
-set(test_list)
-function(test_append item)
-  list(APPEND exi_java_outputs "${item}")
-endfunction()
+exi_add_java_sources(org/exicpp/openexi
+  CustomSAXParserFactory.java
+  LoggingSAXHandlerWrapper.java
+)
 
-test_append(a)
-test_append(b)
-test_append(c)
-
-message(STATUS "test_list: ${test_list}")
+exi_add_java_sources(org/openexi/sax
+  Transmogrifier2.java
+)
 
 set(exi_java_binaries
-  "exificient.jar"
+  ${exi_java_binaries} "exificient.jar"
   "nagasena.jar" "nagasena-rta.jar"
   "xercesImpl.jar" "xml-apis.jar"
 )
@@ -60,6 +62,12 @@ add_custom_command(
   DEPENDS ${exi_java_sources}
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
   COMMENT "Compiling java files")
+
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.20.0")
+  foreach(classfile in LISTS exi_java_outputs)
+    set_source_files_properties(${classfile} PROPERTIES GENERATED 1)
+  endforeach()
+endif()
 
 add_custom_target(exi-java-targets DEPENDS ${exi_java_outputs})
 add_dependencies(exi-exicpp exi-java-targets)

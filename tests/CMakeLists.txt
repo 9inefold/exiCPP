@@ -5,7 +5,7 @@ if(NOT TARGET gtest)
 endif()
 
 if(NOT DEFINED EXI_JAVA_EXECUTABLE)
-  find_package(Java QUIET COMPONENTS Runtime)
+  find_package(Java 1.8 REQUIRED QUIET COMPONENTS Runtime)
   if(NOT Java_FOUND)
     message(FATAL_ERROR "Java could not be found!")
   elseif(Java_VERSION VERSION_LESS "8.0.0")
@@ -21,9 +21,6 @@ endif()
 
 if(NOT DEFINED EXI_CLASS_BINARY_DIR)
   set(EXI_CLASS_BINARY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/jarvis/build" CACHE FILEPATH "")
-  if(NOT EXISTS EXI_CLASS_BINARY_DIR)
-    file(MAKE_DIRECTORY "${EXI_CLASS_BINARY_DIR}")
-  endif()
 endif()
 
 find_package(Python3 QUIET COMPONENTS Interpreter)
