@@ -1,6 +1,6 @@
 //===- Support/Alloc.hpp --------------------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@
 #pragma once
 
 #include <Common/Fundamental.hpp>
+#include <Support/D/FlexArray.hpp>
 #include <cstdlib>
 #include <memory>
 #if EXI_USE_MIMALLOC
@@ -113,5 +114,140 @@ EXI_INLINE void exi_free(void* ptr) {
   std::free(ptr);
 #endif
 }
+
+//////////////////////////////////////////////////////////////////////////
+// new-like
+
+namespace new_detail {
+
+template <class T>
+using NewBlockSizeType =
+  std::conditional_t<sizeof(T) < 4 && sizeof(void *) >= 8, u64, u32>;
+
+template <typename T> struct InlineArr {
+  NewBlockSizeType<T> Size;
+  T Data[FLEX_ARRAY];
+};
+
+static_assert(kHasFlexibleArrayMembers);
+
+// TODO: Add optional tracking?
+
+ALWAYS_INLINE EXI_FLATTEN void* _new_func(usize size) {
+#if 0
+  return (T*)exi::exi_zalloc(size);
+#else
+  return (T*)exi::exi_malloc(size);
+#endif
+}
+
+template <typename T>
+ALWAYS_INLINE EXI_FLATTEN T* new_impl(auto&&...Args) {
+  T* Ptr = (T*)_new_func(sizeof(T));
+  return std::construct_at(Ptr, EXI_FWD(Args)...);
+}
+
+template <typename T>
+ALWAYS_INLINE EXI_FLATTEN T* new_arr_impl(usize N) {
+  using BlockType = InlineArr<T>;
+  auto* Block = (BlockType*)_new_func(
+    sizeof(T) * N + sizeof(BlockType));
+  Block->Size = N;
+  // TODO: Check Size == N
+  if constexpr (!std::is_trivially_default_constructible_v<T>)
+    std::uninitialized_default_construct_n(Block->Data, N);
+  return Block->Data;
+}
+
+template <typename T>
+ALWAYS_INLINE EXI_FLATTEN void delete_impl(T* Ptr) {
+  std::destroy_at(Ptr);
+  exi::exi_free(Ptr);
+}
+
+template <typename T>
+ALWAYS_INLINE EXI_FLATTEN void delete_arr_impl(T* Ptr) {
+  using BlockType = InlineArr<T>;
+  auto* Block = (BlockType*)((char*)Ptr - offsetof(BlockType, Data));
+  if constexpr (!std::is_trivially_destructible_v<T>)
+    std::destroy_n(Block->Data, Block->Size);
+  exi::exi_free(Block);
+}
+
+} // namespace new_detail
+
+/// A proxy class that lets you call custom allocators with `new`.
+template <typename T> struct GlobalNew {
+  ALWAYS_INLINE T* operator()(auto&&...Args) const {
+    return new_detail::new_impl<T>(EXI_FWD(Args)...);
+  }
+  ALWAYS_INLINE T* operator[](usize N) const {
+    return new_detail::new_arr_impl<T>(N);
+  }
+};
+
+/// A proxy class that lets you call custom allocators with `new`.
+template <typename T> struct GlobalNew<T[]> {
+  ALWAYS_INLINE T* operator()(usize N) const {
+    return new_detail::new_arr_impl<T>(N);
+  }
+};
+
+/// A proxy class that lets you call custom allocators with `delete`.
+template <typename T> struct GlobalDelete {
+  ALWAYS_INLINE void operator()(T* Ptr) const {
+    new_detail::delete_impl<T>(Ptr);
+  }
+  ALWAYS_INLINE void operator[](T* Ptr) const {
+    new_detail::delete_arr_impl<T>(Ptr);
+  }
+};
+
+/// A dummy class that lets you call custom allocators with `delete`.
+template <> struct GlobalDelete<dummy_t> {
+  template <typename T>
+  ALWAYS_INLINE void operator()(T* Ptr) const {
+    new_detail::delete_impl<T>(Ptr);
+  }
+  template <typename T>
+  ALWAYS_INLINE void operator[](T* Ptr) const {
+    new_detail::delete_arr_impl<T>(Ptr);
+  }
+};
+
+/// A proxy class that lets you call custom allocators with `delete`.
+template <typename T> struct GlobalDelete<T[]> {
+  ALWAYS_INLINE void operator()(T* Ptr) const {
+    new_detail::delete_arr_impl<T>(Ptr);
+  }
+};
+
+/// A proxy object that lets you call custom allocators with `new`.
+/// ```cpp
+///  X = _new<T>(Args...);
+///  _delete(X);
+///  // or...
+///  X = _new<T[]>(N);
+///  _delete<T[]>(X);
+///  // or...
+///  X = _new<T>[N];
+///  _delete[X];
+/// ```
+template <typename T>
+inline constexpr GlobalNew<T> _new;
+
+/// A proxy object that lets you call custom allocators with `delete`.
+/// ```cpp
+///  X = _new<T>(Args...);
+///  _delete(X);
+///  // or...
+///  X = _new<T[]>(N);
+///  _delete<T[]>(X);
+///  // or...
+///  X = _new<T>[N];
+///  _delete[X];
+/// ```
+template <typename T = dummy_t>
+inline constexpr GlobalDelete<T> _delete;
 
 } // namespace exi
