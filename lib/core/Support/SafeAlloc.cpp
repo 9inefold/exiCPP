@@ -1,6 +1,6 @@
 //===- Support/SafeAlloc.cpp ----------------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,26 +17,38 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/SafeAlloc.hpp>
-#include <new>
+#if EXI_USE_MIMALLOC
+# include <mimalloc.h>
+#else
+# include <new>
+#endif
 
 using namespace exi;
 
 EXI_RETURNS_NONNULL EXI_RETURNS_NOALIAS
 void* exi::allocate_buffer(usize size, usize align) {
+#if EXI_USE_MIMALLOC
+  return ::mi_malloc_aligned(size, align);
+#else
   return ::operator new(size
-#ifdef __cpp_aligned_new
+# ifdef __cpp_aligned_new
     , std::align_val_t(align)
-#endif
+# endif
   );
+#endif
 }
 
 void exi::deallocate_buffer(void* ptr, usize size, usize align) {
+#if EXI_USE_MIMALLOC
+  return ::mi_free(ptr);
+#else
   ::operator delete(ptr
-#ifdef __cpp_sized_deallocation
+# ifdef __cpp_sized_deallocation
     , size
-#endif
-#ifdef __cpp_aligned_new
+# endif
+# ifdef __cpp_aligned_new
     , std::align_val_t(align)
-#endif
+# endif
   );
+#endif
 }
