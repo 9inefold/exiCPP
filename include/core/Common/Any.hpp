@@ -76,7 +76,7 @@ class Any {
 
   struct StorageBase {
     virtual ~StorageBase() = default;
-    virtual Box<StorageBase> clone() const = 0;
+    virtual MiBox<StorageBase> clone() const = 0;
     virtual const void* id() const = 0;
   };
 
@@ -85,8 +85,8 @@ class Any {
 
     explicit StorageImpl(T&& Value) : Value(std::move(Value)) {}
 
-    Box<StorageBase> clone() const override {
-      return std::make_unique<StorageImpl<T>>(Value);
+    MiBox<StorageBase> clone() const override {
+      return exi::make_miunique<StorageImpl<T>>(Value);
     }
 
     const void* id() const override { return &TypeId<T>::Id; }
@@ -111,7 +111,7 @@ public:
   requires any_detail::enable<T>
   Any(T&& Value) {
     using BoxedT = StorageImpl<std::decay_t<T>>;
-    Storage = std::make_unique<BoxedT>(EXI_FWD(Value));
+    Storage = exi::make_miunique<BoxedT>(EXI_FWD(Value));
   }
 
   Any(Any&& Other) : Storage(std::move(Other.Storage)) {}
@@ -146,7 +146,7 @@ private:
   template <class T> friend T* any_cast(Any* Value);
   template <typename T> friend bool any_isa(const Any& Value);
 
-  Box<StorageBase> Storage;
+  MiBox<StorageBase> Storage;
 };
 
 // Define the type id and initialize with a non-zero value.

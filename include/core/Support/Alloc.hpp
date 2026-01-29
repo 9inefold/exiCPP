@@ -150,8 +150,8 @@ ALWAYS_INLINE EXI_FLATTEN T* new_impl(auto&&...Args) {
 template <typename T>
 ALWAYS_INLINE EXI_FLATTEN T* new_arr_raw_impl(usize N) {
   using BlockType = InlineArr<T>;
-  auto* Block = (BlockType*)exi::exi_malloc(
-    sizeof(T) * N + sizeof(BlockType));
+  auto* Block = static_cast<BlockType*>(
+    exi::exi_malloc(sizeof(T) * N + sizeof(BlockType)));
   Block->Size = N;
   return Block->Data;
 }
@@ -159,8 +159,8 @@ ALWAYS_INLINE EXI_FLATTEN T* new_arr_raw_impl(usize N) {
 template <typename T>
 ALWAYS_INLINE EXI_FLATTEN T* new_arr_impl(usize N) {
   using BlockType = InlineArr<T>;
-  auto* Block = (BlockType*)_new_func<T>(
-    sizeof(T) * N + sizeof(BlockType));
+  auto* Block = static_cast<BlockType*>(
+    _new_func<T>(sizeof(T) * N + sizeof(BlockType)));
   Block->Size = N;
   // TODO: Check Size == N
   if constexpr (!std::is_trivially_default_constructible_v<T>)
@@ -177,7 +177,8 @@ ALWAYS_INLINE EXI_FLATTEN void delete_impl(T* Ptr) {
 template <typename T>
 ALWAYS_INLINE EXI_FLATTEN void delete_arr_impl(T* Ptr) {
   using BlockType = InlineArr<T>;
-  auto* Block = (BlockType*)((char*)Ptr - offsetof(BlockType, Data));
+  auto* Block = reinterpret_cast<BlockType*>(
+    reinterpret_cast<char*>(Ptr) - offsetof(BlockType, Data));
   if constexpr (!std::is_trivially_destructible_v<T>)
     std::destroy_n(Block->Data, Block->Size);
   exi::exi_free(Block);
@@ -204,21 +205,16 @@ template <typename T> struct GlobalNew<T[]> {
 
 /// A proxy class that lets you call custom allocators with `delete`.
 template <typename T> struct GlobalDelete {
-  ALWAYS_INLINE void operator()(T* Ptr) const {
-    new_detail::delete_impl<T>(Ptr);
-  }
-  ALWAYS_INLINE void operator[](T* Ptr) const {
-    new_detail::delete_arr_impl<T>(Ptr);
-  }
-};
+  constexpr GlobalDelete() noexcept = default;
+  GlobalDelete(const GlobalDelete<dummy_t>&) = delete;
+  GlobalDelete(const GlobalDelete<dummy_t[]>&) = delete;
 
-/// A dummy class that lets you call custom allocators with `delete`.
-template <> struct GlobalDelete<dummy_t> {
-  template <typename T>
-  ALWAYS_INLINE void operator()(T* Ptr) const {
+  template <class U> requires (std::is_convertible_v<U*, T*>)
+  ALWAYS_INLINE GlobalDelete(const GlobalDelete<U>&) noexcept {}
+
+  ALWAYS_INLINE void operator()(T* Ptr) const noexcept {
     new_detail::delete_impl<T>(Ptr);
   }
-  template <typename T>
   ALWAYS_INLINE void operator[](T* Ptr) const {
     new_detail::delete_arr_impl<T>(Ptr);
   }
@@ -226,7 +222,29 @@ template <> struct GlobalDelete<dummy_t> {
 
 /// A proxy class that lets you call custom allocators with `delete`.
 template <typename T> struct GlobalDelete<T[]> {
+  constexpr GlobalDelete() noexcept = default;
+  GlobalDelete(const GlobalDelete<dummy_t>&) = delete;
+  GlobalDelete(const GlobalDelete<dummy_t[]>&) = delete;
+
+  template <class U> requires (std::is_convertible_v<U(*)[], T(*)[]>)
+  ALWAYS_INLINE GlobalDelete(const GlobalDelete<U[]>&) noexcept {}
+  
+  ALWAYS_INLINE void operator()(T* Ptr) const noexcept {
+    new_detail::delete_arr_impl<T>(Ptr);
+  }
+};
+
+/// A dummy class that lets you call custom allocators with `delete`.
+template <> struct GlobalDelete<dummy_t> {
+  constexpr GlobalDelete() noexcept = default;
+  template <class U> GlobalDelete(const GlobalDelete<U>&) = delete;
+
+  template <typename T>
   ALWAYS_INLINE void operator()(T* Ptr) const {
+    new_detail::delete_impl<T>(Ptr);
+  }
+  template <typename T>
+  ALWAYS_INLINE void operator[](T* Ptr) const {
     new_detail::delete_arr_impl<T>(Ptr);
   }
 };
@@ -252,7 +270,7 @@ inline constexpr GlobalNew<T> _new;
 ///  // or...
 ///  X = _new<T[]>(N);
 ///  _delete<T[]>(X);
-///  // or...
+///  // or...Delete<U[]>&) noexcept 
 ///  X = _new<T>[N];
 ///  _delete[X];
 /// ```
