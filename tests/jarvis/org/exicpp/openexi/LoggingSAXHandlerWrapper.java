@@ -16,7 +16,7 @@
 //
 //===----------------------------------------------------------------===//
 
-package com.exicpp.openexi;
+package org.exicpp.openexi;
 
 import java.io.IOException;
 import java.lang.System;
@@ -103,7 +103,7 @@ public class LoggingSAXHandlerWrapper extends DefaultHandler
   }
 
   public void endDocument() throws SAXException {
-    format("ED");
+    format("}%n");
     contentHandler.endDocument();
   }
 
@@ -134,7 +134,7 @@ public class LoggingSAXHandlerWrapper extends DefaultHandler
   }
 
   public void startDocument() throws SAXException {
-    format("SD");
+    format("{");
     contentHandler.startDocument();
   }
 

@@ -16,7 +16,7 @@
 //
 //===----------------------------------------------------------------===//
 
-// To get access to private shi (will replace with reflection)
+// To get access to private shi (will replace with reflection?)
 package org.openexi.sax;
 
 import java.io.IOException;
@@ -26,6 +26,7 @@ import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
 import org.xml.sax.Attributes;
+import org.xml.sax.DTDHandler;
 import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
 import org.xml.sax.Locator;
@@ -61,6 +62,9 @@ import org.openexi.proc.io.ValueScriber;
 import org.openexi.schema.EXISchema;
 import org.openexi.schema.EXISchemaConst;
 import org.openexi.schema.EmptySchema;
+
+import org.exicpp.util.EvilDocumentHijacker;
+
 /**
  * The Transmogrifier2 converts an XML stream to an EXI stream.
  */
@@ -123,6 +127,7 @@ public final class Transmogrifier2 {
           (String[])null);
     }
     m_xmlReader.setContentHandler(m_saxHandler);
+    m_xmlReader.setDTDHandler(m_saxHandler);
     try {
       m_xmlReader.setProperty("http://xml.org/sax/properties/lexical-handler", m_saxHandler);
     }
@@ -133,6 +138,7 @@ public final class Transmogrifier2 {
       te.setException(se);
       throw te;
     }
+    EvilDocumentHijacker.reconfigureXMLReader(m_xmlReader);
     /*
      * REVISIT: we *may* (or may not) eventually want to support internal DTD subset.
      * m_xmlReader.setProperty("http://xml.org/sax/properties/declaration-handler", saxHandler);
@@ -439,6 +445,13 @@ public final class Transmogrifier2 {
             new String[] { se.getMessage() }, locator);
       }
     }
+    try {
+      Object prop = m_xmlReader.getProperty(
+        "http://apache.org/xml/properties/internal/document-scanner");
+      System.out.println("Got scanner: " + prop.toString());
+    } catch (Exception e) {
+      System.err.println("scanner not found");
+    }
   }
   
   /**
@@ -455,7 +468,7 @@ public final class Transmogrifier2 {
   /// SAX-based Encoder
   ///////////////////////////////////////////////////////////////////////////
 
-  private final class SAXEventHandler implements SAXTransmogrifier {
+  private final class SAXEventHandler implements SAXTransmogrifier, DTDHandler {
 
     private static final String W3C_2000_XMLNS_URI = "http://www.w3.org/2000/xmlns/";
 
@@ -617,11 +630,19 @@ public final class Transmogrifier2 {
     
     //////////// SAX event handlers
 
+    private void format(String format, Object...args) {
+      //if (elementCount != 0)
+      //  System.out.format("%1$" + (elementCount * 2) + "s", "");
+
+      //System.out.format(format + "%n", args);
+    }
+
     public final void setDocumentLocator(final Locator locator) {
       m_locator = locator;
     }
 
     public final void startDocument() throws SAXException {
+      format("{");
       m_locusLastDepth = -1;
       m_xmlSpaceLastDepth = 0;
       m_xmlSpaceStack[m_xmlSpaceLastDepth] = false;
@@ -1140,6 +1161,7 @@ public final class Transmogrifier2 {
     
     public final void characters(final char[] ch, final int start, final int len)
       throws SAXException {
+      format("CH: %s", new String(ch, start, len));
       appendCharacters(ch, start, len);
     }
 
@@ -1346,6 +1368,7 @@ public final class Transmogrifier2 {
     }
 
     public final void endDocument() throws SAXException {
+      format("}%n");
       if (m_charPos > 0)
         do_characters(false);
       try {
@@ -1368,6 +1391,7 @@ public final class Transmogrifier2 {
     
     public final void processingInstruction(final String target, final String data)
       throws SAXException {
+      format("PI: %s %s", target, data);
       if (m_exiOptions.getPreservePIs()) {
         if (m_charPos > 0)
           do_characters(true);
@@ -1394,6 +1418,7 @@ public final class Transmogrifier2 {
 
     public final void skippedEntity(final String name)
       throws SAXException {
+      format("ER(skipped): %s", name);
       if (m_exiOptions.getPreserveDTD()) {
         if (m_charPos > 0)
           do_characters(true);
@@ -1423,6 +1448,7 @@ public final class Transmogrifier2 {
 
     public final void comment(char[] ch, int start, int length) 
       throws SAXException {
+      format("CM: { %s }", new String(ch, start, length));
       if (!m_inDTD && m_exiOptions.getPreserveComments()) {
         if (m_charPos > 0)
           do_characters(true);
@@ -1448,6 +1474,11 @@ public final class Transmogrifier2 {
 
     public void startDTD(String name, String publicId, String systemId) 
       throws SAXException {
+      format("DT: %s %s %s",
+        name,
+        publicId != null ? publicId : "?",
+        systemId != null ? systemId : "?"
+      );
       EventTypeList eventTypes = m_scriber.getNextEventTypes();
       int i, len;
       EventType eventType = null;
@@ -1473,19 +1504,47 @@ public final class Transmogrifier2 {
     }
     
     public void endDTD() {
+      format("DT(end)");
       m_inDTD = false;
     }
 
     public void startCDATA() {
+      format("<![CDATA[");
     }
     
     public void endCDATA() {
+      format("]]>");
     }
     
     public void startEntity(String name) {
+      format("ER: %s", name);
     }
 
     public void endEntity(String name) {
+      format("ER(end): %s", name);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // DTDHandler APIs
+    ///////////////////////////////////////////////////////////////////////////
+
+    public void notationDecl(String name, String publicId, String systemId)
+        throws SAXException {
+      format("DT: <!NOTATION %s %s %s>",
+        name,
+        publicId != null ? publicId : "?",
+        systemId != null ? systemId : "?"
+      );
+    }
+
+    public void unparsedEntityDecl(String name, String publicId, String systemId,
+                                   String notationName) throws SAXException {
+      format("DT: <!ENTITY %s %s %s %s>",
+        name,
+        publicId != null ? publicId : "?",
+        systemId != null ? systemId : "?",
+        notationName
+      );
     }
     
     ///////////////////////////////////////////////////////////////////////////

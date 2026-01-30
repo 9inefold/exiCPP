@@ -23,13 +23,26 @@ endfunction(exi_add_java_source)
 function(exi_add_java_sources dir)
   foreach(name IN LISTS ARGN)
     get_filename_component(name "${name}" NAME_WLE)
-    _exi_add_java_source("${dir}" ${name})
+    list(APPEND exi_java_sources "${dir}/${name}.java")
+    list(APPEND exi_java_outputs "${EXI_CLASS_BINARY_DIR}/${dir}/${name}.class")
   endforeach()
+  set(exi_java_sources ${exi_java_sources} PARENT_SCOPE)
+  set(exi_java_outputs ${exi_java_outputs} PARENT_SCOPE)
 endfunction(exi_add_java_sources)
+
+exi_add_java_sources(org/exicpp/util
+  EvilDocumentHijacker.java
+  ReflectionHelpers.java
+  StringTranslator.java
+)
 
 exi_add_java_sources(org/exicpp/openexi
   CustomSAXParserFactory.java
   LoggingSAXHandlerWrapper.java
+)
+
+exi_add_java_sources(org/apache/xerces/parsers
+  XIncludeAwareParserConfiguration2.java
 )
 
 exi_add_java_sources(org/openexi/sax
@@ -52,11 +65,11 @@ endif()
 add_custom_command(
   OUTPUT ${exi_java_outputs}
   COMMAND Python3::Interpreter clean.py
-    ${exi_java_outputs} "${EXI_BASE_DIR}/bin/exicpp-custom.jar"
+    -q --files "${EXI_BASE_DIR}/bin/exicpp-custom.jar" #${exi_java_outputs}
   COMMAND "${Java_JAVAC_EXECUTABLE}"
     -d "${EXI_CLASS_BINARY_DIR}"
     -cp "${exi_java_binaries}"
-    -Xlint:-options -g #-verbose
+    -Xlint:-options -Xlint:unchecked -g #-verbose
     ${exi_java_sources}
   BYPRODUCTS ${exi_java_outputs}
   DEPENDS ${exi_java_sources}

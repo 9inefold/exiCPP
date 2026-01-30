@@ -16,7 +16,7 @@
 //
 //===----------------------------------------------------------------===//
 
-package com.exicpp.openexi;
+package org.exicpp.openexi;
 
 import java.io.PrintStream;
 import java.lang.StringBuilder;
