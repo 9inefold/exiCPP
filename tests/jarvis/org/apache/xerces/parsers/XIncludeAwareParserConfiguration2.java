@@ -39,6 +39,9 @@ import org.apache.xerces.xni.parser.XMLDocumentSource;
  * 12:27:44Z mrglavas $
  */
 public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
+  /** Feature identifier: notify built-in refereces. */
+  private static final String NOTIFY_BUILTIN_REFS =
+    Constants.XERCES_FEATURE_PREFIX + Constants.NOTIFY_BUILTIN_REFS_FEATURE;
 
   /**
    * Feature identifier: allow notation and unparsed entity events to be sent
@@ -61,7 +64,19 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
   /** Feature identifier: XInclude processing */
   protected static final String XINCLUDE_FEATURE =
       Constants.XERCES_FEATURE_PREFIX + Constants.XINCLUDE_FEATURE;
+  
+  // Properties
 
+  /** Property identifier: symbol table. */
+  protected static final String SYMBOL_TABLE =
+    Constants.XERCES_PROPERTY_PREFIX +
+    Constants.SYMBOL_TABLE_PROPERTY;
+
+  /** Property identifier: XML grammar pool. */
+  protected static final String XMLGRAMMAR_POOL =
+    Constants.XERCES_PROPERTY_PREFIX +
+    Constants.XMLGRAMMAR_POOL_PROPERTY;
+  
   /** Property identifier: XInclude handler. */
   protected static final String XINCLUDE_HANDLER =
       Constants.XERCES_PROPERTY_PREFIX + Constants.XINCLUDE_HANDLER_PROPERTY;
@@ -112,7 +127,7 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
    * @param grammarPool The grammar pool to use.
    */
   public XIncludeAwareParserConfiguration2(SymbolTable symbolTable,
-                                          XMLGrammarPool grammarPool) {
+                                           XMLGrammarPool grammarPool) {
     this(symbolTable, grammarPool, null);
   } // <init>(SymbolTable,XMLGrammarPool)
 
@@ -126,17 +141,21 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
    * @param parentSettings The parent settings.
    */
   public XIncludeAwareParserConfiguration2(SymbolTable symbolTable,
-                                          XMLGrammarPool grammarPool,
-                                          XMLComponentManager parentSettings) {
+                                           XMLGrammarPool grammarPool,
+                                           XMLComponentManager parentSettings) {
     super(symbolTable, grammarPool, parentSettings);
 
-    final String[] recognizedFeatures = {ALLOW_UE_AND_NOTATION_EVENTS,
+    final String[] recognizedFeatures = {NOTIFY_BUILTIN_REFS,
+                                         ALLOW_UE_AND_NOTATION_EVENTS,
                                          XINCLUDE_FIXUP_BASE_URIS,
                                          XINCLUDE_FIXUP_LANGUAGE};
     addRecognizedFeatures(recognizedFeatures);
 
     // add default recognized properties
-    final String[] recognizedProperties = {XINCLUDE_HANDLER, NAMESPACE_CONTEXT};
+    final String[] recognizedProperties = {SYMBOL_TABLE,
+                                           XMLGRAMMAR_POOL,
+                                           XINCLUDE_HANDLER,
+                                           NAMESPACE_CONTEXT};
     addRecognizedProperties(recognizedProperties);
 
     setFeature(ALLOW_UE_AND_NOTATION_EVENTS, true);
@@ -146,6 +165,24 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
     fNonXIncludeNSContext = new NamespaceSupport();
     fCurrentNSContext = fNonXIncludeNSContext;
     setProperty(NAMESPACE_CONTEXT, fNonXIncludeNSContext);
+  }
+
+  public static XIncludeAwareParserConfiguration2 newInstance() {
+    return newInstance(null, null);
+  }
+
+  public static XIncludeAwareParserConfiguration2 newInstance(SymbolTable symbolTable) {
+    return newInstance(symbolTable, null);
+  }
+
+  public static XIncludeAwareParserConfiguration2 newInstance(SymbolTable symbolTable, XMLGrammarPool grammarPool) {
+    var config = new XIncludeAwareParserConfiguration2(symbolTable, grammarPool, null);
+    config.setFeature(NOTIFY_BUILTIN_REFS, true);
+    if (symbolTable != null)
+      config.setProperty(SYMBOL_TABLE, symbolTable);
+    if (grammarPool != null)
+      config.setProperty(XMLGRAMMAR_POOL, grammarPool);
+    return config;
   }
 
   /** Configures the pipeline. */
