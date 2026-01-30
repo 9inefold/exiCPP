@@ -3,10 +3,17 @@ include_guard(DIRECTORY)
 set(exi_java_sources)
 set(exi_java_outputs)
 
+macro(_exi_do_java_classname_replacements path)
+  string(REPLACE "@xerces" "org/apache/xerces" ${path} "${${path}}")
+  string(REPLACE "@exicpp" "org/exicpp" ${path} "${${path}}")
+  string(REPLACE "@openexi" "org/openexi" ${path} "${${path}}")
+endmacro(_exi_do_java_classname_replacements)
+
 # Adds java class to list of sources/outputs. Path should match the package.
-#  exi_add_java_class(classname)
+#  exi_add_java_class(<classname>)
 function(exi_add_java_class classname)
   string(REPLACE "." "/" path ${classname})
+  _exi_do_java_classname_replacements(path)
   if(path MATCHES "^([A-Za-z0-9]+(/[A-Za-z0-9]+)*)/([A-Za-z0-9$]+)$")
     # 0: match, 1: package, 2: last slice, 3: class
     set(path ${CMAKE_MATCH_1})
@@ -20,54 +27,29 @@ function(exi_add_java_class classname)
     "${EXI_CLASS_BINARY_DIR}/${path}/${name}.class" PARENT_SCOPE)
 endfunction(exi_add_java_class)
 
-# Adds java files to list of sources/outputs.
-#  exi_add_java_source(<dir> <files>)
+# Adds java classes to list of sources/outputs.
+#  exi_add_java_source(<package> <classname> [classnames...])
 function(exi_add_java_classes package)
-string(REPLACE "." "/" path ${package})
+  string(REPLACE "." "/" path ${package})
+  _exi_do_java_classname_replacements(path)
   foreach(name IN LISTS ARGN)
-    list(APPEND exi_java_sources "${dir}/${name}.java")
-    list(APPEND exi_java_outputs "${EXI_CLASS_BINARY_DIR}/${dir}/${name}.class")
+    list(APPEND exi_java_sources "${path}/${name}.java")
+    list(APPEND exi_java_outputs "${EXI_CLASS_BINARY_DIR}/${path}/${name}.class")
   endforeach()
   set(exi_java_sources ${exi_java_sources} PARENT_SCOPE)
   set(exi_java_outputs ${exi_java_outputs} PARENT_SCOPE)
 endfunction(exi_add_java_classes)
 
-# Adds java file to list of sources/outputs.
-#  exi_add_java_source(<file>)
-function(exi_add_java_source path name)
-  set(exi_java_sources ${exi_java_sources}
-    "${path}/${name}.java" PARENT_SCOPE)
-  set(exi_java_outputs ${exi_java_outputs}
-    "${EXI_CLASS_BINARY_DIR}/${path}/${name}.class" PARENT_SCOPE)
-endfunction(exi_add_java_source)
+exi_add_java_class(@exicpp.util.EvilDocumentHijacker)
+exi_add_java_class(@exicpp.util.ReflectionHelpers)
+exi_add_java_class(@exicpp.util.StringTranslator)
 
-# Adds java files to list of sources/outputs.
-#  exi_add_java_source(<dir> <files>)
-function(exi_add_java_sources dir)
-  foreach(name IN LISTS ARGN)
-    get_filename_component(name "${name}" NAME_WLE)
-    list(APPEND exi_java_sources "${dir}/${name}.java")
-    list(APPEND exi_java_outputs "${EXI_CLASS_BINARY_DIR}/${dir}/${name}.class")
-  endforeach()
-  set(exi_java_sources ${exi_java_sources} PARENT_SCOPE)
-  set(exi_java_outputs ${exi_java_outputs} PARENT_SCOPE)
-endfunction(exi_add_java_sources)
+exi_add_java_class(@exicpp.openexi.CustomSAXParserFactory)
+exi_add_java_class(@exicpp.openexi.LoggingSAXHandlerWrapper)
+exi_add_java_class(@openexi.sax.Transmogrifier2)
 
-exi_add_java_classes(org.exicpp.util
-  EvilDocumentHijacker
-  ReflectionHelpers
-  StringTranslator
-)
-
-exi_add_java_classes(org.exicpp.openexi
-  CustomSAXParserFactory
-  LoggingSAXHandlerWrapper
-)
-
-set(xerces org.apache.xerces)
-exi_add_java_class(${xerces}.jaxp.SAXParserImpl2)
-exi_add_java_class(${xerces}.parsers.XIncludeAwareParserConfiguration2)
-exi_add_java_class(org.openexi.sax.Transmogrifier2)
+exi_add_java_class(@xerces.jaxp.SAXParserImpl2)
+exi_add_java_class(@xerces.parsers.XIncludeAwareParserConfiguration2)
 
 set(exi_java_binaries
   ${exi_java_binaries} "exificient.jar"
