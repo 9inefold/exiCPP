@@ -3,19 +3,42 @@ include_guard(DIRECTORY)
 set(exi_java_sources)
 set(exi_java_outputs)
 
-macro(_exi_add_java_source dir name)
+# Adds java class to list of sources/outputs. Path should match the package.
+#  exi_add_java_class(classname)
+function(exi_add_java_class classname)
+  string(REPLACE "." "/" path ${classname})
+  if(path MATCHES "^([A-Za-z0-9]+(/[A-Za-z0-9]+)*)/([A-Za-z0-9$]+)$")
+    # 0: match, 1: package, 2: last slice, 3: class
+    set(path ${CMAKE_MATCH_1})
+    set(name ${CMAKE_MATCH_3})
+  else()
+    message(SEND_ERROR "Failed to match on \"${path}\"")
+  endif()
   set(exi_java_sources ${exi_java_sources}
-    "${dir}/${name}.java" PARENT_SCOPE)
+    "${path}/${name}.java" PARENT_SCOPE)
   set(exi_java_outputs ${exi_java_outputs}
-    "${EXI_CLASS_BINARY_DIR}/${dir}/${name}.class" PARENT_SCOPE)
-endmacro()
+    "${EXI_CLASS_BINARY_DIR}/${path}/${name}.class" PARENT_SCOPE)
+endfunction(exi_add_java_class)
+
+# Adds java files to list of sources/outputs.
+#  exi_add_java_source(<dir> <files>)
+function(exi_add_java_classes package)
+string(REPLACE "." "/" path ${package})
+  foreach(name IN LISTS ARGN)
+    list(APPEND exi_java_sources "${dir}/${name}.java")
+    list(APPEND exi_java_outputs "${EXI_CLASS_BINARY_DIR}/${dir}/${name}.class")
+  endforeach()
+  set(exi_java_sources ${exi_java_sources} PARENT_SCOPE)
+  set(exi_java_outputs ${exi_java_outputs} PARENT_SCOPE)
+endfunction(exi_add_java_classes)
 
 # Adds java file to list of sources/outputs.
 #  exi_add_java_source(<file>)
-function(exi_add_java_source path)
-  get_filename_component(_path_name "${path}" NAME_WLE)
-  get_filename_component(_dir_name "${path}" DIRECTORY)
-  _exi_add_java_source("${_dir_name}" ${_path_name})
+function(exi_add_java_source path name)
+  set(exi_java_sources ${exi_java_sources}
+    "${path}/${name}.java" PARENT_SCOPE)
+  set(exi_java_outputs ${exi_java_outputs}
+    "${EXI_CLASS_BINARY_DIR}/${path}/${name}.class" PARENT_SCOPE)
 endfunction(exi_add_java_source)
 
 # Adds java files to list of sources/outputs.
@@ -30,24 +53,21 @@ function(exi_add_java_sources dir)
   set(exi_java_outputs ${exi_java_outputs} PARENT_SCOPE)
 endfunction(exi_add_java_sources)
 
-exi_add_java_sources(org/exicpp/util
-  EvilDocumentHijacker.java
-  ReflectionHelpers.java
-  StringTranslator.java
+exi_add_java_classes(org.exicpp.util
+  EvilDocumentHijacker
+  ReflectionHelpers
+  StringTranslator
 )
 
-exi_add_java_sources(org/exicpp/openexi
-  CustomSAXParserFactory.java
-  LoggingSAXHandlerWrapper.java
+exi_add_java_classes(org.exicpp.openexi
+  CustomSAXParserFactory
+  LoggingSAXHandlerWrapper
 )
 
-exi_add_java_sources(org/apache/xerces/parsers
-  XIncludeAwareParserConfiguration2.java
-)
-
-exi_add_java_sources(org/openexi/sax
-  Transmogrifier2.java
-)
+set(xerces org.apache.xerces)
+exi_add_java_class(${xerces}.jaxp.SAXParserImpl2)
+exi_add_java_class(${xerces}.parsers.XIncludeAwareParserConfiguration2)
+exi_add_java_class(org.openexi.sax.Transmogrifier2)
 
 set(exi_java_binaries
   ${exi_java_binaries} "exificient.jar"
