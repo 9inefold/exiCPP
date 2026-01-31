@@ -161,7 +161,7 @@ public class EvilDocumentHijacker {
     _fConfiguration.setAccessible(true);
     @SuppressWarnings("unchecked")
     var fConfiguration =
-        (XMLComponentManager)ReflectionHelpers.loadObjectField(reader, _fConfiguration);
+        (XMLComponentManager)ReflectionHelpers.getObjectField(reader, _fConfiguration);
 
     var configSig = getRecognizedParserConfiguration(fConfiguration.getClass());
     if (configSig == ParserConfigurationKind.NOTFOUND) {

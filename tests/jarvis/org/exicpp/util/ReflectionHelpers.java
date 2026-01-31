@@ -49,7 +49,7 @@ public class ReflectionHelpers {
                                  + storedclazz.getName());
   }
 
-  public static Object loadObjectField(Object obj, Field field) {
+  public static Object getObjectField(Object obj, Field field) {
     if (obj == null || !field.canAccess(obj))
       return null;
     try {
@@ -59,6 +59,17 @@ public class ReflectionHelpers {
     } catch (IllegalAccessException e) {
       System.err.println(e.getMessage());
       return null;
+    }
+  }
+
+  public static <T> void setObjectField(Object obj, T val, Field field) {
+    if (obj == null || !field.canAccess(obj))
+      return;
+    try {
+      field.set(obj, val);
+    } catch (IllegalArgumentException e) {
+    } catch (IllegalAccessException e) {
+      System.err.println(e.getMessage());
     }
   }
 
