@@ -11,6 +11,7 @@ import jpype.imports
 from jpype.types import *
 
 jpype.startJVM(jpype.getDefaultJVMPath(), '-ea',
+  '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
   classpath=[EXI_BASE_DIR.as_posix() + '/bin/*'],
   convertStrings=False)
 
@@ -19,10 +20,10 @@ if not jpype.isJVMStarted():
 
 from java.io import FileInputStream, InputStream, ByteArrayInputStream, ByteArrayOutputStream, StringWriter, FileWriter
 from java.lang import String
-from com.exicpp.openexi import LoggingSAXHandlerWrapper, CustomSAXParserFactory
+from org.exicpp.openexi import LoggingSAXHandlerWrapper, CustomSAXParserFactory
 #from org.openexi.scomp import EXISchemaReader
 from org.openexi.schema import EXISchema, EmptySchema
-from org.openexi.sax import Transmogrifier, EXIReader
+from org.openexi.sax import EXIReader, Transmogrifier, Transmogrifier2
 from org.openexi.proc import HeaderOptionsOutputType
 from org.openexi.proc.common import AlignmentType, GrammarOptions, SchemaId
 from org.openexi.proc.grammars import GrammarCache
@@ -60,7 +61,8 @@ class MessageHandler(metaclass=Singleton):
   #sax_parser_factory = SAXParserFactory.newInstance()
   #sax_parser_factory.setNamespaceAware(True)
 
-  writer = Transmogrifier()
+  writer = Transmogrifier2(JBoolean(False), JBoolean(True))
+  #writer = Transmogrifier()
   writer.setOutputOptions(hdr_options)
   writer.setAlignmentType(AlignmentType.byteAligned)
   writer.setResolveExternalGeneralEntities(JBoolean(False))
@@ -70,6 +72,7 @@ class MessageHandler(metaclass=Singleton):
   #writer.setValuePartitionCapacity(0)
 
   sax_transformer_factory = SAXTransformerFactory@SAXTransformerFactory.newInstance()
+  
   #sax_transformer_factory.setAttribute("debug", JBoolean(True))
   #sax_transformer_factory.setAttribute("http://xml.org/sax/features/use-entity-resolver2", JBoolean(False))
   # http://apache.org/xml/features/xinclude
@@ -154,11 +157,13 @@ class MessageHandler(metaclass=Singleton):
       return str(result)
 
 if __name__ == "__main__":
-  CustomSAXParserFactory.printTypeOfParser()
+  #CustomSAXParserFactory.printTypeOfParser()
 
+  # TODO: Handle doctype
+  #xml_in = (EXI_BASE_DIR / 'tests/nested-ent.hidden.xml').read_text('utf8')
   xml_in = (EXI_BASE_DIR / 'tests/s/xml/042.xml').read_text('utf8')
   data = MessageHandler.encode(xml_in)
-  (EXI_BASE_DIR / 'tests/042.exi').write_bytes(data)
+  #(EXI_BASE_DIR / 'tests/042.exi').write_bytes(data)
   xml_out = MessageHandler.decode(data)
   print(xml_out)
   pass

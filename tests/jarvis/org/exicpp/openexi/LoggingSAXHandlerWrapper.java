@@ -38,6 +38,11 @@ import org.xml.sax.ext.DeclHandler;
 import org.xml.sax.ext.LexicalHandler;
 import org.xml.sax.helpers.DefaultHandler;
 
+import org.exicpp.util.ReflectionHelpers;
+
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.sax.SAXTransformerFactory;
+
 public class LoggingSAXHandlerWrapper extends DefaultHandler
     implements ContentHandler, LexicalHandler, DTDHandler, EntityResolver,
                DeclHandler, ErrorHandler {

@@ -142,11 +142,15 @@ public class ReflectionHelpers {
     printClassFields(clazz, false);
   }
 
-  public static void printSuperclassFields(Class<?> clazz) {
+  public static void printSuperclassFields(Class<?> clazz, boolean printStatic) {
     final Class<?> objectClazz = java.lang.Object.class;
     while (clazz != objectClazz && clazz != null) {
-      printClassFields(clazz);
+      printClassFields(clazz, printStatic);
       clazz = clazz.getSuperclass();
     }
+  }
+
+  public static void printSuperclassFields(Class<?> clazz) {
+    printSuperclassFields(clazz, false);
   }
 }

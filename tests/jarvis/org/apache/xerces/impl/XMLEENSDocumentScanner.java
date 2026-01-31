@@ -68,7 +68,7 @@ public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
     fStringBuffer.clear(); fStringBuffer2.clear();
     fStringBuffer.append("&#");
     int ch = scanCharReferenceValue(fStringBuffer2, fStringBuffer);
-    System.out.println("in scanCharReference: " + getStringFromXML(fStringBuffer));
+    //System.out.println("in scanCharReference: " + getStringFromXML(fStringBuffer));
     fMarkupDepth--;
     if (ch == -1 || fDocumentHandler == null)
       return;
