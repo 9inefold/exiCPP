@@ -49,6 +49,7 @@ exi_add_java_class(@exicpp.openexi.CustomSAXParserFactory)
 exi_add_java_class(@exicpp.openexi.LoggingSAXHandlerWrapper)
 exi_add_java_class(@openexi.sax.Transmogrifier2)
 
+exi_add_java_class(@xerces.impl.XMLEEDocumentFragmentScanner)
 exi_add_java_class(@xerces.jaxp.SAXParserImpl2)
 exi_add_java_class(@xerces.jaxp.SAXParserFactoryImpl2)
 exi_add_java_class(@xerces.parsers.XIncludeAwareParserConfiguration2)

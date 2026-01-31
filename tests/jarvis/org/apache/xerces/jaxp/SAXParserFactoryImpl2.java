@@ -48,7 +48,7 @@ public class SAXParserFactoryImpl2 extends SAXParserFactory {
   private static final String XINCLUDE_FEATURE =
       Constants.XERCES_FEATURE_PREFIX + Constants.XINCLUDE_FEATURE;
 
-  private Hashtable<String, Object> features;
+  private Hashtable<String, Boolean> features;
   private Schema grammar;
   private boolean isXIncludeAware;
 
@@ -129,7 +129,7 @@ public class SAXParserFactoryImpl2 extends SAXParserFactory {
     // features and then later create an XMLReader
     // to verify the features.
     if (features == null)
-      features = new Hashtable<String, Object>();
+      features = new Hashtable<String, Boolean>();
     features.put(name, value ? Boolean.TRUE : Boolean.FALSE);
 
     // Test the feature by possibly throwing SAX

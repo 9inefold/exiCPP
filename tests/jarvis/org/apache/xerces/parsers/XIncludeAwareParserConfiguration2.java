@@ -18,6 +18,7 @@
 package org.apache.xerces.parsers;
 
 import org.apache.xerces.impl.Constants;
+import org.apache.xerces.impl.XMLEEDocumentFragmentScanner;
 import org.apache.xerces.util.NamespaceSupport;
 import org.apache.xerces.util.SymbolTable;
 import org.apache.xerces.xinclude.XIncludeHandler;
@@ -28,6 +29,7 @@ import org.apache.xerces.xni.grammars.XMLGrammarPool;
 import org.apache.xerces.xni.parser.XMLComponentManager;
 import org.apache.xerces.xni.parser.XMLConfigurationException;
 import org.apache.xerces.xni.parser.XMLDocumentSource;
+import org.exicpp.util.XConstants;
 
 /**
  * This class is the configuration used to parse XML 1.0 and XML 1.1 documents
@@ -65,6 +67,10 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
   protected static final String XINCLUDE_FEATURE =
       Constants.XERCES_FEATURE_PREFIX + Constants.XINCLUDE_FEATURE;
   
+  /** Feature identifier: Embedded escape sequences */
+  protected static final String EMBED_ESCAPE_SEQUENCES =
+      XConstants.EXICPP_FEATURE_PREFIX + XConstants.EMBED_ESCAPE_SEQUENCES;
+  
   // Properties
 
   /** Property identifier: symbol table. */
@@ -89,6 +95,9 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
   // Components
   //
 
+  /** Embedded Escape XMLDocumentFragmentScanner */
+  protected XMLEEDocumentFragmentScanner fEEDocumentScanner;
+
   /** XInclude handler. */
   protected XIncludeHandler fXIncludeHandler;
 
@@ -103,6 +112,17 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
 
   /** Flag indicating whether XInclude processsing is enabled. */
   protected boolean fXIncludeEnabled = false;
+
+  /** Flag indicating whether embedded escape sequences are enabled. */
+  protected boolean fEmbeddedEscapesEnabled = false;
+
+  /// Error states
+
+  /** Flag indicating whether xml 1.1 embedded escapes error has been printed. */
+  private boolean hpe_XML11EEE = false;
+
+  /** Flag indicating whether xinclude embedded escapes error has been printed. */
+  private boolean hpe_XIncludeEEE = false;
 
   /** Default constructor. */
   public XIncludeAwareParserConfiguration2() {
@@ -146,6 +166,7 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
     super(symbolTable, grammarPool, parentSettings);
 
     final String[] recognizedFeatures = {NOTIFY_BUILTIN_REFS,
+                                         EMBED_ESCAPE_SEQUENCES,
                                          ALLOW_UE_AND_NOTATION_EVENTS,
                                          XINCLUDE_FIXUP_BASE_URIS,
                                          XINCLUDE_FIXUP_LANGUAGE};
@@ -158,6 +179,7 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
                                            NAMESPACE_CONTEXT};
     addRecognizedProperties(recognizedProperties);
 
+    setFeature(EMBED_ESCAPE_SEQUENCES, false);
     setFeature(ALLOW_UE_AND_NOTATION_EVENTS, true);
     setFeature(XINCLUDE_FIXUP_BASE_URIS, true);
     setFeature(XINCLUDE_FIXUP_LANGUAGE, true);
@@ -185,9 +207,24 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
     return config;
   }
 
+  protected void configurePipelineCommon() {
+    if (fEmbeddedEscapesEnabled) {
+      if (fXIncludeEnabled && !hpe_XIncludeEEE) {
+        System.err.format("Feature %s has not been implemented with xinclude%n",
+                          XConstants.EMBED_ESCAPE_SEQUENCES);
+        hpe_XIncludeEEE = true;
+      }
+
+      if (fEEDocumentScanner == null) {
+        fEEDocumentScanner = new XMLEEDocumentFragmentScanner();
+      }
+    }
+  }
+
   /** Configures the pipeline. */
   protected void configurePipeline() {
     super.configurePipeline();
+    configurePipelineCommon();
     if (fXIncludeEnabled) {
       // If the XInclude handler was not in the pipeline insert it.
       if (fXIncludeHandler == null) {
@@ -246,6 +283,14 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
   } // configurePipeline()
 
   protected void configureXML11Pipeline() {
+    if (fEmbeddedEscapesEnabled) {
+      if (!hpe_XML11EEE) {
+        System.err.format("Feature %s has not been implemented for xml 1.1%n",
+                          XConstants.EMBED_ESCAPE_SEQUENCES);
+        hpe_XML11EEE = true;
+      }
+    }
+    configurePipelineCommon();
     super.configureXML11Pipeline();
     if (fXIncludeEnabled) {
       // If the XInclude handler was not in the pipeline insert it.
@@ -309,6 +354,8 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
       return fConfigUpdated;
     } else if (featureId.equals(XINCLUDE_FEATURE)) {
       return fXIncludeEnabled;
+    } else if (featureId.equals(EMBED_ESCAPE_SEQUENCES)) {
+      return fEmbeddedEscapesEnabled;
     }
     return super.getFeature0(featureId);
 
@@ -318,6 +365,10 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
       throws XMLConfigurationException {
     if (featureId.equals(XINCLUDE_FEATURE)) {
       fXIncludeEnabled = state;
+      fConfigUpdated = true;
+      return;
+    } else if (featureId.equals(EMBED_ESCAPE_SEQUENCES)) {
+      fEmbeddedEscapesEnabled = state;
       fConfigUpdated = true;
       return;
     }

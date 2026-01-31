@@ -25,6 +25,7 @@ import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 import org.apache.xerces.jaxp.SAXParserFactoryImpl2;
 import org.exicpp.util.EvilDocumentHijacker;
+import org.exicpp.util.XConstants;
 import org.openexi.proc.EXIOptionsEncoder;
 import org.openexi.proc.HeaderOptionsOutputType;
 import org.openexi.proc.common.AlignmentType;
@@ -68,6 +69,8 @@ import org.xml.sax.helpers.LocatorImpl;
 public final class Transmogrifier2 {
   private static final String DEFAULT_FACTORY =
       "org.apache.xerces.jaxp.SAXParserFactoryImpl2";
+  private static final String EMBED_ESCAPE_SEQUENCES =
+    XConstants.EXICPP_FEATURE_PREFIX + XConstants.EMBED_ESCAPE_SEQUENCES;
 
   private final boolean m_allowEmbeddedEntityEncoding;
   private final XMLReader m_xmlReader;
@@ -93,7 +96,7 @@ public final class Transmogrifier2 {
    * @throws TransmogrifierException
    */
   public Transmogrifier2() throws TransmogrifierRuntimeException {
-    this(createSAXParserFactory(), false);
+    this(createSAXParserFactory(), false, false);
   }
 
   /**
@@ -104,15 +107,27 @@ public final class Transmogrifier2 {
    */
   public Transmogrifier2(SAXParserFactory saxParserFactory)
       throws TransmogrifierRuntimeException {
-    this(saxParserFactory, false);
+    this(saxParserFactory, false, false);
   }
 
-  Transmogrifier2(boolean namespacePrefixesFeature)
+  public Transmogrifier2(boolean namespacePrefixesFeature)
       throws TransmogrifierRuntimeException {
-    this(createSAXParserFactory(), namespacePrefixesFeature);
+    this(createSAXParserFactory(), namespacePrefixesFeature, false);
+  }
+
+  public Transmogrifier2(boolean namespacePrefixesFeature, boolean embeddedEscapesFeature)
+      throws TransmogrifierRuntimeException {
+    this(createSAXParserFactory(), namespacePrefixesFeature, embeddedEscapesFeature);
   }
 
   Transmogrifier2(SAXParserFactory saxParserFactory, boolean namespacePrefixesFeature)
+      throws TransmogrifierRuntimeException {
+    this(saxParserFactory, namespacePrefixesFeature, false);
+  }
+
+  Transmogrifier2(SAXParserFactory saxParserFactory,
+                  boolean namespacePrefixesFeature,
+                  boolean embeddedEscapesFeature)
       throws TransmogrifierRuntimeException {
     if (!saxParserFactory.isNamespaceAware()) {
       throw new TransmogrifierRuntimeException(
@@ -122,13 +137,17 @@ public final class Transmogrifier2 {
     // fixtures
     m_saxHandler = new SAXEventHandler();
     try {
-      m_allowEmbeddedEntityEncoding =
-          (saxParserFactory.getClass() == SAXParserFactoryImpl2.class);
       final SAXParser saxParser = saxParserFactory.newSAXParser();
       m_xmlReader = saxParser.getXMLReader();
+      m_allowEmbeddedEntityEncoding =
+          EvilDocumentHijacker.reconfigureXMLReader(m_xmlReader);
+      if (m_allowEmbeddedEntityEncoding) {
+        m_xmlReader.setFeature(EMBED_ESCAPE_SEQUENCES, embeddedEscapesFeature);
+      }
       m_xmlReader.setFeature("http://xml.org/sax/features/namespace-prefixes",
                              namespacePrefixesFeature);
     } catch (Exception exc) {
+      exc.printStackTrace(System.err);
       throw new TransmogrifierRuntimeException(
           TransmogrifierRuntimeException.XMLREADER_ACCESS_ERROR, (String[])null);
     }
@@ -145,7 +164,6 @@ public final class Transmogrifier2 {
       te.setException(se);
       throw te;
     }
-    EvilDocumentHijacker.reconfigureXMLReader(m_xmlReader);
     /*
      * REVISIT: we *may* (or may not) eventually want to support internal DTD subset.
      * m_xmlReader.setProperty("http://xml.org/sax/properties/declaration-handler",
