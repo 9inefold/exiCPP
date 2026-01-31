@@ -24,6 +24,9 @@ import java.io.OutputStream;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 import org.apache.xerces.jaxp.SAXParserFactoryImpl2;
+import org.apache.xerces.impl.Constants;
+import org.apache.xerces.util.XMLStringBuffer;
+import org.apache.xerces.xni.XMLString;
 import org.exicpp.util.EvilDocumentHijacker;
 import org.exicpp.util.XConstants;
 import org.openexi.proc.EXIOptionsEncoder;
@@ -59,6 +62,7 @@ import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
 import org.xml.sax.Locator;
 import org.xml.sax.SAXException;
+import org.xml.sax.SAXNotRecognizedException;
 import org.xml.sax.SAXParseException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.LocatorImpl;
@@ -69,11 +73,19 @@ import org.xml.sax.helpers.LocatorImpl;
 public final class Transmogrifier2 {
   private static final String DEFAULT_FACTORY =
       "org.apache.xerces.jaxp.SAXParserFactoryImpl2";
+  
+  /** Feature identifier: embed escape sequences. */
   private static final String EMBED_ESCAPE_SEQUENCES =
     XConstants.EXICPP_FEATURE_PREFIX + XConstants.EMBED_ESCAPE_SEQUENCES;
+  
+  /** Feature identifier: notify character references. */
+  private static final String NOTIFY_CHAR_REFS =
+      Constants.XERCES_FEATURE_PREFIX + Constants.NOTIFY_CHAR_REFS_FEATURE;
 
-  private final boolean m_allowEmbeddedEntityEncoding;
   private final XMLReader m_xmlReader;
+  private final boolean m_allowEmbeddedEntityEncoding;
+  private boolean m_preserveChRefEncoding = false;
+
   /**
    * EXIEncoderSaxHandler handles SAX events coming from XMLReader.
    **/
@@ -141,9 +153,6 @@ public final class Transmogrifier2 {
       m_xmlReader = saxParser.getXMLReader();
       m_allowEmbeddedEntityEncoding =
           EvilDocumentHijacker.reconfigureXMLReader(m_xmlReader);
-      if (m_allowEmbeddedEntityEncoding) {
-        m_xmlReader.setFeature(EMBED_ESCAPE_SEQUENCES, embeddedEscapesFeature);
-      }
       m_xmlReader.setFeature("http://xml.org/sax/features/namespace-prefixes",
                              namespacePrefixesFeature);
     } catch (Exception exc) {
@@ -164,6 +173,8 @@ public final class Transmogrifier2 {
       te.setException(se);
       throw te;
     }
+    // Char refs
+    setPreserveCharacterRefEmbedding(embeddedEscapesFeature);
     /*
      * REVISIT: we *may* (or may not) eventually want to support internal DTD subset.
      * m_xmlReader.setProperty("http://xml.org/sax/properties/declaration-handler",
@@ -172,6 +183,45 @@ public final class Transmogrifier2 {
     m_outputOptions = HeaderOptionsOutputType.none;
     m_exiOptions = new EXIOptions();
     m_divertBuiltinGrammarToAnyType = false;
+  }
+
+  /**
+   * Change the way a Transmogrifier2 handles character references.
+   * @param embeddedEscapesFeature
+   * @throws TransmogrifierException Thrown when the underlying XMLReader does not
+   * support the specified behavior.
+   */
+  public void setPreserveCharacterRefEmbedding(boolean embeddedEscapesFeature)
+      throws TransmogrifierRuntimeException {
+    try {
+      if (m_allowEmbeddedEntityEncoding) {
+        m_xmlReader.setFeature(EMBED_ESCAPE_SEQUENCES, embeddedEscapesFeature);
+        return;
+      }
+    } catch (SAXException se) {
+      TransmogrifierRuntimeException te;
+      te = new TransmogrifierRuntimeException(
+          TransmogrifierRuntimeException.UNHANDLED_SAXPARSER_PROPERTY,
+          new String[] {EMBED_ESCAPE_SEQUENCES});
+      te.setException(se);
+      throw te;
+    }
+    // Char refs
+    try {
+      if (m_preserveChRefEncoding == embeddedEscapesFeature)
+        return;
+      m_xmlReader.setFeature("http://apache.org/xml/features/scanner/notify-char-refs",
+                             embeddedEscapesFeature);
+      m_saxHandler.setPreserveCharacterRefEmbedding(embeddedEscapesFeature);
+      m_preserveChRefEncoding = embeddedEscapesFeature;
+    } catch (SAXException se) {
+      TransmogrifierRuntimeException te;
+      te = new TransmogrifierRuntimeException(
+          TransmogrifierRuntimeException.UNHANDLED_SAXPARSER_PROPERTY,
+          new String[] {"http://apache.org/xml/features/scanner/notify-char-refs"});
+      te.setException(se);
+      throw te;
+    }
   }
 
   /**
@@ -552,6 +602,12 @@ public final class Transmogrifier2 {
     private boolean m_preserveWhitespaces;
     private boolean m_observeC14N;
 
+    private XMLStringBuffer m_CDATABuffer;
+    private XMLStringBuffer m_ChEntityBuffer = null; 
+    private boolean m_preserveChRefEncoding = false;
+    private boolean m_preserveEntityEncoding = false;
+    private boolean m_inChEntity = false;
+
     SAXEventHandler() {
       m_schema = null;
       m_grammarCache = new GrammarCache((EXISchema)null);
@@ -581,6 +637,7 @@ public final class Transmogrifier2 {
         m_comparableAttributes[i] = new ComparableAttribute();
       }
       m_n_comparableAttributes = 0;
+      m_CDATABuffer = new XMLStringBuffer();
     }
 
     private void reset() {
@@ -653,13 +710,18 @@ public final class Transmogrifier2 {
 
     public final void setObserveC14N(boolean observeC14N) { m_observeC14N = observeC14N; }
 
+    public void setPreserveCharacterRefEmbedding(boolean manualChEntityEncoding) {
+      if (manualChEntityEncoding && m_ChEntityBuffer == null)
+        m_ChEntityBuffer = new XMLStringBuffer();
+      m_preserveChRefEncoding = manualChEntityEncoding;
+    }
+
     //////////// SAX event handlers
 
     private void format(String format, Object... args) {
       // if (elementCount != 0)
       //   System.out.format("%1$" + (elementCount * 2) + "s", "");
-
-      // System.out.format(format + "%n", args);
+      System.out.format(format + "%n", args);
     }
 
     public final void setDocumentLocator(final Locator locator) { m_locator = locator; }
@@ -1225,13 +1287,24 @@ public final class Transmogrifier2 {
 
     public final void ignorableWhitespace(final char[] ch, final int start, final int len)
         throws SAXException {
+      if (m_inChEntity)
+        return;
       appendCharacters(ch, start, len);
     }
 
     public final void characters(final char[] ch, final int start, final int len)
         throws SAXException {
+      if (m_inChEntity)
+        return;
       format("CH: %s", new String(ch, start, len));
       appendCharacters(ch, start, len);
+    }
+
+    public final void characters(final XMLString xstr)
+        throws SAXException {
+      assert !m_inChEntity;
+      format("CH: %s", new String(xstr.ch, xstr.offset, xstr.length));
+      appendCharacters(xstr.ch, xstr.offset, xstr.length);
     }
 
     public final BinaryDataSink startBinaryData(long totalLength) throws SAXException {
@@ -1491,6 +1564,10 @@ public final class Transmogrifier2 {
 
     public final void skippedEntity(final String name) throws SAXException {
       format("ER(skipped): %s", name);
+      if (m_preserveChRefEncoding && name.startsWith("#")) {
+        System.out.println("Skipped entity " + name);
+        return; // TODO: Handle this...?
+      }
       if (m_exiOptions.getPreserveDTD()) {
         if (m_charPos > 0)
           do_characters(true);
@@ -1573,13 +1650,41 @@ public final class Transmogrifier2 {
       m_inDTD = false;
     }
 
-    public void startCDATA() { format("<![CDATA["); }
+    public void startCDATA() {
+      format("<![CDATA[");
+    }
 
-    public void endCDATA() { format("]]>"); }
+    public void endCDATA() {
+      format("]]>");
+    }
 
-    public void startEntity(String name) { format("ER: %s", name); }
+    public void startEntity(String name) throws SAXException {
+      format("ER: %s", name);
+      if (name.startsWith("#")) {
+        if (m_preserveChRefEncoding) {
+          m_ChEntityBuffer.clear();
+          m_ChEntityBuffer.append('&');
+          m_ChEntityBuffer.append(name);
+          m_ChEntityBuffer.append(';');
+          m_inChEntity = true;
+        }
+      } else if (m_preserveEntityEncoding) {
+        m_ChEntityBuffer.clear();
+        m_ChEntityBuffer.append('&');
+        m_ChEntityBuffer.append(name);
+        m_ChEntityBuffer.append(';');
+        m_inChEntity = true;
+      }
+    }
 
-    public void endEntity(String name) { format("ER(end): %s", name); }
+    public void endEntity(String name) throws SAXException {
+      format("ER(end): %s", name);
+      if (m_inChEntity) {
+        // TODO: Check name matches?
+        m_inChEntity = false;
+        characters(m_ChEntityBuffer);
+      }
+    }
 
     ///////////////////////////////////////////////////////////////////////////
     // DTDHandler APIs
@@ -1602,6 +1707,7 @@ public final class Transmogrifier2 {
     ///////////////////////////////////////////////////////////////////////////
 
     private void appendCharacters(final char[] ch, final int start, final int len) {
+      assert !m_inChEntity;
       while (m_charPos + len > m_charBuf.length) {
         final char[] charBuf = new char[2 * m_charBuf.length];
         System.arraycopy(m_charBuf, 0, charBuf, 0, m_charBuf.length);

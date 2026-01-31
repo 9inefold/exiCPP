@@ -18,7 +18,27 @@
 package org.apache.xerces.parsers;
 
 import org.apache.xerces.impl.Constants;
-import org.apache.xerces.impl.XMLEEDocumentFragmentScanner;
+import org.apache.xerces.impl.XML11DTDScannerImpl;
+import org.apache.xerces.impl.XML11DocumentScannerImpl;
+import org.apache.xerces.impl.XML11NSDocumentScannerImpl;
+import org.apache.xerces.impl.XMLDTDScannerImpl;
+import org.apache.xerces.impl.XMLDocumentScannerImpl;
+import org.apache.xerces.impl.XMLEntityHandler;
+import org.apache.xerces.impl.XMLEntityManager;
+import org.apache.xerces.impl.XMLErrorReporter;
+import org.apache.xerces.impl.XMLNSDocumentScannerImpl;
+import org.apache.xerces.impl.XMLVersionDetector;
+import org.apache.xerces.impl.dtd.XML11DTDProcessor;
+import org.apache.xerces.impl.dtd.XML11DTDValidator;
+import org.apache.xerces.impl.dtd.XML11NSDTDValidator;
+import org.apache.xerces.impl.dtd.XMLDTDProcessor;
+import org.apache.xerces.impl.dtd.XMLDTDValidator;
+import org.apache.xerces.impl.dtd.XMLNSDTDValidator;
+import org.apache.xerces.impl.msg.XMLMessageFormatter;
+import org.apache.xerces.impl.xs.XMLSchemaValidator;
+import org.apache.xerces.impl.xs.XSMessageFormatter;
+import org.apache.xerces.xni.XMLDTDHandler;
+import org.apache.xerces.xni.XMLDocumentHandler;
 import org.apache.xerces.util.NamespaceSupport;
 import org.apache.xerces.util.SymbolTable;
 import org.apache.xerces.xinclude.XIncludeHandler;
@@ -26,9 +46,18 @@ import org.apache.xerces.xinclude.XIncludeNamespaceSupport;
 import org.apache.xerces.xni.NamespaceContext;
 import org.apache.xerces.xni.XMLDocumentHandler;
 import org.apache.xerces.xni.grammars.XMLGrammarPool;
+import org.apache.xerces.xni.parser.XMLComponent;
 import org.apache.xerces.xni.parser.XMLComponentManager;
 import org.apache.xerces.xni.parser.XMLConfigurationException;
+import org.apache.xerces.xni.parser.XMLDTDScanner;
+import org.apache.xerces.xni.parser.XMLDocumentScanner;
 import org.apache.xerces.xni.parser.XMLDocumentSource;
+import org.apache.xerces.xni.parser.XMLEntityResolver;
+import org.apache.xerces.xni.parser.XMLErrorHandler;
+import org.apache.xerces.xni.parser.XMLInputSource;
+
+import org.apache.xerces.impl.XMLEEDocumentScanner;
+import org.apache.xerces.impl.XMLEENSDocumentScanner;
 import org.exicpp.util.XConstants;
 
 /**
@@ -84,6 +113,10 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
     Constants.XMLGRAMMAR_POOL_PROPERTY;
   
   /** Property identifier: XInclude handler. */
+  protected static final String ESCAPE_HANDLER =
+      XConstants.EXICPP_PROPERTY_PREFIX + XConstants.ESCAPE_HANDLER_PROPERTY;
+
+  /** Property identifier: XInclude handler. */
   protected static final String XINCLUDE_HANDLER =
       Constants.XERCES_PROPERTY_PREFIX + Constants.XINCLUDE_HANDLER_PROPERTY;
 
@@ -95,8 +128,14 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
   // Components
   //
 
-  /** Embedded Escape XMLDocumentFragmentScanner */
-  protected XMLEEDocumentFragmentScanner fEEDocumentScanner;
+  /** Embedded Escape XMLDocumentScanner */
+  protected XMLDocumentScanner fEECurrentScanner;
+
+  /** Embedded Escape XMLNSDocumentScanner */
+  protected XMLEENSDocumentScanner fEENamespaceScanner;
+
+  /** Embedded Escape XMLDocumentScanner */
+  protected XMLEEDocumentScanner fEENonNSScanner;
 
   /** XInclude handler. */
   protected XIncludeHandler fXIncludeHandler;
@@ -175,6 +214,7 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
     // add default recognized properties
     final String[] recognizedProperties = {SYMBOL_TABLE,
                                            XMLGRAMMAR_POOL,
+                                           ESCAPE_HANDLER,
                                            XINCLUDE_HANDLER,
                                            NAMESPACE_CONTEXT};
     addRecognizedProperties(recognizedProperties);
@@ -183,6 +223,11 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
     setFeature(ALLOW_UE_AND_NOTATION_EVENTS, true);
     setFeature(XINCLUDE_FIXUP_BASE_URIS, true);
     setFeature(XINCLUDE_FIXUP_LANGUAGE, true);
+
+    fEENamespaceScanner = new XMLEENSDocumentScanner();
+    fEECurrentScanner = fEENamespaceScanner;
+    setProperty(ESCAPE_HANDLER, fEENamespaceScanner);
+    addComponent((XMLComponent) fEENamespaceScanner);
 
     fNonXIncludeNSContext = new NamespaceSupport();
     fCurrentNSContext = fNonXIncludeNSContext;
@@ -207,24 +252,7 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
     return config;
   }
 
-  protected void configurePipelineCommon() {
-    if (fEmbeddedEscapesEnabled) {
-      if (fXIncludeEnabled && !hpe_XIncludeEEE) {
-        System.err.format("Feature %s has not been implemented with xinclude%n",
-                          XConstants.EMBED_ESCAPE_SEQUENCES);
-        hpe_XIncludeEEE = true;
-      }
-
-      if (fEEDocumentScanner == null) {
-        fEEDocumentScanner = new XMLEEDocumentFragmentScanner();
-      }
-    }
-  }
-
-  /** Configures the pipeline. */
-  protected void configurePipeline() {
-    super.configurePipeline();
-    configurePipelineCommon();
+  protected void configureXInclude() {
     if (fXIncludeEnabled) {
       // If the XInclude handler was not in the pipeline insert it.
       if (fXIncludeHandler == null) {
@@ -242,6 +270,24 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
         fCurrentNSContext = fXIncludeNSContext;
         setProperty(NAMESPACE_CONTEXT, fXIncludeNSContext);
       }
+    } else {
+      // Setup NamespaceContext
+      if (fCurrentNSContext != fNonXIncludeNSContext) {
+        fCurrentNSContext = fNonXIncludeNSContext;
+        setProperty(NAMESPACE_CONTEXT, fNonXIncludeNSContext);
+      }
+    }
+  }
+
+  /** Configures the pipeline. */
+  protected void configurePipeline() {
+    if (!fEmbeddedEscapesEnabled)
+      super.configurePipeline();
+    else
+      configurePipeline0();
+    
+    configureXInclude();
+    if (fXIncludeEnabled) {
       // configure DTD pipeline
       fDTDScanner.setDTDHandler(fDTDProcessor);
       fDTDProcessor.setDTDSource(fDTDScanner);
@@ -273,16 +319,11 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
         fXIncludeHandler.setDocumentHandler(next);
         next.setDocumentSource(fXIncludeHandler);
       }
-    } else {
-      // Setup NamespaceContext
-      if (fCurrentNSContext != fNonXIncludeNSContext) {
-        fCurrentNSContext = fNonXIncludeNSContext;
-        setProperty(NAMESPACE_CONTEXT, fNonXIncludeNSContext);
-      }
     }
   } // configurePipeline()
 
   protected void configureXML11Pipeline() {
+    super.configureXML11Pipeline();
     if (fEmbeddedEscapesEnabled) {
       if (!hpe_XML11EEE) {
         System.err.format("Feature %s has not been implemented for xml 1.1%n",
@@ -290,25 +331,9 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
         hpe_XML11EEE = true;
       }
     }
-    configurePipelineCommon();
-    super.configureXML11Pipeline();
+
+    configureXInclude();
     if (fXIncludeEnabled) {
-      // If the XInclude handler was not in the pipeline insert it.
-      if (fXIncludeHandler == null) {
-        fXIncludeHandler = new XIncludeHandler();
-        // add XInclude component
-        setProperty(XINCLUDE_HANDLER, fXIncludeHandler);
-        addCommonComponent(fXIncludeHandler);
-        fXIncludeHandler.reset(this);
-      }
-      // Setup NamespaceContext
-      if (fCurrentNSContext != fXIncludeNSContext) {
-        if (fXIncludeNSContext == null) {
-          fXIncludeNSContext = new XIncludeNamespaceSupport();
-        }
-        fCurrentNSContext = fXIncludeNSContext;
-        setProperty(NAMESPACE_CONTEXT, fXIncludeNSContext);
-      }
       // configure XML 1.1. DTD pipeline
       fXML11DTDScanner.setDTDHandler(fXML11DTDProcessor);
       fXML11DTDProcessor.setDTDSource(fXML11DTDScanner);
@@ -340,14 +365,116 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
         fXIncludeHandler.setDocumentHandler(next);
         next.setDocumentSource(fXIncludeHandler);
       }
-    } else {
-      // Setup NamespaceContext
-      if (fCurrentNSContext != fNonXIncludeNSContext) {
-        fCurrentNSContext = fNonXIncludeNSContext;
-        setProperty(NAMESPACE_CONTEXT, fNonXIncludeNSContext);
-      }
     }
   } // configureXML11Pipeline()
+
+  /** Configures the pipeline. */
+  protected void configurePipeline0() {
+    assert fEmbeddedEscapesEnabled;
+    if (fCurrentDVFactory != fDatatypeValidatorFactory) {
+      fCurrentDVFactory = fDatatypeValidatorFactory;
+      // use XML 1.0 datatype library
+      setProperty(DATATYPE_VALIDATOR_FACTORY, fCurrentDVFactory);
+    }
+
+    // setup DTD pipeline
+    if (fCurrentDTDScanner != fDTDScanner) {
+      fCurrentDTDScanner = fDTDScanner;
+      setProperty(DTD_SCANNER, fCurrentDTDScanner);
+      setProperty(DTD_PROCESSOR, fDTDProcessor);
+    }
+    fDTDScanner.setDTDHandler(fDTDProcessor);
+    fDTDProcessor.setDTDSource(fDTDScanner);
+    fDTDProcessor.setDTDHandler(fDTDHandler);
+    if (fDTDHandler != null) {
+      fDTDHandler.setDTDSource(fDTDProcessor);
+    }
+
+    fDTDScanner.setDTDContentModelHandler(fDTDProcessor);
+    fDTDProcessor.setDTDContentModelSource(fDTDScanner);
+    fDTDProcessor.setDTDContentModelHandler(fDTDContentModelHandler);
+    if (fDTDContentModelHandler != null) {
+      fDTDContentModelHandler.setDTDContentModelSource(fDTDProcessor);
+    }
+
+    // setup document pipeline
+    if (fFeatures.get(NAMESPACES) == Boolean.TRUE) {
+      if (fEECurrentScanner != fEENamespaceScanner) {
+        fEECurrentScanner = fEENamespaceScanner;
+        setProperty(ESCAPE_HANDLER, fEENamespaceScanner);
+      }
+      if (fCurrentScanner != fEENamespaceScanner) {
+        fCurrentScanner = fEENamespaceScanner;
+        setProperty(DOCUMENT_SCANNER, fEENamespaceScanner);
+        setProperty(DTD_VALIDATOR, fDTDValidator);
+      }
+      fEENamespaceScanner.setDTDValidator(fDTDValidator);
+      fEENamespaceScanner.setDocumentHandler(fDTDValidator);
+      fDTDValidator.setDocumentSource(fEENamespaceScanner);
+      fDTDValidator.setDocumentHandler(fDocumentHandler);
+      if (fDocumentHandler != null) {
+        fDocumentHandler.setDocumentSource(fDTDValidator);
+      }
+      fLastComponent = fDTDValidator;
+    } else {
+      // create components
+      if (fEENonNSScanner == null) {
+        // TODO: Handle creating fNonNSScanner?
+        fEENonNSScanner = new XMLEEDocumentScanner();
+        // add components
+        addComponent((XMLComponent)fEENonNSScanner);
+      }
+      if (fNonNSDTDValidator == null) {
+        fNonNSDTDValidator = new XMLDTDValidator();
+        // add components
+        addComponent((XMLComponent)fNonNSDTDValidator);
+      }
+      if (fEECurrentScanner != fEENonNSScanner) {
+        fEECurrentScanner = fEENonNSScanner;
+        setProperty(ESCAPE_HANDLER, fEENonNSScanner);
+      }
+      if (fCurrentScanner != fEENonNSScanner) {
+        fCurrentScanner = fEENonNSScanner;
+        setProperty(ESCAPE_HANDLER, fEENonNSScanner);
+        setProperty(DOCUMENT_SCANNER, fEENonNSScanner);
+        setProperty(DTD_VALIDATOR, fNonNSDTDValidator);
+      }
+
+      fEENonNSScanner.setDocumentHandler(fNonNSDTDValidator);
+      fNonNSDTDValidator.setDocumentSource(fEENonNSScanner);
+      fNonNSDTDValidator.setDocumentHandler(fDocumentHandler);
+      if (fDocumentHandler != null) {
+        fDocumentHandler.setDocumentSource(fNonNSDTDValidator);
+      }
+      fLastComponent = fNonNSDTDValidator;
+    }
+
+    // add XML Schema validator if needed
+    if (fFeatures.get(XMLSCHEMA_VALIDATION) == Boolean.TRUE) {
+      // If schema validator was not in the pipeline insert it.
+      if (fSchemaValidator == null) {
+        fSchemaValidator = new XMLSchemaValidator();
+        // add schema component
+        setProperty(SCHEMA_VALIDATOR, fSchemaValidator);
+        addCommonComponent(fSchemaValidator);
+        fSchemaValidator.reset(this);
+        // add schema message formatter
+        if (fErrorReporter.getMessageFormatter(
+                XSMessageFormatter.SCHEMA_DOMAIN) == null) {
+          XSMessageFormatter xmft = new XSMessageFormatter();
+          fErrorReporter.putMessageFormatter(XSMessageFormatter.SCHEMA_DOMAIN,
+                                             xmft);
+        }
+      }
+      fLastComponent.setDocumentHandler(fSchemaValidator);
+      fSchemaValidator.setDocumentSource(fLastComponent);
+      fSchemaValidator.setDocumentHandler(fDocumentHandler);
+      if (fDocumentHandler != null) {
+        fDocumentHandler.setDocumentSource(fSchemaValidator);
+      }
+      fLastComponent = fSchemaValidator;
+    }
+  } // configurePipeline0()
 
   public boolean getFeature(String featureId) throws XMLConfigurationException {
     if (featureId.equals(PARSER_SETTINGS)) {
