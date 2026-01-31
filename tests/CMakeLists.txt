@@ -29,7 +29,7 @@ if(NOT TARGET Python3::Interpreter)
 endif()
 
 if(NOT DEFINED EXIFICIENT_DIR)
-  set(EXIFICIENT_JAR "${EXI_BASE_DIR}/bin/exificient-jar-with-dependencies.jar")
+  set(EXIFICIENT_JAR "${EXI_BASE_DIR}/resources/exificient-jar-with-dependencies.jar")
 endif()
 
 # TODO: Test the EXI jar is runnable with the java version?
