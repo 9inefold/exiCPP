@@ -54,7 +54,7 @@ exi_add_java_class(@xerces.impl.XMLEEDocumentScanner)
 exi_add_java_class(@xerces.impl.XMLEENSDocumentScanner)
 exi_add_java_class(@xerces.jaxp.SAXParserImpl2)
 exi_add_java_class(@xerces.jaxp.SAXParserFactoryImpl2)
-exi_add_java_class(@xerces.parsers.XIncludeAwareParserConfiguration2)
+exi_add_java_class(@xerces.parsers.EEAwareParserConfiguration)
 
 set(exi_java_binaries
   ${exi_java_binaries} "exificient.jar"

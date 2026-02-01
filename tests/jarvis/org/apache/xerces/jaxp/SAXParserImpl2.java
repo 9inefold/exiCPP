@@ -28,7 +28,7 @@ import org.apache.xerces.impl.Constants;
 import org.apache.xerces.impl.validation.ValidationManager;
 import org.apache.xerces.impl.xs.XMLSchemaValidator;
 import org.apache.xerces.jaxp.validation.XSGrammarPoolContainer;
-import org.apache.xerces.parsers.XIncludeAwareParserConfiguration2;
+import org.apache.xerces.parsers.EEAwareParserConfiguration;
 import org.apache.xerces.util.SAXMessageFormatter;
 import org.apache.xerces.util.SecurityManager;
 import org.apache.xerces.xni.XMLDocumentHandler;
@@ -345,7 +345,7 @@ public class SAXParserImpl2
     public JAXPSAXParser() { this(null); }
 
     JAXPSAXParser(SAXParserImpl2 saxParser) {
-      super(new XIncludeAwareParserConfiguration2());
+      super(new EEAwareParserConfiguration());
       fSAXParser = saxParser;
     }
 

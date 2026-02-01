@@ -31,8 +31,8 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.HashMap;
+import org.apache.xerces.parsers.EEAwareParserConfiguration;
 import org.apache.xerces.parsers.XIncludeAwareParserConfiguration;
-import org.apache.xerces.parsers.XIncludeAwareParserConfiguration2;
 import org.apache.xerces.parsers.XML11Configuration;
 import org.apache.xerces.xni.parser.XMLComponentManager;
 import org.xml.sax.XMLReader;
@@ -177,7 +177,7 @@ public class EvilDocumentHijacker {
 
     try {
       // TODO: Change final
-      _fConfiguration.set(fConfiguration, new XIncludeAwareParserConfiguration2());
+      _fConfiguration.set(fConfiguration, new EEAwareParserConfiguration());
     } catch (Exception e) {
       System.err.println("Failed to set fConfiguration.");
       // e.printStackTrace(System.err);

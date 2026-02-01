@@ -1,19 +1,20 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+//===- xerces/parsers/EEAwareParserConfiguration.java ---------------===//
+//
+// Copyright (C) 2026 Ninefold
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+//     limitations under the License.
+//
+//===----------------------------------------------------------------===//
 
 package org.apache.xerces.parsers;
 
@@ -62,15 +63,9 @@ import org.exicpp.util.XConstants;
 
 /**
  * This class is the configuration used to parse XML 1.0 and XML 1.1 documents
- * and provides support for XInclude. This is the default Xerces configuration.
- *
- * @author Michael Glavassevich, IBM
- *
- * @version $Id: XIncludeAwareParserConfiguration2.java 987475 2010-08-20
- * 12:27:44Z mrglavas $
+ * and provides support for XInclude and embedded entities.
  */
-public class XIncludeAwareParserConfiguration2
-     extends XIncludeAwareParserConfiguration {
+public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration {
   /**
    * Feature identifier: allow notation and unparsed entity events to be sent
    * out of order.
@@ -128,7 +123,7 @@ public class XIncludeAwareParserConfiguration2
   private boolean hpe_XIncludeEEE = false;
 
   /** Default constructor. */
-  public XIncludeAwareParserConfiguration2() {
+  public EEAwareParserConfiguration() {
     this(null, null, null);
   } // <init>()
 
@@ -137,7 +132,7 @@ public class XIncludeAwareParserConfiguration2
    *
    * @param symbolTable The symbol table to use.
    */
-  public XIncludeAwareParserConfiguration2(SymbolTable symbolTable) {
+  public EEAwareParserConfiguration(SymbolTable symbolTable) {
     this(symbolTable, null, null);
   } // <init>(SymbolTable)
 
@@ -149,7 +144,7 @@ public class XIncludeAwareParserConfiguration2
    * @param symbolTable The symbol table to use.
    * @param grammarPool The grammar pool to use.
    */
-  public XIncludeAwareParserConfiguration2(SymbolTable symbolTable,
+  public EEAwareParserConfiguration(SymbolTable symbolTable,
                                            XMLGrammarPool grammarPool) {
     this(symbolTable, grammarPool, null);
   } // <init>(SymbolTable,XMLGrammarPool)
@@ -163,7 +158,7 @@ public class XIncludeAwareParserConfiguration2
    * @param grammarPool    The grammar pool to use.
    * @param parentSettings The parent settings.
    */
-  public XIncludeAwareParserConfiguration2(SymbolTable symbolTable,
+  public EEAwareParserConfiguration(SymbolTable symbolTable,
                                            XMLGrammarPool grammarPool,
                                            XMLComponentManager parentSettings) {
     super(symbolTable, grammarPool, parentSettings);
