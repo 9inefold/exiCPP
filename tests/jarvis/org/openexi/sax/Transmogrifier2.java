@@ -84,6 +84,7 @@ public final class Transmogrifier2 {
 
   private final XMLReader m_xmlReader;
   private final boolean m_allowEmbeddedEntityEncoding;
+  private boolean m_embeddedEscapesFeature = false;
   private boolean m_preserveChRefEncoding = false;
 
   /**
@@ -193,9 +194,12 @@ public final class Transmogrifier2 {
    */
   public void setPreserveCharacterRefEmbedding(boolean embeddedEscapesFeature)
       throws TransmogrifierRuntimeException {
+    if (m_embeddedEscapesFeature == embeddedEscapesFeature)
+      return;
     try {
       if (m_allowEmbeddedEntityEncoding) {
         m_xmlReader.setFeature(EMBED_ESCAPE_SEQUENCES, embeddedEscapesFeature);
+        m_embeddedEscapesFeature = embeddedEscapesFeature;
         return;
       }
     } catch (SAXException se) {
@@ -208,11 +212,10 @@ public final class Transmogrifier2 {
     }
     // Char refs
     try {
-      if (m_preserveChRefEncoding == embeddedEscapesFeature)
-        return;
       m_xmlReader.setFeature("http://apache.org/xml/features/scanner/notify-char-refs",
                              embeddedEscapesFeature);
       m_saxHandler.setPreserveCharacterRefEmbedding(embeddedEscapesFeature);
+      m_embeddedEscapesFeature = embeddedEscapesFeature;
       m_preserveChRefEncoding = embeddedEscapesFeature;
     } catch (SAXException se) {
       TransmogrifierRuntimeException te;

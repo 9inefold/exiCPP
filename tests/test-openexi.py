@@ -2,6 +2,8 @@ import sys, traceback
 from pathlib import Path
 
 EXI_BASE_DIR = Path("C:/Users/alex/Documents/GitHub/exiCPP")
+sys.path.insert(0, str(EXI_BASE_DIR / 'tests' / 'exiconf'))
+from exiconf.main import EXI_BIN_DIR
 
 import _jpype
 _jpype.enableStacktraces(True)
@@ -12,7 +14,10 @@ from jpype.types import *
 
 jpype.startJVM(jpype.getDefaultJVMPath(), '-ea',
   '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
-  classpath=[EXI_BASE_DIR.as_posix() + '/bin/*'],
+  classpath=[
+    EXI_BASE_DIR.as_posix() + '/bin/*',
+    EXI_BIN_DIR.as_posix() + '/*'
+  ],
   convertStrings=False)
 
 if not jpype.isJVMStarted():
@@ -61,7 +66,8 @@ class MessageHandler(metaclass=Singleton):
   #sax_parser_factory = SAXParserFactory.newInstance()
   #sax_parser_factory.setNamespaceAware(True)
 
-  writer = Transmogrifier2(JBoolean(False), JBoolean(True))
+  writer = Transmogrifier2()
+  writer.setPreserveCharacterRefEmbedding(True)
   #writer = Transmogrifier()
   writer.setOutputOptions(hdr_options)
   writer.setAlignmentType(AlignmentType.byteAligned)
@@ -72,7 +78,7 @@ class MessageHandler(metaclass=Singleton):
   #writer.setValuePartitionCapacity(0)
 
   sax_transformer_factory = SAXTransformerFactory@SAXTransformerFactory.newInstance()
-  
+
   #sax_transformer_factory.setAttribute("debug", JBoolean(True))
   #sax_transformer_factory.setAttribute("http://xml.org/sax/features/use-entity-resolver2", JBoolean(False))
   # http://apache.org/xml/features/xinclude
