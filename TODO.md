@@ -25,10 +25,11 @@ This is a TODO list for the C++ version of exiCPP.
 - Add `EXI_GUARDRAILS` to handle invalid assumptions in release
 - Fixed colored output randomly resetting (removed `0;` from ansi codes)
 - Update `CDATA` parsing
+- Add preserve `&#nnn;` for xerces encoding (openexi)
 
 ## In Progress
 
-- Add compatibility for exificient's terrible escaping scheme
+- Add compatibility for ~~exificient~~xerces' terrible escaping scheme
 - Implement fixes for exificient/openexi xerces parsing
 - Check depth when parsing
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense
