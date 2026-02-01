@@ -345,7 +345,7 @@ public class SAXParserImpl2
     public JAXPSAXParser() { this(null); }
 
     JAXPSAXParser(SAXParserImpl2 saxParser) {
-      super(XIncludeAwareParserConfiguration2.newInstance());
+      super(new XIncludeAwareParserConfiguration2());
       fSAXParser = saxParser;
     }
 

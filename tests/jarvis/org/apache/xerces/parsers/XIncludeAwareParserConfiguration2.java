@@ -37,13 +37,13 @@ import org.apache.xerces.impl.dtd.XMLNSDTDValidator;
 import org.apache.xerces.impl.msg.XMLMessageFormatter;
 import org.apache.xerces.impl.xs.XMLSchemaValidator;
 import org.apache.xerces.impl.xs.XSMessageFormatter;
-import org.apache.xerces.xni.XMLDTDHandler;
-import org.apache.xerces.xni.XMLDocumentHandler;
+import org.apache.xerces.parsers.XIncludeAwareParserConfiguration;
 import org.apache.xerces.util.NamespaceSupport;
 import org.apache.xerces.util.SymbolTable;
 import org.apache.xerces.xinclude.XIncludeHandler;
 import org.apache.xerces.xinclude.XIncludeNamespaceSupport;
 import org.apache.xerces.xni.NamespaceContext;
+import org.apache.xerces.xni.XMLDTDHandler;
 import org.apache.xerces.xni.XMLDocumentHandler;
 import org.apache.xerces.xni.grammars.XMLGrammarPool;
 import org.apache.xerces.xni.parser.XMLComponent;
@@ -69,11 +69,8 @@ import org.exicpp.util.XConstants;
  * @version $Id: XIncludeAwareParserConfiguration2.java 987475 2010-08-20
  * 12:27:44Z mrglavas $
  */
-public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
-  /** Feature identifier: notify built-in refereces. */
-  private static final String NOTIFY_BUILTIN_REFS =
-    Constants.XERCES_FEATURE_PREFIX + Constants.NOTIFY_BUILTIN_REFS_FEATURE;
-
+public class XIncludeAwareParserConfiguration2
+     extends XIncludeAwareParserConfiguration {
   /**
    * Feature identifier: allow notation and unparsed entity events to be sent
    * out of order.
@@ -81,22 +78,12 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
   protected static final String ALLOW_UE_AND_NOTATION_EVENTS =
       Constants.SAX_FEATURE_PREFIX +
       Constants.ALLOW_DTD_EVENTS_AFTER_ENDDTD_FEATURE;
-
-  /** Feature identifier: fixup base URIs. */
-  protected static final String XINCLUDE_FIXUP_BASE_URIS =
-      Constants.XERCES_FEATURE_PREFIX +
-      Constants.XINCLUDE_FIXUP_BASE_URIS_FEATURE;
-
-  /** Feature identifier: fixup language. */
-  protected static final String XINCLUDE_FIXUP_LANGUAGE =
-      Constants.XERCES_FEATURE_PREFIX +
-      Constants.XINCLUDE_FIXUP_LANGUAGE_FEATURE;
-
-  /** Feature identifier: XInclude processing */
-  protected static final String XINCLUDE_FEATURE =
-      Constants.XERCES_FEATURE_PREFIX + Constants.XINCLUDE_FEATURE;
   
-  /** Feature identifier: Embedded escape sequences */
+  /** Feature identifier: notify built-in refereces. */
+  private static final String NOTIFY_BUILTIN_REFS =
+    Constants.XERCES_FEATURE_PREFIX + Constants.NOTIFY_BUILTIN_REFS_FEATURE;
+
+  /** New Feature identifier: Embedded escape sequences */
   protected static final String EMBED_ESCAPE_SEQUENCES =
       XConstants.EXICPP_FEATURE_PREFIX + XConstants.EMBED_ESCAPE_SEQUENCES;
   
@@ -112,17 +99,9 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
     Constants.XERCES_PROPERTY_PREFIX +
     Constants.XMLGRAMMAR_POOL_PROPERTY;
   
-  /** Property identifier: XInclude handler. */
+  /** New Property identifier: XInclude handler. */
   protected static final String ESCAPE_HANDLER =
       XConstants.EXICPP_PROPERTY_PREFIX + XConstants.ESCAPE_HANDLER_PROPERTY;
-
-  /** Property identifier: XInclude handler. */
-  protected static final String XINCLUDE_HANDLER =
-      Constants.XERCES_PROPERTY_PREFIX + Constants.XINCLUDE_HANDLER_PROPERTY;
-
-  /** Property identifier: error reporter. */
-  protected static final String NAMESPACE_CONTEXT =
-      Constants.XERCES_PROPERTY_PREFIX + Constants.NAMESPACE_CONTEXT_PROPERTY;
 
   //
   // Components
@@ -136,21 +115,6 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
 
   /** Embedded Escape XMLDocumentScanner */
   protected XMLEEDocumentScanner fEENonNSScanner;
-
-  /** XInclude handler. */
-  protected XIncludeHandler fXIncludeHandler;
-
-  /** Non-XInclude NamespaceContext. */
-  protected NamespaceSupport fNonXIncludeNSContext;
-
-  /** XInclude NamespaceContext. */
-  protected XIncludeNamespaceSupport fXIncludeNSContext;
-
-  /** Current NamespaceContext. */
-  protected NamespaceContext fCurrentNSContext;
-
-  /** Flag indicating whether XInclude processsing is enabled. */
-  protected boolean fXIncludeEnabled = false;
 
   /** Flag indicating whether embedded escape sequences are enabled. */
   protected boolean fEmbeddedEscapesEnabled = false;
@@ -204,52 +168,33 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
                                            XMLComponentManager parentSettings) {
     super(symbolTable, grammarPool, parentSettings);
 
-    final String[] recognizedFeatures = {NOTIFY_BUILTIN_REFS,
-                                         EMBED_ESCAPE_SEQUENCES,
-                                         ALLOW_UE_AND_NOTATION_EVENTS,
-                                         XINCLUDE_FIXUP_BASE_URIS,
-                                         XINCLUDE_FIXUP_LANGUAGE};
+    final String[] recognizedFeatures = {
+      ALLOW_UE_AND_NOTATION_EVENTS,
+      EMBED_ESCAPE_SEQUENCES,
+      NOTIFY_BUILTIN_REFS,
+    };
     addRecognizedFeatures(recognizedFeatures);
 
+    setFeature(EMBED_ESCAPE_SEQUENCES, false);
+    setFeature(NOTIFY_BUILTIN_REFS, true);
+
     // add default recognized properties
-    final String[] recognizedProperties = {SYMBOL_TABLE,
-                                           XMLGRAMMAR_POOL,
-                                           ESCAPE_HANDLER,
-                                           XINCLUDE_HANDLER,
-                                           NAMESPACE_CONTEXT};
+    final String[] recognizedProperties = {
+      ESCAPE_HANDLER,
+      SYMBOL_TABLE,
+      XMLGRAMMAR_POOL,
+    };
     addRecognizedProperties(recognizedProperties);
 
-    setFeature(EMBED_ESCAPE_SEQUENCES, false);
-    setFeature(ALLOW_UE_AND_NOTATION_EVENTS, true);
-    setFeature(XINCLUDE_FIXUP_BASE_URIS, true);
-    setFeature(XINCLUDE_FIXUP_LANGUAGE, true);
+    if (symbolTable != null)
+      setProperty(SYMBOL_TABLE, symbolTable);
+    if (grammarPool != null)
+      setProperty(XMLGRAMMAR_POOL, grammarPool);
 
     fEENamespaceScanner = new XMLEENSDocumentScanner();
     fEECurrentScanner = fEENamespaceScanner;
     setProperty(ESCAPE_HANDLER, fEENamespaceScanner);
     addComponent((XMLComponent) fEENamespaceScanner);
-
-    fNonXIncludeNSContext = new NamespaceSupport();
-    fCurrentNSContext = fNonXIncludeNSContext;
-    setProperty(NAMESPACE_CONTEXT, fNonXIncludeNSContext);
-  }
-
-  public static XIncludeAwareParserConfiguration2 newInstance() {
-    return newInstance(null, null);
-  }
-
-  public static XIncludeAwareParserConfiguration2 newInstance(SymbolTable symbolTable) {
-    return newInstance(symbolTable, null);
-  }
-
-  public static XIncludeAwareParserConfiguration2 newInstance(SymbolTable symbolTable, XMLGrammarPool grammarPool) {
-    var config = new XIncludeAwareParserConfiguration2(symbolTable, grammarPool, null);
-    config.setFeature(NOTIFY_BUILTIN_REFS, true);
-    if (symbolTable != null)
-      config.setProperty(SYMBOL_TABLE, symbolTable);
-    if (grammarPool != null)
-      config.setProperty(XMLGRAMMAR_POOL, grammarPool);
-    return config;
   }
 
   protected void configureXInclude() {
@@ -280,10 +225,12 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
   }
 
   /** Configures the pipeline. */
+  @Override
   protected void configurePipeline() {
-    if (!fEmbeddedEscapesEnabled)
+    if (!fEmbeddedEscapesEnabled) {
       super.configurePipeline();
-    else
+      return;
+    } else
       configurePipeline0();
     
     configureXInclude();
@@ -322,8 +269,8 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
     }
   } // configurePipeline()
 
+  @Override
   protected void configureXML11Pipeline() {
-    super.configureXML11Pipeline();
     if (fEmbeddedEscapesEnabled) {
       if (!hpe_XML11EEE) {
         System.err.format("Feature %s has not been implemented for xml 1.1%n",
@@ -331,7 +278,9 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
         hpe_XML11EEE = true;
       }
     }
+    super.configureXML11Pipeline();
 
+    /*
     configureXInclude();
     if (fXIncludeEnabled) {
       // configure XML 1.1. DTD pipeline
@@ -366,6 +315,7 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
         next.setDocumentSource(fXIncludeHandler);
       }
     }
+    */
   } // configureXML11Pipeline()
 
   /** Configures the pipeline. */
@@ -476,25 +426,19 @@ public class XIncludeAwareParserConfiguration2 extends XML11Configuration {
     }
   } // configurePipeline0()
 
+  @Override
   public boolean getFeature(String featureId) throws XMLConfigurationException {
-    if (featureId.equals(PARSER_SETTINGS)) {
-      return fConfigUpdated;
-    } else if (featureId.equals(XINCLUDE_FEATURE)) {
-      return fXIncludeEnabled;
-    } else if (featureId.equals(EMBED_ESCAPE_SEQUENCES)) {
+    if (featureId.equals(EMBED_ESCAPE_SEQUENCES)) {
       return fEmbeddedEscapesEnabled;
     }
     return super.getFeature0(featureId);
 
   } // getFeature(String):boolean
 
+  @Override
   public void setFeature(String featureId, boolean state)
       throws XMLConfigurationException {
-    if (featureId.equals(XINCLUDE_FEATURE)) {
-      fXIncludeEnabled = state;
-      fConfigUpdated = true;
-      return;
-    } else if (featureId.equals(EMBED_ESCAPE_SEQUENCES)) {
+    if (featureId.equals(EMBED_ESCAPE_SEQUENCES)) {
       fEmbeddedEscapesEnabled = state;
       fConfigUpdated = true;
       return;
