@@ -42,12 +42,15 @@ function(exi_add_java_classes package)
 endfunction(exi_add_java_classes)
 
 exi_add_java_class(@exicpp.util.EvilDocumentHijacker)
+exi_add_java_class(@exicpp.util.Log)
+exi_add_java_class(@exicpp.util.LogLevel)
 exi_add_java_class(@exicpp.util.ReflectionHelpers)
-exi_add_java_class(@exicpp.util.StringTranslator)
+#exi_add_java_class(@exicpp.util.StringTranslator)
 exi_add_java_class(@exicpp.util.XConstants)
 
-exi_add_java_class(@exicpp.openexi.CustomSAXParserFactory)
-exi_add_java_class(@exicpp.openexi.LoggingSAXHandlerWrapper)
+#exi_add_java_class(@exicpp.openexi.CustomSAXParserFactory)
+exi_add_java_class(@exicpp.openexi.DirectSAXHandler)
+#exi_add_java_class(@exicpp.openexi.LoggingSAXHandlerWrapper)
 exi_add_java_class(@openexi.sax.Transmogrifier2)
 
 exi_add_java_class(@xerces.impl.XMLEEDocumentScanner)
@@ -77,6 +80,7 @@ add_custom_command(
     -d "${EXI_CLASS_BINARY_DIR}"
     -cp "${exi_java_binaries}"
     -Xlint:-options -Xlint:unchecked -g #-verbose
+    "--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
     ${exi_java_sources}
   BYPRODUCTS ${exi_java_outputs}
   DEPENDS ${exi_java_sources}

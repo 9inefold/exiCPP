@@ -88,7 +88,7 @@ public class EvilDocumentHijacker {
   }
 
   @SuppressWarnings("removal")
-  private static String getSystemProperty(final String propName) {
+  static String getSystemProperty(final String propName) {
     try {
       return AccessController.doPrivileged(new PrivilegedAction<String>() {
         public String run() { return System.getProperty(propName); }

@@ -1,4 +1,3 @@
-//===- util/EvilDocumentHijacker.java -------------------------------===//
 //===- util/ReflectionHelpers.java ----------------------------------===//
 //
 // Copyright (C) 2026 Ninefold
@@ -26,7 +25,11 @@ package org.exicpp.util;
 
 import java.lang.System;
 import java.lang.NoSuchFieldException;
-import java.lang.reflect.*;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
+import java.util.function.Consumer;
 
 public class ReflectionHelpers {
 
@@ -76,6 +79,14 @@ public class ReflectionHelpers {
   ////////////////////////////////////////////////////////////////////////
   // Printing Info
 
+  public static void printSuperclassInfo(Class<?> clazz, Consumer<Class<?>> on) {
+    final Class<?> objectClazz = java.lang.Object.class;
+    while (clazz != objectClazz && clazz != null) {
+      on.accept(clazz);
+      clazz = clazz.getSuperclass();
+    }
+  }
+
   public static void printClassMethods(Class<?> clazz) {
     System.out.format("%s {", clazz.getTypeName());
     Method[] methods = clazz.getDeclaredMethods();
@@ -110,11 +121,7 @@ public class ReflectionHelpers {
   }
 
   public static void printSuperclassMethods(Class<?> clazz) {
-    final Class<?> objectClazz = java.lang.Object.class;
-    while (clazz != objectClazz && clazz != null) {
-      printClassMethods(clazz);
-      clazz = clazz.getSuperclass();
-    }
+    printSuperclassInfo(clazz, (c) -> printClassMethods(c));
   }
 
   public static void printFields(Field[] fields, boolean printStatic) {
@@ -143,14 +150,10 @@ public class ReflectionHelpers {
   }
 
   public static void printSuperclassFields(Class<?> clazz, boolean printStatic) {
-    final Class<?> objectClazz = java.lang.Object.class;
-    while (clazz != objectClazz && clazz != null) {
-      printClassFields(clazz, printStatic);
-      clazz = clazz.getSuperclass();
-    }
+    printSuperclassInfo(clazz, (c) -> printClassFields(c, printStatic));
   }
 
   public static void printSuperclassFields(Class<?> clazz) {
-    printSuperclassFields(clazz, false);
+    printSuperclassInfo(clazz, (c) -> printClassFields(c, false));
   }
 }

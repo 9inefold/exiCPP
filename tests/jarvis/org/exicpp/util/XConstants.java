@@ -19,15 +19,27 @@
 package org.exicpp.util;
 
 public class XConstants {
+
+  /// Features
+
   /** exicpp features prefix ("http://exicpp.org/xml/features/"). */
   public static final String EXICPP_FEATURE_PREFIX = "http://exicpp.org/xml/features/";
 
   /** Embed escape sequences */
   public static final String EMBED_ESCAPE_SEQUENCES = "scanner/embed-escape-sequences";
 
+  /// Properties
+
   /** exicpp properties prefix ("http://exicpp.org/xml/properties/"). */
   public static final String EXICPP_PROPERTY_PREFIX = "http://exicpp.org/xml/properties/";
 
   /** Embed escape sequences */
   public static final String ESCAPE_HANDLER_PROPERTY = "escape-handler";
+
+  /// XML
+
+  /** <!CDATA[ */
+  public static final char[] CDATA_START = {'<','!','[','C','D','A','T','A','['};
+  /** ]]> */
+  public static final char[] CDATA_END = {']',']','>'};
 }

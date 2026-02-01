@@ -3,7 +3,7 @@ from pathlib import Path
 
 EXI_BASE_DIR = Path("C:/Users/alex/Documents/GitHub/exiCPP")
 sys.path.insert(0, str(EXI_BASE_DIR / 'tests' / 'exiconf'))
-from exiconf.main import EXI_BIN_DIR
+from exiconf.main import EXI_BIN_DIR, TEST_SRC_DIR
 
 import _jpype
 _jpype.enableStacktraces(True)
@@ -14,6 +14,10 @@ from jpype.types import *
 
 jpype.startJVM(jpype.getDefaultJVMPath(), '-ea',
   '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
+  '--add-opens=java.xml/com.sun.org.apache.xalan.internal.xsltc.trax=ALL-UNNAMED',
+  '--add-opens=java.xml/com.sun.org.apache.xalan.internal.xsltc.runtime=ALL-UNNAMED',
+  #'--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED',
+  '-Dexicpp.loglevel=verbose',
   classpath=[
     EXI_BASE_DIR.as_posix() + '/bin/*',
     EXI_BIN_DIR.as_posix() + '/*'
@@ -25,7 +29,7 @@ if not jpype.isJVMStarted():
 
 from java.io import FileInputStream, InputStream, ByteArrayInputStream, ByteArrayOutputStream, StringWriter, FileWriter
 from java.lang import String
-from org.exicpp.openexi import LoggingSAXHandlerWrapper, CustomSAXParserFactory
+from org.exicpp.openexi import DirectSAXHandler
 #from org.openexi.scomp import EXISchemaReader
 from org.openexi.schema import EXISchema, EmptySchema
 from org.openexi.sax import EXIReader, Transmogrifier, Transmogrifier2
@@ -85,7 +89,8 @@ class MessageHandler(metaclass=Singleton):
 
   # TODO: Implement custom Transformer Source
   transformer_handler = sax_transformer_factory.newTransformerHandler()
-  handler = LoggingSAXHandlerWrapper(transformer_handler)
+  #handler = LoggingSAXHandlerWrapper(transformer_handler)
+  handler = DirectSAXHandler()
 
   reader = EXIReader()
   reader.setAlignmentType(AlignmentType.byteAligned)
@@ -147,12 +152,14 @@ class MessageHandler(metaclass=Singleton):
     try:
       input = ByteArrayInputStream(exi_contents)
       r = MessageHandler.reader
-      tf_handler = MessageHandler.transformer_handler
+      MessageHandler.handler.setWriter(stringWriter)
+      #tf_handler = MessageHandler.transformer_handler
       #r.setGrammarCache(MessageHandler.grammar_cache, MessageHandler.schemaid);
       r.setGrammarCache(MessageHandler.grammar_cache);
-      tf_handler.setResult(StreamResult(stringWriter))
+      #tf_handler.setResult(StreamResult(stringWriter))
       r.parse(InputSource(input))
       result = stringWriter.getBuffer().toString()
+      MessageHandler.handler.reset()
     except:
       print(traceback.format_exc())
     finally:
@@ -162,14 +169,25 @@ class MessageHandler(metaclass=Singleton):
         output.close()
       return str(result)
 
+OUT_DIR = EXI_BASE_DIR / 'tests/out'
+if not OUT_DIR.exists():
+  OUT_DIR.mkdir()
+
+def do_roundtrip(test_path: Path):
+  print(test_path.as_posix(), ':', sep='', flush=True);
+  test_path = Path(test_path)
+  stem = str(test_path.stem)
+  xml_in = test_path.read_text('utf8')
+  data = MessageHandler.encode(xml_in)
+  (OUT_DIR / f'{stem}.exi').write_bytes(data)
+  xml_out = MessageHandler.decode(data)
+  (OUT_DIR / f'{stem}.xml').write_bytes(xml_out.encode('utf8'))
+  print(xml_out, '\n', flush=True)
+
 if __name__ == "__main__":
   #CustomSAXParserFactory.printTypeOfParser()
-
   # TODO: Handle doctype
-  #xml_in = (EXI_BASE_DIR / 'tests/nested-ent.hidden.xml').read_text('utf8')
-  xml_in = (EXI_BASE_DIR / 'tests/s/xml/042.xml').read_text('utf8')
-  data = MessageHandler.encode(xml_in)
-  #(EXI_BASE_DIR / 'tests/042.exi').write_bytes(data)
-  xml_out = MessageHandler.decode(data)
-  print(xml_out)
-  pass
+  do_roundtrip(TEST_SRC_DIR / 'xml/042.xml')
+  do_roundtrip(TEST_SRC_DIR / 'me/Nested.xml')
+  do_roundtrip(TEST_SRC_DIR / 'me/CDATA2.xml')
+  #do_roundtrip(EXI_BASE_DIR / 'tests/nested-ent.hidden.xml')

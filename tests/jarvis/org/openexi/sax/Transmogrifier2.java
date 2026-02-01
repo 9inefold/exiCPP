@@ -108,7 +108,8 @@ public final class Transmogrifier2 {
    * Create an instance of the Transmogrifier2 with a default SAX parser.
    * @throws TransmogrifierException
    */
-  public Transmogrifier2() throws TransmogrifierRuntimeException {
+  public Transmogrifier2()
+      throws TransmogrifierException, TransmogrifierRuntimeException {
     this(createSAXParserFactory(), false, false);
   }
 
@@ -119,29 +120,29 @@ public final class Transmogrifier2 {
    * @throws TransmogrifierException
    */
   public Transmogrifier2(SAXParserFactory saxParserFactory)
-      throws TransmogrifierRuntimeException {
+      throws TransmogrifierException, TransmogrifierRuntimeException {
     this(saxParserFactory, false, false);
   }
 
   public Transmogrifier2(boolean namespacePrefixesFeature)
-      throws TransmogrifierRuntimeException {
+      throws TransmogrifierException, TransmogrifierRuntimeException {
     this(createSAXParserFactory(), namespacePrefixesFeature, false);
   }
 
   public Transmogrifier2(boolean namespacePrefixesFeature, boolean embeddedEscapesFeature)
-      throws TransmogrifierRuntimeException {
+      throws TransmogrifierException, TransmogrifierRuntimeException {
     this(createSAXParserFactory(), namespacePrefixesFeature, embeddedEscapesFeature);
   }
 
   Transmogrifier2(SAXParserFactory saxParserFactory, boolean namespacePrefixesFeature)
-      throws TransmogrifierRuntimeException {
+      throws TransmogrifierException, TransmogrifierRuntimeException {
     this(saxParserFactory, namespacePrefixesFeature, false);
   }
 
   Transmogrifier2(SAXParserFactory saxParserFactory,
                   boolean namespacePrefixesFeature,
                   boolean embeddedEscapesFeature)
-      throws TransmogrifierRuntimeException {
+      throws TransmogrifierException, TransmogrifierRuntimeException {
     if (!saxParserFactory.isNamespaceAware()) {
       throw new TransmogrifierRuntimeException(
           TransmogrifierRuntimeException.SAXPARSER_FACTORY_NOT_NAMESPACE_AWARE,
@@ -193,7 +194,7 @@ public final class Transmogrifier2 {
    * support the specified behavior.
    */
   public void setPreserveCharacterRefEmbedding(boolean embeddedEscapesFeature)
-      throws TransmogrifierRuntimeException {
+      throws TransmogrifierException {
     if (m_embeddedEscapesFeature == embeddedEscapesFeature)
       return;
     try {
@@ -203,9 +204,9 @@ public final class Transmogrifier2 {
         return;
       }
     } catch (SAXException se) {
-      TransmogrifierRuntimeException te;
-      te = new TransmogrifierRuntimeException(
-          TransmogrifierRuntimeException.UNHANDLED_SAXPARSER_PROPERTY,
+      TransmogrifierException te;
+      te = new TransmogrifierException(
+          TransmogrifierException.UNHANDLED_SAXPARSER_FEATURE,
           new String[] {EMBED_ESCAPE_SEQUENCES});
       te.setException(se);
       throw te;
@@ -218,9 +219,9 @@ public final class Transmogrifier2 {
       m_embeddedEscapesFeature = embeddedEscapesFeature;
       m_preserveChRefEncoding = embeddedEscapesFeature;
     } catch (SAXException se) {
-      TransmogrifierRuntimeException te;
-      te = new TransmogrifierRuntimeException(
-          TransmogrifierRuntimeException.UNHANDLED_SAXPARSER_PROPERTY,
+      TransmogrifierException te;
+      te = new TransmogrifierException(
+          TransmogrifierException.UNHANDLED_SAXPARSER_FEATURE,
           new String[] {"http://apache.org/xml/features/scanner/notify-char-refs"});
       te.setException(se);
       throw te;
@@ -724,7 +725,7 @@ public final class Transmogrifier2 {
     private void format(String format, Object... args) {
       // if (elementCount != 0)
       //   System.out.format("%1$" + (elementCount * 2) + "s", "");
-      System.out.format(format + "%n", args);
+      //System.out.format(format + "%n", args);
     }
 
     public final void setDocumentLocator(final Locator locator) { m_locator = locator; }
@@ -1655,10 +1656,12 @@ public final class Transmogrifier2 {
 
     public void startCDATA() {
       format("<![CDATA[");
+      appendCharacters(XConstants.CDATA_START, 0, 9);
     }
 
     public void endCDATA() {
       format("]]>");
+      appendCharacters(XConstants.CDATA_END, 0, 3);
     }
 
     public void startEntity(String name) throws SAXException {
