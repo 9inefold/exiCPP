@@ -38,8 +38,8 @@ class LineHandler:
     else:
       self.comment_str = PYSTYLE_COMMENT
   
-  def counts(self, line: AnyStr) -> int:
-    if strip_lines:
+  def counts(self, line: str) -> int:
+    if self.strip_lines:
       line = line.lstrip()
     if SKIP_EMPTY and (len(line) == 0):
       return 0
@@ -47,8 +47,8 @@ class LineHandler:
       return 0
     return 1
   
-  def add(self, line: AnyStr):
-    self.line_count = self.counts(line)
+  def add(self, line: str):
+    self.line_count += self.counts(line)
 
 # From https://stackoverflow.com/a/850962/17980859
 def mapcount(filename: str):
@@ -73,7 +73,7 @@ def mapcount(filename: str):
       line = readline()
       if not line:
         break
-      handler.add(line)
+      handler.add(str(line))
   return handler.line_count
 
 def glob_files_in(pattern, lib):
