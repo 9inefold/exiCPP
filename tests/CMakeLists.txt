@@ -20,7 +20,7 @@ if(NOT Java_Development_FOUND)
 endif()
 
 if(NOT DEFINED EXI_CLASS_BINARY_DIR)
-  set(EXI_CLASS_BINARY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/jarvis/build" CACHE FILEPATH "")
+  set(EXI_CLASS_BINARY_DIR "${CMAKE_BINARY_DIR}/java" CACHE FILEPATH "")
 endif()
 
 find_package(Python3 QUIET COMPONENTS Interpreter)
@@ -38,6 +38,7 @@ set(TEST_OUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/o")
 
 # Build our custom classes
 add_subdirectory(jarvis)
+add_subdirectory(exiconf)
 
 configure_file(
   run-tests.py.in

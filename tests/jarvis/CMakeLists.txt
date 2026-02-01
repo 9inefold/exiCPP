@@ -1,5 +1,6 @@
 include_guard(DIRECTORY)
 
+set(exi_output_jar "${CMAKE_BINARY_DIR}/bin/exicpp-custom.jar")
 set(exi_java_sources)
 set(exi_java_outputs)
 
@@ -71,7 +72,7 @@ endif()
 add_custom_command(
   OUTPUT ${exi_java_outputs}
   COMMAND Python3::Interpreter clean.py
-    -q --files "${EXI_BASE_DIR}/bin/exicpp-custom.jar" #${exi_java_outputs}
+    -q --files "${exi_output_jar}" #${exi_java_outputs}
   COMMAND "${Java_JAVAC_EXECUTABLE}"
     -d "${EXI_CLASS_BINARY_DIR}"
     -cp "${exi_java_binaries}"
@@ -92,15 +93,15 @@ add_custom_target(exi-java-targets DEPENDS ${exi_java_outputs})
 add_dependencies(exi-exicpp exi-java-targets)
 
 add_custom_command(
-  OUTPUT "${EXI_BASE_DIR}/bin/exicpp-custom.jar"
+  OUTPUT "${exi_output_jar}"
   COMMAND "${Java_JAR_EXECUTABLE}"
-    --create --file="${EXI_BASE_DIR}/bin/exicpp-custom.jar"
+    --create --file="${exi_output_jar}"
     -C "${EXI_CLASS_BINARY_DIR}/" .
-  BYPRODUCTS "${EXI_BASE_DIR}/bin/exicpp-custom.jar"
+  BYPRODUCTS "${exi_output_jar}"
   DEPENDS exi-java-targets
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
   COMMAND_EXPAND_LISTS
   COMMENT "Bundling java files")
 
-add_custom_target(exi-jar-targets DEPENDS "${EXI_BASE_DIR}/bin/exicpp-custom.jar")
+add_custom_target(exi-jar-targets DEPENDS "${exi_output_jar}")
 add_dependencies(exi-exicpp exi-jar-targets)

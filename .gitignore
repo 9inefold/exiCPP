@@ -10,8 +10,10 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 build
+__pycache__
 .vscode
 **/*.inc
+**/*.gen.*
 **/*.hidden.*
 
 large-examples/
