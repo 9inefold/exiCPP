@@ -156,8 +156,9 @@ public class DirectSAXHandler extends DefaultHandler
       format(" AT: %s=\"%s\"", atQName, atValue);
       writer.write(' ');
       writer.write(atQName);
-      writer.write('=');
+      writer.write("=\"");
       writer.write(atValue);
+      writer.write("\"");
     }
 
     writer.write('>');
