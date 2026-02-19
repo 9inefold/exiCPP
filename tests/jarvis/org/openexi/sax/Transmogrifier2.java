@@ -534,7 +534,7 @@ public final class Transmogrifier2 {
     try {
       Object prop = m_xmlReader.getProperty(
           "http://apache.org/xml/properties/internal/document-scanner");
-      System.out.println("Got scanner: " + prop.toString());
+      //System.out.println("Got scanner: " + prop.toString());
     } catch (Exception e) {
       System.err.println("scanner not found");
     }
@@ -820,10 +820,11 @@ public final class Transmogrifier2 {
         throws SAXException {
       if (m_charPos > 0)
         do_characters(false);
+      format("SE: %s", qualifiedName);
       m_contentState = STAG;
 
       m_n_comparableAttributes = 0;
-
+      
       final String elementPrefix;
       final String[] nsdecls;
       final int n_nsdecls;
@@ -1178,6 +1179,10 @@ public final class Transmogrifier2 {
               final ComparableAttribute attr = m_comparableAttributes[i];
               final String instanceUri = attr.uri;
               final String instanceName = attr.name;
+              format(" AT: %s=\"%s\"",
+                attrs.getQName(attr.index),
+                attrs.getValue(attr.index));
+                //attrs.getNonNormalizedValue(attr.index));
               int tp = EXISchema.NIL_NODE;
               ValueScriber valueScriber = null;
               if (isSchemaInformedGrammar) {
