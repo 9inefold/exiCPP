@@ -31,10 +31,10 @@ import org.apache.xerces.xni.Augmentations;
 import org.apache.xerces.xni.XMLAttributes;
 import org.apache.xerces.xni.XMLString;
 import org.apache.xerces.xni.XNIException;
+import org.apache.xerces.impl.XMLEEScannerCommon;
 import org.exicpp.util.ReflectionHelpers;
 
 public class XMLEEDocumentScanner extends XMLDocumentScannerImpl {
-  
   /** String buffer. */
   private final XMLStringBuffer fStringBuffer = new XMLStringBuffer();
   /** String buffer. */
@@ -42,19 +42,11 @@ public class XMLEEDocumentScanner extends XMLDocumentScannerImpl {
   /** String buffer. */
   private final XMLStringBuffer fStringBuffer3 = new XMLStringBuffer();
 
-  /** fTempAugmentations */
-  private static final Field rfTempAugmentations;
-  static {
-    rfTempAugmentations = getParentField("fTempAugmentations");
-    assert rfTempAugmentations != null;
-  }
-
-  @SuppressWarnings("unchecked")
-  private Augmentations getTempAugmentations() {
-    return (Augmentations) ReflectionHelpers.getObjectField(this, rfTempAugmentations);
-  }
-  private void setTempAugmentations(final Augmentations augs) {
-    ReflectionHelpers.setObjectField(this, augs, rfTempAugmentations);
+  /** Fields */
+  private final XMLEEScannerCommonImpl thiz;
+  XMLEEDocumentScanner() {
+    super();
+    thiz = new XMLEEScannerCommonImpl(this);
   }
 
   static String getStringFromXML(XMLString xstr) {
@@ -84,13 +76,13 @@ public class XMLEEDocumentScanner extends XMLDocumentScannerImpl {
     }
     Augmentations augs = null;
     if (fValidation && ch <= 0x20) {
-      final Augmentations tempAugs = getTempAugmentations();
+      final Augmentations tempAugs = thiz.getTempAugmentations();
       if (tempAugs != null) {
         tempAugs.removeAllItems();
         augs = tempAugs;
       } else {
         augs = new AugmentationsImpl();
-        setTempAugmentations(augs);
+        thiz.setTempAugmentations(augs);
       }
       augs.putItem(Constants.CHAR_REF_PROBABLE_WS, Boolean.TRUE);
     }
@@ -101,6 +93,7 @@ public class XMLEEDocumentScanner extends XMLDocumentScannerImpl {
   } // scanCharReference()
 
   /**
+   * HACK: Needs updating to work with entities
    * Scans an attribute value and normalizes whitespace converting all
    * whitespace characters to space characters.
    *
@@ -255,15 +248,4 @@ public class XMLEEDocumentScanner extends XMLDocumentScannerImpl {
     return nonNormalizedValue.equals(value.ch, value.offset, value.length);
 
   } // scanAttributeValue()
-
-  private static Field getParentField(final String name) {
-    try {
-      Class<?> clazz = XMLDocumentFragmentScannerImpl.class;
-      Field tempAugmentations = clazz.getDeclaredField("fTempAugmentations");
-      tempAugmentations.setAccessible(true);
-      return tempAugmentations;
-    } catch (Exception e) {
-      return null;
-    }
-  } // getParentField()
 }

@@ -31,6 +31,7 @@ import org.apache.xerces.xni.Augmentations;
 import org.apache.xerces.xni.XMLAttributes;
 import org.apache.xerces.xni.XMLString;
 import org.apache.xerces.xni.XNIException;
+import org.apache.xerces.impl.XMLEEScannerCommonImpl;
 import org.exicpp.util.ReflectionHelpers;
 
 public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
@@ -41,20 +42,14 @@ public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
   private final XMLStringBuffer fStringBuffer2 = new XMLStringBuffer();
   /** String buffer. */
   private final XMLStringBuffer fStringBuffer3 = new XMLStringBuffer();
+  /** String buffer. */
+  private final XMLStringBuffer fStringBufferX = new XMLStringBuffer();
 
-  /** fTempAugmentations */
-  private static final Field rfTempAugmentations;
-  static {
-    rfTempAugmentations = getParentField("fTempAugmentations");
-    assert rfTempAugmentations != null;
-  }
-
-  @SuppressWarnings("unchecked")
-  private Augmentations getTempAugmentations() {
-    return (Augmentations) ReflectionHelpers.getObjectField(this, rfTempAugmentations);
-  }
-  private void setTempAugmentations(final Augmentations augs) {
-    ReflectionHelpers.setObjectField(this, augs, rfTempAugmentations);
+  /** Fields */
+  private final XMLEEScannerCommonImpl thiz;
+  XMLEENSDocumentScanner() {
+    super();
+    thiz = new XMLEEScannerCommonImpl(this);
   }
 
   static String getStringFromXML(XMLString xstr) {
@@ -84,13 +79,13 @@ public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
     }
     Augmentations augs = null;
     if (fValidation && ch <= 0x20) {
-      final Augmentations tempAugs = getTempAugmentations();
+      final Augmentations tempAugs = thiz.getTempAugmentations();
       if (tempAugs != null) {
         tempAugs.removeAllItems();
         augs = tempAugs;
       } else {
         augs = new AugmentationsImpl();
-        setTempAugmentations(augs);
+        thiz.setTempAugmentations(augs);
       }
       augs.putItem(Constants.CHAR_REF_PROBABLE_WS, Boolean.TRUE);
     }
@@ -255,15 +250,4 @@ public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
     return nonNormalizedValue.equals(value.ch, value.offset, value.length);
 
   } // scanAttributeValue()
-
-  private static Field getParentField(final String name) {
-    try {
-      Class<?> clazz = XMLDocumentFragmentScannerImpl.class;
-      Field tempAugmentations = clazz.getDeclaredField("fTempAugmentations");
-      tempAugmentations.setAccessible(true);
-      return tempAugmentations;
-    } catch (Exception e) {
-      return null;
-    }
-  } // getParentField()
 }

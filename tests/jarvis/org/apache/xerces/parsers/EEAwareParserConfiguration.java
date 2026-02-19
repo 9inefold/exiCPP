@@ -59,6 +59,7 @@ import org.apache.xerces.xni.parser.XMLInputSource;
 
 import org.apache.xerces.impl.XMLEEDocumentScanner;
 import org.apache.xerces.impl.XMLEENSDocumentScanner;
+import org.apache.xerces.util.ConfigReflector;
 import org.exicpp.util.XConstants;
 
 /**
@@ -97,6 +98,9 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
   /** New Property identifier: XInclude handler. */
   protected static final String ESCAPE_HANDLER =
       XConstants.EXICPP_PROPERTY_PREFIX + XConstants.ESCAPE_HANDLER_PROPERTY;
+  
+  /** New Property identifier: Property reflector. */
+  protected static final String CONFIG_REFLECTOR = ConfigReflector.CONFIG_REFLECTOR;
 
   //
   // Components
@@ -176,6 +180,7 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
     // add default recognized properties
     final String[] recognizedProperties = {
       ESCAPE_HANDLER,
+      CONFIG_REFLECTOR,
       SYMBOL_TABLE,
       XMLGRAMMAR_POOL,
     };

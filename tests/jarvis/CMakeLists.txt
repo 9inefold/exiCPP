@@ -55,6 +55,8 @@ exi_add_java_class(@openexi.sax.Transmogrifier2)
 
 exi_add_java_class(@xerces.impl.XMLEEDocumentScanner)
 exi_add_java_class(@xerces.impl.XMLEENSDocumentScanner)
+exi_add_java_class(@xerces.impl.XMLEEScannerCommon)
+exi_add_java_class(@xerces.impl.XMLEEScannerCommonImpl)
 exi_add_java_class(@xerces.jaxp.SAXParserImpl2)
 exi_add_java_class(@xerces.jaxp.SAXParserFactoryImpl2)
 exi_add_java_class(@xerces.parsers.EEAwareParserConfiguration)
