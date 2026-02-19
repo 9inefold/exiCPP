@@ -33,6 +33,7 @@ This is a TODO list for the C++ version of exiCPP.
 
 - Implement fixes for exificient/openexi xerces parsing
   - Handle *all* DOCTYPE info
+  - Fix attribute buffer swap hack to handle entities
 - Check depth when parsing
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense
 - Make XML comparison match failures more useful

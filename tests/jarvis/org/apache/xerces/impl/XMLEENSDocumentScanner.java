@@ -35,7 +35,6 @@ import org.apache.xerces.impl.XMLEEScannerCommonImpl;
 import org.exicpp.util.ReflectionHelpers;
 
 public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
-  
   /** String buffer. */
   private final XMLStringBuffer fStringBuffer = new XMLStringBuffer();
   /** String buffer. */
@@ -95,28 +94,21 @@ public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
     }
   } // scanCharReference()
 
-  /**
-   * Scans an attribute value and normalizes whitespace converting all
-   * whitespace characters to space characters.
-   *
-   * [10] AttValue ::= '"' ([^<&"] | Reference)* '"' | "'" ([^<&'] | Reference)* "'"
-   *
-   * @param value The XMLString to fill in with the value.
-   * @param nonNormalizedValue The XMLString to fill in with the
-   *                           non-normalized value.
-   * @param atName The name of the attribute being parsed (for error msgs).
-   * @param checkEntities true if undeclared entities should be reported as VC violation,
-   *                      false if undeclared entities should be reported as WFC violation.
-   * @param eleName The name of element to which this attribute belongs.
-   *
-   * @return true if the non-normalized and normalized value are the same
-   *
-   * <strong>Note:</strong> This method uses fStringBuffer2, anything in it
-   * at the time of calling is lost.
-   **/
-  @Override
-  protected boolean scanAttributeValue(XMLString nonNormalizedValue, XMLString value, String atName,
-                                       boolean checkEntities, String eleName)
+  /** HACK: Needs updating to work with entities */
+  static private final boolean ATT_SWAP_HACK = true;
+
+  static private boolean isBuiltinSymbol(String entityName) {
+    return entityName != null && (
+      entityName == fAmpSymbol  ||
+      entityName == fAposSymbol ||
+      entityName == fLtSymbol   ||
+      entityName == fGtSymbol   ||
+      entityName == fQuotSymbol);
+  }
+
+  /* Stuff */
+  private boolean scanAttributeValueImpl(XMLString value, XMLString nonNormalizedValue, String atName,
+                                         boolean checkEntities, String eleName)
       throws IOException, XNIException {
     // quote
     int quote = fEntityScanner.peekChar();
@@ -148,35 +140,37 @@ public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
         fStringBuffer.append(value);
         if (c == '&') {
           fEntityScanner.skipChar('&');
-          if (entityDepth == fEntityDepth)
+          if (entityDepth == fEntityDepth) {
+            fStringBuffer.append('&');
             fStringBuffer2.append('&');
+          }
           if (fEntityScanner.skipChar('#')) {
-            if (entityDepth == fEntityDepth)
+            if (entityDepth == fEntityDepth) {
+              fStringBuffer.append('#');
               fStringBuffer2.append('#');
-            scanCharReferenceValue(fStringBuffer, fStringBuffer2);
+            }
+            fStringBuffer3.clear(); fStringBufferX.clear();
+            scanCharReferenceValue(fStringBuffer3, fStringBufferX);
+            fStringBuffer.append(fStringBufferX);
+            fStringBuffer2.append(fStringBufferX);
           } else {
             String entityName = fEntityScanner.scanName();
+            final boolean isBuiltin = isBuiltinSymbol(entityName);
             if (entityName == null) {
               reportFatalError("NameRequiredInReference", null);
             } else if (entityDepth == fEntityDepth) {
+              if (isBuiltin)
+                fStringBuffer.append(entityName);
               fStringBuffer2.append(entityName);
             }
             if (!fEntityScanner.skipChar(';')) {
               reportFatalError("SemicolonRequiredInReference", new Object[]{entityName});
             } else if (entityDepth == fEntityDepth) {
+              if (isBuiltin)
+                fStringBuffer.append(';');
               fStringBuffer2.append(';');
             }
-            if (entityName == fAmpSymbol)
-              fStringBuffer.append('&');
-            else if (entityName == fAposSymbol)
-              fStringBuffer.append('\'');
-            else if (entityName == fLtSymbol)
-              fStringBuffer.append('<');
-            else if (entityName == fGtSymbol)
-              fStringBuffer.append('>');
-            else if (entityName == fQuotSymbol)
-              fStringBuffer.append('"');
-            else {
+            if (!isBuiltin) {
               if (fEntityManager.isExternalEntity(entityName)) {
                 reportFatalError("ReferenceToExternalEntity", new Object[]{entityName});
               } else {
@@ -248,6 +242,34 @@ public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
       reportFatalError("CloseQuoteExpected", new Object[]{eleName, atName});
     }
     return nonNormalizedValue.equals(value.ch, value.offset, value.length);
+  }
 
+  /**
+   * Scans an attribute value and normalizes whitespace converting all
+   * whitespace characters to space characters.
+   *
+   * [10] AttValue ::= '"' ([^<&"] | Reference)* '"' | "'" ([^<&'] | Reference)* "'"
+   *
+   * @param value The XMLString to fill in with the value.
+   * @param nonNormalizedValue The XMLString to fill in with the
+   *                           non-normalized value.
+   * @param atName The name of the attribute being parsed (for error msgs).
+   * @param checkEntities true if undeclared entities should be reported as VC violation,
+   *                      false if undeclared entities should be reported as WFC violation.
+   * @param eleName The name of element to which this attribute belongs.
+   *
+   * @return true if the non-normalized and normalized value are the same
+   *
+   * <strong>Note:</strong> This method uses fStringBuffer2, anything in it
+   * at the time of calling is lost.
+   **/
+  @Override
+  protected boolean scanAttributeValue(XMLString value, XMLString nonNormalizedValue, String atName,
+                                       boolean checkEntities, String eleName)
+      throws IOException, XNIException {
+    if (ATT_SWAP_HACK)
+      return super.scanAttributeValue(nonNormalizedValue, value, atName, checkEntities, eleName);
+    else
+      return scanAttributeValueImpl(value, nonNormalizedValue, atName, checkEntities, eleName);
   } // scanAttributeValue()
 }
