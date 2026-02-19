@@ -19,9 +19,12 @@
 package org.exicpp.openexi;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.lang.System;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.lang.reflect.Field;
+import java.lang.reflect.InaccessibleObjectException;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
@@ -38,14 +41,22 @@ import org.xml.sax.ext.DeclHandler;
 import org.xml.sax.ext.LexicalHandler;
 import org.xml.sax.helpers.DefaultHandler;
 
+import org.exicpp.util.Log;
 import org.exicpp.util.ReflectionHelpers;
+import org.exicpp.util.XConstants;
 
+import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.sax.SAXTransformerFactory;
+import javax.xml.transform.sax.TransformerHandler;
+//import com.sun.org.apache.xalan.internal.xsltc.trax.TransformerImpl;
+//import com.sun.org.apache.xalan.internal.xsltc.trax.TransformerHandlerImpl;
+//import com.sun.org.apache.xml.internal.serializer.ToUnknownStream;
 
 public class LoggingSAXHandlerWrapper extends DefaultHandler
     implements ContentHandler, LexicalHandler, DTDHandler, EntityResolver,
                DeclHandler, ErrorHandler {
+  protected StringWriter writerRef = null;
   protected ContentHandler contentHandler;
   protected LexicalHandler lexicalHandler;
   protected DTDHandler dtdHandler;
@@ -54,7 +65,57 @@ public class LoggingSAXHandlerWrapper extends DefaultHandler
   protected ErrorHandler errorHandler;
   protected int elementCount = 0;
 
+  static private boolean gHasLoggedIOE = false;
+
+  private static ContentHandler getRealContentHandler(ContentHandler contentHandler) {
+    if (!(contentHandler instanceof TransformerHandler))
+      return null;
+    //Transformer t = ((TransformerHandler)contentHandler).getTransformer();
+    //ReflectionHelpers.printSuperclassFields(t.getClass());
+    //ReflectionHelpers.printSuperclassMethods(t.getClass());
+
+    Field f_handler = null;
+    final ContentHandler _handler;
+
+    try {
+      f_handler = ReflectionHelpers.locateMemberInSuperclasses(
+          contentHandler.getClass(), "_handler");
+      f_handler.setAccessible(true);
+      // Sanity checking
+      assert Object.class.isAssignableFrom(f_handler.getType());
+      // Try getting value
+      if (f_handler.getType() != ContentHandler.class) {
+        Log.extra("Wrong type: " + f_handler.getType().getName());
+        return null;
+      }
+      _handler = (ContentHandler)f_handler.get(contentHandler);
+    } catch (InaccessibleObjectException e) {
+      if (!gHasLoggedIOE) {
+        Log.info("InaccessibleObjectException: " + e.getMessage());
+        Log.info("Did you forget to --add-opens?");
+        gHasLoggedIOE = true;
+      }
+      return null;
+    } catch (Exception e) {
+      Log.extra(e.getClass().getSimpleName() + ": " + e.getMessage());
+      return null;
+    }
+
+    System.out.println("_handler: " + _handler.getClass().getName());
+    return _handler;
+  }
+
   public LoggingSAXHandlerWrapper(ContentHandler contentHandler) {
+    TransformerFactory saxTransformerFactory = SAXTransformerFactory.newInstance();
+    //ReflectionHelpers.printSuperclassFields(saxTransformerFactory.getClass(), true);
+    //ReflectionHelpers.printSuperclassMethods(saxTransformerFactory.getClass());
+
+    //System.out.println("ContentHandler: " + contentHandler.toString());
+    //ReflectionHelpers.printSuperclassFields(contentHandler.getClass(), true);
+    //ReflectionHelpers.printSuperclassMethods(contentHandler.getClass());
+
+    getRealContentHandler(contentHandler);
+
     // Wrap ContentHandler, and optionally wrap other SAX interfaces to allow
     // forwarding of all events
     this.contentHandler = contentHandler;
@@ -70,10 +131,16 @@ public class LoggingSAXHandlerWrapper extends DefaultHandler
       errorHandler = (ErrorHandler)contentHandler;
   }
 
+  public void setRef(StringWriter writer) {
+    this.writerRef = writer;
+  }
+
   private void format(String format, Object...args) {
-    if (elementCount != 0)
-      System.out.format("%1$" + (elementCount * 2) + "s", "");
-    System.out.format(format + "%n", args);
+    if (Log.hasExtra()) {
+      if (elementCount != 0)
+        System.out.format("%1$" + (elementCount * 2) + "s", "");
+      System.out.format(format + "%n", args);
+    }
   }
 
   public void startElement(String uri, String localName, String qName,
@@ -86,9 +153,7 @@ public class LoggingSAXHandlerWrapper extends DefaultHandler
       );
     }
     // strip the root start element and forward all other elements
-    if (elementCount > 0) {
-      contentHandler.startElement(uri, localName, qName, atts);
-    }
+    contentHandler.startElement(uri, localName, qName, atts);
     elementCount++;
   }
 
@@ -97,9 +162,7 @@ public class LoggingSAXHandlerWrapper extends DefaultHandler
     // strip the root end element and forward all other elements
     elementCount--;
     format("EE: %s", qName);
-    if (elementCount > 0) {
-      contentHandler.endElement(uri, localName, qName);
-    }
+    contentHandler.endElement(uri, localName, qName);
   }
 
   public void characters(char[] ch, int start, int length) throws SAXException {
@@ -110,6 +173,7 @@ public class LoggingSAXHandlerWrapper extends DefaultHandler
   public void endDocument() throws SAXException {
     format("}%n");
     contentHandler.endDocument();
+    this.writerRef = null;
   }
 
   public void endPrefixMapping(String prefix) throws SAXException {
@@ -139,6 +203,7 @@ public class LoggingSAXHandlerWrapper extends DefaultHandler
   }
 
   public void startDocument() throws SAXException {
+    getRealContentHandler(contentHandler);
     format("{");
     contentHandler.startDocument();
   }
@@ -157,8 +222,10 @@ public class LoggingSAXHandlerWrapper extends DefaultHandler
 
   public void endCDATA() throws SAXException {
     format("]]>");
-    if (lexicalHandler != null)
+    if (lexicalHandler != null) {
+      //contentHandler.characters(XConstants.CDATA_END, 0, 3);
       lexicalHandler.endCDATA();
+    }
   }
 
   public void endDTD() throws SAXException {
@@ -175,8 +242,10 @@ public class LoggingSAXHandlerWrapper extends DefaultHandler
 
   public void startCDATA() throws SAXException {
     format("<![CDATA[");
-    if (lexicalHandler != null)
+    if (lexicalHandler != null) {
       lexicalHandler.startCDATA();
+      //contentHandler.characters(XConstants.CDATA_START, 0, 9);
+    }
   }
 
   public void startDTD(String name, String publicId, String systemId)
