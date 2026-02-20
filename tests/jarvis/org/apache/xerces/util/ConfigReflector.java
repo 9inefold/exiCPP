@@ -27,8 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.lang.NullPointerException;
 import java.lang.reflect.Field;
-//import javax.xml.parsers.SAXParser;
-import org.xml.sax.XMLReader;
+import org.xml.sax.*;
 
 import org.apache.xerces.impl.Constants;
 import org.apache.xerces.jaxp.SAXParserImpl;
@@ -89,7 +88,7 @@ public class ConfigReflector {
     }
 
     @SuppressWarnings("unchecked")
-    private ParserConfigurationSettings getfConfiguration() {
+    ParserConfigurationSettings getfConfiguration() {
       var fConfiguration =
         ReflectionHelpers.getObjectField(fReader, _fConfiguration);
       if (fConfiguration instanceof ParserConfigurationSettings)
@@ -158,6 +157,67 @@ public class ConfigReflector {
       throws CircularReferenceException {
     // Now dispatch the class
     fHolder = createHolder(reader, new RecursionChecker());
+  }
+  private ConfigReflector(Holder holder) {
+    assert holder != null;
+    fHolder = holder;
+  }
+
+  public String[] getRecognizedFeatures() {
+    return fHolder.getRecognizedFeatures();
+  }
+  public String[] getRecognizedProperties() {
+    return fHolder.getRecognizedProperties();
+  }
+
+  public static boolean inject(XMLReader reader) {
+    try {
+      Object refl = reader.getProperty(CONFIG_REFLECTOR);
+      if (refl != null && refl instanceof ConfigReflector)
+        return true;
+    } catch (SAXNotRecognizedException e) {
+      // Register and create the holder
+      return injectHolder(reader);
+    } catch (CircularReferenceException e) {
+      return false;
+    } catch (SAXNotSupportedException e) {}
+    // Now do real stuff
+    try {
+      reader.setProperty(CONFIG_REFLECTOR, new ConfigReflector(reader));
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  private static boolean injectHolder(XMLReader reader) {
+    PCSHolder holder = null;
+    try {
+      Holder anyholder = createHolder(reader, new RecursionChecker());
+      if (anyholder instanceof PCSHolder)
+        holder = (PCSHolder)anyholder;
+      else
+        // Can't add a new handler from an unknown
+        return false;
+    } catch (CircularReferenceException e) {
+      // TODO: log?
+      return false;
+    }
+
+    assert holder != null;
+    var fConfiguration = holder.getfConfiguration();
+    if (fConfiguration == null)
+      return false;
+    
+    final String[] recognizedProperties = { CONFIG_REFLECTOR };
+    fConfiguration.addRecognizedProperties(recognizedProperties);
+
+    try {
+      reader.setProperty(CONFIG_REFLECTOR, new ConfigReflector(holder));
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
   }
 
   private static Holder createHolder(XMLReader reader, RecursionChecker chk)

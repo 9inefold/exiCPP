@@ -25,9 +25,11 @@ import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 import org.apache.xerces.jaxp.SAXParserFactoryImpl2;
 import org.apache.xerces.impl.Constants;
+import org.apache.xerces.util.ConfigReflector;
 import org.apache.xerces.util.XMLStringBuffer;
 import org.apache.xerces.xni.XMLString;
 import org.exicpp.util.EvilDocumentHijacker;
+import org.exicpp.util.Log;
 import org.exicpp.util.XConstants;
 import org.openexi.proc.EXIOptionsEncoder;
 import org.openexi.proc.HeaderOptionsOutputType;
@@ -84,6 +86,7 @@ public final class Transmogrifier2 {
 
   private final XMLReader m_xmlReader;
   private final boolean m_allowEmbeddedEntityEncoding;
+  private final boolean m_allowConfigPrinting;
   private boolean m_embeddedEscapesFeature = false;
   private boolean m_preserveChRefEncoding = false;
 
@@ -155,6 +158,9 @@ public final class Transmogrifier2 {
       m_xmlReader = saxParser.getXMLReader();
       m_allowEmbeddedEntityEncoding =
           EvilDocumentHijacker.reconfigureXMLReader(m_xmlReader);
+      m_allowConfigPrinting = ConfigReflector.inject(m_xmlReader);
+      if (!m_allowConfigPrinting)
+        Log.error("unable to inject set ConfigReflector");
       m_xmlReader.setFeature("http://xml.org/sax/features/namespace-prefixes",
                              namespacePrefixesFeature);
     } catch (Exception exc) {
@@ -185,6 +191,33 @@ public final class Transmogrifier2 {
     m_outputOptions = HeaderOptionsOutputType.none;
     m_exiOptions = new EXIOptions();
     m_divertBuiltinGrammarToAnyType = false;
+  }
+
+  public void printXMLReaderConfig() {
+    if (!m_allowConfigPrinting) {
+      System.err.println("unable to print config!");
+      return;
+    }
+    try {
+      Object prop = m_xmlReader.getProperty(ConfigReflector.CONFIG_REFLECTOR);
+      var refl = ConfigReflector.class.cast(prop);
+      String[] feats = refl.getRecognizedFeatures();
+      String[] props = refl.getRecognizedProperties();
+
+      System.out.println("{");
+      System.out.println("  features: {");
+      for (int I = 0; I < feats.length; ++I)
+        System.out.format("    \"%s\"%n", feats[I]);
+      System.out.println("  }");
+      System.out.println("  properties: {");
+      for (int I = 0; I < props.length; ++I)
+        System.out.format("    \"%s\"%n", props[I]);
+      System.out.println("  }");
+      System.out.println("}");
+    } catch (Exception e) {
+      System.out.flush();
+      System.err.println("unable to print config!");
+    }
   }
 
   /**
@@ -1179,6 +1212,7 @@ public final class Transmogrifier2 {
               final ComparableAttribute attr = m_comparableAttributes[i];
               final String instanceUri = attr.uri;
               final String instanceName = attr.name;
+              // sss
               format(" AT: %s=\"%s\"",
                 attrs.getQName(attr.index),
                 attrs.getValue(attr.index));
