@@ -36,6 +36,9 @@ public class XConstants {
   /** Embed escape sequences */
   public static final String ESCAPE_HANDLER_PROPERTY = "escape-handler";
 
+  /** Holds the handler of the list of features/properties */
+  public static final String CONFIG_REFLECTOR_PROPERTY = "config-reflector";
+
   /// XML
 
   /** <!CDATA[ */

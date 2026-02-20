@@ -46,7 +46,7 @@ public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
 
   /** Fields */
   private final XMLEEScannerCommonImpl thiz;
-  XMLEENSDocumentScanner() {
+  public XMLEENSDocumentScanner() {
     super();
     thiz = new XMLEEScannerCommonImpl(this);
   }

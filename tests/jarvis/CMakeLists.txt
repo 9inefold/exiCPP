@@ -41,6 +41,7 @@ function(exi_add_java_classes package)
   set(exi_java_outputs ${exi_java_outputs} PARENT_SCOPE)
 endfunction(exi_add_java_classes)
 
+exi_add_java_class(@exicpp.util.CircularReferenceException)
 exi_add_java_class(@exicpp.util.EvilDocumentHijacker)
 exi_add_java_class(@exicpp.util.Log)
 exi_add_java_class(@exicpp.util.LogLevel)
@@ -60,6 +61,7 @@ exi_add_java_class(@xerces.impl.XMLEEScannerCommonImpl)
 exi_add_java_class(@xerces.jaxp.SAXParserImpl2)
 exi_add_java_class(@xerces.jaxp.SAXParserFactoryImpl2)
 exi_add_java_class(@xerces.parsers.EEAwareParserConfiguration)
+exi_add_java_class(@xerces.util.ConfigReflector)
 
 set(exi_java_binaries
   ${exi_java_binaries} "exificient.jar"

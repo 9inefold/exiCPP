@@ -149,7 +149,7 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
    * @param grammarPool The grammar pool to use.
    */
   public EEAwareParserConfiguration(SymbolTable symbolTable,
-                                           XMLGrammarPool grammarPool) {
+                                    XMLGrammarPool grammarPool) {
     this(symbolTable, grammarPool, null);
   } // <init>(SymbolTable,XMLGrammarPool)
 
@@ -163,8 +163,8 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
    * @param parentSettings The parent settings.
    */
   public EEAwareParserConfiguration(SymbolTable symbolTable,
-                                           XMLGrammarPool grammarPool,
-                                           XMLComponentManager parentSettings) {
+                                    XMLGrammarPool grammarPool,
+                                    XMLComponentManager parentSettings) {
     super(symbolTable, grammarPool, parentSettings);
 
     final String[] recognizedFeatures = {
