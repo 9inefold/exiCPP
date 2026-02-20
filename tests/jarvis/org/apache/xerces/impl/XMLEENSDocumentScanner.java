@@ -272,4 +272,52 @@ public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
     else
       return scanAttributeValueImpl(value, nonNormalizedValue, atName, checkEntities, eleName);
   } // scanAttributeValue()
+
+  /**
+   * Scans an entity reference.
+   *
+   * @throws IOException  Thrown if i/o error occurs.
+   * @throws XNIException Thrown if handler throws exception upon
+   *                      notification.
+   */
+  protected void scanEntityReference() throws IOException, XNIException {
+    // name
+    String name = fEntityScanner.scanName();
+    if (name == null) {
+      reportFatalError("NameRequiredInReference", null);
+      return;
+    }
+
+    // end
+    if (!fEntityScanner.skipChar(';')) {
+      reportFatalError("SemicolonRequiredInReference", new Object[]{name});
+    }
+    fMarkupDepth--;
+
+    // handle built-in entities
+    if (isBuiltinSymbol(name)) {
+      fStringBufferX.clear();
+      fStringBufferX.append('&');
+      fStringBufferX.append(name);
+      fStringBufferX.append(';');
+      fTempString.setValues(fStringBufferX);
+      fDocumentHandler.characters(fTempString, null);
+    }
+    // start general entity
+    else if (fEntityManager.isUnparsedEntity(name)) {
+      reportFatalError("ReferenceToUnparsedEntity", new Object[]{name});
+    } else {
+      if (!fEntityManager.isDeclaredEntity(name)) {
+        if (fIsEntityDeclaredVC) {
+          if (fValidation)
+            fErrorReporter.reportError(XMLMessageFormatter.XML_DOMAIN,
+                                       "EntityNotDeclared", new Object[]{name},
+                                       XMLErrorReporter.SEVERITY_ERROR);
+        } else {
+          reportFatalError("EntityNotDeclared", new Object[]{name});
+        }
+      }
+      fEntityManager.startEntity(name, false);
+    }
+  } // scanEntityReference()
 }

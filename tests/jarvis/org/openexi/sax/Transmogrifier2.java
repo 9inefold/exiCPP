@@ -31,6 +31,7 @@ import org.apache.xerces.xni.XMLString;
 import org.exicpp.util.EvilDocumentHijacker;
 import org.exicpp.util.Log;
 import org.exicpp.util.XConstants;
+import org.exicpp.util.XStacktrace;
 import org.openexi.proc.EXIOptionsEncoder;
 import org.openexi.proc.HeaderOptionsOutputType;
 import org.openexi.proc.common.AlignmentType;
@@ -1341,13 +1342,18 @@ public final class Transmogrifier2 {
       if (m_inChEntity)
         return;
       format("CH: %s", new String(ch, start, len));
+      //XStacktrace.print(2, 5);
       appendCharacters(ch, start, len);
     }
 
     public final void characters(final XMLString xstr)
         throws SAXException {
+      try { throw new Exception(); }
+      catch (Exception e) { e.printStackTrace(); }
+
       assert !m_inChEntity;
       format("CH: %s", new String(xstr.ch, xstr.offset, xstr.length));
+      //XStacktrace.print(2, 5);
       appendCharacters(xstr.ch, xstr.offset, xstr.length);
     }
 
@@ -1724,6 +1730,34 @@ public final class Transmogrifier2 {
     }
 
     public void endEntity(String name) throws SAXException {
+      format("ER(end): %s", name);
+      if (m_inChEntity) {
+        // TODO: Check name matches?
+        m_inChEntity = false;
+        characters(m_ChEntityBuffer);
+      }
+    }
+
+    public void startGeneralEntity(String name) throws SAXException {
+      format("ER: %s", name);
+      if (name.startsWith("#")) {
+        if (m_preserveChRefEncoding) {
+          m_ChEntityBuffer.clear();
+          m_ChEntityBuffer.append('&');
+          m_ChEntityBuffer.append(name);
+          m_ChEntityBuffer.append(';');
+          m_inChEntity = true;
+        }
+      } else if (m_preserveEntityEncoding) {
+        m_ChEntityBuffer.clear();
+        m_ChEntityBuffer.append('&');
+        m_ChEntityBuffer.append(name);
+        m_ChEntityBuffer.append(';');
+        m_inChEntity = true;
+      }
+    }
+
+    public void endGeneralEntity(String name) throws SAXException {
       format("ER(end): %s", name);
       if (m_inChEntity) {
         // TODO: Check name matches?

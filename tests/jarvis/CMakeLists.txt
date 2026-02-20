@@ -48,6 +48,7 @@ exi_add_java_class(@exicpp.util.LogLevel)
 exi_add_java_class(@exicpp.util.ReflectionHelpers)
 #exi_add_java_class(@exicpp.util.StringTranslator)
 exi_add_java_class(@exicpp.util.XConstants)
+exi_add_java_class(@exicpp.util.XStacktrace)
 
 #exi_add_java_class(@exicpp.openexi.CustomSAXParserFactory)
 exi_add_java_class(@exicpp.openexi.DirectSAXHandler)
