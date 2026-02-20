@@ -94,11 +94,11 @@ public class DirectSAXHandler extends DefaultHandler
   }
 
   private void format(String format, Object...args) {
-    if (Log.hasExtra()) {
-      if (elementCount != 0)
-        System.out.format("%1$" + (elementCount * 2) + "s", "");
-      System.out.format(format + "%n", args);
-    }
+    //if (Log.hasExtra()) {
+    //  if (elementCount != 0)
+    //    System.out.format("%1$" + (elementCount * 2) + "s", "");
+    //  System.out.format(format + "%n", args);
+    //}
   }
 
   public void setWriter(StringWriter writer) {
