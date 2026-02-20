@@ -1,9 +1,41 @@
-import sys, traceback
+import os, sys, traceback
 from pathlib import Path
 
-EXI_BASE_DIR = Path("C:/Users/alex/Documents/GitHub/exiCPP")
-sys.path.insert(0, str(EXI_BASE_DIR / 'tests' / 'exiconf'))
-from exiconf.main import EXI_BIN_DIR, TEST_SRC_DIR
+EXI_CURR_DIR = Path(__file__).parent
+sys.path.insert(0, str(EXI_CURR_DIR / 'exiconf'))
+from exiconf.main import EXI_BASE_DIR, EXI_BIN_DIR, TEST_SRC_DIR
+
+sys.path.insert(0, str(EXI_BASE_DIR / 'vendored' / 'xmldiff'))
+from xmldiff.main import diff_texts
+from xmldiff.actions import UpdateTextIn, UpdateTextAfter
+import lxml.etree as etree
+
+# Returns true if xml is not different.
+def diff_xml(name, file1, file2, parse_options=None) -> bool:
+  try:
+    bytes1 = str(file1).encode()
+    bytes2 = str(file2).encode()
+    diff_list = diff_texts(bytes1, bytes2, parse_options=parse_options)
+    real_diffs = []
+    # Fixup diffs with empty data
+    # TODO: Add option to compare without preserves
+    for diff in diff_list:
+      if isinstance(diff, (UpdateTextIn, UpdateTextAfter)):
+        old = diff.oldtext if diff.oldtext is not None else ''
+        new = diff.text if diff.text is not None else ''
+        if old.strip() != new.strip():
+          real_diffs.append(diff)
+      else:
+        real_diffs.append(diff)
+    if len(real_diffs) != 0:
+      print(f'{Path(name).as_posix()}: {diff_list}')
+      return False
+    return True
+  except Exception as e:
+    print(f'{Path(name).as_posix()}: {e}')
+    return False
+
+cwd = os.getcwd()
 
 import _jpype
 _jpype.enableStacktraces(True)
@@ -71,6 +103,7 @@ class MessageHandler(metaclass=Singleton):
   #sax_parser_factory.setNamespaceAware(True)
 
   writer = Transmogrifier2()
+  #writer.printXMLReaderConfig()
   writer.setPreserveCharacterRefEmbedding(True)
   #writer = Transmogrifier()
   writer.setOutputOptions(hdr_options)
@@ -130,6 +163,7 @@ class MessageHandler(metaclass=Singleton):
       result = output.toByteArray()
     except:
       print(traceback.format_exc())
+      pass
     finally:
       if input:
         input.close()
@@ -162,6 +196,7 @@ class MessageHandler(metaclass=Singleton):
       MessageHandler.handler.reset()
     except:
       print(traceback.format_exc())
+      pass
     finally:
       if input:
         input.close()
@@ -173,8 +208,10 @@ OUT_DIR = EXI_BASE_DIR / 'tests/out'
 if not OUT_DIR.exists():
   OUT_DIR.mkdir()
 
-def do_roundtrip(test_path: Path):
-  print(test_path.as_posix(), ':', sep='', flush=True);
+def do_roundtrip(test_path: Path, do_print = False):
+  if do_print:
+    relpath = test_path.relative_to(cwd).as_posix()
+    print(relpath, ':', sep='', flush=True);
   test_path = Path(test_path)
   stem = str(test_path.stem)
   xml_in = test_path.read_text('utf8')
@@ -182,12 +219,64 @@ def do_roundtrip(test_path: Path):
   (OUT_DIR / f'{stem}.exi').write_bytes(data)
   xml_out = MessageHandler.decode(data)
   (OUT_DIR / f'{stem}.xml').write_bytes(xml_out.encode('utf8'))
-  print(xml_out, '\n', flush=True)
+  if do_print:
+    print(xml_out, '\n', flush=True)
+
+def run_all_files(do_print = False):
+  from glob import glob
+  all_files = list(glob(
+    '**/*.xml',
+    #'at/*.xml',
+    root_dir=TEST_SRC_DIR,
+    recursive=True
+  ))
+
+  err_dir = EXI_CURR_DIR/'out/err'
+  if not err_dir.exists():
+    err_dir.mkdir(parents=True)
+  else:
+    err_files = glob('*.xml', root_dir=err_dir)
+    for f in err_files:
+      os.remove(str(err_dir/f))
+
+  eq_count = 0
+  for f in all_files:
+    is_eq = False
+    xml_out = None
+    try:
+      xml_in = (TEST_SRC_DIR / f).read_text('utf8')
+      data = MessageHandler.encode(xml_in)
+      xml_out = MessageHandler.decode(data)
+      is_eq = diff_xml(f, xml_in, xml_out)
+      # Print results
+      if is_eq and do_print:
+        print(Path(f).as_posix(), ': ', is_eq, sep='', flush=True)
+      #print(xml_in)
+      #print(xml_out)
+    except Exception as e:
+      if do_print:
+        print(e, flush=True)
+      pass
+    # Check results
+    if is_eq:
+      eq_count += 1
+    elif xml_out is not None:
+      (EXI_CURR_DIR/'out/err'/Path(f).name).write_text(xml_out)
+  
+  print('Equal:', eq_count)
+  print('Total:', len(all_files))
 
 if __name__ == "__main__":
+  #run_all_files(do_print=True)
+  run_all_files()
+
   #CustomSAXParserFactory.printTypeOfParser()
   # TODO: Handle doctype
-  do_roundtrip(TEST_SRC_DIR / 'xml/042.xml')
-  do_roundtrip(TEST_SRC_DIR / 'me/Nested.xml')
-  do_roundtrip(TEST_SRC_DIR / 'me/CDATA2.xml')
-  #do_roundtrip(EXI_BASE_DIR / 'tests/nested-ent.hidden.xml')
+  
+  #do_roundtrip(TEST_SRC_DIR / 'xml/008.xml', do_print=True)
+  #do_roundtrip(TEST_SRC_DIR / 'xml/008r.xml', do_print=True)
+  #do_roundtrip(TEST_SRC_DIR / 'xml/042.xml')
+  #do_roundtrip(TEST_SRC_DIR / 'me/Nested.xml')
+  #do_roundtrip(TEST_SRC_DIR / 'me/CDATA2.xml')
+  ##do_roundtrip(EXI_BASE_DIR / 'tests/nested-ent.hidden.xml')
+  pass
