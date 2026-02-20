@@ -195,7 +195,7 @@ public final class Transmogrifier2 {
 
   public void printXMLReaderConfig() {
     if (!m_allowConfigPrinting) {
-      System.err.println("unable to print config!");
+      System.err.println("unable to print config (disabled)!");
       return;
     }
     try {
@@ -216,7 +216,8 @@ public final class Transmogrifier2 {
       System.out.println("}");
     } catch (Exception e) {
       System.out.flush();
-      System.err.println("unable to print config!");
+      System.err.format("unable to print config (%s)!\n",
+                        e.getClass().getSimpleName());
     }
   }
 

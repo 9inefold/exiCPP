@@ -98,36 +98,41 @@ public class ConfigReflector {
 
     // TODO: Get parent settings
 
-    @Override
-    String[] getRecognizedFeatures() {
+    @SuppressWarnings("unchecked")
+    private ArrayList<String> getfConfigurationFieldCommon(final String name) {
       var fConfiguration = getfConfiguration();
       if (fConfiguration == null)
-        return EMPTY_CONFIG_ARRAY;
+        return null;
       try {
-        Field f = ParserConfigurationSettings.class.getDeclaredField("fRecognizedFeatures");
+        Field f = ParserConfigurationSettings.class.getDeclaredField(name);
         f.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        var fRecognizedFeatures = (ArrayList)f.get(fConfiguration);
-        return (String[]) fRecognizedFeatures.toArray();
+        return ArrayList.class.cast(f.get(fConfiguration));
       } catch (Exception e) {
-        return EMPTY_CONFIG_ARRAY;
+        return null;
       }
+    }
+
+    private static String[] cloneStrings(ArrayList<String> ls) {
+      ls.sort(null);
+      return ls.toArray(new String[ls.size()]);
+    }
+
+    @Override
+    String[] getRecognizedFeatures() {
+      ArrayList<String> fRecognizedFeatures =
+          getfConfigurationFieldCommon("fRecognizedFeatures");
+      if (fRecognizedFeatures == null)
+        return EMPTY_CONFIG_ARRAY;
+      return cloneStrings(fRecognizedFeatures);
     }
 
     @Override
     String[] getRecognizedProperties() {
-      var fConfiguration = getfConfiguration();
-      if (fConfiguration == null)
+      ArrayList<String> fRecognizedProperties =
+          getfConfigurationFieldCommon("fRecognizedProperties");
+      if (fRecognizedProperties == null)
         return EMPTY_CONFIG_ARRAY;
-      try {
-        Field f = ParserConfigurationSettings.class.getDeclaredField("fRecognizedProperties");
-        f.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        var fRecognizedProperties = (ArrayList)f.get(fConfiguration);
-        return (String[]) fRecognizedProperties.toArray();
-      } catch (Exception e) {
-        return EMPTY_CONFIG_ARRAY;
-      }
+      return cloneStrings(fRecognizedProperties);
     }
   }
 
