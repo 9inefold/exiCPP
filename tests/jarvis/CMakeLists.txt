@@ -54,6 +54,8 @@ exi_add_java_class(@exicpp.util.XStacktrace)
 #exi_add_java_class(@exicpp.openexi.CustomSAXParserFactory)
 exi_add_java_class(@exicpp.openexi.DirectSAXHandler)
 #exi_add_java_class(@exicpp.openexi.LoggingSAXHandlerWrapper)
+exi_add_java_class(@openexi.sax.PartialXMLDTDHandler)
+exi_add_java_class(@openexi.sax.PassthroughXMLDTDHandler)
 exi_add_java_class(@openexi.sax.Transmogrifier2)
 
 exi_add_java_class(@xerces.impl.XMLEEDocumentScanner)

@@ -27,8 +27,15 @@ import org.apache.xerces.jaxp.SAXParserFactoryImpl2;
 import org.apache.xerces.impl.Constants;
 import org.apache.xerces.util.ConfigReflector;
 import org.apache.xerces.util.XMLStringBuffer;
+import org.apache.xerces.xni.Augmentations;
+import org.apache.xerces.xni.XMLDTDHandler;
+import org.apache.xerces.xni.XMLLocator;
+import org.apache.xerces.xni.XMLResourceIdentifier;
 import org.apache.xerces.xni.XMLString;
+import org.apache.xerces.xni.XNIException;
+import org.apache.xerces.xni.parser.XMLDTDSource;
 import org.exicpp.util.EvilDocumentHijacker;
+import org.exicpp.util.IterableEnumeration;
 import org.exicpp.util.Log;
 import org.exicpp.util.XConstants;
 import org.exicpp.util.XStacktrace;
@@ -76,7 +83,6 @@ import org.xml.sax.helpers.LocatorImpl;
 public final class Transmogrifier2 {
   private static final String DEFAULT_FACTORY =
       "org.apache.xerces.jaxp.SAXParserFactoryImpl2";
-  
 
   /** Feature identifier: embed escape sequences. */
   private static final String EMBED_ESCAPE_SEQUENCES =
@@ -175,7 +181,6 @@ public final class Transmogrifier2 {
           TransmogrifierRuntimeException.XMLREADER_ACCESS_ERROR, (String[])null);
     }
     m_xmlReader.setContentHandler(m_saxHandler);
-    m_xmlReader.setDTDHandler(m_saxHandler);
     try {
       m_xmlReader.setProperty("http://xml.org/sax/properties/lexical-handler",
                               m_saxHandler);
@@ -423,6 +428,19 @@ public final class Transmogrifier2 {
     m_exiOptions.setSchemaId(schemaId);
     m_exiOptions.setGrammarOptions(grammarCache.grammarOptions);
     m_saxHandler.setGrammarCache(grammarCache);
+
+    try {
+      if (m_exiOptions.getPreserveDTD()) {
+        setXMLDTDHandler(m_saxHandler.getDTDHandler());
+        //m_xmlReader.setDTDHandler(m_saxHandler);
+        m_xmlReader.setDTDHandler(null);
+      } else {
+        setXMLDTDHandler(null);
+        m_xmlReader.setDTDHandler(null);
+      }
+    } catch (TransmogrifierException e) {
+      throw new EXIOptionsException(e.getMessage());
+    } 
   }
 
   /**
@@ -514,6 +532,20 @@ public final class Transmogrifier2 {
     m_saxHandler.setObserveC14N(observeC14N);
   }
 
+  public final void setXMLDTDHandler(XMLDTDHandler dtdHandler)
+      throws TransmogrifierException {
+    try {
+      m_xmlReader.setProperty(DTD_HANDLER, dtdHandler);
+    } catch (SAXException se) {
+      TransmogrifierException te;
+      te = new TransmogrifierException(
+          TransmogrifierException.UNHANDLED_SAXPARSER_FEATURE,
+          new String[] {DTD_HANDLER});
+      te.setException(se);
+      throw te;
+    }
+  }
+
   ///////////////////////////////////////////////////////////////////////////
   /// Methods for controlling Deflater parameters
   ///////////////////////////////////////////////////////////////////////////
@@ -594,7 +626,8 @@ public final class Transmogrifier2 {
   /// SAX-based Encoder
   ///////////////////////////////////////////////////////////////////////////
 
-  private final class SAXEventHandler implements SAXTransmogrifier, DTDHandler {
+  private final class SAXEventHandler
+      implements SAXTransmogrifier, DTDHandler, PartialXMLDTDHandler {
 
     private static final String W3C_2000_XMLNS_URI = "http://www.w3.org/2000/xmlns/";
 
@@ -647,10 +680,15 @@ public final class Transmogrifier2 {
     private boolean m_observeC14N;
 
     private XMLStringBuffer m_CDATABuffer;
-    private XMLStringBuffer m_ChEntityBuffer = null; 
+    private XMLStringBuffer m_ChEntityBuffer = null;
+    /** Preserves <code>&#NNN;</code> textually */
     private boolean m_preserveChRefEncoding = false;
+    /** Preserves <code>&name;</code> textually */
     private boolean m_preserveEntityEncoding = false;
     private boolean m_inChEntity = false;
+
+    private final StringBuilder sb;
+    private int elementDepth = 0;
 
     SAXEventHandler() {
       m_schema = null;
@@ -682,6 +720,7 @@ public final class Transmogrifier2 {
       }
       m_n_comparableAttributes = 0;
       m_CDATABuffer = new XMLStringBuffer();
+      sb = Log.hasExtra() ? new StringBuilder() : null;
     }
 
     private void reset() {
@@ -760,12 +799,32 @@ public final class Transmogrifier2 {
       m_preserveChRefEncoding = manualChEntityEncoding;
     }
 
+    /** Actually just wraps self in PassthroughXMLDTDHandler... */
+    public XMLDTDHandler getDTDHandler() {
+      return new PassthroughXMLDTDHandler(this);
+    }
+
     //////////// SAX event handlers
 
+    private void formatD(String format, Object... args) {
+      if (elementDepth != 0)
+        System.out.format("%1$" + (elementDepth * 2) + "s", "");
+      System.out.format(format + "%n", args);
+    }
+
     private void format(String format, Object... args) {
-      // if (elementCount != 0)
-      //   System.out.format("%1$" + (elementCount * 2) + "s", "");
-      //System.out.format(format + "%n", args);
+      if (Log.hasExtra()) {
+        if (elementDepth != 0)
+          System.out.format("%1$" + (elementDepth * 2) + "s", "");
+        System.out.format(format + "%n", args);
+      }
+    }
+
+    private static String Q(String str) {
+      return str != null ? str : "?";
+    }
+    private static String Q(XMLString str) {
+      return str != null ? str.toString() : "?";
     }
 
     public final void setDocumentLocator(final Locator locator) { m_locator = locator; }
@@ -1673,38 +1732,6 @@ public final class Transmogrifier2 {
       }
     }
 
-    public void startDTD(String name, String publicId, String systemId)
-        throws SAXException {
-      format("DT: %s %s %s", name, publicId != null ? publicId : "?",
-             systemId != null ? systemId : "?");
-      EventTypeList eventTypes = m_scriber.getNextEventTypes();
-      int i, len;
-      EventType eventType = null;
-      for (i = 0, len = eventTypes.getLength(); i < len; i++) {
-        eventType = eventTypes.item(i);
-        if (eventType.itemType == EventType.ITEM_DTD) {
-          break;
-        }
-      }
-      if (i < len) {
-        try {
-          m_scriber.writeEventType(eventType);
-          m_scriber.writeName(name);
-          m_scriber.writePublic(publicId != null ? publicId : "");
-          m_scriber.writeSystem(systemId != null ? systemId : "");
-          m_scriber.writeText("");
-        } catch (IOException ioe) {
-          throw new SAXException(ioe);
-        }
-      }
-      m_inDTD = true;
-    }
-
-    public void endDTD() {
-      format("DT(end)");
-      m_inDTD = false;
-    }
-
     public void startCDATA() {
       format("<![CDATA[");
       appendCharacters(XConstants.CDATA_START, 0, 9);
@@ -1775,16 +1802,190 @@ public final class Transmogrifier2 {
     // DTDHandler APIs
     ///////////////////////////////////////////////////////////////////////////
 
+    private final boolean hasDTD() {
+      return GrammarOptions.hasDTD(m_grammarCache.grammarOptions);
+    }
+
+    public static IterableEnumeration augment(Augmentations augmentations) {
+      if (augmentations == null)
+        return new IterableEnumeration<String>();
+      return new IterableEnumeration(augmentations.keys());
+    }
+
+    private void formatAugs(Augmentations augmentations) {
+      if (augmentations != null && Log.hasExtra()) {
+        for (Object aug : augment(augmentations))
+          formatD(" : %s", aug);
+      }
+    }
+
+    public void startDTD(String name, String publicId, String systemId)
+        throws SAXException {
+      format("DT: %s %s %s", name, Q(publicId), Q(systemId));
+      ++elementDepth;
+      EventTypeList eventTypes = m_scriber.getNextEventTypes();
+      int i, len;
+      EventType eventType = null;
+      for (i = 0, len = eventTypes.getLength(); i < len; i++) {
+        eventType = eventTypes.item(i);
+        if (eventType.itemType == EventType.ITEM_DTD) {
+          break;
+        }
+      }
+      if (i < len) {
+        try {
+          m_scriber.writeEventType(eventType);
+          m_scriber.writeName(name);
+          m_scriber.writePublic(publicId != null ? publicId : "");
+          m_scriber.writeSystem(systemId != null ? systemId : "");
+          m_scriber.writeText("");
+        } catch (IOException ioe) {
+          throw new SAXException(ioe);
+        }
+      }
+      m_inDTD = true;
+    }
+
+    public void startParameterEntity(String name, XMLResourceIdentifier identifier,
+                                     String encoding, Augmentations augmentations)
+        throws XNIException {
+      // ...
+    }
+
+    public void textDecl(String version, String encoding, Augmentations augmentations)
+        throws XNIException {
+      // ...
+    }
+
+    public void endParameterEntity(String name, Augmentations augmentations)
+        throws XNIException {
+      // ...
+    }
+
+    public void startExternalSubset(XMLResourceIdentifier identifier,
+                                    Augmentations augmentations) throws XNIException {
+      // ...
+    }
+
+    public void endExternalSubset(Augmentations augmentations) throws XNIException {
+      // ...
+    }
+
+    public void comment(XMLString text, Augmentations augmentations) throws XNIException {
+      // ...
+    }
+
+    public void processingInstruction(String target, XMLString data,
+                                      Augmentations augmentations) throws XNIException {
+      // ...
+    }
+
+    public void elementDecl(String name, String contentModel,
+                            Augmentations augmentations) throws XNIException {
+      // ...
+    }
+
+    public void startAttlist(String elementName, Augmentations augmentations)
+        throws XNIException {
+      format("<!ATTLIST %s", elementName);
+      ++elementDepth;
+      formatAugs(augmentations);
+    }
+
+    public void attributeDecl(String elementName, String attributeName, String type,
+                              String[] enumeration, String defaultType,
+                              XMLString defaultValue,
+                              XMLString nonNormalizedDefaultValue,
+                              Augmentations augmentations) throws XNIException {
+      if (Log.hasExtra()) {
+        sb.setLength(0);
+        sb.append(elementName);   sb.append(' ');
+        sb.append(attributeName); sb.append(' ');
+        sb.append(type);
+        if (enumeration != null) {
+          sb.append(" [");
+          if (enumeration.length > 0) {
+            sb.append(enumeration[0]);
+            for (int I = 1; I < enumeration.length; ++I) {
+              sb.append(' ');
+              sb.append(enumeration[I]);
+            }
+          }
+          sb.append("]");
+        }
+        formatD("%s %s %s", sb.toString(),
+          Q(defaultValue),
+          Q(nonNormalizedDefaultValue));
+        formatAugs(augmentations);
+      }
+    }
+
+    public void endAttlist(Augmentations augmentations) throws XNIException {
+      --elementDepth;
+      format(">");
+    }
+
+    public void internalEntityDecl(String name, XMLString text,
+                                   XMLString nonNormalizedText,
+                                   Augmentations augmentations) throws XNIException {
+      // ...
+    }
+
+    public void externalEntityDecl(String name, XMLResourceIdentifier identifier,
+                                   Augmentations augmentations) throws XNIException {
+      // ...
+    }
+
+    public void unparsedEntityDecl(String name, XMLResourceIdentifier identifier,
+                                   String notation, Augmentations augmentations)
+        throws XNIException {
+      // ...
+    }
+
+    public void notationDecl(String name, XMLResourceIdentifier identifier,
+                             Augmentations augmentations) throws XNIException {
+      // ...
+    }
+
+    public void startConditional(short type, Augmentations augmentations)
+        throws XNIException {
+      // ...
+    }
+
+    public void ignoredCharacters(XMLString text, Augmentations augmentations)
+        throws XNIException {
+      // ...
+    }
+
+    public void endConditional(Augmentations augmentations) throws XNIException {
+      // ...
+    }
+
+    public void endDTD() {
+      --elementDepth;
+      format("DT(end)");
+      m_inDTD = false;
+    }
+
+    public void endDTD(Augmentations augmentations) throws XNIException {
+      endDTD();
+    }
+
     public void notationDecl(String name, String publicId, String systemId)
         throws SAXException {
-      format("DT: <!NOTATION %s %s %s>", name, publicId != null ? publicId : "?",
+      assert hasDTD();
+      format("DT: <!NOTATION %s %s %s>", name,
+             publicId != null ? publicId : "?",
              systemId != null ? systemId : "?");
     }
 
     public void unparsedEntityDecl(String name, String publicId, String systemId,
                                    String notationName) throws SAXException {
-      format("DT: <!ENTITY %s %s %s %s>", name, publicId != null ? publicId : "?",
-             systemId != null ? systemId : "?", notationName);
+      assert hasDTD();
+      format("DT: <!ENTITY %s %s %s %s>", name,
+             publicId != null ? publicId : "?",
+             systemId != null ? systemId : "?",
+             notationName);
     }
 
     ///////////////////////////////////////////////////////////////////////////
