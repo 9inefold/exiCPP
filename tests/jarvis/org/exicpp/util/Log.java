@@ -55,6 +55,26 @@ public final class Log {
       System.err.print(msg);
   }
 
+  public static void errorln(String msg) {
+    if (SYSTEM_LOG >= LogLevel.ERROR)
+      System.err.println(msg);
+  }
+
+  public static void warnln(String msg) {
+    if (SYSTEM_LOG >= LogLevel.WARNING)
+      System.err.println(msg);
+  }
+
+  public static void infoln(String msg) {
+    if (SYSTEM_LOG >= LogLevel.INFO)
+      System.err.println(msg);
+  }
+
+  public static void extraln(String msg) {
+    if (SYSTEM_LOG >= LogLevel.VERBOSE)
+      System.err.println(msg);
+  }
+
   public static boolean hasError() {
     return SYSTEM_LOG >= LogLevel.ERROR;
   }
