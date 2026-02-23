@@ -43,6 +43,7 @@ endfunction(exi_add_java_classes)
 
 exi_add_java_class(@exicpp.util.CircularReferenceException)
 exi_add_java_class(@exicpp.util.EvilDocumentHijacker)
+exi_add_java_class(@exicpp.util.IterableEnumeration)
 exi_add_java_class(@exicpp.util.Log)
 exi_add_java_class(@exicpp.util.LogLevel)
 exi_add_java_class(@exicpp.util.ReflectionHelpers)
