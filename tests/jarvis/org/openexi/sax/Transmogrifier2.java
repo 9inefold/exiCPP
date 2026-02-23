@@ -77,6 +77,7 @@ public final class Transmogrifier2 {
   private static final String DEFAULT_FACTORY =
       "org.apache.xerces.jaxp.SAXParserFactoryImpl2";
   
+
   /** Feature identifier: embed escape sequences. */
   private static final String EMBED_ESCAPE_SEQUENCES =
     XConstants.EXICPP_FEATURE_PREFIX + XConstants.EMBED_ESCAPE_SEQUENCES;
@@ -84,6 +85,10 @@ public final class Transmogrifier2 {
   /** Feature identifier: notify character references. */
   private static final String NOTIFY_CHAR_REFS =
       Constants.XERCES_FEATURE_PREFIX + Constants.NOTIFY_CHAR_REFS_FEATURE;
+  
+  /** Property identifier: DTD handler. */
+  protected static final String DTD_HANDLER =
+      XConstants.EXICPP_PROPERTY_PREFIX + XConstants.DTD_HANDLER_PROPERTY;
 
   private final XMLReader m_xmlReader;
   private final boolean m_allowEmbeddedEntityEncoding;

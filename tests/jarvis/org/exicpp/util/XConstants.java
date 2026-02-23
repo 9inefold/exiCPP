@@ -33,8 +33,11 @@ public class XConstants {
   /** exicpp properties prefix ("http://exicpp.org/xml/properties/"). */
   public static final String EXICPP_PROPERTY_PREFIX = "http://exicpp.org/xml/properties/";
 
+  /** DTD handler */
+  public static final String DTD_HANDLER_PROPERTY = "dtd/xml-dtd-handler";
+
   /** Embed escape sequences */
-  public static final String ESCAPE_HANDLER_PROPERTY = "escape-handler";
+  public static final String ESCAPE_HANDLER_PROPERTY = "scanner/escape-handler";
 
   /** Holds the handler of the list of features/properties */
   public static final String CONFIG_REFLECTOR_PROPERTY = "config-reflector";

@@ -95,7 +95,11 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
     Constants.XERCES_PROPERTY_PREFIX +
     Constants.XMLGRAMMAR_POOL_PROPERTY;
   
-  /** New Property identifier: XInclude handler. */
+  /** New Property identifier: DTD handler. */
+  protected static final String DTD_HANDLER =
+      XConstants.EXICPP_PROPERTY_PREFIX + XConstants.DTD_HANDLER_PROPERTY;
+
+  /** New Property identifier: Escape handler. */
   protected static final String ESCAPE_HANDLER =
       XConstants.EXICPP_PROPERTY_PREFIX + XConstants.ESCAPE_HANDLER_PROPERTY;
   
@@ -179,6 +183,7 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
 
     // add default recognized properties
     final String[] recognizedProperties = {
+      DTD_HANDLER,
       ESCAPE_HANDLER,
       CONFIG_REFLECTOR,
       SYMBOL_TABLE,
@@ -432,7 +437,6 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
       return fEmbeddedEscapesEnabled;
     }
     return super.getFeature0(featureId);
-
   } // getFeature(String):boolean
 
   @Override
@@ -444,5 +448,40 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
       return;
     }
     super.setFeature(featureId, state);
+  }
+
+  @Override
+  public Object getProperty(String featureId) throws XMLConfigurationException {
+    if (featureId.equals(DTD_HANDLER)) {
+      return fEmbeddedEscapesEnabled;
+    }
+    return super.getProperty(featureId);
+  } // getFeature(String):boolean
+
+  @Override
+  public void setProperty(String featureId, Object value) throws XMLConfigurationException {
+    if (featureId.equals(DTD_HANDLER)) {
+      if (value == null) {
+        if (fDTDHandler == null)
+          return;
+        // Reset to the default
+        setDTDHandler(null);
+        fConfigUpdated = true;
+        return;
+      }
+
+      if (value instanceof XMLDTDHandler dtdHandler) {
+        if (fDTDHandler == dtdHandler)
+          return;
+        // Change to new handler
+        setDTDHandler(dtdHandler);
+        fConfigUpdated = true;
+        return;
+      }
+
+      final short type = XMLConfigurationException.NOT_SUPPORTED;
+      throw new XMLConfigurationException(type, featureId);
+    }
+    super.setProperty(featureId, value);
   }
 }
