@@ -54,10 +54,12 @@ This is a TODO list for the C++ version of exiCPP.
 ## Not Started
 
 - **Split out implementation of `ExiDecoder` like with `ExiEncoder`**
+- Improve custom logging api
+- Add version `.rc` file on windows?
 - Match exificient namespaces generated with `Preserve.Prefixes=0`
 - Add `ANSIState` class for colored output + rethink strategy
 - Fix mimalloc setup on windows
-- `sys::` implementation on linux
+- **`sys::` implementation on linux**
 - Fully test `IntCast` and friends, improve support for non-integral types
 - Change schema from `Box<String>` to regular `String`
 - Implement `StackExhaustionHandler`
