@@ -124,8 +124,9 @@ public interface PartialXMLDTDHandler {
    *
    * @throws XNIException Thrown by handler to signal an error.
    */
-  public void textDecl(String version, String encoding, Augmentations augmentations)
-      throws XNIException;
+  default public void textDecl(String version, String encoding, Augmentations augmentations)
+      throws XNIException {
+  }
 
   /**
    * This method notifies the end of a parameter entity. Parameter entity
