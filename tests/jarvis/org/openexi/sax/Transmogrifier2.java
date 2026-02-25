@@ -21,6 +21,8 @@ package org.openexi.sax;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Enumeration;
+
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 import org.apache.xerces.jaxp.SAXParserFactoryImpl2;
@@ -34,6 +36,8 @@ import org.apache.xerces.xni.XMLResourceIdentifier;
 import org.apache.xerces.xni.XMLString;
 import org.apache.xerces.xni.XNIException;
 import org.apache.xerces.xni.parser.XMLDTDSource;
+import org.exicpp.sax.PartialXMLDTDHandler;
+import org.exicpp.sax.PassthroughXMLDTDHandler;
 import org.exicpp.util.EvilDocumentHijacker;
 import org.exicpp.util.IterableEnumeration;
 import org.exicpp.util.Log;
@@ -687,9 +691,6 @@ public final class Transmogrifier2 {
     private boolean m_preserveEntityEncoding = false;
     private boolean m_inChEntity = false;
 
-    private final StringBuilder sb;
-    private int elementDepth = 0;
-
     SAXEventHandler() {
       m_schema = null;
       m_grammarCache = new GrammarCache((EXISchema)null);
@@ -720,7 +721,6 @@ public final class Transmogrifier2 {
       }
       m_n_comparableAttributes = 0;
       m_CDATABuffer = new XMLStringBuffer();
-      sb = Log.hasExtra() ? new StringBuilder() : null;
     }
 
     private void reset() {
@@ -807,15 +807,15 @@ public final class Transmogrifier2 {
     //////////// SAX event handlers
 
     private void formatD(String format, Object... args) {
-      if (elementDepth != 0)
-        System.out.format("%1$" + (elementDepth * 2) + "s", "");
+      if (m_elementDepth != 0)
+        System.out.format("%1$" + (m_elementDepth * 2) + "s", "");
       System.out.format(format + "%n", args);
     }
 
     private void format(String format, Object... args) {
       if (Log.hasExtra()) {
-        if (elementDepth != 0)
-          System.out.format("%1$" + (elementDepth * 2) + "s", "");
+        if (m_elementDepth != 0)
+          System.out.format("%1$" + (m_elementDepth * 2) + "s", "");
         System.out.format(format + "%n", args);
       }
     }
@@ -825,6 +825,13 @@ public final class Transmogrifier2 {
     }
     private static String Q(XMLString str) {
       return str != null ? str.toString() : "?";
+    }
+
+    private static String QQ(String str) {
+      return str != null ? ("\"" + str + "\"") : "?";
+    }
+    private static String QQ(XMLString str) {
+      return str != null ? ("\"" + str.toString() + "\"") : "?";
     }
 
     public final void setDocumentLocator(final Locator locator) { m_locator = locator; }
@@ -1653,7 +1660,7 @@ public final class Transmogrifier2 {
     public final void processingInstruction(final String target, final String data)
         throws SAXException {
       format("PI: %s %s", target, data);
-      if (m_exiOptions.getPreservePIs()) {
+      if (!m_inDTD && m_exiOptions.getPreservePIs()) {
         if (m_charPos > 0)
           do_characters(true);
         final EventTypeList eventTypes = m_scriber.getNextEventTypes();
@@ -1802,27 +1809,331 @@ public final class Transmogrifier2 {
     // DTDHandler APIs
     ///////////////////////////////////////////////////////////////////////////
 
+    private static final boolean OUTPUT_EXTERNAL_SUBSET = false;
+    private String m_DTDname = null;
+    private String m_DTDpublicId = null;
+    private String m_DTDsystemId = null;
+    private final StringBuilder m_DTDBuilder = new StringBuilder();
+    private final StringBuilder sb = new StringBuilder();
+    private int m_externalSubsetDepth = 0;
+    private int m_elementDepth = 0;
+
     private final boolean hasDTD() {
-      return GrammarOptions.hasDTD(m_grammarCache.grammarOptions);
+      return m_exiOptions.getPreserveDTD();
     }
 
-    public static IterableEnumeration augment(Augmentations augmentations) {
+    @SuppressWarnings("unchecked")
+    public static IterableEnumeration<String> augment(Augmentations augmentations) {
       if (augmentations == null)
         return new IterableEnumeration<String>();
-      return new IterableEnumeration(augmentations.keys());
+      final var keys = augmentations.keys();
+      return new IterableEnumeration<>((Enumeration<String>)keys);
     }
 
     private void formatAugs(Augmentations augmentations) {
       if (augmentations != null && Log.hasExtra()) {
-        for (Object aug : augment(augmentations))
-          formatD(" : %s", aug);
+        for (String key : augment(augmentations))
+          formatD(" : %s -> %s", key, augmentations.getItem(key).toString());
       }
+    }
+
+    private boolean inInlineDTD() {
+      assert m_inDTD;
+      return m_externalSubsetDepth == 0;
+    }
+    private boolean shouldPrintExtSubset() {
+      if (Log.hasExtra())
+        return OUTPUT_EXTERNAL_SUBSET || inInlineDTD();
+      else
+        return false;
     }
 
     public void startDTD(String name, String publicId, String systemId)
         throws SAXException {
-      format("DT: %s %s %s", name, Q(publicId), Q(systemId));
-      ++elementDepth;
+      format("DT: %s %s %s", name, QQ(publicId), QQ(systemId));
+      ++m_elementDepth;
+      m_DTDname     = name;
+      m_DTDpublicId = (publicId != null ? publicId : "");
+      m_DTDsystemId = (systemId != null ? systemId : "");
+      m_DTDBuilder.setLength(0);
+      m_inDTD = true;
+    }
+
+    public void startParameterEntity(String name, XMLResourceIdentifier identifier,
+                                     String encoding, Augmentations augmentations)
+        throws XNIException {
+      if (!shouldPrintExtSubset()) return;
+      String ename = getEntityNameNoPercent(name);
+      String exid = getExternalID(identifier);
+      format("<!ENTITY %s %s>", ename, exid);
+      ++m_elementDepth;
+      formatAugs(augmentations);
+      
+      if (!inInlineDTD()) return;
+      m_DTDBuilder.append("<!ENTITY ");
+      m_DTDBuilder.append(ename);
+      m_DTDBuilder.append(' ');
+      m_DTDBuilder.append(exid);
+      m_DTDBuilder.append(">");
+    }
+
+    public void textDecl(String version, String encoding, Augmentations augmentations)
+        throws XNIException {
+      if (m_exiOptions.getPreservePIs()) return;
+      if (!shouldPrintExtSubset()) return;
+      format("<?xml %s %s?>", version, encoding);
+    }
+
+    public void endParameterEntity(String name, Augmentations augmentations)
+        throws XNIException {
+      if (shouldPrintExtSubset())
+        --m_elementDepth;
+    }
+
+    public void startExternalSubset(XMLResourceIdentifier identifier,
+                                    Augmentations augmentations) throws XNIException {
+      ++m_externalSubsetDepth;
+      if (!shouldPrintExtSubset()) return;
+      format("<!DOCTYPE(subset)");
+      ++m_elementDepth;
+      formatAugs(augmentations);
+    }
+
+    public void endExternalSubset(Augmentations augmentations) throws XNIException {
+      final boolean shouldPrint = shouldPrintExtSubset();
+      --m_externalSubsetDepth;
+      if (!shouldPrint) return;
+      --m_elementDepth;
+      format(">");
+    }
+
+    public void commentDTD(XMLString text, Augmentations augmentations) throws XNIException {
+      if (!shouldPrintExtSubset() || !m_exiOptions.getPreserveComments()) return;
+      format("<!--%s-->", Q(text));
+
+      if (!inInlineDTD()) return;
+      m_DTDBuilder.append("<!--");
+      m_DTDBuilder.append(text.toString());
+      m_DTDBuilder.append("-->");
+    }
+
+    public void processingInstructionDTD(String target, XMLString data,
+                                         Augmentations augmentations) throws XNIException {
+      if (!shouldPrintExtSubset()) return;
+      format("<?%s %s?>", target, Q(data));
+
+      if (!inInlineDTD()) return;
+      m_DTDBuilder.append("<?");
+      m_DTDBuilder.append(target);
+      m_DTDBuilder.append(' ');
+      m_DTDBuilder.append(data.toString());
+      m_DTDBuilder.append("?>");
+    }
+
+    public void elementDecl(String name, String contentModel,
+                            Augmentations augmentations) throws XNIException {
+      if (!shouldPrintExtSubset()) return;
+      format("<!ELEMENT %s %s>", name, contentModel);
+
+      if (!inInlineDTD()) return;
+      m_DTDBuilder.append("<!ELEMENT ");
+      m_DTDBuilder.append(name);
+      m_DTDBuilder.append(' ');
+      m_DTDBuilder.append(contentModel);
+      m_DTDBuilder.append(">");
+    }
+
+    public void startAttlist(String elementName, Augmentations augmentations)
+        throws XNIException {
+      if (!shouldPrintExtSubset()) return;
+      format("<!ATTLIST %s", elementName);
+      ++m_elementDepth;
+      formatAugs(augmentations);
+
+      if (!inInlineDTD()) return;
+      m_DTDBuilder.append("<!ATTLIST ");
+      m_DTDBuilder.append(elementName);
+    }
+
+    public void attributeDecl(String elementName, String attributeName, String type,
+                              String[] enumeration, String defaultType,
+                              XMLString defaultValue,
+                              XMLString nonNormalizedDefaultValue,
+                              Augmentations augmentations) throws XNIException {
+      if (!shouldPrintExtSubset()) return;
+      sb.setLength(0);
+      sb.append(elementName);   sb.append(' ');
+      sb.append(attributeName); sb.append(' ');
+      sb.append(type);
+      if (enumeration != null) {
+        sb.append(" (");
+        if (enumeration.length > 0) {
+          sb.append(enumeration[0]);
+          for (int I = 1; I < enumeration.length; ++I) {
+            sb.append('|');
+            sb.append(enumeration[I]);
+          }
+        }
+        sb.append(")");
+      }
+
+      if (Log.hasExtra()) {
+        formatD("%s %s %s", sb.toString(),
+          Q(defaultType),
+          //QQ(defaultValue),
+          QQ(nonNormalizedDefaultValue));
+        formatAugs(augmentations);
+      }
+
+      if (!inInlineDTD()) return;
+      m_DTDBuilder.append(' ');
+      m_DTDBuilder.append(sb.toString());
+      if (defaultType != null) {
+        m_DTDBuilder.append(' ');
+        m_DTDBuilder.append(defaultType);
+      }
+      if (nonNormalizedDefaultValue != null) {
+        m_DTDBuilder.append("\"");
+        m_DTDBuilder.append(nonNormalizedDefaultValue.toString());
+        m_DTDBuilder.append('\"');
+      }
+    }
+
+    public void endAttlist(Augmentations augmentations) throws XNIException {
+      if (!shouldPrintExtSubset()) return;
+      --m_elementDepth;
+      format(">");
+
+      if (inInlineDTD())
+        m_DTDBuilder.append('>');
+    }
+
+    private static String getEntityNameNoPercent(String text) {
+      if (text.startsWith("%"))
+        return "% " + text.substring(1);
+      else
+        return text;
+    }
+    //private static String getEntityNameNoPercent(XMLString text) {
+    //  if (text.length == 0)
+    //    return "";
+    //  else if (text.ch[text.offset] == '%')
+    //    return new String(text.ch, text.offset + 1, text.offset - 1);
+    //  else
+    //    return text.toString();
+    //}
+
+    private static String getExternalID(XMLResourceIdentifier identifier) {
+      String vPUBLIC = identifier.getPublicId();
+      String vSYSTEM = identifier.getLiteralSystemId();
+      assert vSYSTEM != null;
+      if (vPUBLIC == null || vPUBLIC.length() == 0)
+        return "SYSTEM " + QQ(vSYSTEM);
+      else
+        return "PUBLIC " + vPUBLIC + " " + QQ(vSYSTEM);
+    }
+
+    public void internalEntityDecl(String name, XMLString text,
+                                   XMLString nonNormalizedText,
+                                   Augmentations augmentations) throws XNIException {
+      if (!shouldPrintExtSubset()) return;
+      String ename = getEntityNameNoPercent(name);
+      XMLString outtext;
+      if (nonNormalizedText == null) {
+        assert text != null;
+        format("<!ENTITY %s *%s>", ename, QQ(text));
+        outtext = text;
+      } else {
+        format("<!ENTITY %s %s>", ename, QQ(nonNormalizedText));
+        outtext = nonNormalizedText;
+      }
+
+      if (!inInlineDTD()) return;
+      m_DTDBuilder.append("<!ENTITY ");
+      m_DTDBuilder.append(ename);
+      m_DTDBuilder.append(' ');
+      m_DTDBuilder.append(nonNormalizedText.toString());
+      m_DTDBuilder.append('>');
+    }
+
+    public void externalEntityDecl(String name, XMLResourceIdentifier identifier,
+                                   Augmentations augmentations) throws XNIException {
+      if (!shouldPrintExtSubset()) return;
+      String ename = getEntityNameNoPercent(name);
+      String exid = getExternalID(identifier);
+      format("<!ENTITY %s %s>", ename, exid);
+
+      if (!inInlineDTD()) return;
+      m_DTDBuilder.append("<!ENTITY ");
+      m_DTDBuilder.append(ename);
+      m_DTDBuilder.append(' ');
+      m_DTDBuilder.append(exid);
+      m_DTDBuilder.append('>');
+    }
+
+    public void unparsedEntityDecl(String name, XMLResourceIdentifier identifier,
+                                   String notation, Augmentations augmentations)
+        throws XNIException {
+      if (!shouldPrintExtSubset()) return;
+      String ename = getEntityNameNoPercent(name);
+      String exid = getExternalID(identifier);
+      format("<!ENTITY %s %s NDATA %s>", ename, exid, notation);
+
+      if (!inInlineDTD()) return;
+      m_DTDBuilder.append("<!ENTITY ");
+      m_DTDBuilder.append(ename);
+      m_DTDBuilder.append(' ');
+      m_DTDBuilder.append(exid);
+      m_DTDBuilder.append(" NDATA ");
+      m_DTDBuilder.append(notation);
+      m_DTDBuilder.append('>');
+    }
+
+    public void notationDecl(String name, XMLResourceIdentifier identifier,
+                             Augmentations augmentations) throws XNIException {
+      if (!shouldPrintExtSubset()) return;
+      String exid = getExternalID(identifier);
+      format("<!NOTATION %s %s>", name, exid);
+
+      if (!inInlineDTD()) return;
+      m_DTDBuilder.append("<!NOTATION ");
+      m_DTDBuilder.append(name);
+      m_DTDBuilder.append(' ');
+      m_DTDBuilder.append(exid);
+      m_DTDBuilder.append('>');
+    }
+
+    public void startConditional(short type, Augmentations augmentations)
+        throws XNIException {
+      if (!shouldPrintExtSubset()) return;
+      String ty = PartialXMLDTDHandler.conditionalToString(type);
+      format("<![ %s [", ty);
+      ++m_elementDepth;
+
+      if (!inInlineDTD()) return;
+      m_DTDBuilder.append("<![");
+      m_DTDBuilder.append(ty);
+      m_DTDBuilder.append('[');
+    }
+
+    public void ignoredCharacters(XMLString text, Augmentations augmentations)
+        throws XNIException {
+      if (!shouldPrintExtSubset()) return;
+      format("IGNORED: \"%s\"", text != null ? text.toString() : "");
+    }
+
+    public void endConditional(Augmentations augmentations) throws XNIException {
+      if (!shouldPrintExtSubset()) return;
+      --m_elementDepth;
+      format("]]>");
+
+      if (inInlineDTD())
+        m_DTDBuilder.append("]]>");
+    }
+
+    public void endDTD() throws SAXException {
+      --m_elementDepth;
+      format("DT(end)");
       EventTypeList eventTypes = m_scriber.getNextEventTypes();
       int i, len;
       EventType eventType = null;
@@ -1834,142 +2145,30 @@ public final class Transmogrifier2 {
       }
       if (i < len) {
         try {
+          // TODO: Do this in endDTD
           m_scriber.writeEventType(eventType);
-          m_scriber.writeName(name);
-          m_scriber.writePublic(publicId != null ? publicId : "");
-          m_scriber.writeSystem(systemId != null ? systemId : "");
-          m_scriber.writeText("");
+          m_scriber.writeName(m_DTDname);
+          m_scriber.writePublic(m_DTDpublicId);
+          m_scriber.writeSystem(m_DTDsystemId);
+          m_scriber.writeText(m_DTDBuilder.toString());
         } catch (IOException ioe) {
           throw new SAXException(ioe);
         }
       }
-      m_inDTD = true;
-    }
-
-    public void startParameterEntity(String name, XMLResourceIdentifier identifier,
-                                     String encoding, Augmentations augmentations)
-        throws XNIException {
-      // ...
-    }
-
-    public void textDecl(String version, String encoding, Augmentations augmentations)
-        throws XNIException {
-      // ...
-    }
-
-    public void endParameterEntity(String name, Augmentations augmentations)
-        throws XNIException {
-      // ...
-    }
-
-    public void startExternalSubset(XMLResourceIdentifier identifier,
-                                    Augmentations augmentations) throws XNIException {
-      // ...
-    }
-
-    public void endExternalSubset(Augmentations augmentations) throws XNIException {
-      // ...
-    }
-
-    public void comment(XMLString text, Augmentations augmentations) throws XNIException {
-      // ...
-    }
-
-    public void processingInstruction(String target, XMLString data,
-                                      Augmentations augmentations) throws XNIException {
-      // ...
-    }
-
-    public void elementDecl(String name, String contentModel,
-                            Augmentations augmentations) throws XNIException {
-      // ...
-    }
-
-    public void startAttlist(String elementName, Augmentations augmentations)
-        throws XNIException {
-      format("<!ATTLIST %s", elementName);
-      ++elementDepth;
-      formatAugs(augmentations);
-    }
-
-    public void attributeDecl(String elementName, String attributeName, String type,
-                              String[] enumeration, String defaultType,
-                              XMLString defaultValue,
-                              XMLString nonNormalizedDefaultValue,
-                              Augmentations augmentations) throws XNIException {
-      if (Log.hasExtra()) {
-        sb.setLength(0);
-        sb.append(elementName);   sb.append(' ');
-        sb.append(attributeName); sb.append(' ');
-        sb.append(type);
-        if (enumeration != null) {
-          sb.append(" [");
-          if (enumeration.length > 0) {
-            sb.append(enumeration[0]);
-            for (int I = 1; I < enumeration.length; ++I) {
-              sb.append(' ');
-              sb.append(enumeration[I]);
-            }
-          }
-          sb.append("]");
-        }
-        formatD("%s %s %s", sb.toString(),
-          Q(defaultValue),
-          Q(nonNormalizedDefaultValue));
-        formatAugs(augmentations);
-      }
-    }
-
-    public void endAttlist(Augmentations augmentations) throws XNIException {
-      --elementDepth;
-      format(">");
-    }
-
-    public void internalEntityDecl(String name, XMLString text,
-                                   XMLString nonNormalizedText,
-                                   Augmentations augmentations) throws XNIException {
-      // ...
-    }
-
-    public void externalEntityDecl(String name, XMLResourceIdentifier identifier,
-                                   Augmentations augmentations) throws XNIException {
-      // ...
-    }
-
-    public void unparsedEntityDecl(String name, XMLResourceIdentifier identifier,
-                                   String notation, Augmentations augmentations)
-        throws XNIException {
-      // ...
-    }
-
-    public void notationDecl(String name, XMLResourceIdentifier identifier,
-                             Augmentations augmentations) throws XNIException {
-      // ...
-    }
-
-    public void startConditional(short type, Augmentations augmentations)
-        throws XNIException {
-      // ...
-    }
-
-    public void ignoredCharacters(XMLString text, Augmentations augmentations)
-        throws XNIException {
-      // ...
-    }
-
-    public void endConditional(Augmentations augmentations) throws XNIException {
-      // ...
-    }
-
-    public void endDTD() {
-      --elementDepth;
-      format("DT(end)");
       m_inDTD = false;
+      m_externalSubsetDepth = 0;
     }
 
     public void endDTD(Augmentations augmentations) throws XNIException {
-      endDTD();
+      assert m_externalSubsetDepth == 0;
+      try {
+        endDTD();
+      } catch (SAXException e) {
+        throw new XNIException(e);
+      }
     }
+
+    // Never called?
 
     public void notationDecl(String name, String publicId, String systemId)
         throws SAXException {

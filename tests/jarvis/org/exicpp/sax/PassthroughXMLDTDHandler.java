@@ -16,7 +16,7 @@
 //
 //===----------------------------------------------------------------===//
 
-package org.openexi.sax;
+package org.exicpp.sax;
 
 import org.apache.xerces.xni.Augmentations;
 import org.apache.xerces.xni.XMLDTDHandler;
