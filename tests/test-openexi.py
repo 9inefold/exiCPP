@@ -322,6 +322,13 @@ if __name__ == "__main__":
   #do_roundtrip(TEST_SRC_DIR / 'xml/008.xml', do_print=True)
   #do_roundtrip(TEST_SRC_DIR / 'xml/008r.xml', do_print=True)
   #do_roundtrip(TEST_SRC_DIR / 'xml/042.xml')
+  #do_roundtrip(TEST_SRC_DIR / 'xml/066.xml', do_print=True)
+  #do_roundtrip(TEST_SRC_DIR / 'xml/080.xml', do_print=True)
+
+  do_roundtrip(TEST_SRC_DIR / 'me/HTML.xml', do_print=True)
+  do_roundtrip(TEST_SRC_DIR / 'me/HTML2.xml', do_print=True)
+  do_roundtrip(TEST_SRC_DIR / 'me/HTML3.xml', do_print=True)
+
   #do_roundtrip(TEST_SRC_DIR / 'me/Nested.xml')
   #do_roundtrip(TEST_SRC_DIR / 'me/CDATA2.xml')
   ##do_roundtrip(EXI_BASE_DIR / 'tests/nested-ent.hidden.xml')

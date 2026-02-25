@@ -1818,10 +1818,6 @@ public final class Transmogrifier2 {
     private int m_externalSubsetDepth = 0;
     private int m_elementDepth = 0;
 
-    private final boolean hasDTD() {
-      return m_exiOptions.getPreserveDTD();
-    }
-
     @SuppressWarnings("unchecked")
     public static IterableEnumeration<String> augment(Augmentations augmentations) {
       if (augmentations == null)
@@ -1829,7 +1825,6 @@ public final class Transmogrifier2 {
       final var keys = augmentations.keys();
       return new IterableEnumeration<>((Enumeration<String>)keys);
     }
-
     private void formatAugs(Augmentations augmentations) {
       if (augmentations != null && Log.hasExtra()) {
         for (String key : augment(augmentations))
@@ -1837,6 +1832,26 @@ public final class Transmogrifier2 {
       }
     }
 
+    private static String getEntityNameNoPercent(String text) {
+      if (text.startsWith("%"))
+        return "% " + text.substring(1);
+      else
+        return text;
+    }
+    private static String getExternalID(XMLResourceIdentifier identifier) {
+      String vSYSTEM = identifier.getLiteralSystemId();
+      if (vSYSTEM == null)
+        return "";
+      String vPUBLIC = identifier.getPublicId();
+      if (vPUBLIC == null || vPUBLIC.length() == 0)
+        return "SYSTEM " + QQ(vSYSTEM);
+      else
+        return "PUBLIC " + QQ(vPUBLIC) + " " + QQ(vSYSTEM);
+    }
+
+    private final boolean hasDTD() {
+      return m_exiOptions.getPreserveDTD();
+    }
     private boolean inInlineDTD() {
       assert m_inDTD;
       return m_externalSubsetDepth == 0;
@@ -1862,19 +1877,20 @@ public final class Transmogrifier2 {
     public void startParameterEntity(String name, XMLResourceIdentifier identifier,
                                      String encoding, Augmentations augmentations)
         throws XNIException {
-      if (!shouldPrintExtSubset()) return;
-      String ename = getEntityNameNoPercent(name);
-      String exid = getExternalID(identifier);
-      format("<!ENTITY %s %s>", ename, exid);
-      ++m_elementDepth;
-      formatAugs(augmentations);
-      
-      if (!inInlineDTD()) return;
-      m_DTDBuilder.append("<!ENTITY ");
-      m_DTDBuilder.append(ename);
-      m_DTDBuilder.append(' ');
-      m_DTDBuilder.append(exid);
-      m_DTDBuilder.append(">");
+      if (inInlineDTD()) {
+        if (!name.startsWith("%"))
+          m_DTDBuilder.append('&');
+        m_DTDBuilder.append(name);
+        m_DTDBuilder.append(';');
+      }
+
+      if (shouldPrintExtSubset()) {
+        format("%s;", name);
+        ++m_elementDepth;
+        formatAugs(augmentations);
+      }
+
+      ++m_externalSubsetDepth;
     }
 
     public void textDecl(String version, String encoding, Augmentations augmentations)
@@ -1886,8 +1902,10 @@ public final class Transmogrifier2 {
 
     public void endParameterEntity(String name, Augmentations augmentations)
         throws XNIException {
-      if (shouldPrintExtSubset())
-        --m_elementDepth;
+      final boolean shouldPrint = shouldPrintExtSubset();
+      --m_externalSubsetDepth;
+      if (!shouldPrint) return;
+      --m_elementDepth;
     }
 
     public void startExternalSubset(XMLResourceIdentifier identifier,
@@ -2006,31 +2024,6 @@ public final class Transmogrifier2 {
 
       if (inInlineDTD())
         m_DTDBuilder.append('>');
-    }
-
-    private static String getEntityNameNoPercent(String text) {
-      if (text.startsWith("%"))
-        return "% " + text.substring(1);
-      else
-        return text;
-    }
-    //private static String getEntityNameNoPercent(XMLString text) {
-    //  if (text.length == 0)
-    //    return "";
-    //  else if (text.ch[text.offset] == '%')
-    //    return new String(text.ch, text.offset + 1, text.offset - 1);
-    //  else
-    //    return text.toString();
-    //}
-
-    private static String getExternalID(XMLResourceIdentifier identifier) {
-      String vPUBLIC = identifier.getPublicId();
-      String vSYSTEM = identifier.getLiteralSystemId();
-      assert vSYSTEM != null;
-      if (vPUBLIC == null || vPUBLIC.length() == 0)
-        return "SYSTEM " + QQ(vSYSTEM);
-      else
-        return "PUBLIC " + vPUBLIC + " " + QQ(vSYSTEM);
     }
 
     public void internalEntityDecl(String name, XMLString text,

@@ -43,6 +43,8 @@ import org.xml.sax.ext.DeclHandler;
 import org.xml.sax.ext.LexicalHandler;
 import org.xml.sax.helpers.DefaultHandler;
 
+import org.exicpp.sax.PartialXMLDTDHandler;
+import org.exicpp.sax.PassthroughXMLDTDHandler;
 import org.exicpp.util.Log;
 import org.exicpp.util.ReflectionHelpers;
 import org.exicpp.util.XConstants;
@@ -57,7 +59,7 @@ import javax.xml.transform.sax.TransformerHandler;
 
 public class DirectSAXHandler extends DefaultHandler
     implements ContentHandler, LexicalHandler, DTDHandler, EntityResolver,
-               DeclHandler, ErrorHandler {
+               DeclHandler, ErrorHandler /*, PartialXMLDTDHandler*/ {
   /** Maps Prefix="URI" */
   public static class URIMapping {
     public String pfx = "";
