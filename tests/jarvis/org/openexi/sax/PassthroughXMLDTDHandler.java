@@ -93,7 +93,7 @@ public final class PassthroughXMLDTDHandler implements XMLDTDHandler {
    * @throws XNIException Thrown by application to signal an error.
    */
   public void comment(XMLString text, Augmentations augs) throws XNIException {
-    fDTDHandler.comment(text, augs);
+    fDTDHandler.commentDTD(text, augs);
   }
 
   /**
@@ -116,7 +116,7 @@ public final class PassthroughXMLDTDHandler implements XMLDTDHandler {
    */
   public void processingInstruction(String target, XMLString data, Augmentations augs)
       throws XNIException {
-    fDTDHandler.processingInstruction(target, data, augs);
+    fDTDHandler.processingInstructionDTD(target, data, augs);
   } // processingInstruction(String, XMLString, Augmentations)
 
   /**

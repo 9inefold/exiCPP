@@ -57,6 +57,18 @@ public interface PartialXMLDTDHandler {
    */
   public static final short CONDITIONAL_IGNORE = 1;
 
+  /** Converts short to Conditional */
+  public static String conditionalToString(short type) throws XNIException {
+    switch (type) {
+      case CONDITIONAL_INCLUDE:
+        return "INCLUDE";
+      case CONDITIONAL_IGNORE:
+        return "IGNORE";
+      default:
+        throw new XNIException("invalid conditional type value: " + type);
+    }
+  }
+
   //
   // XMLDTDHandler methods
   //
@@ -160,7 +172,7 @@ public interface PartialXMLDTDHandler {
    *
    * @throws XNIException Thrown by application to signal an error.
    */
-  public void comment(XMLString text, Augmentations augmentations) throws XNIException;
+  public void commentDTD(XMLString text, Augmentations augmentations) throws XNIException;
 
   /**
    * A processing instruction. Processing instructions consist of a
@@ -180,8 +192,8 @@ public interface PartialXMLDTDHandler {
    *
    * @throws XNIException Thrown by handler to signal an error.
    */
-  public void processingInstruction(String target, XMLString data,
-                                    Augmentations augmentations) throws XNIException;
+  public void processingInstructionDTD(String target, XMLString data,
+                                       Augmentations augmentations) throws XNIException;
 
   /**
    * An element declaration.
