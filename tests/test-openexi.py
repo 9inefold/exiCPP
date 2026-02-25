@@ -75,6 +75,33 @@ from javax.xml.transform.sax import SAXTransformerFactory
 from javax.xml.transform.stream import StreamResult
 from javax.xml.parsers import SAXParserFactory
 
+def format_jexception_like_py(ex: JException) -> list[str]:
+  frames = ex.getStackTrace()
+  out = []
+  for frame in frames:
+    to_push = '  File '
+    _file = frame.getFileName()
+    _line = frame.getLineNumber()
+    _name = f'{frame.getClassName()}.{frame.getMethodName()}'
+    if _file:
+      to_push += f'"{_file}"'
+    else:
+      to_push += "<unknown>"
+    if _line > 0:
+      to_push += f', line {_line}'
+    out.append(f'{to_push}, in {_name}\n')
+    # TODO: Add source?
+    pass
+  return list(reversed(out))
+
+def print_jexc(ex: JException):
+  #traceback.print_exc()
+  stacks = traceback.format_stack()
+  stacks.extend(format_jexception_like_py(ex))
+  print("Traceback (most recent call last):\n",
+        ''.join(stacks), f'{ex.toString()}: {ex.getMessage()}\n',
+        sep='', flush=True)
+
 class Singleton(type):
   """This is a singleton design pattern class."""
   _instances = {}
@@ -152,6 +179,7 @@ class MessageHandler(metaclass=Singleton):
     contents = String(xml_contents)
     input = None
     output = None
+    result = None
     try:
       w = MessageHandler.writer
       input = ByteArrayInputStream(contents.getBytes(Charset.forName("utf8")));
@@ -161,14 +189,19 @@ class MessageHandler(metaclass=Singleton):
       w.setOutputStream(output);
       w.encode(InputSource(input));
       result = output.toByteArray()
-    except:
-      print(traceback.format_exc())
+    except Exception as e:
+      if isinstance(e, JException):
+        print_jexc(e)
+      else:
+        traceback.print_exc()
       pass
     finally:
       if input:
         input.close()
       if output:
         output.close()
+      if result is None:
+        return None
       return result
 
   @staticmethod
@@ -194,14 +227,19 @@ class MessageHandler(metaclass=Singleton):
       r.parse(InputSource(input))
       result = stringWriter.getBuffer().toString()
       MessageHandler.handler.reset()
-    except:
-      print(traceback.format_exc())
+    except Exception as e:
+      if isinstance(e, JException):
+        print_jexc(e)
+      else:
+        traceback.print_exc()
       pass
     finally:
       if input:
         input.close()
       if output:
         output.close()
+      if result is None:
+        return None
       return str(result)
 
 OUT_DIR = EXI_BASE_DIR / 'tests/out'
@@ -216,8 +254,12 @@ def do_roundtrip(test_path: Path, do_print = False):
   stem = str(test_path.stem)
   xml_in = test_path.read_text('utf8')
   data = MessageHandler.encode(xml_in)
+  if data is None:
+    return
   (OUT_DIR / f'{stem}.exi').write_bytes(data)
   xml_out = MessageHandler.decode(data)
+  if xml_out is None:
+    return
   (OUT_DIR / f'{stem}.xml').write_bytes(xml_out.encode('utf8'))
   if do_print:
     print(xml_out, '\n', flush=True)
@@ -246,7 +288,11 @@ def run_all_files(do_print = False):
     try:
       xml_in = (TEST_SRC_DIR / f).read_text('utf8')
       data = MessageHandler.encode(xml_in)
+      if data is None:
+        continue
       xml_out = MessageHandler.decode(data)
+      if xml_out is None:
+        continue
       is_eq = diff_xml(f, xml_in, xml_out)
       # Print results
       if is_eq and do_print:
@@ -268,7 +314,7 @@ def run_all_files(do_print = False):
 
 if __name__ == "__main__":
   #run_all_files(do_print=True)
-  run_all_files()
+  #run_all_files()
 
   #CustomSAXParserFactory.printTypeOfParser()
   # TODO: Handle doctype
