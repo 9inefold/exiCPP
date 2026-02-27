@@ -837,7 +837,7 @@ public final class Transmogrifier2 {
     public final void setDocumentLocator(final Locator locator) { m_locator = locator; }
 
     public final void startDocument() throws SAXException {
-      format("{");
+      format("encode {");
       m_locusLastDepth = -1;
       m_xmlSpaceLastDepth = 0;
       m_xmlSpaceStack[m_xmlSpaceLastDepth] = false;

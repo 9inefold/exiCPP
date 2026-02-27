@@ -346,7 +346,7 @@ public class DirectSAXHandler extends DefaultHandler
   public void startDocument() throws SAXException {
     if (writer == null)
       throw new SAXException("StringWriter not initialized!");
-    format("{");
+    format("decode {");
     //contentHandler.startDocument();
   }
 
