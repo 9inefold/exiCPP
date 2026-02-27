@@ -527,7 +527,7 @@ public class DirectSAXHandler extends DefaultHandler
     else if (publicId == null)
       return "SYSTEM \"" + systemId + '\"';
     else
-      return "PUBLIC \"" + publicId + "\" \"" + QQ(systemId) + '\"';
+      return "PUBLIC \"" + publicId + "\" \"" + systemId + '\"';
   }
 
   @Override
