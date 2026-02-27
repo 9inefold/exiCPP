@@ -69,7 +69,7 @@ public class DirectSAXHandler extends DefaultHandler
     public URIMapping() {}
     public URIMapping(String uri) { this("", uri); }
     public URIMapping(String pfx, String uri) {
-      assert pfx != null && uri != null;
+      assert pfx != null;
       this.pfx = pfx;
       this.uri = uri;
     }
@@ -372,7 +372,7 @@ public class DirectSAXHandler extends DefaultHandler
           writer.write(mapping.pfx);
         }
         writer.write("=\"");
-        writer.write(mapping.uri);
+        writer.write(mappings.get(mapping.pfx));
         writer.write("\"");
       }
     }
@@ -407,27 +407,23 @@ public class DirectSAXHandler extends DefaultHandler
   }
 
   private void addPrefixMapping(String pfx, String uri) {
-    var globalMapping = mappings.get(pfx);
-    if (globalMapping != null) {
-      if (globalMapping.equals(uri))
-        return;
-    }
-
     if (localMappings == null)
       localMappings = new ArrayList<>(2);
-    localMappings.addLast(new URIMapping(pfx, uri));
+    
+    var globalMapping = mappings.get(pfx);
+    if (globalMapping != null) {
+      if (globalMapping.equals(uri)) {
+        format("NS*: xmlns:%s=\"%s\"", pfx, uri);
+        return;
+      }
+    }
+
+    format("NS: xmlns:%s=\"%s\"", pfx, uri);
+    localMappings.addLast(new URIMapping(pfx, globalMapping));
+    mappings.put(pfx, uri);
   }
 
   private void pushPrefixMappings() {
-    if (localMappings == null || localMappings.size() == 0) {
-      // Nothing to do.
-      mappingStack.add(localMappings);
-      return;
-    }
-
-    for (URIMapping mapping : localMappings)
-      mappings.put(mapping.pfx, mapping.uri);
-
     mappingStack.addLast(localMappings);
     localMappings = null;
   }
@@ -444,7 +440,6 @@ public class DirectSAXHandler extends DefaultHandler
   @Override
   public void startPrefixMapping(String prefix, String uri)
       throws SAXException {
-    format("NS: xmlns:%s=\"%s\"", prefix, uri);
     addPrefixMapping(prefix, uri);
     //contentHandler.startPrefixMapping(prefix, uri);
   }
