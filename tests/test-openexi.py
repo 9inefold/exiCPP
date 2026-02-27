@@ -64,7 +64,7 @@ from java.lang import String
 from org.exicpp.openexi import DirectSAXHandler
 #from org.openexi.scomp import EXISchemaReader
 from org.openexi.schema import EXISchema, EmptySchema
-from org.openexi.sax import EXIReader, Transmogrifier, Transmogrifier2
+from org.openexi.sax import EXIReader2, Transmogrifier2
 from org.openexi.proc import HeaderOptionsOutputType
 from org.openexi.proc.common import AlignmentType, GrammarOptions, SchemaId
 from org.openexi.proc.grammars import GrammarCache
@@ -152,7 +152,7 @@ class MessageHandler(metaclass=Singleton):
   #handler = LoggingSAXHandlerWrapper(transformer_handler)
   handler = DirectSAXHandler()
 
-  reader = EXIReader()
+  reader = EXIReader2()
   reader.setAlignmentType(AlignmentType.byteAligned)
   #reader.setOutputOptions(hdr_options)
   #reader.setResolveExternalGeneralEntities(JBoolean(False))
