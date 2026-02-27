@@ -21,6 +21,7 @@ package org.exicpp.openexi;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.lang.System;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
@@ -43,6 +44,7 @@ import org.xml.sax.ext.DeclHandler;
 import org.xml.sax.ext.LexicalHandler;
 import org.xml.sax.helpers.DefaultHandler;
 
+import org.apache.xerces.xni.XMLString;
 import org.exicpp.sax.DTDBodyHandler;
 import org.exicpp.util.Log;
 import org.exicpp.util.ReflectionHelpers;
@@ -73,6 +75,218 @@ public class DirectSAXHandler extends DefaultHandler
     }
   };
 
+  /** Parses a DOCTYPE inline body */
+  private static final class DTDInlineBodyScanner {
+    public final char[] text;
+    public final XMLString slice;
+    private int mS = 0;
+    private int mE = 0;
+
+    private boolean mscanned = false;
+    private boolean mfailed = false;
+
+    public DTDInlineBodyScanner(final char[] text) {
+      this.text = text;
+      slice = new XMLString();
+      slice.clear();
+    }
+
+    private boolean success() {
+      slice.setValues(text, mS, mE - mS);
+      return true;
+    }
+    private boolean done() {
+      slice.clear();
+      return false;
+    }
+
+    private boolean failure(String msg) throws SAXException {
+      // TODO: make this add the characters at the end?
+      SAXException e = new SAXException("at " + mE + ": " + msg);
+      final StackTraceElement[] traces = e.getStackTrace();
+      if (traces.length == 0)
+        return failure(e);
+      assert traces[0].getMethodName() == "failure";
+      e.setStackTrace(Arrays.copyOfRange(traces, 1, traces.length));
+      return failure(e);
+    }
+    private boolean failure(SAXException e) throws SAXException {
+      mfailed = true;
+      slice.clear();
+      throw e;
+    }
+
+    public boolean scan() throws SAXException {
+      if (mfailed)
+        throw new SAXException("scanner already failed");
+      mscanned = true;
+      mS = mE;
+      if (mE >= text.length || !skipWhitespace())
+        // Trailing whitespace
+        return done();
+
+      mS = mE;
+      switch (text[mS]) {
+      case '<':
+        return scanMarkupDecl();
+      case '%':
+        return scanPEReference();
+      default:
+        return failure("unknown identifier character: " + text[mS]);
+      }
+    }
+    public void writeTo(StringWriter writer) throws SAXException {
+      if (!mscanned || mfailed)
+        throw new SAXException("invalid scanner state");
+      writer.write(slice.ch, slice.offset, slice.length);
+    }
+    public String makeString() throws SAXException {
+      if (!mscanned || mfailed)
+        throw new SAXException("invalid scanner state");
+      return new String(slice.ch, slice.offset, slice.length);
+    }
+
+    private boolean scanMarkupDecl() throws SAXException {
+      assert text[mS] == '<';
+      switch (text[++mE]) {
+      case '?':
+        ++mE; // Skip first char in <?>...?>
+        return scanPI();
+      case '!':
+        switch (text[++mE]) {
+        case '-':
+          if (text[mE + 1] != '-')
+            return failure("invalid comment");
+          mE += 2; // Skip --
+          return scanComment();
+        case '[':
+          ++mE; // Skip [
+          return scanIgnore();
+        case 'A': case 'E': case 'N':
+          ++mE; // Valid start character
+          break;
+        default:
+          return failure("invalid MarkupDecl sequence: <!" + text[mE]);
+        }
+        // <!*
+        break;
+      default:
+        return failure("unknown MarkupDecl sequence: <" + text[mE]);
+      }
+
+      // Scan until end
+      final int len = text.length;
+      int nestCount = 1;
+      while (nestCount > 0 && mE < len) {
+        switch (text[mE]) {
+        // Check for "..." and '...'
+        case '\"': case '\'':
+          scanStringLiteral();
+          break;
+        // Check for < and >
+        case '<':
+          ++nestCount;
+          ++mE;
+          break;
+        case '>':
+          --nestCount;
+          ++mE;
+          if (nestCount < 0)
+            return failure("invalid nest level: " + nestCount);
+          else if (nestCount == 0) 
+            return success();
+          break;
+        default:
+          ++mE;
+          break;
+        }
+      }
+
+      return failure("unknown MarkupDecl error");
+    }
+
+    private boolean scanStringLiteral() throws SAXException {
+      final int len = text.length;
+      if (mE + 1 >= len)
+        return failure("unterminated string literal");
+      // Scan string
+      final char ch = text[mE];
+      assert ch == '\"' || ch == '\'';
+      while (text[++mE] != ch) {
+        if (mE + 1 >= len)
+          return failure("unterminated string literal");
+      }
+      ++mE; // Skip " or '
+      return true;
+    }
+
+    private boolean scanPI() throws SAXException {
+      assert text[mE - 2] == '<' && text[mE - 1] == '?';
+      final int len = text.length;
+      while (text[mE] != '?' || text[mE + 1] != '>') {
+        ++mE;
+        if (mE + 1 >= len)
+          return failure("unterminated PI");
+      }
+      mE += 2; // Skip ?>
+      return success();
+    }
+
+    private boolean scanComment() throws SAXException {
+      final int len = text.length;
+      while (text[mE] != '-' || text[mE + 1] != '-' || text[mE + 2] != '>') {
+        ++mE;
+        if (mE + 2 >= len)
+          return failure("unterminated Comment");
+      }
+      mE += 3; // Skip -->
+      return success();
+    }
+
+    private boolean scanIgnore() throws SAXException {
+      final int len = text.length;
+      while (text[mE] != ']' || text[mE + 1] != ']' || text[mE + 2] != '>') {
+        ++mE;
+        if (mE + 2 >= len)
+          return failure("unterminated Ignore");
+      }
+      mE += 3; // Skip ]]>
+      return success();
+    }
+
+    private boolean scanPEReference() throws SAXException {
+      assert text[mS] == '%';
+      if (text[++mE] == ';')
+        return failure("empty PEReference");
+      while (text[++mE] != ';') {
+        if (mE + 1 >= text.length)
+          return failure("unterminated PEReference");
+      }
+      ++mE; // Skip ;
+      return success();
+    }
+
+    private boolean skipWhitespace() throws SAXException {
+      while (true) {
+        switch (text[mE]) {
+        case ' ':
+        case '\t': case '\f':
+        case '\n': case '\r':
+          // Advance
+          mE += 1;
+          // Check if we should just finish anyways
+          if (mE >= text.length)
+            // End of the line...
+            return false;
+          break;
+        default:
+          return true;
+        }
+      }
+      //return failure("unknown error skipping whitespace");
+    }
+  };
+
   /** The output writer. */
   protected StringWriter writer = null;
 
@@ -85,6 +299,11 @@ public class DirectSAXHandler extends DefaultHandler
 
   /** Current element depth. */
   protected int elementCount = 0;
+
+  protected String dtdName = null;
+  protected String dtdExternalId = null;
+  protected String dtdBody = null;
+  protected boolean inDTD = false;
 
   /// Methods
 
@@ -100,6 +319,13 @@ public class DirectSAXHandler extends DefaultHandler
         System.out.format("%1$" + (elementCount * 2) + "s", "");
       System.out.format(format + "%n", args);
     }
+  }
+
+  private static String Q(String str) {
+    return str != null ? str : "?";
+  }
+  private static String QQ(String str) {
+    return str != null ? ("\"" + str + "\"") : "?";
   }
 
   public void setWriter(StringWriter writer) {
@@ -300,13 +526,20 @@ public class DirectSAXHandler extends DefaultHandler
     writer.write("-->");
   }
 
+  static private String externalIDToString(String publicId, String systemId) {
+    if (systemId == null)
+      return null;
+    else if (publicId == null)
+      return "SYSTEM \"" + systemId + '\"';
+    else
+      return "PUBLIC \"" + publicId + "\" \"" + QQ(systemId) + '\"';
+  }
+
   @Override
   public void notationDecl(String name, String publicId, String systemId)
       throws SAXException {
-    format("DT: <!NOTATION %s %s %s>",
-      name,
-      publicId != null ? publicId : "?",
-      systemId != null ? systemId : "?"
+    format("DT: <!NOTATION %s %s>",
+      name, Q(externalIDToString(publicId, systemId))
     );
     //if (dtdHandler != null)
     //  dtdHandler.notationDecl(name, publicId, systemId);
@@ -315,10 +548,8 @@ public class DirectSAXHandler extends DefaultHandler
   @Override
   public void unparsedEntityDecl(String name, String publicId, String systemId,
                                  String notationName) throws SAXException {
-    format("DT: <!ENTITY %s %s %s %s>",
-      name,
-      publicId != null ? publicId : "?",
-      systemId != null ? systemId : "?",
+    format("DT: <!ENTITY %s %s %s>",
+      name, Q(externalIDToString(publicId, systemId)),
       notationName
     );
     //if (dtdHandler != null)
@@ -328,10 +559,7 @@ public class DirectSAXHandler extends DefaultHandler
   @Override
   public InputSource resolveEntity(String publicId, String systemId)
       throws SAXException, IOException {
-    format("ER(resolve): %s %s",
-      publicId != null ? publicId : "?",
-      systemId != null ? systemId : "?"
-    );
+    format("ER(resolve): %s", Q(externalIDToString(publicId, systemId)));
     //if (entityResolver != null)
     //  return entityResolver.resolveEntity(publicId, systemId);
     //else
@@ -340,20 +568,58 @@ public class DirectSAXHandler extends DefaultHandler
 
   @Override
   public void startDTD(String name, String publicId, String systemId) throws SAXException {
-    format("DTD: %s, %s, %s", name,
-      publicId != null ? publicId : "?",
-      systemId != null ? systemId : "?"
-    );
+    if (name == null)
+      throw new SAXException("DOCTYPE name cannot be null!");
+    dtdName = name;
+    dtdExternalId = externalIDToString(publicId, systemId);
+    dtdBody = null;
+    format("DT: %s %s", name, Q(dtdExternalId));
+    // Set state
+    inDTD = true;
   }
 
   @Override
   public void dtdBody(String text) throws SAXException {
-    format("  [%s]", text);
+    if (!inDTD)
+      throw new SAXException("dtdBody called while not in DOCTYPE!");
+    dtdBody = text;
+  }
+
+  private void writeDTDBody() throws SAXException {
+    assert dtdBody != null;
+    final char[] S = dtdBody.toCharArray();
+    final var scanner = new DTDInlineBodyScanner(S);
+    format("[");
+    while (scanner.scan()) {
+      if (Log.hasExtra())
+        System.out.format("  %s%n", scanner.makeString());
+      scanner.writeTo(writer);
+      writer.write('\n');
+    }
+    format("]");
   }
 
   @Override
-  public void endDTD() {
-    format("DTD(end)");
+  public void endDTD() throws SAXException {
+    if (!inDTD)
+      throw new SAXException("endDTD called while not in DOCTYPE!");
+    
+    writer.write("<!DOCTYPE ");
+    writer.write(dtdName);
+    if (dtdExternalId != null) {
+      writer.write(' ');
+      writer.write(dtdExternalId);
+    }
+    if (dtdBody != null) {
+      writer.write(" [\n");
+      writeDTDBody();
+      writer.write("]");
+    }
+    writer.write(">\n");
+
+    format("DT(end)");
+    // Set state
+    inDTD = false;
   }
 
   @Override
@@ -374,10 +640,8 @@ public class DirectSAXHandler extends DefaultHandler
   @Override
   public void externalEntityDecl(String name, String publicId, String systemId)
       throws SAXException {
-    format("DT: <!ENTITY(x) %s %s %s>",
-      name,
-      publicId != null ? publicId : "?",
-      systemId != null ? systemId : "?"
+    format("DT: <!ENTITY(x) %s %s>",
+      name, Q(externalIDToString(publicId, systemId))
     );
     //if (declHandler != null)
     //  declHandler.externalEntityDecl(name, publicId, systemId);

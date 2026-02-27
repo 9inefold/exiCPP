@@ -345,21 +345,24 @@ public final class EXIReader2 extends ReaderSupport implements XMLReader {
           m_contentHandler.processingInstruction(exiEvent.getName(), exiEvent.getCharacters().makeString());
           break;
         case EventDescription.EVENT_DTD: 
-          if (m_hasLexicalHandler) {
-            final EXIEventDTD eventDTD =(EXIEventDTD)exiEvent;
-            m_lexicalHandler.startDTD(exiEvent.getName(), eventDTD.getPublicId(), eventDTD.getSystemId());
-            if (m_lexicalHandler instanceof DTDBodyHandler dtdHandler) {
-              final Characters dtdCharacters = exiEvent.getCharacters();
-              if (dtdCharacters.length != 0)
-                dtdHandler.dtdBody(dtdCharacters.makeString());
-            }
-            m_lexicalHandler.endDTD();
-          }
+          if (m_hasLexicalHandler)
+            doDTD((EXIEventDTD)exiEvent);
           break;
         default:
           break;
       }
     }
+  }
+
+  private void doDTD(EXIEventDTD eventDTD) throws SAXException {
+    assert m_hasLexicalHandler;
+    m_lexicalHandler.startDTD(eventDTD.getName(), eventDTD.getPublicId(), eventDTD.getSystemId());
+    if (m_lexicalHandler instanceof DTDBodyHandler dtdHandler) {
+      final Characters dtdCharacters = eventDTD.getCharacters();
+      if (dtdCharacters.length != 0)
+        dtdHandler.dtdBody(dtdCharacters.makeString());
+    }
+    m_lexicalHandler.endDTD();
   }
 
   private void doXsiNil(EventDescription exiEvent) throws SAXException {
