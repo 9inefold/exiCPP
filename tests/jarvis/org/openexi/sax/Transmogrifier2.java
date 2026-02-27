@@ -79,6 +79,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXNotRecognizedException;
 import org.xml.sax.SAXParseException;
 import org.xml.sax.XMLReader;
+import org.xml.sax.ext.Attributes2;
 import org.xml.sax.helpers.LocatorImpl;
 
 /**
@@ -929,6 +930,12 @@ public final class Transmogrifier2 {
       format("SE: %s", qualifiedName);
       m_contentState = STAG;
 
+      // TODO: Add option to ignore DTD
+      Attributes2 attrs2 = null;
+      if (m_exiOptions.getPreserveDTD())
+        if (attrs instanceof Attributes2)
+          attrs2 = (Attributes2)attrs;
+
       m_n_comparableAttributes = 0;
       
       final String elementPrefix;
@@ -1048,6 +1055,9 @@ public final class Transmogrifier2 {
           int positionOfType = -1; // position of legitimate xsi:type
           if ((i_len = attrs.getLength()) != 0) {
             for (i = 0; i < i_len; i++) {
+              if (attrs2 != null && !attrs2.isSpecified(i))
+                // Skip anything not specified if we preserve DTD
+                continue;
               final String instanceUri = attrs.getURI(i);
               final String instanceQName = attrs.getQName(i);
               if (W3C_2000_XMLNS_URI.equals(instanceUri) ||
@@ -1980,7 +1990,7 @@ public final class Transmogrifier2 {
                               Augmentations augmentations) throws XNIException {
       if (!shouldPrintExtSubset()) return;
       sb.setLength(0);
-      sb.append(elementName);   sb.append(' ');
+      //sb.append(elementName);   sb.append(' ');
       sb.append(attributeName); sb.append(' ');
       sb.append(type);
       if (enumeration != null) {
@@ -1996,7 +2006,8 @@ public final class Transmogrifier2 {
       }
 
       if (Log.hasExtra()) {
-        formatD("%s %s %s", sb.toString(),
+        formatD("%s %s %s %s",
+          elementName, sb.toString(),
           Q(defaultType),
           //QQ(defaultValue),
           QQ(nonNormalizedDefaultValue));
@@ -2011,7 +2022,7 @@ public final class Transmogrifier2 {
         m_DTDBuilder.append(defaultType);
       }
       if (nonNormalizedDefaultValue != null) {
-        m_DTDBuilder.append("\"");
+        m_DTDBuilder.append(" \"");
         m_DTDBuilder.append(nonNormalizedDefaultValue.toString());
         m_DTDBuilder.append('\"');
       }
