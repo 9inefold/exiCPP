@@ -99,7 +99,7 @@ def print_jexc(ex: JException):
   stacks = traceback.format_stack()
   stacks.extend(format_jexception_like_py(ex))
   print("Traceback (most recent call last):\n",
-        ''.join(stacks), f'{ex.toString()}: {ex.getMessage()}\n',
+        ''.join(stacks), f'{ex.toString()}\n',
         sep='', flush=True)
 
 class Singleton(type):
