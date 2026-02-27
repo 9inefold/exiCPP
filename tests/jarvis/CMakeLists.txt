@@ -41,6 +41,7 @@ function(exi_add_java_classes package)
   set(exi_java_outputs ${exi_java_outputs} PARENT_SCOPE)
 endfunction(exi_add_java_classes)
 
+exi_add_java_class(@exicpp.sax.DTDBodyHandler)
 exi_add_java_class(@exicpp.sax.PartialXMLDTDHandler)
 exi_add_java_class(@exicpp.sax.PassthroughXMLDTDHandler)
 exi_add_java_class(@exicpp.util.CircularReferenceException)
