@@ -25,6 +25,7 @@ package org.exicpp.util;
 
 import java.lang.System;
 import java.lang.NoSuchFieldException;
+import java.lang.NoSuchMethodException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -50,6 +51,22 @@ public class ReflectionHelpers {
     throw new NoSuchFieldException("Could not find " + name
                                  + " in any superclasses of "
                                  + storedclazz.getName());
+  }
+
+  public static Method locateMethod(Class<?> clazz, String name, Class<?>...params)
+      throws NoSuchMethodException, SecurityException {
+    final Class<?> objectClazz = java.lang.Object.class;
+    Class<?> storedclazz = clazz;
+    while (clazz != objectClazz && clazz != null) {
+      try {
+        return clazz.getDeclaredMethod(name, params);
+      } catch (NoSuchMethodException e) {
+        clazz = clazz.getSuperclass();
+      }
+    }
+    throw new NoSuchMethodException("Could not find " + name
+                                  + " in any superclasses of "
+                                  + storedclazz.getName());
   }
 
   public static Object getObjectField(Object obj, Field field) {

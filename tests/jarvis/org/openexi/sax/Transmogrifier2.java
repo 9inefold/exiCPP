@@ -21,12 +21,17 @@ package org.openexi.sax;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Enumeration;
 
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 import org.apache.xerces.jaxp.SAXParserFactoryImpl2;
 import org.apache.xerces.impl.Constants;
+import org.apache.xerces.impl.XMLEntityManager;
+import org.apache.xerces.impl.XMLEntityManager2;
+import org.apache.xerces.impl.XMLErrorReporter;
 import org.apache.xerces.util.ConfigReflector;
 import org.apache.xerces.util.XMLStringBuffer;
 import org.apache.xerces.xni.Augmentations;
@@ -35,12 +40,14 @@ import org.apache.xerces.xni.XMLLocator;
 import org.apache.xerces.xni.XMLResourceIdentifier;
 import org.apache.xerces.xni.XMLString;
 import org.apache.xerces.xni.XNIException;
+import org.apache.xerces.xni.parser.XMLComponent;
 import org.apache.xerces.xni.parser.XMLDTDSource;
 import org.exicpp.sax.PartialXMLDTDHandler;
 import org.exicpp.sax.PassthroughXMLDTDHandler;
 import org.exicpp.util.EvilDocumentHijacker;
 import org.exicpp.util.IterableEnumeration;
 import org.exicpp.util.Log;
+import org.exicpp.util.ReflectionHelpers;
 import org.exicpp.util.XConstants;
 import org.exicpp.util.XStacktrace;
 import org.openexi.proc.EXIOptionsEncoder;
@@ -98,11 +105,20 @@ public final class Transmogrifier2 {
   private static final String NOTIFY_CHAR_REFS =
       Constants.XERCES_FEATURE_PREFIX + Constants.NOTIFY_CHAR_REFS_FEATURE;
   
+  /** Property identifier: Entity manager. */
+  protected static final String ENTITY_MANAGER =
+      Constants.XERCES_PROPERTY_PREFIX + Constants.ENTITY_MANAGER_PROPERTY;
+
+  /** Property identifier: error reporter. */
+  protected static final String ERROR_REPORTER =
+      Constants.XERCES_PROPERTY_PREFIX + Constants.ERROR_REPORTER_PROPERTY;
+
   /** Property identifier: DTD handler. */
   protected static final String DTD_HANDLER =
       XConstants.EXICPP_PROPERTY_PREFIX + XConstants.DTD_HANDLER_PROPERTY;
 
   private final XMLReader m_xmlReader;
+  private XMLEntityManager2 m_xmlEntityManager = null;
   private final boolean m_allowEmbeddedEntityEncoding;
   private final boolean m_allowConfigPrinting;
   private boolean m_embeddedEscapesFeature = false;
@@ -550,6 +566,76 @@ public final class Transmogrifier2 {
       te.setException(se);
       throw te;
     }
+  }
+
+  private final void setErrorReporterEntityManager(XMLEntityManager2 xmlEntityManager)
+      throws TransmogrifierException, Exception {
+    try {
+      Field _fConfiguration = ReflectionHelpers.locateMemberInSuperclasses(
+          m_xmlReader.getClass(), "fConfiguration");
+      _fConfiguration.setAccessible(true);
+      Object fConfiguration = ReflectionHelpers.getObjectField(m_xmlReader, _fConfiguration);
+      Method addCommonComponent = null;
+      Class[] cArg = new Class[] {XMLComponent.class};
+      try {
+        addCommonComponent = ReflectionHelpers.locateMethod(
+            fConfiguration.getClass(), "addCommonComponent", cArg);
+      } catch (NoSuchMethodException e) {
+        addCommonComponent = ReflectionHelpers.locateMethod(
+            fConfiguration.getClass(), "addComponent", cArg);
+      }
+      addCommonComponent.setAccessible(true);
+      addCommonComponent.invoke(fConfiguration, xmlEntityManager);
+    } catch (Exception e) {
+      throw e;
+    }
+
+    try {
+      assert m_xmlEntityManager == null && xmlEntityManager != null;
+      Object prop = m_xmlReader.getProperty(ERROR_REPORTER);
+      if (prop == null) return;
+      if (prop instanceof XMLErrorReporter errorReporter)
+        errorReporter.setDocumentLocator(xmlEntityManager.getEntityScanner());
+    } catch (SAXException se) {
+      TransmogrifierException te;
+      te = new TransmogrifierException(
+          TransmogrifierException.UNHANDLED_SAXPARSER_FEATURE,
+          new String[] {ERROR_REPORTER});
+      te.setException(se);
+      throw te;
+    }
+  }
+
+  public final void addEntityManagerSearchDirectory(String searchPath)
+      throws TransmogrifierException, Exception {
+    try {
+      if (m_xmlEntityManager == null) {
+        XMLEntityManager oldMgr = null;
+        Object prop = m_xmlReader.getProperty(ENTITY_MANAGER);
+        if (prop != null) {
+          if (prop instanceof XMLEntityManager mgr)
+            oldMgr = mgr;
+        }
+        var xmlEntityManager = new XMLEntityManager2(oldMgr);
+        m_xmlReader.setProperty(ENTITY_MANAGER, xmlEntityManager);
+        setErrorReporterEntityManager(xmlEntityManager);
+        m_xmlEntityManager = xmlEntityManager;
+      }
+      // Add search path
+      m_xmlEntityManager.addSearchDirectory(searchPath);
+    } catch (SAXException se) {
+      TransmogrifierException te;
+      te = new TransmogrifierException(
+          TransmogrifierException.UNHANDLED_SAXPARSER_FEATURE,
+          new String[] {ENTITY_MANAGER});
+      te.setException(se);
+      throw te;
+    }
+  }
+
+  public final void resetEntityManagerSearchDirectories() {
+    if (m_xmlEntityManager != null)
+      m_xmlEntityManager.resetSearchDirectories();
   }
 
   ///////////////////////////////////////////////////////////////////////////

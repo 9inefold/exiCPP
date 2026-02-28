@@ -411,7 +411,7 @@ class MessageHandler(metaclass=Singleton):
     pass
 
   @staticmethod
-  def encode(xml_contents: str, filename=None) -> bytes:
+  def encode(xml_contents: str, filename=None, dir=None) -> bytes:
     """Turns a human-readable string to an EXI-encoded string. Relies on Java classes.
 
     :param xml_contents: The XML string to be encoded.
@@ -427,10 +427,14 @@ class MessageHandler(metaclass=Singleton):
       input = ByteArrayInputStream(contents.getBytes(Charset.forName("utf8")));
       output = ByteArrayOutputStream();
       #t.setGrammarCache(MessageHandler.grammar_cache, MessageHandler.schemaid);
+      if dir is not None:
+        w.addEntityManagerSearchDirectory(Path(dir).as_posix())
       w.setGrammarCache(GrammarCache(None, MessageHandler.gmr_options));
       w.setOutputStream(output);
       w.encode(InputSource(input));
       result = output.toByteArray()
+      if dir is not None:
+        w.resetEntityManagerSearchDirectories()
     except Exception as e:
       if filename is not None:
         print(Path(filename).as_posix(), ':', sep='')
@@ -531,8 +535,9 @@ def run_all_files(do_print = False):
     is_eq = False
     xml_out = None
     try:
+      xml_dir = Path(TEST_SRC_DIR / f).parent
       xml_in = (TEST_SRC_DIR / f).read_text('utf8')
-      data = MessageHandler.encode(xml_in, f)
+      data = MessageHandler.encode(xml_in, f, xml_dir)
       if data is None:
         continue
       xml_out = MessageHandler.decode(data, f)
@@ -560,7 +565,7 @@ def run_all_files(do_print = False):
 
 if __name__ == "__main__":
   #run_all_files(do_print=True)
-  #run_all_files()
+  run_all_files()
 
   #CustomSAXParserFactory.printTypeOfParser()
   # TODO: Handle doctype

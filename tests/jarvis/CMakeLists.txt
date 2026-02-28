@@ -59,6 +59,7 @@ exi_add_java_class(@exicpp.openexi.DirectSAXHandler)
 exi_add_java_class(@openexi.sax.EXIReader2)
 exi_add_java_class(@openexi.sax.Transmogrifier2)
 
+exi_add_java_class(@xerces.impl.XMLEntityManager2)
 exi_add_java_class(@xerces.impl.XMLEEDocumentScanner)
 exi_add_java_class(@xerces.impl.XMLEENSDocumentScanner)
 exi_add_java_class(@xerces.impl.XMLEEScannerCommon)
