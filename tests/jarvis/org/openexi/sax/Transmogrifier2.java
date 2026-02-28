@@ -1957,7 +1957,7 @@ public final class Transmogrifier2 {
       if (Log.hasExtra())
         return OUTPUT_EXTERNAL_SUBSET || inInlineDTD();
       else
-        return false;
+        return inInlineDTD();
     }
 
     public void startDTD(String name, String publicId, String systemId)
