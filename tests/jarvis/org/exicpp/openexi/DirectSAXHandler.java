@@ -657,7 +657,10 @@ public class DirectSAXHandler extends DefaultHandler
 
   @Override
   public void error(SAXParseException exception) throws SAXException {
-    Log.error("[ERROR] " + exception.toString());
+    if (Log.hasExtra())
+      Log.error("[ERROR] " + exception.toString());
+    else
+      throw exception;
   }
 
   @Override
