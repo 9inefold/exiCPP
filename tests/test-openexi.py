@@ -51,7 +51,7 @@ jpype.startJVM(jpype_jvmpath, '-ea',
   '--add-opens=java.xml/com.sun.org.apache.xalan.internal.xsltc.trax=ALL-UNNAMED',
   '--add-opens=java.xml/com.sun.org.apache.xalan.internal.xsltc.runtime=ALL-UNNAMED',
   #'--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED',
-  '-Dexicpp.loglevel=verbose',
+  #'-Dexicpp.loglevel=verbose',
   classpath=[
     EXI_BASE_DIR.as_posix() + '/bin/*',
     EXI_BIN_DIR.as_posix() + '/*'
@@ -321,8 +321,6 @@ def format_jexception_like_py(ex: JException) -> list[str]:
     to_push = '  File '
     _file = frame.getFileName()
     _line = frame.getLineNumber()
-    _clazz = frame.getClassName()
-    _name = f'{_clazz}.{frame.getMethodName()}'
     _line_data = ''
     if _file:
       to_push += f'"{_file}"'
@@ -532,6 +530,8 @@ def run_all_files(do_print = False):
     recursive=True
   ))
 
+  #all_files = ['xml/012.xml',]
+
   err_dir = EXI_CURR_DIR/'out/err'
   if not err_dir.exists():
     err_dir.mkdir(parents=True)
@@ -574,8 +574,8 @@ def run_all_files(do_print = False):
   print('Total:', len(all_files))
 
 if __name__ == "__main__":
-  #run_all_files(do_print=True)
-  run_all_files()
+  run_all_files(do_print=True)
+  #run_all_files()
 
   #CustomSAXParserFactory.printTypeOfParser()
   # TODO: Handle doctype
@@ -586,9 +586,12 @@ if __name__ == "__main__":
   #do_roundtrip(TEST_SRC_DIR / 'xml/066.xml', do_print=True)
   #do_roundtrip(TEST_SRC_DIR / 'xml/080.xml', do_print=True)
 
-  do_roundtrip(TEST_SRC_DIR / 'me/HTML.xml', do_print=True)
-  do_roundtrip(TEST_SRC_DIR / 'me/HTML2.xml', do_print=True)
-  do_roundtrip(TEST_SRC_DIR / 'me/HTML3.xml', do_print=True)
+  #do_roundtrip(TEST_SRC_DIR / 'xml/070.xml', do_print=True)
+  #do_roundtrip(TEST_SRC_DIR / 'at/at-01.xml', do_print=True)
+
+  #do_roundtrip(TEST_SRC_DIR / 'me/HTML.xml', do_print=True)
+  #do_roundtrip(TEST_SRC_DIR / 'me/HTML2.xml', do_print=True)
+  #do_roundtrip(TEST_SRC_DIR / 'me/HTML3.xml', do_print=True)
 
   #do_roundtrip(TEST_SRC_DIR / 'me/Nested.xml')
   #do_roundtrip(TEST_SRC_DIR / 'me/CDATA2.xml')
