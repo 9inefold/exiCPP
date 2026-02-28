@@ -690,9 +690,10 @@ public final class Transmogrifier2 {
           locator.setLineNumber(spe.getLineNumber());
           locator.setColumnNumber(spe.getColumnNumber());
         }
-        // se.printStackTrace();
-        throw new TransmogrifierException(TransmogrifierException.SAX_ERROR,
-                                          new String[] {se.getMessage()}, locator);
+        var te = new TransmogrifierException(TransmogrifierException.SAX_ERROR,
+                                             new String[] {se.getMessage()}, locator);
+        te.setStackTrace(se.getStackTrace());
+        throw te;
       }
     }
     try {

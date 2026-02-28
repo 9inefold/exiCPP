@@ -337,8 +337,8 @@ def format_jexception_like_py(ex: JException) -> list[str]:
   return list(reversed(out))
 
 def print_jexc(ex: JException):
-  #traceback.print_exc()
-  stacks = traceback.format_stack()
+  stacks = traceback.format_stack()[:-2]
+  stacks.extend(traceback.format_tb(ex.__traceback__))
   stacks.extend(format_jexception_like_py(ex))
   print("Traceback (most recent call last):\n",
         ''.join(stacks), f'{ex.toString()}\n',
