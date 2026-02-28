@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <ns:example xmlns:ns="https://www.example.com"
-  xsi:type="xs:double"
+  xs:type="xs:double"
 	xmlns="http://www.w3.org/1999/XSL/Transform"
 	trait="green"
 	xmlns:xs="http://www.w3.org/2001/XMLSchema"
-	xsi:nil="true"
+	xs:nil="true"
 	ns:trait="green-2"
+  
 >
 	350.0
 </ns:example>
