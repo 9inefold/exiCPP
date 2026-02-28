@@ -675,26 +675,27 @@ public final class Transmogrifier2 {
     try {
       m_xmlReader.parse(is);
     } catch (SAXException se) {
-      final Exception e;
-      if ((e = se.getException()) != null) {
+      final Exception e = se.getException();
+      if (e != null) {
         if (e instanceof TransmogrifierException)
           throw (TransmogrifierException)e;
         else if (e instanceof IOException)
           throw (IOException)e;
-      } else {
-        LocatorImpl locator = null;
-        if (se instanceof SAXParseException) {
-          SAXParseException spe = (SAXParseException)se;
-          locator = new LocatorImpl();
-          locator.setSystemId(spe.getSystemId());
-          locator.setLineNumber(spe.getLineNumber());
-          locator.setColumnNumber(spe.getColumnNumber());
-        }
-        var te = new TransmogrifierException(TransmogrifierException.SAX_ERROR,
-                                             new String[] {se.getMessage()}, locator);
-        te.setStackTrace(se.getStackTrace());
-        throw te;
+        System.err.println("exception fallthrough");
       }
+
+      LocatorImpl locator = null;
+      if (se instanceof SAXParseException) {
+        SAXParseException spe = (SAXParseException)se;
+        locator = new LocatorImpl();
+        locator.setSystemId(spe.getSystemId());
+        locator.setLineNumber(spe.getLineNumber());
+        locator.setColumnNumber(spe.getColumnNumber());
+      }
+      var te = new TransmogrifierException(TransmogrifierException.SAX_ERROR,
+                                           new String[] {se.getMessage()}, locator);
+      te.setStackTrace(e == null ? se.getStackTrace() : e.getStackTrace());
+      throw te;
     }
     try {
       Object prop = m_xmlReader.getProperty(

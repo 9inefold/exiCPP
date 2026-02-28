@@ -17,6 +17,7 @@
 
 package org.apache.xerces.jaxp;
 
+import java.io.CharConversionException;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -32,11 +33,14 @@ import org.apache.xerces.parsers.EEAwareParserConfiguration;
 import org.apache.xerces.util.SAXMessageFormatter;
 import org.apache.xerces.util.SecurityManager;
 import org.apache.xerces.xni.XMLDocumentHandler;
+import org.apache.xerces.xni.XNIException;
 import org.apache.xerces.xni.parser.XMLComponent;
 import org.apache.xerces.xni.parser.XMLComponentManager;
 import org.apache.xerces.xni.parser.XMLConfigurationException;
 import org.apache.xerces.xni.parser.XMLDocumentSource;
+import org.apache.xerces.xni.parser.XMLInputSource;
 import org.apache.xerces.xni.parser.XMLParserConfiguration;
+import org.apache.xerces.xni.parser.XMLParseException;
 import org.apache.xerces.xs.AttributePSVI;
 import org.apache.xerces.xs.ElementPSVI;
 import org.apache.xerces.xs.PSVIProvider;
@@ -48,7 +52,10 @@ import org.xml.sax.Parser;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXNotRecognizedException;
 import org.xml.sax.SAXNotSupportedException;
+import org.xml.sax.SAXParseException;
 import org.xml.sax.XMLReader;
+import org.xml.sax.ext.Locator2;
+import org.xml.sax.ext.Locator2Impl;
 import org.xml.sax.helpers.DefaultHandler;
 
 @SuppressWarnings("deprecation")
@@ -525,18 +532,138 @@ public class SAXParserImpl2
       }
     }
 
-    public void parse(InputSource inputSource) throws SAXException, IOException {
-      if (fSAXParser != null && fSAXParser.fSchemaValidator != null) {
-        if (fSAXParser.fSchemaValidationManager != null) {
-          fSAXParser.fSchemaValidationManager.reset();
-          fSAXParser.fUnparsedEntityHandler.reset();
-        }
-        resetSchemaValidator();
-      }
-      super.parse(inputSource);
-    }
-
+    /**
+     * Parses the input source specified by the given system identifier.
+     * <p>
+     * This method is equivalent to the following:
+     * <pre>
+     *     parse(new InputSource(systemId));
+     * </pre>
+     *
+     * @param systemId The system identifier (URI).
+     *
+     * @exception org.xml.sax.SAXException Throws exception on SAX error.
+     * @exception java.io.IOException Throws exception on i/o error.
+     */
     public void parse(String systemId) throws SAXException, IOException {
+      parseSetup00();
+      // parse document
+      XMLInputSource source = new XMLInputSource(null, systemId, null);
+      try {
+        super.parse(source);
+      }
+      // wrap XNI exceptions as SAX exceptions
+      catch (XMLParseException e) {
+        Exception ex = e.getException();
+        if (ex == null || ex instanceof CharConversionException) {
+          // must be a parser exception; mine it for locator info
+          // and throw a SAXParseException
+          Locator2Impl locatorImpl = new Locator2Impl();
+          // since XMLParseExceptions know nothing about encoding,
+          // we cannot return anything meaningful in this context.
+          // We *could* consult the LocatorProxy, but the
+          // application can do this itself if it wishes to possibly
+          // be mislead.
+          locatorImpl.setXMLVersion(fVersion);
+          locatorImpl.setPublicId(e.getPublicId());
+          locatorImpl.setSystemId(e.getExpandedSystemId());
+          locatorImpl.setLineNumber(e.getLineNumber());
+          locatorImpl.setColumnNumber(e.getColumnNumber());
+          throw(ex == null)
+              ? new SAXParseException(e.getMessage(), locatorImpl)
+              : new SAXParseException(e.getMessage(), locatorImpl, ex);
+        }
+        if (ex instanceof SAXException) {
+          // why did we create an XMLParseException?
+          throw(SAXException) ex;
+        }
+        if (ex instanceof IOException) {
+          throw(IOException) ex;
+        }
+        throw new SAXException(ex);
+      } catch (XNIException e) {
+        Exception ex = e.getException();
+        if (ex == null) {
+          throw new SAXException(e);
+        }
+        if (ex instanceof SAXException) {
+          throw(SAXException) ex;
+        }
+        if (ex instanceof IOException) {
+          throw(IOException) ex;
+        }
+        throw new SAXException(ex);
+      }
+
+    } // parse(String)
+
+    /**
+     * parse
+     *
+     * @param inputSource
+     *
+     * @exception org.xml.sax.SAXException
+     * @exception java.io.IOException
+     */
+    public
+    void parse(InputSource inputSource) throws SAXException, IOException {
+      parseSetup00();
+      // parse document
+      try {
+        XMLInputSource xmlInputSource = new XMLInputSource(
+            inputSource.getPublicId(), inputSource.getSystemId(), null);
+        xmlInputSource.setByteStream(inputSource.getByteStream());
+        xmlInputSource.setCharacterStream(inputSource.getCharacterStream());
+        xmlInputSource.setEncoding(inputSource.getEncoding());
+        super.parse(xmlInputSource);
+      }
+
+      // wrap XNI exceptions as SAX exceptions
+      catch (XMLParseException e) {
+        Exception ex = e.getException();
+        if (ex == null || ex instanceof CharConversionException) {
+          // must be a parser exception; mine it for locator info
+          // and throw a SAXParseException
+          Locator2Impl locatorImpl = new Locator2Impl();
+          // since XMLParseExceptions know nothing about encoding,
+          // we cannot return anything meaningful in this context.
+          // We *could* consult the LocatorProxy, but the
+          // application can do this itself if it wishes to possibly
+          // be mislead.
+          locatorImpl.setXMLVersion(fVersion);
+          locatorImpl.setPublicId(e.getPublicId());
+          locatorImpl.setSystemId(e.getExpandedSystemId());
+          locatorImpl.setLineNumber(e.getLineNumber());
+          locatorImpl.setColumnNumber(e.getColumnNumber());
+          throw(ex == null)
+              ? new SAXParseException(e.getMessage(), locatorImpl, e)
+              : new SAXParseException(e.getMessage(), locatorImpl, ex);
+        }
+        if (ex instanceof SAXException) {
+          // why did we create an XMLParseException?
+          throw(SAXException) ex;
+        }
+        if (ex instanceof IOException) {
+          throw(IOException) ex;
+        }
+        throw new SAXException(ex);
+      } catch (XNIException e) {
+        Exception ex = e.getException();
+        if (ex == null) {
+          throw new SAXException(e);
+        }
+        if (ex instanceof SAXException) {
+          throw(SAXException) ex;
+        }
+        if (ex instanceof IOException) {
+          throw(IOException) ex;
+        }
+        throw new SAXException(ex);
+      }
+
+    } // parse(InputSource)
+
+    private final void parseSetup00() throws SAXException, IOException {
       if (fSAXParser != null && fSAXParser.fSchemaValidator != null) {
         if (fSAXParser.fSchemaValidationManager != null) {
           fSAXParser.fSchemaValidationManager.reset();
@@ -544,7 +671,6 @@ public class SAXParserImpl2
         }
         resetSchemaValidator();
       }
-      super.parse(systemId);
     }
 
     XMLParserConfiguration getXMLParserConfiguration() { return fConfiguration; }

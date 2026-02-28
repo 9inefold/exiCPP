@@ -1,4 +1,4 @@
-import os, sys, traceback
+import os, re, sys, traceback
 from pathlib import Path
 from glob import glob
 
@@ -305,9 +305,19 @@ from javax.xml.transform.stream import StreamResult
 from javax.xml.parsers import SAXParserFactory
 
 def format_jexception_like_py(ex: JException) -> list[str]:
+  found_nonerr = False
   frames = ex.getStackTrace()
   out = []
   for frame in frames:
+    _method = str(frame.getMethodName())
+    _clazz = str(frame.getClassName())
+    # Skip reportError and friends
+    if not found_nonerr:
+      if _clazz.startswith('org.apache.xerces.'):
+        if re.fullmatch("report([A-Z][a-z]+)?Error", _method):
+          continue
+      found_nonerr = True
+
     to_push = '  File '
     _file = frame.getFileName()
     _line = frame.getLineNumber()
@@ -328,7 +338,7 @@ def format_jexception_like_py(ex: JException) -> list[str]:
         #print(e)
         #print("}}", flush=True)
         pass
-    to_push += f', in {_name}\n'
+    to_push += f', in {_clazz}.{_method}\n'
     if len(_line_data) > 0:
       to_push += f'    {_line_data}\n'
     out.append(to_push)
