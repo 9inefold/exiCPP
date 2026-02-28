@@ -2142,9 +2142,9 @@ public final class Transmogrifier2 {
       if (!inInlineDTD()) return;
       m_DTDBuilder.append("<!ENTITY ");
       m_DTDBuilder.append(ename);
-      m_DTDBuilder.append(' ');
-      m_DTDBuilder.append(nonNormalizedText.toString());
-      m_DTDBuilder.append('>');
+      m_DTDBuilder.append(" \"");
+      m_DTDBuilder.append(outtext.toString());
+      m_DTDBuilder.append("\">");
     }
 
     public void externalEntityDecl(String name, XMLResourceIdentifier identifier,
