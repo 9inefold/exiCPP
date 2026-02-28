@@ -129,22 +129,19 @@ public class XMLEntityManager2 extends XMLEntityManager {
       return super.setupCurrentEntity(
           name, xmlInputSource, literal, isExternal);
     } catch (FileNotFoundException e) {
+      if (fFilePaths.isEmpty())
+        throw e;
       notFoundMsg = e.getMessage();
     }
 
     final String publicId = xmlInputSource.getPublicId();
     final String systemId = xmlInputSource.getSystemId();
-    final String baseSystemId = xmlInputSource.getBaseSystemId();
-
-    System.err.println("SYSTEM: " + systemId);
-    if (fFilePaths.isEmpty())
-      throw new FileNotFoundException(notFoundMsg);    
+    final String baseSystemId = xmlInputSource.getBaseSystemId(); 
 
     // Try resolving with the provided directory
     var newXmlInputSource = new XMLInputSource(publicId, systemId, baseSystemId);
     for (String searchDir : fFilePaths) {
       newXmlInputSource.setSystemId(searchDir + "/" + systemId);
-      System.err.println("  TRYING: " + newXmlInputSource.getSystemId());
       try {
         return super.setupCurrentEntity(
             name, newXmlInputSource, literal, isExternal);
