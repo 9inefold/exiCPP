@@ -666,6 +666,16 @@ public final class Transmogrifier2 {
   /// Encode methods
   ///////////////////////////////////////////////////////////////////////////
 
+  private void scannerCheck() {
+    try {
+      Object prop = m_xmlReader.getProperty(
+          "http://apache.org/xml/properties/internal/document-scanner");
+      //System.out.println("Got scanner: " + prop.toString());
+    } catch (Exception e) {
+      System.err.println("scanner not found");
+    }
+  }
+
   /**
    * Parses XML input source and converts it to an EXI stream.
    * @param is XML input source
@@ -697,13 +707,8 @@ public final class Transmogrifier2 {
       te.setStackTrace(e == null ? se.getStackTrace() : e.getStackTrace());
       throw te;
     }
-    try {
-      Object prop = m_xmlReader.getProperty(
-          "http://apache.org/xml/properties/internal/document-scanner");
-      //System.out.println("Got scanner: " + prop.toString());
-    } catch (Exception e) {
-      System.err.println("scanner not found");
-    }
+    // Print if scanner is found
+    //scannerCheck();
   }
 
   /**
