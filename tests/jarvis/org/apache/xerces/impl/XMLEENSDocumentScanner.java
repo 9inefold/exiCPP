@@ -24,10 +24,12 @@ import org.apache.xerces.impl.XMLNSDocumentScannerImpl;
 import org.apache.xerces.impl.XMLDocumentFragmentScannerImpl;
 import org.apache.xerces.impl.msg.XMLMessageFormatter;
 import org.apache.xerces.util.AugmentationsImpl;
+import org.apache.xerces.util.XMLAttributesImpl;
 import org.apache.xerces.util.XMLChar;
 import org.apache.xerces.util.XMLStringBuffer;
 import org.apache.xerces.util.XMLSymbols;
 import org.apache.xerces.xni.Augmentations;
+import org.apache.xerces.xni.NamespaceContext;
 import org.apache.xerces.xni.XMLAttributes;
 import org.apache.xerces.xni.XMLString;
 import org.apache.xerces.xni.XNIException;
@@ -272,6 +274,161 @@ public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
     else
       return scanAttributeValueImpl(value, nonNormalizedValue, atName, checkEntities, eleName);
   } // scanAttributeValue()
+
+  /**
+   * Scans an attribute.
+   * <p>
+   * <pre>
+   * [41] Attribute ::= Name Eq AttValue
+   * </pre>
+   * <p>
+   * <strong>Note:</strong> This method assumes that the next
+   * character on the stream is the first character of the attribute
+   * name.
+   * <p>
+   * <strong>Note:</strong> This method uses the fAttributeQName and
+   * fQName variables. The contents of these variables will be
+   * destroyed.
+   *
+   * @param attributes The attributes list for the scanned attribute.
+   */
+  @Override
+  protected void scanAttribute(XMLAttributesImpl attributes)
+      throws IOException, XNIException {
+
+    // name
+    if (fEntityScanner.peekChar() != ':')
+      // Normal scanning
+      fEntityScanner.scanQName(fAttributeQName);
+    else {
+      final String name = fEntityScanner.scanName();
+      final String localpart = name.substring(1);
+      fAttributeQName.setValues("", localpart, name, null);
+    }
+
+    // equals
+    fEntityScanner.skipSpaces();
+    if (!fEntityScanner.skipChar('=')) {
+      reportFatalError(
+          "EqRequiredInAttribute",
+          new Object[] {fCurrentElement.rawname, fAttributeQName.rawname});
+    }
+    fEntityScanner.skipSpaces();
+
+    // content
+    int attrIndex;
+
+    if (fBindNamespaces) {
+      attrIndex = attributes.getLength();
+      attributes.addAttributeNS(fAttributeQName, XMLSymbols.fCDATASymbol, null);
+    } else {
+      int oldLen = attributes.getLength();
+      attrIndex =
+          attributes.addAttribute(fAttributeQName, XMLSymbols.fCDATASymbol, null);
+
+      // WFC: Unique Att Spec
+      if (oldLen == attributes.getLength()) {
+        reportFatalError(
+            "AttributeNotUnique",
+            new Object[] {fCurrentElement.rawname, fAttributeQName.rawname});
+      }
+    }
+
+    // Scan attribute value and return true if the non-normalized and normalized
+    // value are the same
+    boolean isSameNormalizedAttr = scanAttributeValue(
+        this.fTempString, fTempString2, fAttributeQName.rawname,
+        fIsEntityDeclaredVC, fCurrentElement.rawname);
+
+    String value = fTempString.toString();
+    attributes.setValue(attrIndex, value);
+    // If the non-normalized and normalized value are the same, avoid creating a
+    // new string.
+    if (!isSameNormalizedAttr) {
+      attributes.setNonNormalizedValue(attrIndex, fTempString2.toString());
+    }
+    attributes.setSpecified(attrIndex, true);
+
+    // record namespace declarations if any.
+    if (fBindNamespaces) {
+
+      String localpart = fAttributeQName.localpart;
+      String prefix = fAttributeQName.prefix != null ? fAttributeQName.prefix
+                                                     : XMLSymbols.EMPTY_STRING;
+      // when it's of form xmlns="..." or xmlns:prefix="...",
+      // it's a namespace declaration. but prefix:xmlns="..." isn't.
+      if (prefix == XMLSymbols.PREFIX_XMLNS ||
+          prefix == XMLSymbols.EMPTY_STRING &&
+              localpart == XMLSymbols.PREFIX_XMLNS) {
+
+        // get the internalized value of this attribute
+        String uri = fSymbolTable.addSymbol(value);
+
+        // 1. "xmlns" can't be bound to any namespace
+        if (prefix == XMLSymbols.PREFIX_XMLNS &&
+            localpart == XMLSymbols.PREFIX_XMLNS) {
+          fErrorReporter.reportError(XMLMessageFormatter.XMLNS_DOMAIN,
+                                     "CantBindXMLNS",
+                                     new Object[] {fAttributeQName},
+                                     XMLErrorReporter.SEVERITY_FATAL_ERROR);
+        }
+
+        // 2. the namespace for "xmlns" can't be bound to any prefix
+        if (uri == NamespaceContext.XMLNS_URI) {
+          fErrorReporter.reportError(XMLMessageFormatter.XMLNS_DOMAIN,
+                                     "CantBindXMLNS",
+                                     new Object[] {fAttributeQName},
+                                     XMLErrorReporter.SEVERITY_FATAL_ERROR);
+        }
+
+        // 3. "xml" can't be bound to any other namespace than it's own
+        if (localpart == XMLSymbols.PREFIX_XML) {
+          if (uri != NamespaceContext.XML_URI) {
+            fErrorReporter.reportError(XMLMessageFormatter.XMLNS_DOMAIN,
+                                       "CantBindXML",
+                                       new Object[] {fAttributeQName},
+                                       XMLErrorReporter.SEVERITY_FATAL_ERROR);
+          }
+        }
+        // 4. the namespace for "xml" can't be bound to any other prefix
+        else {
+          if (uri == NamespaceContext.XML_URI) {
+            fErrorReporter.reportError(XMLMessageFormatter.XMLNS_DOMAIN,
+                                       "CantBindXML",
+                                       new Object[] {fAttributeQName},
+                                       XMLErrorReporter.SEVERITY_FATAL_ERROR);
+          }
+        }
+
+        prefix = localpart != XMLSymbols.PREFIX_XMLNS ? localpart
+                                                      : XMLSymbols.EMPTY_STRING;
+
+        // http://www.w3.org/TR/1999/REC-xml-names-19990114/#dt-prefix
+        // We should only report an error if there is a prefix,
+        // that is, the local part is not "xmlns". -SG
+        if (uri == XMLSymbols.EMPTY_STRING &&
+            localpart != XMLSymbols.PREFIX_XMLNS) {
+          fErrorReporter.reportError(XMLMessageFormatter.XMLNS_DOMAIN,
+                                     "EmptyPrefixedAttName",
+                                     new Object[] {fAttributeQName},
+                                     XMLErrorReporter.SEVERITY_FATAL_ERROR);
+        }
+
+        // declare prefix in context
+        fNamespaceContext.declarePrefix(prefix, uri.length() != 0 ? uri : null);
+        // bind namespace attribute to a namespace
+        attributes.setURI(attrIndex,
+                          fNamespaceContext.getURI(XMLSymbols.PREFIX_XMLNS));
+
+      } else {
+        // attempt to bind attribute
+        if (fAttributeQName.prefix != null) {
+          attributes.setURI(attrIndex,
+                            fNamespaceContext.getURI(fAttributeQName.prefix));
+        }
+      }
+    }
+  } // scanAttribute(XMLAttributes)
 
   /**
    * Scans an entity reference.

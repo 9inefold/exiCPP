@@ -61,6 +61,9 @@ import javax.xml.transform.sax.TransformerHandler;
 public class DirectSAXHandler extends DefaultHandler
     implements ContentHandler, LexicalHandler, DTDHandler, EntityResolver,
                DeclHandler, ErrorHandler, DTDBodyHandler {
+  
+  static private final String EMPTY_ATTRIBUTE = ":".intern();
+  
   /** Maps Prefix="URI" */
   public static class URIMapping {
     public String pfx = "";
@@ -379,6 +382,8 @@ public class DirectSAXHandler extends DefaultHandler
 
     for (int I = 0; I < atts.getLength(); ++I) {
       String atQName = atts.getQName(I);
+      if (atQName.isEmpty())
+        atQName = EMPTY_ATTRIBUTE;
       String atValue = atts.getValue(I);
       format(" AT: %s=\"%s\"", atQName, atValue);
       writer.write(' ');
