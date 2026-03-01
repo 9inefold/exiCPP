@@ -1938,10 +1938,13 @@ public final class Transmogrifier2 {
         return text;
     }
     private static String getExternalID(XMLResourceIdentifier identifier) {
-      String vSYSTEM = identifier.getLiteralSystemId();
-      if (vSYSTEM == null)
-        return "";
-      String vPUBLIC = identifier.getPublicId();
+      final String vSYSTEM = identifier.getLiteralSystemId();
+      final String vPUBLIC = identifier.getPublicId();
+      if (vSYSTEM == null) {
+        if (vPUBLIC == null)
+          return "";
+        return "PUBLIC " + QQ(vPUBLIC);
+      }
       if (vPUBLIC == null || vPUBLIC.length() == 0)
         return "SYSTEM " + QQ(vSYSTEM);
       else
@@ -2081,9 +2084,13 @@ public final class Transmogrifier2 {
       sb.setLength(0);
       //sb.append(elementName);   sb.append(' ');
       sb.append(attributeName); sb.append(' ');
-      sb.append(type);
+      final boolean isENUMERATION = (type == "ENUMERATION");
+      if (!isENUMERATION)
+        sb.append(type);
       if (enumeration != null) {
-        sb.append(" (");
+        if (!isENUMERATION)
+          sb.append(' ');
+        sb.append('(');
         if (enumeration.length > 0) {
           sb.append(enumeration[0]);
           for (int I = 1; I < enumeration.length; ++I) {
@@ -2091,7 +2098,7 @@ public final class Transmogrifier2 {
             sb.append(enumeration[I]);
           }
         }
-        sb.append(")");
+        sb.append(')');
       }
 
       if (Log.hasExtra()) {
