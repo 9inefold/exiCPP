@@ -27,6 +27,9 @@ import org.exicpp.util.LogLevel;
 
 /** Simple logging interface */
 public final class Log {
+  /** If logging should be enabled at all */
+  public static final boolean ENABLE_DEBUG_LOGGING = true;
+  /** The default log level (ERROR) */
   public static final int LOG_DEFAULT = LogLevel.ERROR;
   /** The system provided log level. */
   private static final int SYSTEM_LOG;
@@ -46,12 +49,12 @@ public final class Log {
   }
 
   public static void info(String msg) {
-    if (SYSTEM_LOG >= LogLevel.INFO)
+    if (ENABLE_DEBUG_LOGGING && SYSTEM_LOG >= LogLevel.INFO)
       System.err.print(msg);
   }
 
   public static void extra(String msg) {
-    if (SYSTEM_LOG >= LogLevel.VERBOSE)
+    if (ENABLE_DEBUG_LOGGING && SYSTEM_LOG >= LogLevel.VERBOSE)
       System.err.print(msg);
   }
 
@@ -66,12 +69,12 @@ public final class Log {
   }
 
   public static void infoln(String msg) {
-    if (SYSTEM_LOG >= LogLevel.INFO)
+    if (ENABLE_DEBUG_LOGGING && SYSTEM_LOG >= LogLevel.INFO)
       System.err.println(msg);
   }
 
   public static void extraln(String msg) {
-    if (SYSTEM_LOG >= LogLevel.VERBOSE)
+    if (ENABLE_DEBUG_LOGGING && SYSTEM_LOG >= LogLevel.VERBOSE)
       System.err.println(msg);
   }
 
@@ -84,11 +87,11 @@ public final class Log {
   }
 
   public static boolean hasInfo() {
-    return SYSTEM_LOG >= LogLevel.INFO;
+    return ENABLE_DEBUG_LOGGING && SYSTEM_LOG >= LogLevel.INFO;
   }
 
   public static boolean hasExtra() {
-    return SYSTEM_LOG >= LogLevel.VERBOSE;
+    return ENABLE_DEBUG_LOGGING && SYSTEM_LOG >= LogLevel.VERBOSE;
   }
 
   /// Setup
@@ -114,10 +117,10 @@ public final class Log {
       return LogLevel.WARN;
     else if ("INFO".equalsIgnoreCase(prop) ||
              "NOTE".equalsIgnoreCase(prop))
-      return LogLevel.INFO;
+      return ENABLE_DEBUG_LOGGING ? LogLevel.INFO : LogLevel.WARN;
     else if ("EXTRA".equalsIgnoreCase(prop) ||
              "VERBOSE".equalsIgnoreCase(prop))
-      return LogLevel.VERBOSE;
+      return ENABLE_DEBUG_LOGGING ? LogLevel.VERBOSE : LogLevel.WARN;
     else
       return LOG_DEFAULT;
   }
