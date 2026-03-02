@@ -106,8 +106,9 @@ public final class Log {
   public static int parseLogLevel(String prop) {
     if (prop == null || prop.length() == 0)
       return LOG_DEFAULT;
-    else if ("SILENT".equalsIgnoreCase(prop) ||
-             "QUIET".equalsIgnoreCase(prop)  ||
+    else if ("QUIET".equalsIgnoreCase(prop)  ||
+             "SILENT".equalsIgnoreCase(prop) ||
+             "OFF".equalsIgnoreCase(prop)    ||
              "NOTHING".equalsIgnoreCase(prop))
       return LogLevel.SILENT;
     else if ("ERROR".equalsIgnoreCase(prop))

@@ -40,7 +40,7 @@ public final class LogLevel {
   public static final int NOTE = INFO;
 
   /** Log everything. */
-  public static final int VERBOSE = 3;
+  public static final int VERBOSE = 4;
   /** Alias: Log everything. */
   public static final int EXTRA = VERBOSE;
 }

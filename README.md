@@ -63,7 +63,7 @@ For [the unit tests](unittests), Catch2 is the only dependency.
 For [the conformance tests](tests), the following are required:
 
 - Java 11+
-- Python 3.8+
+- Python 3.11+
   - JPype
   - lxml
 

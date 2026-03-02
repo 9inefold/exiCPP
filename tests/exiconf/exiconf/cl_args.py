@@ -1,6 +1,7 @@
 import argparse, shlex
 import os, sys
 from exiconf.constants import __version__
+from exiconf.logging import LogLevelArgs
 
 def parse_args():
   parser = argparse.ArgumentParser(prog="exiconf")
@@ -10,10 +11,10 @@ def parse_args():
   )
 
   parser.add_argument(
-    '--diagnostic-level',
+    '--diag', '--diagnostic-level',
     dest='diag_level',
     help="control how verbose exiconf should be (default info)",
-    choices=['error', 'info', 'verbose'],
+    choices=LogLevelArgs.ALL_LEVELS,
     default='info'
   )
   parser.add_argument(
