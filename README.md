@@ -36,3 +36,36 @@ large files can be encoded up to ***14400 times faster*** than the standalone li
 
 This will be removed in a future version, but can be found in the
 [exip-wrapper branch](https://github.com/9inefold/exiCPP/tree/exip-wrapper).
+
+## Prerequisites
+
+### Core Libraries
+
+For `exicpp` itself the only required dependencies are a C++20 compiler compatible with gcc.
+MSVC is **NOT** supported, and probably never will be.
+It doesn't support many features this tool relies on, and is fundamentally too different ABI-wise.
+In the future I may provide a Microsoft-compatible C API, but for now, just use MinGW or Clang.
+
+`exicpp` has been tested with `g++` and `clang++`, and should work with other compilers (such as `nvc++`),
+but has not been tested with them. If you run into any issues, let me know, and I'll get them fixed as soon as I can.
+
+### Unit Tests
+
+For [the unit tests](unittests), Catch2 is the only dependency.
+
+### Conformance Tests
+
+For [the conformance tests](tests), the following are required:
+
+- Java 11+
+- Python 3.8+
+  - JPype
+  - lxml
+
+The precompiled `.jar`s for exificient, openexi, and xerces are found in [`bin/`](bin).
+You may provide your own, but keep in mind, the tests are intrusive and depend on implementation
+details of all three libraries. [See the test folder](tests) for more details.
+
+## CMake Configuration
+
+List coming soon...

@@ -1,7 +1,7 @@
 # Conformance testing
 
 This folder contains tests based on the W3C conformance suite.
-Using the default `.jar`s requires java 8. Provided xerces version is `2.12.2`.
+Using the default `.jar`s currently requires java 11. Provided xerces version is `2.12.2`.
 
 Python tests require:
 
