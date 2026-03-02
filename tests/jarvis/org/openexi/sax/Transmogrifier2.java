@@ -85,6 +85,7 @@ import org.xml.sax.InputSource;
 import org.xml.sax.Locator;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXNotRecognizedException;
+import org.xml.sax.SAXNotSupportedException;
 import org.xml.sax.SAXParseException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.ext.Attributes2;
@@ -96,6 +97,10 @@ import org.xml.sax.helpers.LocatorImpl;
 public final class Transmogrifier2 {
   private static final String DEFAULT_FACTORY =
       "org.apache.xerces.jaxp.SAXParserFactoryImpl2";
+
+  /** Feature identifier: embed escape sequences. */
+  private static final String ALLOW_WEIRD_ATTRS =
+    XConstants.EXICPP_FEATURE_PREFIX + XConstants.ALLOW_WEIRD_ATTRS;
 
   /** Feature identifier: embed escape sequences. */
   private static final String EMBED_ESCAPE_SEQUENCES =
@@ -122,6 +127,7 @@ public final class Transmogrifier2 {
   private final boolean m_allowEmbeddedEntityEncoding;
   private final boolean m_allowConfigPrinting;
   private boolean m_embeddedEscapesFeature = false;
+  private boolean m_allowWeirdAttributesFeature = false;
   private boolean m_preserveChRefEncoding = false;
 
   /**
@@ -194,7 +200,7 @@ public final class Transmogrifier2 {
           EvilDocumentHijacker.reconfigureXMLReader(m_xmlReader);
       m_allowConfigPrinting = ConfigReflector.inject(m_xmlReader);
       if (!m_allowConfigPrinting)
-        Log.error("unable to inject set ConfigReflector");
+        Log.warn("unable to inject set ConfigReflector");
       m_xmlReader.setFeature("http://xml.org/sax/features/namespace-prefixes",
                              namespacePrefixesFeature);
     } catch (Exception exc) {
@@ -290,6 +296,29 @@ public final class Transmogrifier2 {
       te = new TransmogrifierException(
           TransmogrifierException.UNHANDLED_SAXPARSER_FEATURE,
           new String[] {"http://apache.org/xml/features/scanner/notify-char-refs"});
+      te.setException(se);
+      throw te;
+    }
+  }
+
+  /**
+   * Change the way a Transmogrifier2 handles attributes with leading/trailing colons.
+   * @param allowWeirdAttrs
+   * @throws TransmogrifierException Thrown when the underlying XMLReader does not
+   * support the specified behavior.
+   */
+  public void setAllowWeirdAttributes(boolean allowWeirdAttrs)
+      throws TransmogrifierException {
+    try {
+      m_xmlReader.setFeature(ALLOW_WEIRD_ATTRS, allowWeirdAttrs);
+      m_allowWeirdAttributesFeature = true;
+    } catch (SAXNotRecognizedException se) {
+      m_allowWeirdAttributesFeature = false;
+    } catch (SAXNotSupportedException se) {
+      TransmogrifierException te;
+      te = new TransmogrifierException(
+          TransmogrifierException.UNHANDLED_SAXPARSER_FEATURE,
+          new String[] {ALLOW_WEIRD_ATTRS});
       te.setException(se);
       throw te;
     }

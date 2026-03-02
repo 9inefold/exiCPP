@@ -25,6 +25,9 @@ public class XConstants {
   /** exicpp features prefix ("http://exicpp.org/xml/features/"). */
   public static final String EXICPP_FEATURE_PREFIX = "http://exicpp.org/xml/features/";
 
+  /** Allow weird colon attributes */
+  public static final String ALLOW_WEIRD_ATTRS = "scanner/allow-weird-attributes";
+
   /** Embed escape sequences */
   public static final String EMBED_ESCAPE_SEQUENCES = "scanner/embed-escape-sequences";
 

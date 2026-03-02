@@ -20,6 +20,7 @@ package org.apache.xerces.impl;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import org.apache.xerces.impl.ExtendedNSSupportConfig;
 import org.apache.xerces.impl.XMLDocumentScannerImpl;
 import org.apache.xerces.impl.XMLDocumentFragmentScannerImpl;
 import org.apache.xerces.impl.msg.XMLMessageFormatter;
@@ -34,7 +35,8 @@ import org.apache.xerces.xni.XNIException;
 import org.apache.xerces.impl.XMLEEScannerCommon;
 import org.exicpp.util.ReflectionHelpers;
 
-public class XMLEEDocumentScanner extends XMLDocumentScannerImpl {
+public class XMLEEDocumentScanner extends XMLDocumentScannerImpl
+    implements ExtendedNSSupportConfig {
   /** String buffer. */
   private final XMLStringBuffer fStringBuffer = new XMLStringBuffer();
   /** String buffer. */
@@ -262,6 +264,15 @@ public class XMLEEDocumentScanner extends XMLDocumentScannerImpl {
     return nonNormalizedValue.equals(value.ch, value.offset, value.length);
 
   } // scanAttributeValue()
+
+  /** Sets if names like <code>:</code> or <code>:xyz</code> should be allowed. */
+  public void setAllowWeirdColonInAttributes(boolean value) {
+  }
+
+  /** Gets if names like <code>:</code> or <code>:xyz</code> are allowed. */
+  public boolean getAllowWeirdColonInAttributes() {
+    return true; // Always allowed when not NS aware
+  }
 
   /**
    * Scans an entity reference.

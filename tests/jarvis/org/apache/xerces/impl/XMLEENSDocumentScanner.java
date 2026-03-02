@@ -20,6 +20,7 @@ package org.apache.xerces.impl;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import org.apache.xerces.impl.ExtendedNSSupportConfig;
 import org.apache.xerces.impl.XMLNSDocumentScannerImpl;
 import org.apache.xerces.impl.XMLDocumentFragmentScannerImpl;
 import org.apache.xerces.impl.msg.XMLMessageFormatter;
@@ -36,7 +37,8 @@ import org.apache.xerces.xni.XNIException;
 import org.apache.xerces.impl.XMLEEScannerCommonImpl;
 import org.exicpp.util.ReflectionHelpers;
 
-public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
+public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl
+    implements ExtendedNSSupportConfig {
   /** String buffer. */
   private final XMLStringBuffer fStringBuffer = new XMLStringBuffer();
   /** String buffer. */
@@ -45,6 +47,8 @@ public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
   private final XMLStringBuffer fStringBuffer3 = new XMLStringBuffer();
   /** String buffer. */
   private final XMLStringBuffer fStringBufferX = new XMLStringBuffer();
+  /** Allow : names in attributes? */
+  private boolean fAllowWeirdColon = false;
 
   /** Fields */
   private final XMLEEScannerCommonImpl thiz;
@@ -275,6 +279,16 @@ public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
       return scanAttributeValueImpl(value, nonNormalizedValue, atName, checkEntities, eleName);
   } // scanAttributeValue()
 
+  /** Sets if names like <code>:</code> or <code>:xyz</code> should be allowed. */
+  public void setAllowWeirdColonInAttributes(boolean value) {
+    fAllowWeirdColon = value;
+  }
+
+  /** Gets if names like <code>:</code> or <code>:xyz</code> are allowed. */
+  public boolean getAllowWeirdColonInAttributes() {
+    return fAllowWeirdColon;
+  }
+
   /**
    * Scans an attribute.
    * <p>
@@ -297,10 +311,11 @@ public class XMLEENSDocumentScanner extends XMLNSDocumentScannerImpl {
       throws IOException, XNIException {
 
     // name
-    if (fEntityScanner.peekChar() != ':')
+    if (!fAllowWeirdColon || fEntityScanner.peekChar() != ':')
       // Normal scanning
       fEntityScanner.scanQName(fAttributeQName);
     else {
+      // TODO: This doesn't fully work. Things like xyz:="..." are still invalid.
       final String name = fEntityScanner.scanName();
       final String localpart = name.substring(1);
       fAttributeQName.setValues("", localpart, name, null);

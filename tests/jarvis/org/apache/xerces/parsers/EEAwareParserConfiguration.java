@@ -19,6 +19,7 @@
 package org.apache.xerces.parsers;
 
 import org.apache.xerces.impl.Constants;
+import org.apache.xerces.impl.ExtendedNSSupportConfig;
 import org.apache.xerces.impl.XML11DTDScannerImpl;
 import org.apache.xerces.impl.XML11DocumentScannerImpl;
 import org.apache.xerces.impl.XML11NSDocumentScannerImpl;
@@ -80,6 +81,10 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
     Constants.XERCES_FEATURE_PREFIX + Constants.NOTIFY_BUILTIN_REFS_FEATURE;
 
   /** New Feature identifier: Embedded escape sequences */
+  protected static final String ALLOW_WEIRD_ATTRS =
+      XConstants.EXICPP_FEATURE_PREFIX + XConstants.ALLOW_WEIRD_ATTRS;
+
+  /** New Feature identifier: Embedded escape sequences */
   protected static final String EMBED_ESCAPE_SEQUENCES =
       XConstants.EXICPP_FEATURE_PREFIX + XConstants.EMBED_ESCAPE_SEQUENCES;
   
@@ -119,6 +124,9 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
   /** Embedded Escape XMLDocumentScanner */
   protected XMLEEDocumentScanner fEENonNSScanner;
 
+  /** Flag indicating whether weird attributes are enabled. */
+  protected boolean fWeirdAttrsEnabled = false;
+
   /** Flag indicating whether embedded escape sequences are enabled. */
   protected boolean fEmbeddedEscapesEnabled = false;
 
@@ -129,6 +137,9 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
 
   /** Flag indicating whether xinclude embedded escapes error has been printed. */
   private boolean hpe_XIncludeEEE = false;
+
+  /** Flag indicating whether xinclude embedded escapes error has been printed. */
+  private boolean hpe_WeirdAttrsE = false;
 
   /** Default constructor. */
   public EEAwareParserConfiguration() {
@@ -173,11 +184,13 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
 
     final String[] recognizedFeatures = {
       ALLOW_UE_AND_NOTATION_EVENTS,
+      ALLOW_WEIRD_ATTRS,
       EMBED_ESCAPE_SEQUENCES,
       NOTIFY_BUILTIN_REFS,
     };
     addRecognizedFeatures(recognizedFeatures);
 
+    setFeature(ALLOW_WEIRD_ATTRS, false);
     setFeature(EMBED_ESCAPE_SEQUENCES, false);
     setFeature(NOTIFY_BUILTIN_REFS, true);
 
@@ -229,14 +242,30 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
     }
   }
 
+  protected void configureWeirdAttr() {
+    if (fCurrentScanner instanceof ExtendedNSSupportConfig nsctx) {
+      nsctx.setAllowWeirdColonInAttributes(fWeirdAttrsEnabled);
+    } else if (fFeatures.get(NAMESPACES) == Boolean.TRUE && fWeirdAttrsEnabled) {
+      if (!hpe_WeirdAttrsE) {
+        System.err.format("Feature %s has not been set up for scanner type %s",
+                          XConstants.ALLOW_WEIRD_ATTRS,
+                          fCurrentScanner.getClass().getName());
+        hpe_WeirdAttrsE = true;
+      }
+    }
+  }
+
   /** Configures the pipeline. */
   @Override
   protected void configurePipeline() {
     if (!fEmbeddedEscapesEnabled) {
       super.configurePipeline();
+      configureWeirdAttr();
       return;
-    } else
+    } else {
       configurePipeline0();
+      configureWeirdAttr();
+    }
     
     configureXInclude();
     if (fXIncludeEnabled) {
@@ -284,6 +313,7 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
       }
     }
     super.configureXML11Pipeline();
+    configureWeirdAttr();
 
     /*
     configureXInclude();
@@ -435,6 +465,8 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
   public boolean getFeature(String featureId) throws XMLConfigurationException {
     if (featureId.equals(EMBED_ESCAPE_SEQUENCES)) {
       return fEmbeddedEscapesEnabled;
+    } else if (featureId.equals(ALLOW_WEIRD_ATTRS)) {
+      return fWeirdAttrsEnabled;
     }
     return super.getFeature0(featureId);
   } // getFeature(String):boolean
@@ -444,6 +476,10 @@ public class EEAwareParserConfiguration extends XIncludeAwareParserConfiguration
       throws XMLConfigurationException {
     if (featureId.equals(EMBED_ESCAPE_SEQUENCES)) {
       fEmbeddedEscapesEnabled = state;
+      fConfigUpdated = true;
+      return;
+    } else if (featureId.equals(ALLOW_WEIRD_ATTRS)) {
+      fWeirdAttrsEnabled = state;
       fConfigUpdated = true;
       return;
     }

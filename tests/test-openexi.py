@@ -381,6 +381,7 @@ class MessageHandler(metaclass=Singleton):
 
   writer = Transmogrifier2()
   #writer.printXMLReaderConfig()
+  writer.setAllowWeirdAttributes(True)
   writer.setPreserveCharacterRefEmbedding(True)
   #writer = Transmogrifier()
   writer.setOutputOptions(hdr_options)
