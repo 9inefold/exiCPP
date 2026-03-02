@@ -29,11 +29,11 @@ def diff_xml(name, file1, file2, parse_options=None) -> bool:
       else:
         real_diffs.append(diff)
     if len(real_diffs) != 0:
-      print(f'{Path(name).as_posix()}: {diff_list}')
+      print(f'[diff] {Path(name).as_posix()}: {diff_list}')
       return False
     return True
   except Exception as e:
-    print(f'{Path(name).as_posix()}: {e}')
+    print(f'[diff] {Path(name).as_posix()}*: {type(e).__name__}: {e}')
     return False
 
 cwd = os.getcwd()
@@ -51,7 +51,7 @@ jpype.startJVM(jpype_jvmpath, '-ea',
   '--add-opens=java.xml/com.sun.org.apache.xalan.internal.xsltc.trax=ALL-UNNAMED',
   '--add-opens=java.xml/com.sun.org.apache.xalan.internal.xsltc.runtime=ALL-UNNAMED',
   #'--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED',
-  #'-Dexicpp.loglevel=verbose',
+  '-Dexicpp.loglevel=verbose',
   classpath=[
     EXI_BASE_DIR.as_posix() + '/bin/*',
     EXI_BIN_DIR.as_posix() + '/*'
@@ -352,6 +352,19 @@ def print_jexc(ex: JException):
         ''.join(stacks), f'{ex.toString()}\n',
         sep='', flush=True)
 
+def get_full_options():
+  options = GrammarOptions.DEFAULT_OPTIONS
+  options = GrammarOptions.addCM(options)
+  options = GrammarOptions.addPI(options)
+  options = GrammarOptions.addNS(options)
+  options = GrammarOptions.addDTD(options)
+  return options
+
+"""
+The following 2 classes are modified from:
+https://github.com/EDF-Lab/eVDriveFlow/blob/main/shared/message_handling.py
+"""
+
 class Singleton(type):
   """This is a singleton design pattern class."""
   _instances = {}
@@ -361,29 +374,18 @@ class Singleton(type):
       cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
     return cls._instances[cls]
 
-def get_full_options():
-  options = GrammarOptions.DEFAULT_OPTIONS
-  options = GrammarOptions.addCM(options)
-  options = GrammarOptions.addPI(options)
-  options = GrammarOptions.addNS(options)
-  options = GrammarOptions.addDTD(options)
-  return options
-
 class MessageHandler(metaclass=Singleton):
-  """This is the class that will process every single V2GTP message."""
+  """This is the class that will process every single XML input."""
   hdr_options = HeaderOptionsOutputType.none
   gmr_options = get_full_options()
   schemaid = SchemaId@None
   grammar_cache = GrammarCache(None, gmr_options);
 
-  #sax_parser_factory = SAXParserFactory.newInstance()
-  #sax_parser_factory.setNamespaceAware(True)
 
   writer = Transmogrifier2()
   #writer.printXMLReaderConfig()
   writer.setAllowWeirdAttributes(True)
   writer.setPreserveCharacterRefEmbedding(True)
-  #writer = Transmogrifier()
   writer.setOutputOptions(hdr_options)
   writer.setAlignmentType(AlignmentType.byteAligned)
   writer.setResolveExternalGeneralEntities(JBoolean(False))
@@ -392,17 +394,9 @@ class MessageHandler(metaclass=Singleton):
   #writer.setValueMaxLength(-1)
   #writer.setValuePartitionCapacity(0)
 
-  sax_transformer_factory = SAXTransformerFactory@SAXTransformerFactory.newInstance()
-
-  #sax_transformer_factory.setAttribute("debug", JBoolean(True))
-  #sax_transformer_factory.setAttribute("http://xml.org/sax/features/use-entity-resolver2", JBoolean(False))
-  # http://apache.org/xml/features/xinclude
-
-  # TODO: Implement custom Transformer Source
-  transformer_handler = sax_transformer_factory.newTransformerHandler()
+  #sax_transformer_factory = SAXTransformerFactory@SAXTransformerFactory.newInstance()
+  #transformer_handler = sax_transformer_factory.newTransformerHandler()
   #handler = LoggingSAXHandlerWrapper(transformer_handler)
-  handler = DirectSAXHandler()
-
   reader = EXIReader2()
   reader.setAlignmentType(AlignmentType.byteAligned)
   #reader.setOutputOptions(hdr_options)
@@ -410,6 +404,7 @@ class MessageHandler(metaclass=Singleton):
   ##reader.setBlockSize(1000000)
   ##reader.setValueMaxLength(-1)
   ##reader.setValuePartitionCapacity(0)
+  handler = DirectSAXHandler()
   reader.setContentHandler(handler)
   reader.setLexicalHandler(handler)
 
@@ -506,17 +501,18 @@ if not OUT_DIR.exists():
   OUT_DIR.mkdir()
 
 def do_roundtrip(test_path: Path, do_print = False):
+  handler = MessageHandler()
   if do_print:
     relpath = test_path.relative_to(cwd).as_posix()
     print(relpath, ':', sep='', flush=True);
   test_path = Path(test_path)
   stem = str(test_path.stem)
   xml_in = test_path.read_text('utf8')
-  data = MessageHandler.encode(xml_in)
+  data = handler.encode(xml_in)
   if data is None:
     return
   (OUT_DIR / f'{stem}.exi').write_bytes(data)
-  xml_out = MessageHandler.decode(data)
+  xml_out = handler.decode(data)
   if xml_out is None:
     return
   (OUT_DIR / f'{stem}.xml').write_bytes(xml_out.encode('utf8'))
@@ -531,7 +527,8 @@ def run_all_files(do_print = False):
     recursive=True
   ))
 
-  #all_files = ['xml/012.xml',]
+  handler = MessageHandler()
+  all_files = ['xml/012.xml',]
 
   err_dir = EXI_CURR_DIR/'out/err'
   if not err_dir.exists():
@@ -548,10 +545,10 @@ def run_all_files(do_print = False):
     try:
       xml_dir = Path(TEST_SRC_DIR / f).parent
       xml_in = (TEST_SRC_DIR / f).read_text('utf8')
-      data = MessageHandler.encode(xml_in, f, xml_dir)
+      data = handler.encode(xml_in, f, xml_dir)
       if data is None:
         continue
-      xml_out = MessageHandler.decode(data, f)
+      xml_out = handler.decode(data, f)
       if xml_out is None:
         continue
       is_eq = diff_xml(f, xml_in, xml_out)
@@ -562,8 +559,7 @@ def run_all_files(do_print = False):
       #print(xml_out)
     except Exception as e:
       if do_print:
-        print(Path(f).as_posix(), ':', sep='')
-        print(e, flush=True)
+        print(f'{Path(f).as_posix()}*: {type(e).__name__}: {e}', flush=True)
       pass
     # Check results
     if is_eq:
@@ -575,8 +571,8 @@ def run_all_files(do_print = False):
   print('Total:', len(all_files))
 
 if __name__ == "__main__":
-  run_all_files(do_print=True)
-  #run_all_files()
+  #run_all_files(do_print=True)
+  run_all_files()
 
   #CustomSAXParserFactory.printTypeOfParser()
   # TODO: Handle doctype
