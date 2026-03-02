@@ -17,14 +17,19 @@ So... I made my own.
 
 **I've decided to completely rewrite exip in C++.**
 There were major issues with the library,
-but the tipping point was its complete inability to handle other libs outputs.
+but the tipping point was its complete inability to handle other implementation's outputs.
 
 It was also obviously not written to be used for real XML inputs.
 There are a mountain of bugs and inefficiencies that I've been taping over,
-and a lack of support for essential options (like compression).
+and a lack of support for essential options (such as compression).
 
-And while I *could* go through the whole codebase and fix all these issues,
+While I *could* go through the whole codebase and fix all these issues,
 I wanted to write a safer and more efficient version from the start.
+
+I have also extended xerces for exificient and openexi testing.
+The libraries incorrectly use xerces (and in certain cases, the issues are in xerces itself),
+and things such as `CDATA`/`DOCTYPE` blocks and entities are mishandled, resulting in the xml outputs
+being different or entirely invalid. [See the conformance testing folder](tests) for more details.
 
 [You can find the new TODO list here](TODO.md).
 
