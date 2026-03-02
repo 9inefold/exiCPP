@@ -291,7 +291,6 @@ class JavaFileMapping:
 from java.io import FileInputStream, InputStream, ByteArrayInputStream, ByteArrayOutputStream, StringWriter, FileWriter
 from java.lang import String
 from org.exicpp.openexi import DirectSAXHandler
-#from org.openexi.scomp import EXISchemaReader
 from org.openexi.schema import EXISchema, EmptySchema
 from org.openexi.sax import EXIReader2, Transmogrifier2
 from org.openexi.proc import HeaderOptionsOutputType
