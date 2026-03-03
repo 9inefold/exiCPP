@@ -47,20 +47,16 @@ start_jvm(jvm_args=['-ea'])
 import exiconf.jvm.check
 import jpype.imports
 from jpype.types import *
-from java.io import FileInputStream, InputStream, ByteArrayInputStream, ByteArrayOutputStream, StringWriter, FileWriter
+from java.io import ByteArrayInputStream, ByteArrayOutputStream, StringWriter
 from java.lang import String
 from org.exicpp.openexi import DirectSAXHandler
-from org.openexi.schema import EXISchema, EmptySchema
 from org.openexi.sax import EXIReader2, Transmogrifier2
 from org.openexi.proc import HeaderOptionsOutputType
-from org.openexi.proc.common import AlignmentType, GrammarOptions, SchemaId
+from org.openexi.proc.common import AlignmentType, GrammarOptions
 from org.openexi.proc.grammars import GrammarCache
 from org.xml.sax import InputSource
 from java.nio.charset import Charset
-from javax.xml import XMLConstants
-from javax.xml.transform.sax import SAXTransformerFactory
 from javax.xml.transform.stream import StreamResult
-from javax.xml.parsers import SAXParserFactory
 
 from exiconf.jvm.jexcept import print_jexception
 
