@@ -1,4 +1,6 @@
-import os, re, sys, traceback
+import os, sys
+import re
+import traceback
 from pathlib import Path
 from glob import glob
 
@@ -38,256 +40,12 @@ def diff_xml(name, file1, file2, parse_options=None) -> bool:
 
 cwd = os.getcwd()
 
-import _jpype
-_jpype.enableStacktraces(True)
+from exiconf.jvm.setup import start_jvm, get_jvm_path
+start_jvm(jvm_args=['-ea'])
+#start_jvm(jvm_args=['-ea', '-Dexicpp.loglevel=verbose'])
 
-import jpype
 import jpype.imports
 from jpype.types import *
-
-jpype_jvmpath = jpype.getDefaultJVMPath()
-jpype.startJVM(jpype_jvmpath, '-ea',
-  '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
-  '--add-opens=java.xml/com.sun.org.apache.xalan.internal.xsltc.trax=ALL-UNNAMED',
-  '--add-opens=java.xml/com.sun.org.apache.xalan.internal.xsltc.runtime=ALL-UNNAMED',
-  #'--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED',
-  #'-Dexicpp.loglevel=verbose',
-  classpath=[
-    EXI_BASE_DIR.as_posix() + '/bin/*',
-    EXI_BIN_DIR.as_posix() + '/*'
-  ],
-  convertStrings=False)
-
-if not jpype.isJVMStarted():
-  print("JVM is not running!")
-
-class JavaZipFileMapping:
-  # self.__filedata: list[str]
-
-  @property
-  def cache(self) -> list[str]:
-    return self.__filedata
-  
-  def __init__(self, filedata: list[str]):
-    assert filedata is not None
-    self.__filedata = filedata
-
-  def get_line(self, lineno: int) -> str:
-    cache = self.cache
-    if len(cache) == 0:
-      return ''
-    if lineno is None or lineno < 0:
-      return ''
-    if lineno > 0:
-      lineno -= 1
-    if len(cache) <= lineno:
-      return ''
-    line = cache[lineno].strip()
-    return line
-
-class JavaSrcZip:
-  # self.__zip: zipfile.ZipFile
-  # self.__names
-  # self.__cache: dict[str, list[str]?]
-  
-  def __init__(self, _zip):
-    self.__zip = _zip
-    if self.__zip is not None:
-      self.__names = _zip.namelist()
-    else:
-      self.__names = None
-    self.__cache = {}
-  
-  def __lookup(self, matches) -> bytes:
-    zf = self.__zip
-    for match in matches:
-      try:
-        return zf.read(match)
-      except KeyError:
-        pass
-    return None
-
-  def lookup(self, modulename: str, filename: str) -> JavaZipFileMapping:
-    if self.__zip is None:
-      return None
-    if modulename in self.__cache:
-      return self.__cache[modulename]
-    # Get the relative path
-    modulepath = modulename.replace('.', '/')
-    modulepath += f'/{filename}'
-    matches = [x for x in self.__names if x.endswith(modulepath)]
-    # Read from the zip
-    data = self.__lookup(matches)
-    if data is None:
-      return None
-    # Parse lines from the zip
-    try:
-      blob = data.decode('utf8')
-      lines = blob.splitlines(keepends=True)
-      if lines and not lines[-1].endswith('\n'):
-        lines[-1] += '\n'
-      m = JavaZipFileMapping(lines)
-      self.__cache[modulename] = m
-      return m
-    except (OSError, UnicodeDecodeError):
-      self.__cache[modulename] = None
-    return None
-
-class JavaFileMapping:
-  # self.__filename: Path
-  # self.__filedata: list[str]?
-
-  _java_file_line_dict: dict[str, 'JavaFileMapping']
-  _java_src_zip: JavaSrcZip
-
-  # TODO: Add a way to embed java mappings in their jar files
-  _java_file_line_dict = None
-  _java_src_zip = None
-
-  @property
-  def filename(self) -> str:
-    return self.__filename.as_posix()
-  
-  @property
-  def cache(self) -> list[str]:
-    if self.__filedata is None:
-      return self.__init_cache()
-    return self.__filedata
-
-  def __init__(self, filename: Path):
-    self.__filename = Path(filename)
-    self.__filedata = None
-  
-  @staticmethod
-  def load_file_dict() -> dict[str, 'JavaFileMapping']:
-    if JavaFileMapping._java_file_line_dict is not None:
-      return JavaFileMapping._java_file_line_dict
-    file_line_dict: dict[str, JavaFileMapping]
-    file_line_dict = {}
-
-    SEARCH_DIR = EXI_BASE_DIR/'tests/jarvis'
-    all_java_files = glob(
-      '**/*.java',
-      root_dir=SEARCH_DIR,
-      recursive=True
-    )
-    for java_file in all_java_files:
-      jpath = SEARCH_DIR/str(java_file)
-      jfile = jpath.name
-      if jfile in file_line_dict:
-        print(f"Warning: duplicate file {jfile}?")
-        continue
-      file_line_dict[jfile] = JavaFileMapping(jpath)
-    JavaFileMapping._java_file_line_dict = file_line_dict
-    return JavaFileMapping._java_file_line_dict
-
-  @staticmethod
-  def __find_java_src() -> Path:
-    java_home = Path(jpype_jvmpath).parent
-    while java_home.name != 'bin':
-      if len(java_home.parts) <= 1:
-        return None
-      java_home = java_home.parent
-    java_home = java_home.parent
-    # Find the file
-    f = java_home/'src.zip'
-    if f.exists() and f.is_file():
-      return f
-    f = java_home/'lib/src.zip'
-    if f.exists() and f.is_file():
-      return f
-    # Shrug
-    return None
-
-  @staticmethod
-  def __java_src() -> JavaSrcZip:
-    if JavaFileMapping._java_src_zip is not None:
-      return JavaFileMapping._java_src_zip
-    try:
-      import zipfile
-      src_zip = JavaFileMapping.__find_java_src()
-      if src_zip is None:
-        JavaFileMapping._java_src_zip = JavaSrcZip(None)
-        return None
-      zf = zipfile.ZipFile(str(src_zip), 'r')
-      JavaFileMapping._java_src_zip = JavaSrcZip(zf)
-      #print(zf.namelist())
-      return JavaFileMapping._java_src_zip
-    except Exception as e:
-      return None
-  
-  @staticmethod
-  def is_in_std_java_module(clazzname) -> bool:
-    if clazzname is None:
-      return False
-    return clazzname.startswith((
-      "java.", "javax.", "jdk.", "sun.", "com.sun."))
-
-  @staticmethod
-  def lookup(filename: str):
-    return JavaFileMapping.lookup_ext(None, filename)
-
-  @staticmethod
-  def lookup_ext(clazzname, filename: str):
-    if filename is None or len(filename) == 0:
-      return None
-    d = JavaFileMapping.load_file_dict()
-    if filename in d:
-      return d[filename]
-    if clazzname is None:
-      return None
-    clazzname = str(clazzname)
-    if not JavaFileMapping.is_in_std_java_module(clazzname):
-      return None
-    modulename, _clazzname = clazzname.rsplit('.', 1)
-    # Try finding module for some other source
-    src_zip = JavaFileMapping.__java_src()
-    if src_zip is None:
-      return None
-    return src_zip.lookup(modulename, filename)
-  
-  @staticmethod
-  def lookup_line(filename: str, lineno: int) -> str:
-    m = JavaFileMapping.lookup_ext(None, filename)
-    if m is None:
-      return ''
-    return m.get_line(lineno)
-  
-  @staticmethod
-  def lookup_line_ext(clazz: str, filename: str, lineno: int) -> str:
-    m = JavaFileMapping.lookup_ext(clazz, filename)
-    if m is None:
-      return ''
-    return m.get_line(lineno)
-  
-  def get_line(self, lineno: int) -> str:
-    if lineno is None or lineno < 0:
-      return ''
-    cache = self.cache
-    if lineno > 0:
-      lineno -= 1
-    if cache is None or len(cache) <= lineno:
-      return ''
-    line = cache[lineno].strip()
-    return line
-  
-  def __init_cache(self) -> list[str]:
-    cache = self.__filedata
-    if cache is not None:
-      return cache
-    # Load the file data
-    try:
-      blob = self.__filename.read_text(encoding='utf8')
-      lines = blob.splitlines(keepends=True)
-      if lines and not lines[-1].endswith('\n'):
-        lines[-1] += '\n'
-      self.__filedata = lines
-      return lines
-    except (OSError, UnicodeDecodeError):
-      # print('failure!')
-      self.__filedata = []
-      return []
-
 from java.io import FileInputStream, InputStream, ByteArrayInputStream, ByteArrayOutputStream, StringWriter, FileWriter
 from java.lang import String
 from org.exicpp.openexi import DirectSAXHandler
@@ -302,6 +60,8 @@ from javax.xml import XMLConstants
 from javax.xml.transform.sax import SAXTransformerFactory
 from javax.xml.transform.stream import StreamResult
 from javax.xml.parsers import SAXParserFactory
+
+import exiconf.jvm.mapping as JavaFileMapping
 
 def format_jexception_like_py(ex: JException) -> list[str]:
   found_nonerr = False
