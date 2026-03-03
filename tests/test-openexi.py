@@ -44,6 +44,7 @@ from exiconf.jvm.setup import start_jvm, get_jvm_path
 start_jvm(jvm_args=['-ea'])
 #start_jvm(jvm_args=['-ea', '-Dexicpp.loglevel=verbose'])
 
+import exiconf.jvm.check
 import jpype.imports
 from jpype.types import *
 from java.io import FileInputStream, InputStream, ByteArrayInputStream, ByteArrayOutputStream, StringWriter, FileWriter
