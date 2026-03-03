@@ -61,7 +61,7 @@ from javax.xml.transform.sax import SAXTransformerFactory
 from javax.xml.transform.stream import StreamResult
 from javax.xml.parsers import SAXParserFactory
 
-import exiconf.jvm.mapping as JavaFileMapping
+import exiconf.jvm.mapping as mapping
 
 def format_jexception_like_py(ex: JException) -> list[str]:
   found_nonerr = False
@@ -88,7 +88,7 @@ def format_jexception_like_py(ex: JException) -> list[str]:
     if _line > 0:
       to_push += f', line {_line}'
       try:
-        _line_data = JavaFileMapping.lookup_line_ext(_clazz, _file, _line)
+        _line_data = mapping.lookup_line_ext(_clazz, _file, _line)
       except Exception as e:
         #print("{{")
         #traceback.print_tb(e.__traceback__)

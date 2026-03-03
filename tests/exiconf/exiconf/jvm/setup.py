@@ -49,8 +49,9 @@ def start_jvm(jvm=None, classpath=None, jvm_args=None, logger:Log=outs):
   if jpype.isJVMStarted():
     #logger.extra("JVM already running!")
     return
-
+  
   jvm_path = _resolve_jvm(jvm, logger)
+  global _used_jvm_path
   _used_jvm_path = jvm_path
 
   jvm_classpath = [
@@ -61,6 +62,7 @@ def start_jvm(jvm=None, classpath=None, jvm_args=None, logger:Log=outs):
     for clsp in classpath:
       clsp = Path(clsp).absolute().as_posix()
       jvm_classpath.append(clsp)
+  global _used_jvm_classpath
   _used_jvm_classpath = jvm_classpath[:]
 
   jvm_extra_args = [
@@ -75,6 +77,7 @@ def start_jvm(jvm=None, classpath=None, jvm_args=None, logger:Log=outs):
     else:
       assert isinstance(jvm_args, str)
       jvm_extra_args.append(jvm_args)
+  global _used_jvm_extra_args
   _used_jvm_extra_args = jvm_extra_args[:]
 
   _jpype.enableStacktraces(True)
