@@ -62,55 +62,7 @@ from javax.xml.transform.sax import SAXTransformerFactory
 from javax.xml.transform.stream import StreamResult
 from javax.xml.parsers import SAXParserFactory
 
-import exiconf.jvm.mapping as mapping
-
-def format_jexception_like_py(ex: JException) -> list[str]:
-  found_nonerr = False
-  frames = ex.getStackTrace()
-  out = []
-  for frame in frames:
-    _method = str(frame.getMethodName())
-    _clazz = str(frame.getClassName())
-    # Skip reportError and friends
-    if not found_nonerr:
-      if _clazz.startswith('org.apache.xerces.'):
-        if re.fullmatch("report([A-Z][a-z]+)?Error", _method):
-          continue
-      found_nonerr = True
-
-    to_push = '  File '
-    _file = frame.getFileName()
-    _line = frame.getLineNumber()
-    _line_data = ''
-    if _file:
-      to_push += f'"{_file}"'
-    else:
-      to_push += "<unknown>"
-    if _line > 0:
-      to_push += f', line {_line}'
-      try:
-        _line_data = mapping.lookup_line_ext(_clazz, _file, _line)
-      except Exception as e:
-        #print("{{")
-        #traceback.print_tb(e.__traceback__)
-        #print(e)
-        #print("}}", flush=True)
-        pass
-    to_push += f', in {_clazz}.{_method}\n'
-    if len(_line_data) > 0:
-      to_push += f'    {_line_data}\n'
-    out.append(to_push)
-    # TODO: Add source?
-    pass
-  return list(reversed(out))
-
-def print_jexc(ex: JException):
-  stacks = traceback.format_stack()[:-2]
-  stacks.extend(traceback.format_tb(ex.__traceback__))
-  stacks.extend(format_jexception_like_py(ex))
-  print("Traceback (most recent call last):\n",
-        ''.join(stacks), f'{ex.toString()}\n',
-        sep='', flush=True)
+from exiconf.jvm.jexcept import print_jexception
 
 def get_full_options():
   options = GrammarOptions.DEFAULT_OPTIONS
@@ -186,7 +138,7 @@ class MessageHandler:
       if filename is not None:
         print(Path(filename).as_posix(), ':', sep='')
       if isinstance(e, JException):
-        print_jexc(e)
+        print_jexception(e)
       else:
         traceback.print_exc()
       pass
@@ -222,7 +174,7 @@ class MessageHandler:
       if filename is not None:
         print(Path(filename).as_posix(), ':', sep='')
       if isinstance(e, JException):
-        print_jexc(e)
+        print_jexception(e)
       else:
         traceback.print_exc()
       pass
