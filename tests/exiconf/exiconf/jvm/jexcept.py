@@ -1,4 +1,6 @@
-import exiconf.jvm.check
+from exiconf.jvm.check import do_check
+do_check(__file__)
+
 import re, traceback
 from jpype.types import JException
 from exiconf.jvm.mapping import lookup_line_ext
