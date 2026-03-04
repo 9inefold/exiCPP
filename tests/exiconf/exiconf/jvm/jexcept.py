@@ -3,6 +3,7 @@ do_check(__file__)
 
 import re, traceback
 from jpype.types import JException
+from exiconf.logging import Log
 from exiconf.jvm.mapping import lookup_line_ext
 
 def _format_jexception_like_py(ex: JException) -> list[str]:
@@ -53,4 +54,10 @@ def print_jexception(ex: JException, skip=0):
   stacks = format_jexception(ex, skip=(skip + 1))
   print("Traceback (most recent call last):\n",
         ''.join(stacks), f'{ex.toString()}\n', sep=''
+  )
+
+def log_jexception(ex: JException, logger: Log, skip=0):
+  stacks = format_jexception(ex, skip=(skip + 1))
+  logger.error("Traceback (most recent call last):\n",
+               ''.join(stacks), f'{ex.toString()}\n', sep=''
   )
