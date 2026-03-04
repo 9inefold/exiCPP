@@ -25,6 +25,7 @@ include_items(CORE_SUPPORT "lib/core"
   Support/Alloc.cpp
   Support/Allocator.cpp
   Support/AutoConvert.cpp
+  Support/BinaryToText.cpp
   Support/BuryPointer.cpp
   Support/Chrono.cpp
   Support/ConvertUTF.cpp

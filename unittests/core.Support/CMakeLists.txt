@@ -10,6 +10,7 @@ add_exi_unittest(Support
   #BLAKE3Test.cpp
   #BlockFrequencyTest.cpp
   #BalancedPartitioningTest.cpp
+    #BinaryToTextTest.cpp # Based off go tests
   #BranchProbabilityTest.cpp
   #CachePruningTest.cpp
   #CrashRecoveryTest.cpp

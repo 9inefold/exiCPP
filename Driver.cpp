@@ -29,6 +29,7 @@
 #include <Common/StringSwitch.hpp>
 #include <Common/Twine.hpp>
 
+#include <Support/BinaryToText.hpp>
 #include <Support/Filesystem.hpp>
 #include <Support/InitDriver.hpp>
 #include <Support/Logging.hpp>
