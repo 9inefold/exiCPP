@@ -8,6 +8,9 @@ Python tests require:
 - `lxml` (install with `pip install lxml`)
 - `jpype` (install with `pip install JPype1`)
 
+Python tests have an optional dependency of `zipfile`, which is only used for printing
+line data in `JException` traces. The tests will still run if it is not installed.
+
 Folders have the following meanings:
 
 - `s` for the original data sources

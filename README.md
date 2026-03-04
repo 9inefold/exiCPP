@@ -66,6 +66,7 @@ For [the conformance tests](tests), the following are required:
 - Python 3.11+
   - JPype
   - lxml
+  - *zipfile* (optional)
 
 The precompiled `.jar`s for exificient, openexi, and xerces are found in [`bin/`](bin).
 You may provide your own, but keep in mind, the tests are intrusive and depend on implementation
