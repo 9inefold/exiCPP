@@ -63,10 +63,20 @@ from javax.xml.transform.stream import StreamResult
 from exiconf.jvm import print_jexception
 from exiconf.coder import _try_demangle
 
-_try_demangle('COiPcdlipV10')
-_try_demangle('_2OiPdpYej1skh1ajignh6ducoY')
-_try_demangle('_0OcB10000')
-_try_demangle('CN')
+def try_demangle(mangled=str):
+  try:
+    _try_demangle(mangled)
+  except Exception:
+    traceback.print_exc()
+
+try_demangle('COiPcdlipV10')
+try_demangle('_2OiPdpYej1skh1ajignh6ducoY')
+try_demangle('_0OcB10000')
+try_demangle('CN')
+
+try_demangle('yS')
+try_demangle('cB64M16V128')
+try_demangle('iPpYpb48ehb4fhzzq75zf35ugmuxqju16t51cfago4mdqczigi18fha1hcjxetkrem5uq3uuncjqct4geY')
 
 def get_full_options():
   options = GrammarOptions.DEFAULT_OPTIONS

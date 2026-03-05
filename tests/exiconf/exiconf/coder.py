@@ -6,8 +6,9 @@ import exiconf.zbase32 as zbase32
 __all__ = [
   'AlignmentType', 'PreserveType',
   'ExiOptions', 'ExiHeader',
+  'demangle', 'mangle',
   'demangle_options', 'demangle_header',
-  'mangle_options', 'mangle_header', 'mangle'
+  'mangle_options', 'mangle_header'
 ]
 
 """
@@ -38,7 +39,6 @@ _mangle_body_re = [
   '(?P<SelfContained>C)?',
   '(?:P(?P<Preserve>c?d?l?i?p?))?',
   '(?:Y(?P<SchemaID>[{}]*)Y)?'.format(_zbase32_alpha),
-  # TODO: Handle schema outside of regex
   '(?:B(?P<BlockSize>\d+))?',
   '(?:M(?P<ValueMaxLength>\d+))?',
   '(?:V(?P<ValuePartitionCapacity>\d+))?',
@@ -223,6 +223,11 @@ class ExiOptions:
       raise ValueError(f"'{mangled}' has invalid mangled options!")
     B = matches.groupdict()
     _demangle_options(self, B)
+  
+  def demangle_from(self, B: dict[str, str]):
+    if B is None:
+      raise ValueError(f"invalid mangled options (provided None)!")
+    _demangle_options(self, B)
 
   def mangle(self) -> str:
     # Alignment
@@ -242,7 +247,7 @@ class ExiOptions:
     if self.Alignment == AlignmentType.Compression:
       out += f'B{self.BlockSize}'
     if self.ValueMaxLength >= 0:
-      out += f'M{self.MaxValueLength}'
+      out += f'M{self.ValueMaxLength}'
     if self.ValuePartitionCapacity >= 0:
       out += f'V{self.ValuePartitionCapacity}'
     return out
@@ -279,8 +284,13 @@ class ExiHeader:
     if matches is None:
       raise ValueError(f"'{mangled}' has an invalid mangled header!")
     H = matches.groupdict()
-    _demangle_header(o, H, opt_handler=demangle_options)
+    _demangle_header(self, H, opt_handler=demangle_options)
   
+  def demangle_from(self, H: dict[str, str]):
+    if H is None:
+      raise ValueError(f"invalid mangled header (provided None)!")
+    _demangle_header(self, H, opt_handler=demangle_options)
+
   def mangle(self) -> str:
     out = ''
     # HasCookie
@@ -297,8 +307,7 @@ class ExiHeader:
     if self.HasOptions:
       assert self.Options is not None
       out += 'O'
-      out += self.Options.mangle()
-      return out
+      return out + self.Options.mangle()
     else:
       return out + 'N'
     
@@ -323,8 +332,7 @@ def demangle_options(mangled: str) -> ExiOptions:
     return None
   B = matches.groupdict()
   o = ExiOptions()
-  # Parse out
-  _demangle_options(o, B)
+  o.demangle_from(B)
   return o
 
 def demangle_header(mangled: str) -> ExiHeader:
@@ -334,24 +342,42 @@ def demangle_header(mangled: str) -> ExiHeader:
     return None
   H = matches.groupdict()
   o = ExiHeader()
-  # Parse out
-  _demangle_header(o, H, opt_handler=demangle_options)
+  o.demangle_from(H)
   return o
 
-def mangle(obj) -> str:
-  if isinstance(obj, (ExiOptions, ExiHeader)):
-    return obj.mangle()
-  raise ValueError(f'Object of type {type(obj)} is not valid for mangling!')
+def demangle(mangled: str) -> ExiOptions | ExiHeader:
+  # First try demangling header
+  hmatches = MANGLE_HEADER_RE.fullmatch(mangled)
+  if hmatches is not None:
+    # Demangle header
+    H = hmatches.groupdict()
+    o = ExiHeader()
+    o.demangle_from(H)
+    return o
+  # Try demangling options instead
+  bmatches = MANGLE_BODY_RE.fullmatch(mangled)
+  if bmatches is None:
+    errs.error(f"'{mangled}' is not a valid mangled header or options!")
+    return None
+  B = bmatches.groupdict()
+  o = ExiOptions()
+  o.demangle_from(B)
+  return o
 
-def mangle_options(obj) -> str:
+def mangle_options(obj: ExiOptions) -> str:
   if isinstance(obj, ExiOptions):
     return obj.mangle()
   raise ValueError(f'type {type(obj)} is an ExiOptions!')
 
-def mangle_header(obj) -> str:
+def mangle_header(obj: ExiHeader) -> str:
   if isinstance(obj, ExiHeader):
     return obj.mangle()
   raise ValueError(f'type {type(obj)} is an ExiHeader!')
+
+def mangle(obj: ExiOptions | ExiHeader) -> str:
+  if isinstance(obj, (ExiOptions, ExiHeader)):
+    return obj.mangle()
+  raise ValueError(f'Object of type {type(obj)} is not valid for mangling!')
 
 ################################################################################
 
@@ -375,15 +401,17 @@ class ExiHeaderJSONEncoder(json.JSONEncoder):
     # Let the base class default method raise the TypeError
     return super().default(obj)
 
-def _try_demangle(mangled: str):
+def _try_demangle(mangled: str, logger=outs, indent=2) -> bool:
   try:
-    v = demangle_header(mangled)
+    v = demangle(mangled)
     if v is None:
-      return
-    m = v.mangle()
+      return False
+    m = mangle(v)
     if mangled != m:
-      errs.warn(f"'{mangled}' does not match mangled '{m}'")
+      logger.warn(f"'{mangled}' does not match mangled '{m}'")
     r = json.dumps(v, indent=2, cls=ExiHeaderJSONEncoder)
-    print(f"{mangled}: {r}")
+    logger.info(f"{mangled}: {r}")
+    return mangled == m
   except ValueError as e:
-    print(f'{mangled}: {e}')
+    logger.error(f'{mangled}: {e}')
+    return False
