@@ -1,5 +1,6 @@
 import enum
 import os, sys
+from exiconf.ansi import has_color as _has_color
 
 class LogLevelArgs:
   QUIET = ['quiet', 'off', 'silent', 'nothing']
@@ -53,7 +54,20 @@ class Log:
 
   def __init__(self, level=DEFAULT_LEVEL, file=sys.stdout):
     self.level = Log.create_loglevel(level)
-    self.file = file
+    self._file = file
+    if file is None:
+      self._has_color = False
+    else:
+      self._has_color = _has_color(file)
+    self.color_enabled = self._has_color
+  
+  @property
+  def file(self):
+    return self._file
+  
+  @property
+  def has_color(self):
+    return self._has_color
   
   def set_level(self, level):
     self.level = Log.create_loglevel(level)
@@ -77,7 +91,7 @@ class Log:
 _log_loglevel = LogLevel(LogLevel.INFO)
 
 # The default logger
-outs = Log(level=_log_loglevel)
+outs = Log(level=_log_loglevel, file=sys.stdout)
 # Logs to `stderr`
 errs = Log(level=_log_loglevel, file=sys.stderr)
 
