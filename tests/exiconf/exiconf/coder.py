@@ -3,6 +3,13 @@ import os, sys
 from exiconf.logging import outs, errs
 import exiconf.zbase32 as zbase32
 
+__all__ = [
+  'AlignmentType', 'PreserveType',
+  'ExiOptions', 'ExiHeader',
+  'demangle_options', 'demangle_header',
+  'mangle_options', 'mangle_header', 'mangle'
+]
+
 """
 Mangling format:
   C?            : HasCookie
@@ -61,6 +68,19 @@ class AlignmentType(enum.IntEnum):
         return cls.Compression
       case _:
         raise ValueError(f'invalid align {repr(value)}')
+  
+  def mangle(self) -> str:
+    match self:
+      case self.BitPacked:
+        return 'i'
+      case self.BytePacked:
+        return 'y'
+      case self.PreCompression:
+        return 'p'
+      case self.Compression:
+        return 'c'
+      case _:
+        raise ValueError(f'invalid align {repr(self.Alignment)}')
 
 @enum.unique
 class PreserveType(enum.IntFlag):
@@ -91,6 +111,22 @@ class PreserveType(enum.IntFlag):
           raise ValueError(f'invalid preserve {v}')
     return out
   
+  def mangle(self) -> str:
+    out = ''
+    if not self:
+      return out
+    if self & self.Comments:
+      out += 'c'
+    if self & self.DTDs:
+      out += 'd'
+    if self & self.LexicalValues:
+      out += 'l'
+    if self & self.PIs:
+      out += 'i'
+    if self & self.Prefixes:
+      out += 'p'
+    return out
+
   def getnames(self) -> list[str]:
     out = []
     if not self:
@@ -188,6 +224,29 @@ class ExiOptions:
     B = matches.groupdict()
     _demangle_options(self, B)
 
+  def mangle(self) -> str:
+    # Alignment
+    out = self.Alignment.mangle()
+    # Strict/SelfContained
+    if self.Strict:
+      out += 'S'
+    if self.SelfContained:
+      out += 'C'
+    # Preserve
+    if self.Preserve:
+      out += 'P'
+      out += self.Preserve.mangle()
+    if self.SchemaID is not None:
+      bs = self.SchemaID.encode()
+      out += f'Y{zbase32.encode(bs)}Y'
+    if self.Alignment == AlignmentType.Compression:
+      out += f'B{self.BlockSize}'
+    if self.ValueMaxLength >= 0:
+      out += f'M{self.MaxValueLength}'
+    if self.ValuePartitionCapacity >= 0:
+      out += f'V{self.ValuePartitionCapacity}'
+    return out
+
   def getdict(self):
     return {
       'Alignment': self.Alignment,
@@ -221,6 +280,27 @@ class ExiHeader:
       raise ValueError(f"'{mangled}' has an invalid mangled header!")
     H = matches.groupdict()
     _demangle_header(o, H, opt_handler=demangle_options)
+  
+  def mangle(self) -> str:
+    out = ''
+    # HasCookie
+    if self.HasCookie:
+      out += 'C'
+    elif self.IsPreview or self.Version > 1:
+      out += '_'
+    # Version
+    if self.IsPreview:
+      out += '0'
+    if self.Version > 1:
+      out += str(self.Version)
+    # Options
+    if self.HasOptions:
+      assert self.Options is not None
+      out += 'O'
+      out += self.Options.mangle()
+      return out
+    else:
+      return out + 'N'
     
   def getdict(self):
     return {
@@ -258,6 +338,21 @@ def demangle_header(mangled: str) -> ExiHeader:
   _demangle_header(o, H, opt_handler=demangle_options)
   return o
 
+def mangle(obj) -> str:
+  if isinstance(obj, (ExiOptions, ExiHeader)):
+    return obj.mangle()
+  raise ValueError(f'Object of type {type(obj)} is not valid for mangling!')
+
+def mangle_options(obj) -> str:
+  if isinstance(obj, ExiOptions):
+    return obj.mangle()
+  raise ValueError(f'type {type(obj)} is an ExiOptions!')
+
+def mangle_header(obj) -> str:
+  if isinstance(obj, ExiHeader):
+    return obj.mangle()
+  raise ValueError(f'type {type(obj)} is an ExiHeader!')
+
 ################################################################################
 
 import json
@@ -285,6 +380,9 @@ def _try_demangle(mangled: str):
     v = demangle_header(mangled)
     if v is None:
       return
+    m = v.mangle()
+    if mangled != m:
+      errs.warn(f"'{mangled}' does not match mangled '{m}'")
     r = json.dumps(v, indent=2, cls=ExiHeaderJSONEncoder)
     print(f"{mangled}: {r}")
   except ValueError as e:

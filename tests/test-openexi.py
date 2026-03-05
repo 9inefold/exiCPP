@@ -63,7 +63,7 @@ from javax.xml.transform.stream import StreamResult
 from exiconf.jvm.jexcept import print_jexception
 from exiconf.coder import _try_demangle
 
-_try_demangle('COiPcdlipV0')
+_try_demangle('COiPcdlipV10')
 _try_demangle('_2OiPdpYej1skh1ajignh6ducoY')
 _try_demangle('_0OcB10000')
 _try_demangle('CN')
