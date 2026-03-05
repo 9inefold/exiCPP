@@ -14,7 +14,7 @@ Mangling format:
   (P[cdlip]+)?  : Preserve [Comments, Dtds, Lexicalvalues, pIs, Prefixes]
   (B\d+)?       : BlockSize (if compression)
   (M\d+)?       : ValueMaxLength
-  (P\d+)?       : ValuePartitionCapacity
+  (V\d+)?       : ValuePartitionCapacity
 """
 
 _zbase32_alpha = 'ybndrfg8ejkmcpqxot1uwisza345h769'
@@ -34,7 +34,7 @@ _mangle_body_re = [
   # TODO: Handle schema outside of regex
   '(?:B(?P<BlockSize>\d+))?',
   '(?:M(?P<ValueMaxLength>\d+))?',
-  '(?:P(?P<ValuePartitionCapacity>\d+))?',
+  '(?:V(?P<ValuePartitionCapacity>\d+))?',
 ]
 
 MANGLE_FLAGS = re.ASCII

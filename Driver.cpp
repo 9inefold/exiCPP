@@ -846,7 +846,7 @@ int main(int Argc, char* Argv[]) {
 
   {
     ExiOptions Opts;
-    if (!exi::exi_demangle_options(Opts, "iPcdlipP0"))
+    if (!exi::exi_demangle_options(Opts, "iPcdlipV0"))
       return 1;
     errs() << exi::exi_mangle_options(Opts) << '\n';
 

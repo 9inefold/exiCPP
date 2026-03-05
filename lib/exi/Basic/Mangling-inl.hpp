@@ -121,11 +121,11 @@ inline void MangleOptions(const ExiOptions& Opts, raw_ostream& OS) {
 
   // ValuePartitionCapacity:
   //  If bounded:
-  //   P<N>: length (P if compressed or has max length)
+  //   V<N>: length (V if compressed or has max length)
   //  Otherwise ommitted
   if (Opts.ValuePartitionCapacity.bounded())
     // TODO: Use base64?
-    OS << 'P' << *Opts.ValuePartitionCapacity;
+    OS << 'V' << *Opts.ValuePartitionCapacity;
   
   // TODO: Add options for DTRMap
 }
@@ -250,7 +250,6 @@ inline bool DemangleOptions(ExiOptions& Opts, StrRef Sym) {
   Opts.ValueMaxLength = unbounded;
   if (Sym.consume_front("M")) {
     u64 ValueMaxLength = 0;
-    //Sym.consumeInteger(10, ValueMaxLength);
     if (Sym.consumeInteger(10, ValueMaxLength)) {
       LOG_WARN("Expected integer ValueMaxLength.");
       return false;
@@ -259,9 +258,8 @@ inline bool DemangleOptions(ExiOptions& Opts, StrRef Sym) {
   }
 
   Opts.ValuePartitionCapacity = unbounded;
-  if (Sym.consume_front("P")) {
+  if (Sym.consume_front("V")) {
     u64 ValuePartitionCapacity = 0;
-    //Sym.consumeInteger(10, ValuePartitionCapacity);
     if (Sym.consumeInteger(10, ValuePartitionCapacity)) {
       LOG_WARN("Expected integer ValuePartitionCapacity.");
       return false;
