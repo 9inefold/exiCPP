@@ -90,6 +90,22 @@ class PreserveType(enum.IntFlag):
         case _:
           raise ValueError(f'invalid preserve {v}')
     return out
+  
+  def getnames(self) -> list[str]:
+    out = []
+    if not self:
+      return out
+    if self & self.Comments:
+      out.append('Comments')
+    if self & self.DTDs:
+      out.append('DTDs')
+    if self & self.LexicalValues:
+      out.append('LexicalValues')
+    if self & self.PIs:
+      out.append('PIs')
+    if self & self.Prefixes:
+      out.append('Prefixes')
+    return out
 
 def parse_intopt(val: str, name=None, alt:int=None) -> int:
   if name is None:
@@ -113,7 +129,7 @@ def decode_zbase32(src: str) -> str:
     return None
   return zbase32.decode(src).decode()
 
-def _handle_options(o, B: dict[str, str]):
+def _demangle_options(o, B: dict[str, str]):
   o.Alignment = AlignmentType.create(B['Alignment'])
   o.Strict = B['Strict'] is not None
   o.SelfContained = B['SelfContained'] is not None
@@ -143,7 +159,7 @@ def parse_version(version: str) -> (bool, int):
     raise ValueError(f"Version '{Version}' is not >=1")
   return IsPreview, Version
 
-def _handle_header(o, H: dict[str, str], opt_handler=None):
+def _demangle_header(o, H: dict[str, str], opt_handler=None):
   o.HasCookie = H['HasCookie'] is not None
   o.IsPreview, o.Version = parse_version(H['Version'])
   o.HasOptions = H['Options'] is not None
@@ -153,7 +169,7 @@ def _handle_header(o, H: dict[str, str], opt_handler=None):
 ################################################################################
 
 class ExiOptions:
-  def __init__(self):
+  def __init__(self, mangled=None):
     self.Alignment = None
     self.Strict = None
     self.SelfContained = None
@@ -162,6 +178,16 @@ class ExiOptions:
     self.BlockSize = None
     self.ValueMaxLength = None
     self.ValuePartitionCapacity = None
+    if mangled is not None:
+      self.demangle(mangled)
+  
+  def demangle(self, mangled: str):
+    matches = MANGLE_BODY_RE.fullmatch(mangled)
+    if matches is None:
+      raise ValueError(f"'{mangled}' has invalid mangled options!")
+    B = matches.groupdict()
+    _demangle_options(self, B)
+
   def getdict(self):
     return {
       'Alignment': self.Alignment,
@@ -180,12 +206,22 @@ class ExiOptions:
   pass
 
 class ExiHeader:
-  def __init__(self):
+  def __init__(self, mangled=None):
     self.HasCookie = None
     self.IsPreview = None
     self.Version = None
     self.HasOptions = None
     self.Options = None
+    if mangled is not None:
+      self.demangle(mangled)
+  
+  def demangle(self, mangled: str):
+    matches = MANGLE_HEADER_RE.fullmatch(mangled)
+    if matches is None:
+      raise ValueError(f"'{mangled}' has an invalid mangled header!")
+    H = matches.groupdict()
+    _demangle_header(o, H, opt_handler=demangle_options)
+    
   def getdict(self):
     return {
       'HasCookie': self.HasCookie,
@@ -208,7 +244,7 @@ def demangle_options(mangled: str) -> ExiOptions:
   B = matches.groupdict()
   o = ExiOptions()
   # Parse out
-  _handle_options(o, B)
+  _demangle_options(o, B)
   return o
 
 def demangle_header(mangled: str) -> ExiHeader:
@@ -219,5 +255,37 @@ def demangle_header(mangled: str) -> ExiHeader:
   H = matches.groupdict()
   o = ExiHeader()
   # Parse out
-  _handle_header(o, H, opt_handler=demangle_options)
+  _demangle_header(o, H, opt_handler=demangle_options)
   return o
+
+################################################################################
+
+import json
+
+class ExiHeaderJSONEncoder(json.JSONEncoder):
+  def default(self, obj):
+    if isinstance(obj, ExiHeader):
+      return obj.getdict()
+    if isinstance(obj, ExiOptions):
+      d = obj.getdict()
+      Alignment = d['Alignment']
+      if Alignment is not None:
+        d['Alignment'] = Alignment.name
+      Preserve = d['Preserve']
+      if Preserve is not None:
+        d['Preserve'] = Preserve.getnames()
+      return d
+    if isinstance(obj, (enum.IntEnum, enum.IntFlag)):
+      return repr(obj)
+    # Let the base class default method raise the TypeError
+    return super().default(obj)
+
+def _try_demangle(mangled: str):
+  try:
+    v = demangle_header(mangled)
+    if v is None:
+      return
+    r = json.dumps(v, indent=2, cls=ExiHeaderJSONEncoder)
+    print(f"{mangled}: {r}")
+  except ValueError as e:
+    print(f'{mangled}: {e}')
