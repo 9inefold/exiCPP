@@ -44,8 +44,8 @@ from exiconf.jvm.setup import start_jvm, get_jvm_path
 start_jvm(jvm_args=['-ea'])
 #start_jvm(jvm_args=['-ea', '-Dexicpp.loglevel=verbose'])
 
-from exiconf.jvm.check import do_check
-do_check(__file__)
+from exiconf.jvm import do_jvm_check
+do_jvm_check(__file__)
 
 import jpype.imports
 from jpype.types import *
@@ -60,7 +60,7 @@ from org.xml.sax import InputSource
 from java.nio.charset import Charset
 from javax.xml.transform.stream import StreamResult
 
-from exiconf.jvm.jexcept import print_jexception
+from exiconf.jvm import print_jexception
 from exiconf.coder import _try_demangle
 
 _try_demangle('COiPcdlipV10')

@@ -1,5 +1,9 @@
 import sys, traceback
-from exiconf.jvm.setup import _used_jvm_path
+from exiconf.jvm.setup import get_jvm_path
+
+__all__ = ['jvm_check', 'do_jvm_check']
+
+_internal_check = False
 
 def _do_check_fail(filename=None):
   out = ''
@@ -13,4 +17,20 @@ def _do_check_fail(filename=None):
 def _do_check_pass(filename=None):
   pass
 
-do_check = _do_check_fail if (_used_jvm_path is None) else _do_check_pass
+def jvm_check(filename=None):
+  def check_impl():
+    global _internal_check
+    if _internal_check:
+      return
+    if get_jvm_path() is None:
+      _do_check_fail(filename)
+    _internal_check = True
+  return check_impl
+
+def do_jvm_check(filename=None):
+  global _internal_check
+  if _internal_check:
+    return
+  if get_jvm_path() is None:
+    _do_check_fail(filename)
+  _internal_check = True

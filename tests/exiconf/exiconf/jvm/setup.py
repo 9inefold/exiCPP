@@ -4,6 +4,13 @@ from pathlib import Path
 from exiconf.main import EXI_BASE_DIR, EXI_BIN_DIR, TEST_SRC_DIR
 from exiconf.logging import LogLevelArgs, Log, outs
 
+__all__ = [
+  'start_jvm',
+  'get_jvm_path',
+  'get_jvm_classpath',
+  'get_jvm_extra_args',
+]
+
 JPYPE_DEFAULT_JVM_PATH = jpype.getDefaultJVMPath()
 _used_jvm_path = None
 _used_jvm_classpath = None
@@ -104,7 +111,7 @@ def get_jvm_classpath() -> list[str]:
   return _used_jvm_classpath[:]
 
 # Gets the extra args used with JPype
-def get_jvm_classpath() -> list[str]:
+def get_jvm_extra_args() -> list[str]:
   if _used_jvm_extra_args is None:
     return None
   return _used_jvm_extra_args[:]

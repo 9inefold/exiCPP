@@ -5,6 +5,11 @@ from exiconf.main import EXI_BASE_DIR
 from exiconf.logging import errs
 from exiconf.jvm.setup import get_jvm_path
 
+__all__ = [
+  'lookup_line',
+  'lookup_line_ext'
+]
+
 class JavaFileMapping:
   """
   self.is_multi: boolean

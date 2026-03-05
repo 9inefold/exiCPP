@@ -1,10 +1,16 @@
-from exiconf.jvm.check import do_check
-do_check(__file__)
-
 import re, traceback
 from jpype.types import JException
 from exiconf.logging import Log
+from exiconf.jvm.check import jvm_check
 from exiconf.jvm.mapping import lookup_line_ext
+
+__all__ = [
+  'format_jexception',
+  'print_jexception',
+  'log_jexception'
+]
+
+_jvm_check = jvm_check(__file__)
 
 def _format_jexception_like_py(ex: JException) -> list[str]:
   found_nonerr = False
@@ -45,18 +51,21 @@ def _format_jexception_like_py(ex: JException) -> list[str]:
   return list(reversed(out))
 
 def format_jexception(ex: JException, skip=0) -> list[str]:
+  _jvm_check()
   stacks = traceback.format_stack()[:-(skip + 2)]
   stacks.extend(traceback.format_tb(ex.__traceback__))
   stacks.extend(_format_jexception_like_py(ex))
   return stacks
 
 def print_jexception(ex: JException, skip=0):
+  _jvm_check()
   stacks = format_jexception(ex, skip=(skip + 1))
   print("Traceback (most recent call last):\n",
         ''.join(stacks), f'{ex.toString()}\n', sep=''
   )
 
 def log_jexception(ex: JException, logger: Log, skip=0):
+  _jvm_check()
   stacks = format_jexception(ex, skip=(skip + 1))
   logger.error("Traceback (most recent call last):\n",
                ''.join(stacks), f'{ex.toString()}\n', sep=''
