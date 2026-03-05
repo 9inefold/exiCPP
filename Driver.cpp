@@ -844,7 +844,44 @@ int main(int Argc, char* Argv[]) {
   SetLogLevel(LogLevel::WARN);
   InitDriver X(Argc, Argv);
 
-  const XMLParseOptions ParseOpts { .MergeData = true };
+  {
+    ExiOptions Opts;
+    if (!exi::exi_demangle_options(Opts, "iPcdlipP0"))
+      return 1;
+    errs() << exi::exi_mangle_options(Opts) << '\n';
+
+    Opts.SchemaID = std::make_unique<std::string>("BeerXML.xsd");
+    auto Mangled = exi::exi_mangle_options(Opts);
+    errs() << Mangled << '\n';
+
+    ExiOptions Opts2;
+    if (!exi::exi_demangle_options(Opts2, Mangled))
+      return 1;
+    exi_relassert(Opts2.SchemaID);
+    auto& SchemaID = *Opts2.SchemaID;
+    exi_relassert(SchemaID);
+    errs() << '\"' << *SchemaID << "\"\n";
+    //return 0;
+  }
+
+  {
+    SmallStr<32> EBuf, DBuf;
+    StrRef Original = "BeerXML.xsd";
+    StrRef Encoded = zbase32::encode(Original, EBuf);
+    Expected<StrRef> DecodedOrErr = zbase32::decode(Encoded, DBuf);
+    if (!DecodedOrErr) {
+      exi::String Err = toString(DecodedOrErr.takeError());
+      errs() << "Error decoding: " << Err << '\n';
+      return 1;
+    }
+    StrRef Decoded = *DecodedOrErr;
+
+    outs() << "Original: " << Original << '\n';
+    outs() << "Encoded:  " << Encoded << '\n';
+    outs() << "Decoded:  " << Decoded << '\n';
+    return Original != Decoded;
+  }
+
   XMLManagerRef Mgr = make_refcounted<XMLManager>(ParseOpts);
 
 #if STRESS_TEST_DECODING

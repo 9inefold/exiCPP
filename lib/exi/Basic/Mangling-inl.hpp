@@ -26,6 +26,8 @@
 #include <core/Common/EnumArray.hpp>
 #include <core/Common/StringExtras.hpp>
 #include <core/Common/SmallVec.hpp>
+#include <core/Support/BinaryToText.hpp>
+#include <core/Support/Error.hpp>
 #include <core/Support/Format.hpp>
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/ExiHeader.hpp>
@@ -92,12 +94,13 @@ inline void MangleOptions(const ExiOptions& Opts, raw_ostream& OS) {
   }
 
   // SchemaID:
-  //  Y<N><ID>: exists
+  //  Y<ID>Y: exists
   //  Otherwise ommitted
   if (Opts.SchemaID) {
     if (auto& ID = *Opts.SchemaID) {
-      LOG_WARN("Schemas IDs unimplemented!");
-      OS << 'Y' << ID->size() << format("{:@<{}}", "", ID->size());
+      //LOG_WARN("Schema IDs unimplemented!");
+      SmallVec<char, 0> Buf;
+      OS << 'Y' << zbase32::encode(*ID, Buf) << 'Y';
     }
   }
 
@@ -140,6 +143,8 @@ inline void MangleHeader(const ExiHeader& Header, raw_ostream& OS) {
   //      : version 1 (ommitted)
   //   <N>: version N
   if (Header.ExiVersion > 1 || Header.IsPreviewVersion) {
+    if (!Header.HasCookie)
+      OS << '_';
     if (Header.IsPreviewVersion)
       OS << '0';
     if (Header.ExiVersion > 1)
@@ -188,7 +193,8 @@ inline bool DemangleOptions(ExiOptions& Opts, StrRef Sym) {
     LOG_WARN("Unexpected character: '{}'", Sym[0]);
     return false;
   }
-  
+  Sym = Sym.drop_front();
+
   Opts.Strict = Sym.consume_front("S");
   Opts.SelfContained = Sym.consume_front("C");
 
@@ -208,13 +214,30 @@ inline bool DemangleOptions(ExiOptions& Opts, StrRef Sym) {
   }
   
   if (Sym.consume_front("Y")) {
-    LOG_WARN("Schemas IDs unimplemented!");
-    usize Skip = 0;
-    if (Sym.consumeInteger(10, Skip)) {
-      LOG_WARN("Invalid SchemaID size.");
+    LOG_WARN("Schema IDs unimplemented!");
+    const usize Len = Sym.find('Y');
+    if (Len == StrRef::npos) {
+      LOG_WARN("Unterminated SchemaID.");
       return false;
     }
-    Sym = Sym.drop_front(Skip);
+
+    SmallVec<char, 0> Buf;
+    Expected<StrRef> IDOrErr =
+        zbase32::decode(Sym.take_front(Len), Buf);
+    
+    if (!IDOrErr) {
+      Error E = IDOrErr.takeError();
+      LOG_WARN("Invalid SchemaID: {}",
+          toStringWithoutConsuming(E));
+      consumeError(std::move(E));
+      return false;
+    }
+
+    std::string ID = std::string(*IDOrErr);
+    Opts.SchemaID = std::make_unique<std::string>(std::move(ID));
+
+    Sym = Sym.drop_front(Len);
+    Sym.consume_front("Y");
   }
 
   if (Opts.Compression)
@@ -227,7 +250,7 @@ inline bool DemangleOptions(ExiOptions& Opts, StrRef Sym) {
   Opts.ValueMaxLength = unbounded;
   if (Sym.consume_front("M")) {
     u64 ValueMaxLength = 0;
-    Sym.consumeInteger(10, ValueMaxLength);
+    //Sym.consumeInteger(10, ValueMaxLength);
     if (Sym.consumeInteger(10, ValueMaxLength)) {
       LOG_WARN("Expected integer ValueMaxLength.");
       return false;
@@ -238,7 +261,7 @@ inline bool DemangleOptions(ExiOptions& Opts, StrRef Sym) {
   Opts.ValuePartitionCapacity = unbounded;
   if (Sym.consume_front("P")) {
     u64 ValuePartitionCapacity = 0;
-    Sym.consumeInteger(10, ValuePartitionCapacity);
+    //Sym.consumeInteger(10, ValuePartitionCapacity);
     if (Sym.consumeInteger(10, ValuePartitionCapacity)) {
       LOG_WARN("Expected integer ValuePartitionCapacity.");
       return false;
@@ -251,6 +274,13 @@ inline bool DemangleOptions(ExiOptions& Opts, StrRef Sym) {
 
 /// Implements header demangling for generic types.
 inline bool DemangleHeader(ExiHeader& Header, StrRef Sym) {
+  // Prefix only used when:
+  //  !HasCookie && (IsPreviewVersion || ExiVersion > 1)
+  Sym.consume_front("_");
+
+  // HasCookie:
+  //  C: yes
+  //  Otherwise ommitted
   Header.HasCookie = Sym.consume_front("C");
 
   // ExiVersion:
