@@ -401,6 +401,17 @@ class ExiHeaderJSONEncoder(json.JSONEncoder):
     # Let the base class default method raise the TypeError
     return super().default(obj)
 
+def _json_dump(v: ExiHeader | ExiOptions, indent=2) -> str:
+  return json.dumps(v, indent=indent, cls=ExiHeaderJSONEncoder)
+
+def _try_demangle_value(v: ExiHeader | ExiOptions,
+                        mangled=None, logger=outs, indent=2):
+  r = _json_dump(v, indent=indent)
+  if mangled is not None:
+    logger.info(f"{mangled}: {r}")
+  else:
+    logger.info(r)
+
 def _try_demangle(mangled: str, logger=outs, indent=2) -> bool:
   try:
     v = demangle(mangled)
@@ -409,8 +420,7 @@ def _try_demangle(mangled: str, logger=outs, indent=2) -> bool:
     m = mangle(v)
     if mangled != m:
       logger.warn(f"'{mangled}' does not match mangled '{m}'")
-    r = json.dumps(v, indent=2, cls=ExiHeaderJSONEncoder)
-    logger.info(f"{mangled}: {r}")
+    _try_demangle_value(v, mangled=mangled, logger=logger, indent=indent)
     return mangled == m
   except ValueError as e:
     logger.error(f'{mangled}: {e}')

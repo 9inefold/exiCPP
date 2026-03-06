@@ -43,25 +43,9 @@ cwd = os.getcwd()
 from exiconf.jvm.setup import start_jvm, get_jvm_path
 start_jvm(jvm_args=['-ea'])
 #start_jvm(jvm_args=['-ea', '-Dexicpp.loglevel=verbose'])
-
-from exiconf.jvm import do_jvm_check
-do_jvm_check(__file__)
-
-import jpype.imports
-from jpype.types import *
-from java.io import ByteArrayInputStream, ByteArrayOutputStream, StringWriter
-from java.lang import String
-from org.exicpp.openexi import DirectSAXHandler
-from org.openexi.sax import EXIReader2, Transmogrifier2
-from org.openexi.proc import HeaderOptionsOutputType
-from org.openexi.proc.common import AlignmentType, GrammarOptions
-from org.openexi.proc.grammars import GrammarCache
-from org.xml.sax import InputSource
-from java.nio.charset import Charset
-from javax.xml.transform.stream import StreamResult
-
-from exiconf.jvm import print_jexception
-from exiconf.coder import _try_demangle
+from exiconf.openexi import OpenEXICoder
+from exiconf.logging import outs, errs, set_log_level
+from exiconf.coder import _try_demangle, _json_dump
 
 def try_demangle(mangled=str):
   try:
@@ -69,137 +53,13 @@ def try_demangle(mangled=str):
   except Exception:
     traceback.print_exc()
 
-try_demangle('COiPcdlipV10')
-try_demangle('_2OiPdpYej1skh1ajignh6ducoY')
-try_demangle('_0OcB10000')
-try_demangle('CN')
-
-try_demangle('yS')
-try_demangle('cB64M16V128')
-try_demangle('iPpYpb48ehb4fhzzq75zf35ugmuxqju16t51cfago4mdqczigi18fha1hcjxetkrem5uq3uuncjqct4geY')
-
-def get_full_options():
-  options = GrammarOptions.DEFAULT_OPTIONS
-  options = GrammarOptions.addCM(options)
-  options = GrammarOptions.addPI(options)
-  options = GrammarOptions.addNS(options)
-  options = GrammarOptions.addDTD(options)
-  return options
-
-"""
-The following class is modified from:
-https://github.com/EDF-Lab/eVDriveFlow/blob/main/shared/message_handling.py
-"""
-
-class MessageHandler:
-  """This is the class that will process every single XML input."""
-  hdr_options = HeaderOptionsOutputType.none
-  gmr_options = get_full_options()
-
-  def __init__(self):
-    writer = Transmogrifier2()
-    #writer.printXMLReaderConfig()
-    writer.setAllowWeirdAttributes(True)
-    writer.setPreserveCharacterRefEmbedding(True)
-    writer.setOutputOptions(MessageHandler.hdr_options)
-    writer.setAlignmentType(AlignmentType.byteAligned)
-    writer.setResolveExternalGeneralEntities(JBoolean(False))
-    writer.setPreserveWhitespaces(JBoolean(True))
-    #writer.setBlockSize(1000000)
-    #writer.setValueMaxLength(-1)
-    #writer.setValuePartitionCapacity(0)
-
-    reader = EXIReader2()
-    handler = DirectSAXHandler()
-    reader.setAlignmentType(AlignmentType.byteAligned)
-    #reader.setOutputOptions(MessageHandler.hdr_options)
-    #reader.setResolveExternalGeneralEntities(JBoolean(False))
-    ##reader.setBlockSize(1000000)
-    ##reader.setValueMaxLength(-1)
-    ##reader.setValuePartitionCapacity(0)
-    reader.setContentHandler(handler)
-    reader.setLexicalHandler(handler)
-
-    self.writer = writer
-    self.reader = reader
-    self.handler = handler
-    self.hdr_options = MessageHandler.hdr_options
-    self.gmr_options = MessageHandler.gmr_options
-
-  def encode(self, xml_contents: str, filename=None, dir=None) -> bytes:
-    """Turns a human-readable string to an EXI-encoded string. Relies on Java classes.
-
-    :param xml_contents: The XML string to be encoded.
-    :param type_msg: The type of message used.
-    :return: str -- the encoded result.
-    """
-    contents = String(xml_contents)
-    input = None
-    output = None
-    result = None
-    try:
-      w = self.writer
-      input = ByteArrayInputStream(contents.getBytes(Charset.forName("utf8")));
-      output = ByteArrayOutputStream();
-      if dir is not None:
-        w.addEntityManagerSearchDirectory(Path(dir).as_posix())
-      w.setGrammarCache(GrammarCache(None, self.gmr_options));
-      w.setOutputStream(output);
-      w.encode(InputSource(input));
-      result = output.toByteArray()
-      w.resetEntityManagerSearchDirectories()
-    except Exception as e:
-      if filename is not None:
-        print(Path(filename).as_posix(), ':', sep='')
-      if isinstance(e, JException):
-        print_jexception(e)
-      else:
-        traceback.print_exc()
-      pass
-    finally:
-      if input:
-        input.close()
-      if output:
-        output.close()
-      if result is None:
-        return None
-      return result
-
-  def decode(self, exi_contents: bytes, filename=None) -> str:
-    """Turns encoded EXI bytes to human-readable string. Relies on Java classes.
-
-    :param exi_contents: The EXI encoded contents.
-    :param type_msg: The type of message used.
-    :return: str -- the decoded string.
-    """
-    input = None
-    output = None
-    stringWriter = StringWriter()
-    result = None
-    try:
-      input = ByteArrayInputStream(exi_contents)
-      r = self.reader
-      self.handler.setWriter(stringWriter)
-      r.setGrammarCache(GrammarCache(None, self.gmr_options));
-      r.parse(InputSource(input))
-      result = stringWriter.getBuffer().toString()
-      self.handler.reset()
-    except Exception as e:
-      if filename is not None:
-        print(Path(filename).as_posix(), ':', sep='')
-      if isinstance(e, JException):
-        print_jexception(e)
-      else:
-        traceback.print_exc()
-      pass
-    finally:
-      if input:
-        input.close()
-      if output:
-        output.close()
-      if result is None:
-        return None
-      return str(result)
+#try_demangle('COiPcdlipV10')
+#try_demangle('_2OiPdpYej1skh1ajignh6ducoY')
+#try_demangle('_0OcB10000')
+#try_demangle('CN')
+#try_demangle('yS')
+#try_demangle('cB64M16V128')
+#try_demangle('iPpYpb48ehb4fhzzq75zf35ugmuxqju16t51cfago4mdqczigi18fha1hcjxetkrem5uq3uuncjqct4geY')
 
 OUT_DIR = EXI_BASE_DIR / 'tests/out'
 if not OUT_DIR.exists():
@@ -208,7 +68,7 @@ if not OUT_DIR.exists():
 BAD_ITEMS = [str(Path(x)) for x in ['xml/012.xml']]
 
 def do_roundtrip(test_path: Path, do_print = False):
-  handler = MessageHandler()
+  handler = OpenEXICoder()
   if do_print:
     relpath = test_path.relative_to(cwd).as_posix()
     print(relpath, ':', sep='', flush=True);
@@ -226,7 +86,7 @@ def do_roundtrip(test_path: Path, do_print = False):
   if do_print:
     print(xml_out, '\n', flush=True)
 
-def run_all_files(do_print = False):
+def run_all_files(mangled=None, do_print=False):
   all_files = list(glob(
     '**/*.xml',
     #'at/*.xml',
@@ -234,8 +94,7 @@ def run_all_files(do_print = False):
     recursive=True
   ))
 
-  handler = MessageHandler()
-
+  handler = OpenEXICoder(mangled=mangled, logger=outs)
   err_dir = EXI_CURR_DIR/'out/err'
   if not err_dir.exists():
     err_dir.mkdir(parents=True)
@@ -254,22 +113,22 @@ def run_all_files(do_print = False):
       xml_in = (TEST_SRC_DIR / f).read_text('utf8')
       data = handler.encode(xml_in, f, xml_dir)
       if data is None:
+        outs.extra(f'encoding {Path(f).as_posix()} failed', flush=True)
         continue
       xml_out = handler.decode(data, f)
       if xml_out is None:
+        outs.extra(f'decoding {Path(f).as_posix()} failed', flush=True)
         continue
       if not is_bad:
         is_eq = diff_xml(f, xml_in, xml_out)
         # Print results
-        if is_eq and do_print:
-          print(f'{Path(f).as_posix()}: {is_eq}', flush=True)
-      elif do_print:
-        print(f'{Path(f).as_posix()}: Skipped', flush=True)
+        if is_eq:
+          outs.extra(f'{Path(f).as_posix()}: {is_eq}', flush=True)
+      else:
+        outs.extra(f'{Path(f).as_posix()}: Skipped', flush=True)
         
     except Exception as e:
-      if do_print:
-        print(f'{Path(f).as_posix()}*: {type(e).__name__}: {e}', flush=True)
-      pass
+      outs.extra(f'{Path(f).as_posix()}*: {type(e).__name__}: {e}', flush=True)
     # Check results
     if is_eq:
       eq_count += 1
@@ -279,12 +138,28 @@ def run_all_files(do_print = False):
         eq_count += 1
       (EXI_CURR_DIR/'out/err'/Path(f).name).write_text(xml_out)
   
-  print('Equal:', eq_count)
-  print('Total:', len(all_files))
+  print('For:', handler.mangled, _json_dump(handler))
+  print('  Equal:', eq_count)
+  print('  Total:', len(all_files))
+  print()
+
+def run_all(mangled=None, do_print=False):
+  if mangled is None:
+    run_all_files(do_print=do_print)
+    return
+  # Actually run
+  for m in mangled:
+    run_all_files(mangled=m, do_print=do_print)
 
 if __name__ == "__main__":
+  set_log_level('info')
   #run_all_files(do_print=True)
-  run_all_files()
+  run_all([
+    'iPcdip',
+    'yPcdip',
+    'pPcdip',
+    'cPcdipB1000000V0',
+  ])
 
   #CustomSAXParserFactory.printTypeOfParser()
   # TODO: Handle doctype

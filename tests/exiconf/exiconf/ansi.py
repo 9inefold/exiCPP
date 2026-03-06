@@ -30,9 +30,7 @@ def _check_when_windows(handle) -> bool:
   out = DWORD()
   res = _kernel32.GetConsoleMode(h, ctypes.byref(out))
   if not res:
-    print('FAIL!')
     return False
-  print('value:', bin(out.value))
   # Check ENABLE_VIRTUAL_TERMINAL_PROCESSING
   return (out.value & 0x004) != 0
 
