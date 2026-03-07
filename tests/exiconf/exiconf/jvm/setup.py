@@ -52,10 +52,13 @@ def _resolve_jvm(jvm_path: str, logger: Log) -> str:
   return JPYPE_DEFAULT_JVM_PATH
 
 # Starts the JVM if not already running. Must be called before importing anything.
-def start_jvm(jvm=None, classpath=None, jvm_args=None, logger:Log=outs):
+def start_jvm(jvm=None, classpath=None, jvm_args=None, logger:Log=None):
   if jpype.isJVMStarted():
     #logger.extra("JVM already running!")
     return
+  
+  if logger is None:
+    logger = outs()
   
   jvm_path = _resolve_jvm(jvm, logger)
   global _used_jvm_path

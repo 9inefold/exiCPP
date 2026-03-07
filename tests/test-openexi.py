@@ -1,5 +1,4 @@
 import os, sys
-import re
 import traceback
 from pathlib import Path
 from glob import glob
@@ -11,7 +10,7 @@ from exiconf.main import EXI_BASE_DIR, EXI_BIN_DIR, TEST_SRC_DIR
 sys.path.insert(0, str(EXI_BASE_DIR / 'vendored' / 'xmldiff'))
 from xmldiff.main import diff_texts
 from xmldiff.actions import UpdateTextIn, UpdateTextAfter
-import lxml.etree as etree
+from lxml import etree
 
 # Returns true if xml is not different.
 def diff_xml(name, file1, file2, parse_options=None) -> bool:
@@ -94,7 +93,9 @@ def run_all_files(mangled=None, do_print=False):
     recursive=True
   ))
 
-  handler = OpenEXICoder(mangled=mangled, logger=outs)
+  logger = outs()
+  print(logger.get_level())
+  handler = OpenEXICoder(mangled=mangled, logger=logger)
   err_dir = EXI_CURR_DIR/'out/err'
   if not err_dir.exists():
     err_dir.mkdir(parents=True)
@@ -113,22 +114,22 @@ def run_all_files(mangled=None, do_print=False):
       xml_in = (TEST_SRC_DIR / f).read_text('utf8')
       data = handler.encode(xml_in, f, xml_dir)
       if data is None:
-        outs.extra(f'encoding {Path(f).as_posix()} failed', flush=True)
+        logger.extra(f'encoding {Path(f).as_posix()} failed', flush=True)
         continue
       xml_out = handler.decode(data, f)
       if xml_out is None:
-        outs.extra(f'decoding {Path(f).as_posix()} failed', flush=True)
+        logger.extra(f'decoding {Path(f).as_posix()} failed', flush=True)
         continue
       if not is_bad:
         is_eq = diff_xml(f, xml_in, xml_out)
         # Print results
         if is_eq:
-          outs.extra(f'{Path(f).as_posix()}: {is_eq}', flush=True)
+          logger.extra(f'{Path(f).as_posix()}: {is_eq}', flush=True)
       else:
-        outs.extra(f'{Path(f).as_posix()}: Skipped', flush=True)
+        logger.extra(f'{Path(f).as_posix()}: Skipped', flush=True)
         
     except Exception as e:
-      outs.extra(f'{Path(f).as_posix()}*: {type(e).__name__}: {e}', flush=True)
+      logger.extra(f'{Path(f).as_posix()}*: {type(e).__name__}: {e}', flush=True)
     # Check results
     if is_eq:
       eq_count += 1

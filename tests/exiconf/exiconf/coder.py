@@ -328,7 +328,7 @@ class ExiHeader:
 def demangle_options(mangled: str) -> ExiOptions:
   matches = MANGLE_BODY_RE.fullmatch(mangled)
   if matches is None:
-    errs.error(f"'{mangled}' has invalid mangled options!")
+    errs().error(f"'{mangled}' has invalid mangled options!")
     return None
   B = matches.groupdict()
   o = ExiOptions()
@@ -338,7 +338,7 @@ def demangle_options(mangled: str) -> ExiOptions:
 def demangle_header(mangled: str) -> ExiHeader:
   matches = MANGLE_HEADER_RE.fullmatch(mangled)
   if matches is None:
-    errs.error(f"'{mangled}' has an invalid mangled header!")
+    errs().error(f"'{mangled}' has an invalid mangled header!")
     return None
   H = matches.groupdict()
   o = ExiHeader()
@@ -357,7 +357,7 @@ def demangle(mangled: str) -> ExiOptions | ExiHeader:
   # Try demangling options instead
   bmatches = MANGLE_BODY_RE.fullmatch(mangled)
   if bmatches is None:
-    errs.error(f"'{mangled}' is not a valid mangled header or options!")
+    errs().error(f"'{mangled}' is not a valid mangled header or options!")
     return None
   B = bmatches.groupdict()
   o = ExiOptions()
@@ -405,14 +405,18 @@ def _json_dump(v: ExiHeader | ExiOptions, indent=2) -> str:
   return json.dumps(v, indent=indent, cls=ExiHeaderJSONEncoder)
 
 def _try_demangle_value(v: ExiHeader | ExiOptions,
-                        mangled=None, logger=outs, indent=2):
+                        mangled=None, logger=None, indent=2):
+  if logger is None:
+    logger = outs()
   r = _json_dump(v, indent=indent)
   if mangled is not None:
     logger.info(f"{mangled}: {r}")
   else:
     logger.info(r)
 
-def _try_demangle(mangled: str, logger=outs, indent=2) -> bool:
+def _try_demangle(mangled: str, logger=None, indent=2) -> bool:
+  if logger is None:
+    logger = outs()
   try:
     v = demangle(mangled)
     if v is None:

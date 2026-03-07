@@ -62,7 +62,10 @@ class OpenEXICoder(ExiOptions):
   """
 
   # TODO Add demangling settings
-  def __init__(self, mangled=_default_sig, logger=outs):
+  def __init__(self, mangled=_default_sig, logger=None):
+    if logger is None:
+      logger = outs()
+    
     if mangled is None:
       logger.extra(f"mangled is None, using '{_default_sig}'")
       self.mangled = _default_sig

@@ -91,7 +91,7 @@ class JavaMultiFileMapping(JavaFileMapping):
     for mapping in self.__mappings:
       pkg = mapping.package
       if pkg in self.__mappingdict:
-        errs.warn(f"Conflicting package '{pkg}' in JavaMultiFileMapping?")
+        errs().warn(f"Conflicting package '{pkg}' in JavaMultiFileMapping?")
         continue
       md[pkg] = mapping
     self.__mappingdict = md
@@ -100,11 +100,11 @@ class JavaMultiFileMapping(JavaFileMapping):
     if mapping is None:
       return
     if not isinstance(mapping, JavaRealFileMapping):
-      errs.warn(f'{type(mapping)} passed to JavaMultiFileMapping?')
+      errs().warn(f'{type(mapping)} passed to JavaMultiFileMapping?')
       return
     pkg = mapping.package
     if pkg in self.__mappingdict:
-      errs.warn(f"Conflicting package '{pkg}' in JavaMultiFileMapping?")
+      errs().warn(f"Conflicting package '{pkg}' in JavaMultiFileMapping?")
       return
     self.__mappings.append(mapping)
     self.__mappingdict[pkg] = mapping
@@ -213,7 +213,7 @@ _java_src_zip_tried_load = False
 def _find_java_src() -> Path:
   jvm_path = get_jvm_path()
   if jvm_path is None:
-    errs.error('JVM was not started!')
+    errs().error('JVM was not started!')
     return None
   java_home = Path(jvm_path).parent
   while java_home.name != 'bin':
@@ -246,7 +246,7 @@ def _load_java_src() -> JavaSrcZip:
     import zipfile
     src_zip = _find_java_src()
     if src_zip is None:
-      errs.info(f"unable to find 'src.zip'")
+      errs().info(f"unable to find 'src.zip'")
       _java_src_zip = JavaSrcZip(None)
       return None
     zf = zipfile.ZipFile(str(src_zip), 'r')
@@ -254,7 +254,7 @@ def _load_java_src() -> JavaSrcZip:
     #print(zf.namelist())
     return _java_src_zip
   except Exception as e:
-    errs.info(f"unable to load 'src.zip': {e}")
+    errs().info(f"unable to load 'src.zip': {e}")
     return None
 
 # Loads the file dict

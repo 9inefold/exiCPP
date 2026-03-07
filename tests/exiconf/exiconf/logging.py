@@ -71,6 +71,11 @@ class Log:
   
   def set_level(self, level):
     self.level = Log.create_loglevel(level)
+  def _set_level(self, level):
+    self.level = level
+  
+  def get_level(self) -> LogLevel:
+    return self.level
   
   def error(self, *args, file=None, **kwargs):
     if self.level >= LogLevel.ERROR:
@@ -91,11 +96,17 @@ class Log:
 _log_loglevel = LogLevel(LogLevel.INFO)
 
 # The default logger
-outs = Log(level=_log_loglevel, file=sys.stdout)
+_outs = Log(level=_log_loglevel, file=sys.stdout)
 # Logs to `stderr`
-errs = Log(level=_log_loglevel, file=sys.stderr)
+_errs = Log(level=_log_loglevel, file=sys.stderr)
+
+def outs() -> Log:
+  return _outs
+
+def errs() -> Log:
+  return _errs
 
 def set_log_level(level):
   level = Log.create_loglevel(level)
-  outs.set_level(level)
-  errs.set_level(level)
+  _outs._set_level(level)
+  _errs._set_level(level)
