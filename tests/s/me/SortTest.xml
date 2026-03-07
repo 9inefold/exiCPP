@@ -2,12 +2,12 @@
 
 <ns:example xmlns:ns="https://www.example.com"
   xs:type="xs:double"
-	xmlns="http://www.w3.org/1999/XSL/Transform"
-	trait="green"
-	xmlns:xs="http://www.w3.org/2001/XMLSchema"
-	xs:nil="true"
-	ns:trait="green-2"
+  xmlns="http://www.w3.org/1999/XSL/Transform"
+  trait="green"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xs:nil="true"
+  ns:trait="green-2"
   
 >
-	350.0
+  350.0
 </ns:example>

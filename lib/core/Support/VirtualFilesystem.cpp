@@ -87,13 +87,13 @@ Status::Status(const Twine& Name, sys::fs::UniqueID UID,
 
 
 Status Status::CopyWithNewSize(const Status& In, u64 NewSize) {
-	return Status(In.getName(), In.getUniqueID(), In.getLastModificationTime(),
+  return Status(In.getName(), In.getUniqueID(), In.getLastModificationTime(),
                 In.getUser(), In.getGroup(), NewSize, In.getType(),
                 In.getPermissions());
 }
 
 Status Status::CopyWithNewName(const Status& In, const Twine& NewName) {
-	return Status(NewName, In.getUniqueID(), In.getLastModificationTime(),
+  return Status(NewName, In.getUniqueID(), In.getLastModificationTime(),
                 In.getUser(), In.getGroup(), In.getSize(), In.getType(),
                 In.getPermissions());
 }

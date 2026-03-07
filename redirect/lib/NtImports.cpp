@@ -60,16 +60,16 @@ struct Def_PEB {
 };
 
 struct Def_TIB {
-	PVOID             ExceptionList;
-	PVOID             StackBase;
-	PVOID             StackLimit;
-	PVOID             SubSystemTib;
-	union {
+  PVOID             ExceptionList;
+  PVOID             StackBase;
+  PVOID             StackLimit;
+  PVOID             SubSystemTib;
+  union {
     PVOID           FiberData;
     DWORD           Version;
 	};
-	PVOID             ArbitraryUserPointer;
-	Def_TIB*          Self;
+  PVOID             ArbitraryUserPointer;
+  Def_TIB*          Self;
 };
 
 struct Def_TEB {

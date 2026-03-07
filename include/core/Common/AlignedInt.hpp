@@ -68,7 +68,7 @@ struct AL_PREFER(8) AL_PREFER(16)
   constexpr operator T() const { return Data; }
 
 public:
-	IntT Data = 0;
+  IntT Data = 0;
 };
 
 template <typename X, typename Y>
@@ -88,8 +88,8 @@ constexpr bool operator==(T LHS, AlignedInt<IntT> RHS) {
 
 // Provide DenseMapInfo for `AlignedInt<T>`.
 template <typename IntT> struct DenseMapInfo<AlignedInt<IntT>> {
-	using Ty = AlignedInt<IntT>;
-	using InfoT = DenseMapInfo<IntT>;
+  using Ty = AlignedInt<IntT>;
+  using InfoT = DenseMapInfo<IntT>;
 
   static inline Ty getEmptyKey() { return InfoT::getEmptyKey(); }
   static inline Ty getTombstoneKey() { return InfoT::getTombstoneKey(); }

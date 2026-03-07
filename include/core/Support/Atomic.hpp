@@ -60,32 +60,32 @@ concept is_lock_free = true;
 
 /// Default storage for `Atomic`, this is trivially destructible.
 template <typename T,
-	bool = std::is_trivially_destructible_v<T>>
+  bool = std::is_trivially_destructible_v<T>>
 union Storage {
-	T Unsynced;
-	std::atomic<T> Synced;
+  T Unsynced;
+  std::atomic<T> Synced;
 public:
-	inline constexpr Storage() noexcept
-			: ATOMIC_MEMBER() {}
-	inline constexpr Storage(T Direct) noexcept
-			: ATOMIC_MEMBER(std::move(Direct)) {}
+  inline constexpr Storage() noexcept
+      : ATOMIC_MEMBER() {}
+  inline constexpr Storage(T Direct) noexcept
+      : ATOMIC_MEMBER(std::move(Direct)) {}
 };
 
 /// Default storage for `Atomic`, this is NOT trivially destructible.
 template <typename T>
 union Storage<T, false> {
-	T Unsynced;
-	std::atomic<T> Synced;
+  T Unsynced;
+  std::atomic<T> Synced;
 public:
-	inline constexpr Storage() noexcept
-			: ATOMIC_MEMBER() {}
-	inline constexpr Storage(T Direct) noexcept
-			: ATOMIC_MEMBER(std::move(Direct)) {}
-	
-	inline constexpr ~Storage() {
-		using ActiveT = AtomicType<T>;
-		ATOMIC_MEMBER.~ActiveT();
-	}
+  inline constexpr Storage() noexcept
+      : ATOMIC_MEMBER() {}
+  inline constexpr Storage(T Direct) noexcept
+      : ATOMIC_MEMBER(std::move(Direct)) {}
+  
+  inline constexpr ~Storage() {
+    using ActiveT = AtomicType<T>;
+    ATOMIC_MEMBER.~ActiveT();
+  }
 };
 
 } // namespace atomic_detail
@@ -93,16 +93,16 @@ public:
 /// Interface type for atomics, behaviour changes depending on if threading
 /// is enabled or not.
 template <typename T> class Atomic {
-	using ActiveT = atomic_detail::AtomicType<T>;
-	atomic_detail::Storage<T> Storage;
+  using ActiveT = atomic_detail::AtomicType<T>;
+  atomic_detail::Storage<T> Storage;
 public:
-	static constexpr bool is_always_lock_free
-		= atomic_detail::is_lock_free<T>;
+  static constexpr bool is_always_lock_free
+    = atomic_detail::is_lock_free<T>;
 
-	constexpr Atomic() noexcept = default;
-	constexpr Atomic(T Direct) noexcept
-			: Storage(std::move(Direct)) {}
-	Atomic(const Atomic&) = delete;
+  constexpr Atomic() noexcept = default;
+  constexpr Atomic(T Direct) noexcept
+      : Storage(std::move(Direct)) {}
+  Atomic(const Atomic&) = delete;
 };
 
 } // namespace exi::sys

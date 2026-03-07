@@ -333,7 +333,7 @@ public final class EXIReader2 extends ReaderSupport implements XMLReader {
           m_contentHandler.endDocument();
           break;
         case EventDescription.EVENT_SE: 
-        	doElement(exiEvent, scanner, 0);
+          doElement(exiEvent, scanner, 0);
           break;
         case EventDescription.EVENT_CM:
           if (m_hasLexicalHandler) {
@@ -384,7 +384,7 @@ public final class EXIReader2 extends ReaderSupport implements XMLReader {
   }
   
   private boolean doXsiType(EventDescription exiEvent) throws SAXException {
-  	boolean namespaceDeclAdded = false;
+    boolean namespaceDeclAdded = false;
     final String attrQualifiedName, attrPrefix;
     if (m_preserveNS) {
       attrPrefix = exiEvent.getPrefix();
@@ -490,10 +490,10 @@ public final class EXIReader2 extends ReaderSupport implements XMLReader {
       }
       final int uriId = exiEvent.getURIId();
       if (uriId < m_n_prefixes) {
-      	final int nameId = exiEvent.getNameId();
-      	if (nameId < m_n_qualifiedNames[uriId])
+        final int nameId = exiEvent.getNameId();
+        if (nameId < m_n_qualifiedNames[uriId])
       	  elementQualifiedName = m_qualifiedNames[uriId][nameId];
-      	else {
+        else {
           stringBuilder.setLength(0);
           elementQualifiedName = stringBuilder.append(m_prefixesColon[uriId]).append(elementLocalName).toString();
       	}
@@ -552,17 +552,17 @@ public final class EXIReader2 extends ReaderSupport implements XMLReader {
       exiEvent = scanner.nextEvent();
     }
     while (exiEvent.getEventKind() == EventDescription.EVENT_AT) {
-    	if (doAttribute(exiEvent, scanner))
+      if (doAttribute(exiEvent, scanner))
     		++n_namespaceDeclarations;
       exiEvent = scanner.nextEvent();
     }
     m_contentHandler.startElement(elementURI, elementLocalName, elementQualifiedName, this);
     
     do {
-    	switch (exiEvent.getEventKind()) {
+      switch (exiEvent.getEventKind()) {
 	      case EventDescription.EVENT_SE: 
-	      	doElement(exiEvent, scanner, depth + 1);
-	      	break;
+	        doElement(exiEvent, scanner, depth + 1);
+	        break;
         case EventDescription.EVENT_EE:
 	        m_contentHandler.endElement(elementURI, elementLocalName, elementQualifiedName);
 	        if (!m_preserveNS && depth == 0) {
@@ -573,7 +573,7 @@ public final class EXIReader2 extends ReaderSupport implements XMLReader {
 	        for (int i = 0; i < n_prefixes; i++) {
 	          m_contentHandler.endPrefixMapping(m_namespaceDeclarationsLocus[--m_n_namespaceDeclarations << 1]);
 	        }
-	      	return;
+	        return;
         case EventDescription.EVENT_CH:
 	        final Characters characterSequence;
 	        characterSequence = exiEvent.getCharacters();

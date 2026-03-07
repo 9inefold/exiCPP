@@ -87,13 +87,13 @@ static constexpr usize kBitsLUT[] = {0, 1, 1, 2, 2, 3, 4, 4, 5};
 /// EncodedLen returns the maximum length in bytes of the zbase32
 /// encoding of an input buffer of length N.
 static constexpr usize EncodedLen(usize N) {
-	return (N + 4) / 5 * 8;
+  return (N + 4) / 5 * 8;
 }
 
 /// DecodedLen returns the maximum length in bytes of the decoded data
 /// corresponding to N bytes of zbase32-encoded data.
 static constexpr usize DecodedLen(usize N) {
-	return (N + 7) / 8 * 5;
+  return (N + 7) / 8 * 5;
 }
 
 // CorruptInputError means that the byte at this offset was not a valid
@@ -112,27 +112,27 @@ EXI_NO_INLINE static Error CorruptInputError(usize At, char C) {
 /// Encode is not appropriate for use on individual blocks of a large
 /// data stream.
 static usize Encode(StrRef src, MutArrayRef<char> dst) {
-	usize off = 0;
-	for (usize i = 0; !src.empty(); i += 5) {
-		const u8 b0 = u8(src[0]);
-		const u8 b1 = (src.size() > 1) ? u8(src[1]) : u8(0);
-		const unsigned offset = unsigned(i % 8);
+  usize off = 0;
+  for (usize i = 0; !src.empty(); i += 5) {
+	  const u8 b0 = u8(src[0]);
+	  const u8 b1 = (src.size() > 1) ? u8(src[1]) : u8(0);
+	  const unsigned offset = unsigned(i % 8);
 
-		u8 ch = 0;
-		if (offset < 4) {
-			ch  = (b0 & (31 << (3 - offset))) >> (3 - offset);
+	  u8 ch = 0;
+	  if (offset < 4) {
+		  ch  = (b0 & (31 << (3 - offset))) >> (3 - offset);
 		} else {
-			ch  = (b0 & (31 >> (offset - 3))) << (offset - 3);
-			ch |= (b1 & (255 << (11 - offset))) >> (11 - offset);
+		  ch  = (b0 & (31 >> (offset - 3))) << (offset - 3);
+		  ch |= (b1 & (255 << (11 - offset))) >> (11 - offset);
 		}
 
     exi_invariant(off < dst.size());
-		dst[off++] = kAlphabet[ch];
+	  dst[off++] = kAlphabet[ch];
 
-		if (offset > 2)
+	  if (offset > 2)
       src = src.drop_front();
 	}
-	return off;
+  return off;
 }
 
 /// Decode decodes zbase32 encoded data from src. It writes at most
@@ -141,35 +141,35 @@ static usize Encode(StrRef src, MutArrayRef<char> dst) {
 ///
 /// If src contains invalid zbase32 data, it will return an Error.
 static Expected<usize> Decode(StrRef src, MutArrayRef<char> dst, int bits = -1) {
-	const usize olen = src.size();
-	usize off = 0;
-	while (!src.empty()) {
+  const usize olen = src.size();
+  usize off = 0;
+  while (!src.empty()) {
 		// Decode quantum using the zbase32 alphabet
     std::array<u8, 8> dbuf {};
 
-		int j = 0;
-		for (; j < 8; j++) {
-			if (src.empty())
-				break;
-			const char in = src[0];
-			src = src.drop_front();
-			dbuf[j] = kDecodeLUT[u8(in)];
-			if EXI_UNLIKELY(dbuf[j] == 0xFF) {
+	  int j = 0;
+	  for (; j < 8; j++) {
+		  if (src.empty())
+			  break;
+		  const char in = src[0];
+		  src = src.drop_front();
+		  dbuf[j] = kDecodeLUT[u8(in)];
+		  if EXI_UNLIKELY(dbuf[j] == 0xFF) {
         const usize at = olen - src.size() - 1;
-				return CorruptInputError(at, in);
+			  return CorruptInputError(at, in);
       }
 		}
 
 		// 8x 5-bit source blocks, 5 byte destination quantum
-		dst[off+0] = dbuf[0]<<3 | dbuf[1]>>2;
-		dst[off+1] = dbuf[1]<<6 | dbuf[2]<<1 | dbuf[3]>>4;
-		dst[off+2] = dbuf[3]<<4 | dbuf[4]>>1;
-		dst[off+3] = dbuf[4]<<7 | dbuf[5]<<2 | dbuf[6]>>3;
-		dst[off+4] = dbuf[6]<<5 | dbuf[7];
+	  dst[off+0] = dbuf[0]<<3 | dbuf[1]>>2;
+	  dst[off+1] = dbuf[1]<<6 | dbuf[2]<<1 | dbuf[3]>>4;
+	  dst[off+2] = dbuf[3]<<4 | dbuf[4]>>1;
+	  dst[off+3] = dbuf[4]<<7 | dbuf[5]<<2 | dbuf[6]>>3;
+	  dst[off+4] = dbuf[6]<<5 | dbuf[7];
 
-		off += kBitsLUT[j];
+	  off += kBitsLUT[j];
 	}
-	return off;
+  return off;
 }
 
 } // namespace exi::zbase32

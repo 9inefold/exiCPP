@@ -62,9 +62,9 @@ class WritableMemoryBuffer;
 namespace vfs {
 
 class Status {
-	String Name;
-	sys::fs::UniqueID UID;
-	sys::TimePoint<> LastModified;
+  String Name;
+  sys::fs::UniqueID UID;
+  sys::TimePoint<> LastModified;
   u32 User;
   u32 Group;
   u64 Size;
@@ -80,9 +80,9 @@ public:
   /// NOTE: Leave the path in the `Status` intact (matching the virtual path).
   bool HasExternalVFSPath = false;
 
-	Status() = default;
-	Status(const sys::fs::file_status& Stat);
-	Status(const Twine& Name, sys::fs::UniqueID UID,
+  Status() = default;
+  Status(const sys::fs::file_status& Stat);
+  Status(const Twine& Name, sys::fs::UniqueID UID,
 				 sys::TimePoint<> MTime, u32 User, u32 Group, u64 Size,
 				 sys::fs::file_type Type, sys::fs::perms Perms);
 	
