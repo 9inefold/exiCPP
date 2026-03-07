@@ -1,5 +1,14 @@
 from pathlib import Path
 
+__all__ = [
+  '__author__',
+  '__version__',
+  'EXI_BASE_DIR',
+  'TEST_SRC_DIR',
+  'TEST_OUT_DIR',
+  'EXI_BIN_DIR',
+]
+
 __author__ = "Ninefold"
 #__email__ = "..."
 __versioninfo__ = (0, 9, 0)
