@@ -1,6 +1,12 @@
 import enum
 import os, sys
+from io import StringIO
 from exiconf.ansi import has_color as _has_color
+
+__all__ = [
+  'Color', 'Log', 'LogLevel',
+  'outs', 'errs',
+]
 
 class LogLevelArgs:
   QUIET = ['quiet', 'off', 'silent', 'nothing']
@@ -37,6 +43,25 @@ class LogLevel(enum.IntEnum):
         return cls.INFO
     raise ValueError(f'invalid log level {repr(value)} of type {type(value)}')
 
+class Color:
+  BLACK           = '\x1b[30m'
+  RED             = '\x1b[31m'
+  GREEN           = '\x1b[32m'
+  YELLOW          = '\x1b[33m'
+  BLUE            = '\x1b[34m'
+  MAGENTA         = '\x1b[35m'
+  CYAN            = '\x1b[36m'
+  WHITE           = '\x1b[37m'
+  BRIGHT_BLACK    = '\x1b[90m'
+  BRIGHT_RED      = '\x1b[91m'
+  BRIGHT_GREEN    = '\x1b[92m'
+  BRIGHT_YELLOW   = '\x1b[93m'
+  BRIGHT_BLUE     = '\x1b[94m'
+  BRIGHT_MAGENTA  = '\x1b[95m'
+  BRIGHT_CYAN     = '\x1b[96m'
+  BRIGHT_WHITE    = '\x1b[97m'
+  RESET           = '\x1b[0m'
+
 # A class used for logging
 class Log:
   DEFAULT_LEVEL = LogLevel.ERROR
@@ -69,6 +94,12 @@ class Log:
   def has_color(self):
     return self._has_color
   
+  def enable_color(self, val=True):
+    if val and self._has_color:
+      self.color_enabled = val
+    else:
+      self.color_enabled = False
+  
   def set_level(self, level):
     self.level = Log.create_loglevel(level)
   def _set_level(self, level):
@@ -77,13 +108,31 @@ class Log:
   def get_level(self) -> LogLevel:
     return self.level
   
+  def _print_str(self, *args, **kwargs) -> str:
+    if len(args) == 1:
+      return str(args[0])
+    with StringIO() as output:
+      print(*args, file=output, end='', **kwargs)
+      return output.getvalue()
+
+  def _color_print(self, color, *args, end=None, flush=False, **kwargs):
+    if self._has_color:
+      out = self._print_str(*args, **kwargs)
+      out = color + out + Color.RESET
+      print(out, file=self.file, end=end, flush=flush, **kwargs)
+    else:
+      print(*args, file=self.file, end=end, flush=flush, **kwargs)
+
+  def always(self, *args, file=None, **kwargs):
+    print(*args, file=self.file, **kwargs)
+
   def error(self, *args, file=None, **kwargs):
     if self.level >= LogLevel.ERROR:
-      print(*args, file=self.file, **kwargs)
+      self._color_print(Color.BRIGHT_RED, *args, **kwargs)
   
   def warn(self, *args, file=None, **kwargs):
     if self.level >= LogLevel.WARN:
-      print(*args, file=self.file, **kwargs)
+      self._color_print(Color.BRIGHT_YELLOW, *args, **kwargs)
 
   def info(self, *args, file=None, **kwargs):
     if self.level >= LogLevel.INFO:
@@ -91,14 +140,16 @@ class Log:
   
   def extra(self, *args, file=None, **kwargs):
     if self.level >= LogLevel.EXTRA:
-      print(*args, file=self.file, **kwargs)
+      self._color_print(Color.BRIGHT_CYAN, *args, **kwargs)
 
 _log_loglevel = LogLevel(LogLevel.INFO)
 
 # The default logger
 _outs = Log(level=_log_loglevel, file=sys.stdout)
+_outs.enable_color(True)
 # Logs to `stderr`
 _errs = Log(level=_log_loglevel, file=sys.stderr)
+_errs.enable_color(True)
 
 def outs() -> Log:
   return _outs

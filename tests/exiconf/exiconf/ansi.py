@@ -50,6 +50,11 @@ _color_check = {
   k: _check_handle(k) for k in [stdout, stderr]
 }
 
+def force_color(handle, state: bool):
+  global _color_check
+  assert isinstance(state, bool)
+  _color_check[handle] = state
+
 def has_color(handle) -> bool:
   global _color_check
   if handle not in _color_check:
