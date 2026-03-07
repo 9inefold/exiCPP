@@ -3,48 +3,18 @@ import traceback
 from pathlib import Path
 from glob import glob
 
+cwd = os.getcwd()
 EXI_CURR_DIR = Path(__file__).parent
 sys.path.insert(0, str(EXI_CURR_DIR / 'exiconf'))
-from exiconf.main import EXI_BASE_DIR, EXI_BIN_DIR, TEST_SRC_DIR
-
-sys.path.insert(0, str(EXI_BASE_DIR / 'vendored' / 'xmldiff'))
-from xmldiff.main import diff_texts
-from xmldiff.actions import UpdateTextIn, UpdateTextAfter
-from lxml import etree
-
-# Returns true if xml is not different.
-def diff_xml(name, file1, file2, parse_options=None) -> bool:
-  try:
-    bytes1 = str(file1).encode()
-    bytes2 = str(file2).encode()
-    diff_list = diff_texts(bytes1, bytes2, parse_options=parse_options)
-    real_diffs = []
-    # Fixup diffs with empty data
-    # TODO: Add option to compare without preserves
-    for diff in diff_list:
-      if isinstance(diff, (UpdateTextIn, UpdateTextAfter)):
-        old = diff.oldtext if diff.oldtext is not None else ''
-        new = diff.text if diff.text is not None else ''
-        if old.strip() != new.strip():
-          real_diffs.append(diff)
-      else:
-        real_diffs.append(diff)
-    if len(real_diffs) != 0:
-      print(f'[diff] {Path(name).as_posix()}: {diff_list}')
-      return False
-    return True
-  except Exception as e:
-    print(f'[diff] {Path(name).as_posix()}*: {type(e).__name__}: {e}')
-    return False
-
-cwd = os.getcwd()
 
 from exiconf.jvm.setup import start_jvm, get_jvm_path
 start_jvm(jvm_args=['-ea'])
 #start_jvm(jvm_args=['-ea', '-Dexicpp.loglevel=verbose'])
-from exiconf.openexi import OpenEXICoder
-from exiconf.logging import outs, errs, set_log_level
+from exiconf.constants import EXI_BASE_DIR, EXI_BIN_DIR, TEST_SRC_DIR
 from exiconf.coder import _try_demangle, _json_dump
+from exiconf.diff import diff_xml
+from exiconf.logging import LogLevel, outs, errs, set_log_level
+from exiconf.openexi import OpenEXICoder
 
 def try_demangle(mangled=str):
   try:
@@ -85,7 +55,7 @@ def do_roundtrip(test_path: Path, do_print = False):
   if do_print:
     print(xml_out, '\n', flush=True)
 
-def run_all_files(mangled=None, do_print=False):
+def run_all_files(mangled=None, print_extra=False):
   all_files = list(glob(
     '**/*.xml',
     #'at/*.xml',
@@ -94,7 +64,6 @@ def run_all_files(mangled=None, do_print=False):
   ))
 
   logger = outs()
-  print(logger.get_level())
   handler = OpenEXICoder(mangled=mangled, logger=logger)
   err_dir = EXI_CURR_DIR/'out/err'
   if not err_dir.exists():
@@ -139,22 +108,25 @@ def run_all_files(mangled=None, do_print=False):
         eq_count += 1
       (EXI_CURR_DIR/'out/err'/Path(f).name).write_text(xml_out)
   
-  print('For:', handler.mangled, _json_dump(handler))
-  print('  Equal:', eq_count)
-  print('  Total:', len(all_files))
-  print()
+  if print_extra:
+    jdump = _json_dump(handler)
+  else:
+    jdump = ''
+  logger.always('For:', handler.mangled, jdump)
+  logger.always('Equal:', eq_count)
+  logger.always('Total:', len(all_files), end='\n\n')
 
-def run_all(mangled=None, do_print=False):
+def run_all(mangled=None, print_extra=False):
   if mangled is None:
-    run_all_files(do_print=do_print)
+    run_all_files(print_extra=print_extra)
     return
   # Actually run
   for m in mangled:
-    run_all_files(mangled=m, do_print=do_print)
+    run_all_files(mangled=m, print_extra=print_extra)
 
 if __name__ == "__main__":
   set_log_level('info')
-  #run_all_files(do_print=True)
+  #run_all_files(print_extra=True)
   run_all([
     'iPcdip',
     'yPcdip',
