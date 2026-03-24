@@ -49,6 +49,8 @@ option(EXI_ENABLE_UNSTABLE_FEATURES "Enable features which may not have a stable
 option(EXI_OPTIMIZE_UNREACHABLE "If exi_unreachable should be undefined behaviour in release builds." ON)
 option(EXI_NATIVE_CODEGEN  "If code should be optimized for the native architecture." OFF)
 
+option(EXI_FMT_OVERRIDE "If fmt should be overridden." OFF)
+
 # TODO: Remove when complete?
 option(EXI_USE_EXIP "[DEPRECATED] Enables the old version of exicpp." OFF)
 option(EXI_ANSI     "[DEPRECATED] If ANSI should be enabled." ON)
@@ -139,6 +141,7 @@ canonicalize_cmake_booleans(
   EXI_ENABLE_STACKTRACES
   EXI_ENABLE_UNSTABLE_FEATURES
   EXI_OPTIMIZE_UNREACHABLE
+  EXI_FMT_OVERRIDE
   EXI_ON_WIN32
   EXI_ON_UNIX
 )
@@ -195,8 +198,14 @@ if(EXI_USE_MIMALLOC)
   endif()
 endif()
 
+if(EXI_FMT_OVERRIDE)
+  if(NOT TARGET fmt::fmt)
+    message(FATAL_ERROR "EXI_FMT_OVERRIDE is enabled, fmt::fmt must be defined!")
+  endif()
+else()
+  add_subdirectory(vendored/fmt)
+endif()
 add_subdirectory(vendored/dtl)
-add_subdirectory(vendored/fmt)
 add_subdirectory(vendored/rapidxml)
 
 add_library(exi-cpptrace INTERFACE)
