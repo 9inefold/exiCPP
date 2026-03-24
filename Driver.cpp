@@ -839,29 +839,25 @@ void ECDCTestRunner::run(StrRef ExiFile, StrRef XmlFile,
 #define MAKE_EXTEST_RUNNER(KIND, ...)                                         \
   MAKE_TEST_RUNNER(KIND, "examples", ##__VA_ARGS__)
 
-int main(int Argc, char* Argv[]) {
-  using enum raw_ostream::Colors;
-  SetLogLevel(LogLevel::WARN);
-  InitDriver X(Argc, Argv);
-
+static bool DemangleTests(bool Print = false) {
+  raw_ostream& OS = errs_if(Print);
   {
     ExiOptions Opts;
     if (!exi::exi_demangle_options(Opts, "iPcdlipV0"))
-      return 1;
-    errs() << exi::exi_mangle_options(Opts) << '\n';
+      return false;
+    OS << exi::exi_mangle_options(Opts) << '\n';
 
     Opts.SchemaID = std::make_unique<std::string>("BeerXML.xsd");
     auto Mangled = exi::exi_mangle_options(Opts);
-    errs() << Mangled << '\n';
+    OS << Mangled << '\n';
 
     ExiOptions Opts2;
     if (!exi::exi_demangle_options(Opts2, Mangled))
-      return 1;
+      return false;
     exi_relassert(Opts2.SchemaID);
     auto& SchemaID = *Opts2.SchemaID;
     exi_relassert(SchemaID);
-    errs() << '\"' << *SchemaID << "\"\n";
-    //return 0;
+    OS << '\"' << *SchemaID << "\"\n";
   }
 
   {
@@ -871,18 +867,31 @@ int main(int Argc, char* Argv[]) {
     Expected<StrRef> DecodedOrErr = zbase32::decode(Encoded, DBuf);
     if (!DecodedOrErr) {
       exi::String Err = toString(DecodedOrErr.takeError());
-      errs() << "Error decoding: " << Err << '\n';
-      return 1;
+      OS << "Error decoding: " << Err << '\n';
+      return false;
     }
     StrRef Decoded = *DecodedOrErr;
-
-    outs() << "Original: " << Original << '\n';
-    outs() << "Encoded:  " << Encoded << '\n';
-    outs() << "Decoded:  " << Decoded << '\n';
-    return Original != Decoded;
+    if (Print) {
+      outs() << "Original: " << Original << '\n';
+      outs() << "Encoded:  " << Encoded << '\n';
+      outs() << "Decoded:  " << Decoded << '\n';
+    }
+    exi_relassert(Original == Decoded);
   }
 
+  return true;
+}
+
+int main(int Argc, char* Argv[]) {
+  using enum raw_ostream::Colors;
+  SetLogLevel(LogLevel::WARN);
+  InitDriver X(Argc, Argv);
+
+  //const XMLParseOptions ParseOpts { .MergeData = true };
+  const XMLParseOptions ParseOpts { .MergeData = false };
   XMLManagerRef Mgr = make_refcounted<XMLManager>(ParseOpts);
+
+  //outs() << "Is debugging: " << sys::Process::IsReallyDebugging() << '\n';
 
 #if STRESS_TEST_DECODING
 
