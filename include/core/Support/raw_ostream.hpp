@@ -677,6 +677,14 @@ raw_fd_ostream &errs();
 /// This returns a reference to a raw_ostream which simply discards output.
 raw_ostream &nulls();
 
+/// This returns a reference to `errs` if `true`, otherwise `nulls`.
+inline raw_ostream &errs_if(bool Print) {
+  if (Print)
+    return errs();
+  else
+    return nulls();
+}
+
 //===----------------------------------------------------------------------===//
 // File Streams
 //===----------------------------------------------------------------------===//
