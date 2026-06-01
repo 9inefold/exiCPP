@@ -49,7 +49,7 @@ The `exiconf` folder contains the python code that runs the test suite.
 The original data sources can be found in `s/**/NAME.xml`.
 
 Outputs for each file are in folders `o/NAME/`, where `NAME` is the original filename.
-For example, the file `at/at-01.xml` would create the folder `o/at-01/`.
+For example, the file `at/at-01.xml` would create the folder `o/at/at-01/`.
 
 Files under each `o/NAME/` follow the convention `MANGLED.FORMAT.*`.
 
@@ -68,7 +68,10 @@ as file extensions are easier to utilize:
 - `?e` for *encoded* exi
 
 If we encoded `at/at-01.xml` as byte-packed, all-preserving exi file using openexi,
-we would get the file `o/at-01/yPcdip.o.exi`.
+we would get the file `o/at/at-01/yPcdip.o.exi`.
 
-If we then decoded that file with exicpp, we would get the file `o/at-01/yPcdip.oi.xml`,
+If we then decoded that file with exicpp, we would get the file `o/at/at-01/yPcdip.oi.xml`,
 where the newest `FORMAT` is appended.
+
+In the future I will add support for check chaining (full roundtrip testing),
+but for now only encode/decode will be tested.

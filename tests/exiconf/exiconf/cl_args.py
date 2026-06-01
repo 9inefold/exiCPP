@@ -1,5 +1,6 @@
 import argparse, shlex
 import os, sys
+from pathlib import Path
 from exiconf.constants import __version__
 from exiconf.logging import LogLevelArgs
 from exiconf.version_tuple import version_tuple
@@ -139,15 +140,43 @@ def get_arg_parser() -> argparse.ArgumentParser:
 
   return parser
 
+# Gets arguments from a file
+def _expand_file_to_args(filename: str) -> list[str]:
+  path = Path(filename)
+  if not path.exists():
+    raise FileNotFoundError('File does not exist!')
+  blob = path.read_text(encoding='utf8')
+  lines = blob.splitlines()
+  # Extract significant lines
+  out = []
+  for line in lines:
+    stripped = line.strip()
+    if not stripped.startswith('#'):
+      out.append(stripped)
+  return out
+
+# Expands arguments from a @FILE argument
+def _expand_argv(argv: list[str]) -> list[str]:
+  out = []
+  for arg in argv:
+    if not arg.startswith('@'):
+      out.append(arg)
+      continue
+    # We found one!
+    try:
+      from_file = _expand_file_to_args(arg[1:])
+      out.extend(from_file)
+    except Exception as e:
+      print(f'Unable to read from {arg}: {e}')
+  return out
+
 # Parses arguments from the command line
 def parse_args(env_override=True):
+  args = _expand_argv(sys.argv[1:])
   if env_override:
     # Environment variables can override command line arguments by default.
     env_args = shlex.split(os.environ.get("EXICONF_OPTS", ""))
-    args = sys.argv[1:] + env_args
-  else:
-    # Don't override
-    # TODO: Improve this?
-    args = sys.argv[1:]
+    args.extend(env_args)
+  #print(' '.join(args))
   parser = get_arg_parser()
   return parser.parse_args(args)
