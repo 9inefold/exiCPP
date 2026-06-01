@@ -50,6 +50,7 @@ option(EXI_OPTIMIZE_UNREACHABLE "If exi_unreachable should be undefined behaviou
 option(EXI_NATIVE_CODEGEN  "If code should be optimized for the native architecture." OFF)
 
 option(EXI_FMT_OVERRIDE "If fmt should be overridden." OFF)
+option(EXI_NO_CMAKE_INFO "If exicpp info should be disabled" OFF)
 
 # TODO: Remove when complete?
 option(EXI_USE_EXIP "[DEPRECATED] Enables the old version of exicpp." OFF)
@@ -95,6 +96,7 @@ if(EXI_USE_EXIP)
   include(old/SetupExip.cmake)
 endif()
 
+if(NOT EXI_NO_CMAKE_INFO)
 message(STATUS "Library name(s)           : exi-exicpp, exi::exicpp, exi::exi")
 message(STATUS "Version                   : ${PROJECT_VERSION}")
 message(STATUS "Build type                : ${CMAKE_BUILD_TYPE}")
@@ -123,6 +125,7 @@ endif()
 if(DEFINED EXI_CODEGEN_TESTS)
   message(STATUS "[exicpp] Codegen tests    : ${EXI_CODEGEN_TESTS}")
 endif()
+endif(NOT EXI_NO_CMAKE_INFO)
 
 canonicalize_cmake_booleans(
   EXI_TESTS
