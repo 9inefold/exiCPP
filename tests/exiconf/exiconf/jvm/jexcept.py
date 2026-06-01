@@ -12,6 +12,7 @@ __all__ = [
 
 _jvm_check = jvm_check(__file__)
 
+# Handles formatting jexceptions on the java side. Formatted like normal python exceptions
 def _format_jexception_like_py(ex: JException) -> list[str]:
   found_nonerr = False
   frames = ex.getStackTrace()
@@ -50,6 +51,7 @@ def _format_jexception_like_py(ex: JException) -> list[str]:
     out.append(to_push)
   return list(reversed(out))
 
+# Formats jexception trace to a string
 def format_jexception(ex: JException, skip=0) -> list[str]:
   _jvm_check()
   stacks = traceback.format_stack()[:-(skip + 2)]
@@ -57,6 +59,7 @@ def format_jexception(ex: JException, skip=0) -> list[str]:
   stacks.extend(_format_jexception_like_py(ex))
   return stacks
 
+# Prints jexception trace
 def print_jexception(ex: JException, skip=0):
   _jvm_check()
   stacks = format_jexception(ex, skip=(skip + 1))
@@ -64,6 +67,7 @@ def print_jexception(ex: JException, skip=0):
         ''.join(stacks), f'{ex.toString()}\n', sep=''
   )
 
+# Writes jexception trace to a Log object
 def log_jexception(ex: JException, logger: Log, skip=0):
   _jvm_check()
   stacks = format_jexception(ex, skip=(skip + 1))
