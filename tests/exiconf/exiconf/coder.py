@@ -205,6 +205,20 @@ def _demangle_header(o, H: dict[str, str], opt_handler=None):
 ################################################################################
 
 class ExiOptions:
+  __slots__ = (
+    'Alignment', 'Strict', 'SelfContained', 'Preserve',
+    'SchemaID', 'BlockSize', 'ValueMaxLength', 'ValuePartitionCapacity',
+  )
+
+  Alignment: AlignmentType
+  Strict: bool
+  SelfContained: bool
+  Preserve: PreserveType
+  SchemaID: str
+  BlockSize: int
+  ValueMaxLength: int
+  ValuePartitionCapacity: int
+
   def __init__(self, mangled=None):
     self.Alignment = None
     self.Strict = None
@@ -270,6 +284,13 @@ class ExiOptions:
   pass
 
 class ExiHeader:
+  __slots__ = ('HasCookie', 'IsPreview', 'Version', 'HasOptions', 'Options',)
+  HasCookie: bool
+  IsPreview: bool
+  Version: int
+  HasOptions: bool
+  Options: ExiOptions
+
   def __init__(self, mangled=None):
     self.HasCookie = None
     self.IsPreview = None

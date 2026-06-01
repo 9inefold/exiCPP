@@ -4,6 +4,7 @@ from exiconf.jvm import do_jvm_check, log_jexception
 do_jvm_check(__file__)
 
 from exiconf.coder import ExiOptions, PreserveType, AlignmentType as PyAlignmentType
+from exiconf.base_coder import BaseCoder
 from exiconf.logging import outs, errs
 from exiconf.jvm import *
 
@@ -22,9 +23,7 @@ from javax.xml.transform.stream import StreamResult
 
 __all__ = ['OpenEXICoder']
 
-_default_sig = 'yPcdip'
-
-def get_alignment(align: PyAlignmentType):
+def get_alignment(align: PyAlignmentType) -> AlignmentType:
   match align:
     case align.BitPacked:
       return AlignmentType.bitPacked
@@ -37,7 +36,7 @@ def get_alignment(align: PyAlignmentType):
     case _:
       raise ValueError(f'invalid align {repr(align)}')
 
-def get_options(preserve: PreserveType):
+def get_options(preserve: PreserveType) -> GrammarOptions:
   options = GrammarOptions.DEFAULT_OPTIONS
   if not preserve:
     return options
@@ -54,32 +53,35 @@ def get_options(preserve: PreserveType):
     options = GrammarOptions.addNS(options)
   return options
 
-class OpenEXICoder(ExiOptions):
+class OpenEXICoder(BaseCoder):
   """
   The following is modified from:
     https://github.com/EDF-Lab/eVDriveFlow/blob/main/shared/message_handling.py
   This is the class that will process every single XML input.
   """
 
-  # TODO Add demangling settings
-  def __init__(self, mangled=_default_sig, logger=None):
-    if logger is None:
-      logger = outs()
-    
-    if mangled is None:
-      logger.extra(f"mangled is None, using '{_default_sig}'")
-      self.mangled = _default_sig
-    else:
-      self.mangled = mangled
-    super().__init__(self.mangled)
+  __slots__ = (
+    'hdr_options', 'align', 'gmr_options', 'schema',
+    'reader', 'writer', 'handler',
+  )
 
-    self.logger = logger
+  hdr_options: HeaderOptionsOutputType
+  align: AlignmentType
+  gmr_options: GrammarOptions
+  
+  reader: EXIReader2
+  writer: Transmogrifier2
+  handler: DirectSAXHandler
+
+  # TODO Add demangling settings
+  def __init__(self, mangled=None, logger=None):
+    super().__init__(mangled, logger)
     self.hdr_options = HeaderOptionsOutputType.none
     self.align = get_alignment(self.Alignment)
     self.gmr_options = get_options(self.Preserve)
 
     if self.SchemaID:
-      logger.warn(f"SchemaID set to '{self.SchemaID}', but schemas are currently disabled.")
+      self.logger.warn(f"SchemaID set to '{self.SchemaID}', but schemas are currently disabled.")
     # TODO: Allow schemas?
     self.schema = None
 

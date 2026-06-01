@@ -43,6 +43,7 @@ class LogLevel(enum.IntEnum):
         return cls.INFO
     raise ValueError(f'invalid log level {repr(value)} of type {type(value)}')
 
+# Represents all ansi color codes
 class Color:
   BLACK           = '\x1b[30m'
   RED             = '\x1b[31m'
@@ -65,6 +66,11 @@ class Color:
 # A class used for logging
 class Log:
   DEFAULT_LEVEL = LogLevel.ERROR
+
+  __slots__ = ('level', 'color_enabled', '_file', '_has_color',)
+  level: LogLevel
+  color_enabled: bool
+  _has_color: bool
 
   @staticmethod
   def create_loglevel(level) -> LogLevel:

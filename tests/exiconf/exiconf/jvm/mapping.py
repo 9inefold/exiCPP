@@ -1,6 +1,7 @@
 import os, sys
 from pathlib import Path
 from glob import glob
+from typing import Text
 from exiconf.main import EXI_BASE_DIR
 from exiconf.logging import errs
 from exiconf.jvm.setup import get_jvm_path
@@ -11,9 +12,9 @@ __all__ = [
 ]
 
 class JavaFileMapping:
-  """
-  self.is_multi: boolean
-  """
+  __slots__ = ('is_multi',)
+  is_multi: bool
+
   def __init__(self, is_multi=False):
     self.is_multi = is_multi
   def get_line(self, lineno: int) -> str:
@@ -23,42 +24,41 @@ class JavaFileMapping:
 
 # Maps lines in a JException to java files
 class JavaRealFileMapping(JavaFileMapping):
-  """
-  self.__package: Path
-  self.__filename: Path
-  self.__filedata: list[str]?
-  """
+  __slots__ = ('_package', '_filename', '_filedata',)
+  _package: Path
+  _filename: Path
+  _filedata: list[str] | None
 
   def __init__(self, package: str, filename: Path):
     super().__init__()
-    self.__package = str(package)
-    self.__filename = Path(filename)
-    self.__filedata = None
+    self._package = str(package)
+    self._filename = Path(filename)
+    self._filedata = None
 
   @property
   def package(self) -> str:
-    return self.__package
+    return self._package
 
   @property
   def filename(self) -> str:
-    return self.__filename.as_posix()
+    return self._filename.as_posix()
 
   @property
   def cache(self) -> list[str]:
-    cache = self.__filedata
+    cache = self._filedata
     if cache is not None:
       return cache
     # Load the file data
     try:
-      blob = self.__filename.read_text(encoding='utf8')
+      blob = self._filename.read_text(encoding='utf8')
       lines = blob.splitlines(keepends=True)
       if lines and not lines[-1].endswith('\n'):
         lines[-1] += '\n'
-      self.__filedata = lines
+      self._filedata = lines
       return lines
     except (OSError, UnicodeDecodeError):
       # print('failure!')
-      self.__filedata = []
+      self._filedata = []
       return []
 
   def get_line(self, lineno: int) -> str:
@@ -74,27 +74,26 @@ class JavaRealFileMapping(JavaFileMapping):
 
 # Maps multiple `JavaRealFileMapping`s to one filename
 class JavaMultiFileMapping(JavaFileMapping):
-  """
-  self.__mappings: list[JavaRealFileMapping]
-  self.__mappingdict: dict[str, JavaRealFileMapping]
-  """
+  __slots__ = ('_mappings', '_mappingdict',)
+  _mappings: list[JavaRealFileMapping]
+  _mappingdict: dict[str, JavaRealFileMapping]
 
   def __init__(self, mappings: list[JavaRealFileMapping] = None):
     super().__init__(is_multi=True)
     if mappings is None:
-      self.__mappings = []
+      self._mappings = []
     else:
       assert isinstance(mappings, list)
-      self.__mappings = mappings[:]
+      self._mappings = mappings[:]
     # Set up dict
     md = {}
-    for mapping in self.__mappings:
+    for mapping in self._mappings:
       pkg = mapping.package
-      if pkg in self.__mappingdict:
+      if pkg in self._mappingdict:
         errs().warn(f"Conflicting package '{pkg}' in JavaMultiFileMapping?")
         continue
       md[pkg] = mapping
-    self.__mappingdict = md
+    self._mappingdict = md
   
   def add(self, mapping: JavaRealFileMapping):
     if mapping is None:
@@ -103,40 +102,39 @@ class JavaMultiFileMapping(JavaFileMapping):
       errs().warn(f'{type(mapping)} passed to JavaMultiFileMapping?')
       return
     pkg = mapping.package
-    if pkg in self.__mappingdict:
+    if pkg in self._mappingdict:
       errs().warn(f"Conflicting package '{pkg}' in JavaMultiFileMapping?")
       return
-    self.__mappings.append(mapping)
-    self.__mappingdict[pkg] = mapping
+    self._mappings.append(mapping)
+    self._mappingdict[pkg] = mapping
 
   def get_line(self, lineno: int) -> str:
-    if len(self.__mappings) == 0:
+    if len(self._mappings) == 0:
       return ''
     # Always use the first if there is no way to disambiguate
-    return self.__mappings[0].get_line(lineno)
+    return self._mappings[0].get_line(lineno)
   
   def get_line_ext(self, clazzname: str, lineno: int) -> str:
     modulename, clazzname = clazzname.rsplit('.', 1)
     ppath = modulename.replace('.', '/')
-    md = self.__mappingdict
+    md = self._mappingdict
     if ppath in md:
       return md[ppath].get_line(lineno)
     return ''
 
 # Wraps behaviour for lines in a zipped file.
 class JavaZipFileMapping(JavaFileMapping):
-  """
-  self.__filedata: list[str]
-  """
+  __slots__ = ('_filedata',)
+  _filedata: list[str]
   
   def __init__(self, filedata: list[str]):
     super().__init__()
     assert filedata is not None
-    self.__filedata = filedata
+    self._filedata = filedata
   
   @property
   def cache(self) -> list[str]:
-    return self.__filedata
+    return self._filedata
 
   def get_line(self, lineno: int) -> str:
     cache = self.cache
@@ -153,22 +151,21 @@ class JavaZipFileMapping(JavaFileMapping):
 
 # Handles getting lines from files in a zipped source.
 class JavaSrcZip:
-  """
-  self.__zip: zipfile.ZipFile
-  self.__names: list[Text]
-  self.__cache: dict[str, list[str]?]
-  """
+  __slots__ = ('_zip', '_names', '_cache',)
+  #_zip: zipfile.ZipFile
+  _names: list[Text]
+  _cache: dict[str, list[str] | None]
   
   def __init__(self, _zip):
-    self.__zip = _zip
-    if self.__zip is not None:
-      self.__names = _zip.namelist()
+    self._zip = _zip
+    if self._zip is not None:
+      self._names = _zip.namelist()
     else:
-      self.__names = None
-    self.__cache = {}
+      self._names = None
+    self._cache = {}
   
   def __lookup(self, matches) -> bytes:
-    zf = self.__zip
+    zf = self._zip
     for match in matches:
       try:
         return zf.read(match)
@@ -177,14 +174,14 @@ class JavaSrcZip:
     return None
 
   def lookup(self, modulename: str, filename: str) -> JavaZipFileMapping:
-    if self.__zip is None:
+    if self._zip is None:
       return None
-    if modulename in self.__cache:
-      return self.__cache[modulename]
+    if modulename in self._cache:
+      return self._cache[modulename]
     # Get the relative path
     modulepath = modulename.replace('.', '/')
     modulepath += f'/{filename}'
-    matches = [x for x in self.__names if x.endswith(modulepath)]
+    matches = [x for x in self._names if x.endswith(modulepath)]
     # Read from the zip
     data = self.__lookup(matches)
     if data is None:
@@ -196,10 +193,10 @@ class JavaSrcZip:
       if lines and not lines[-1].endswith('\n'):
         lines[-1] += '\n'
       m = JavaZipFileMapping(lines)
-      self.__cache[modulename] = m
+      self._cache[modulename] = m
       return m
     except (OSError, UnicodeDecodeError):
-      self.__cache[modulename] = None
+      self._cache[modulename] = None
     return None
 
 _java_file_line_dict: dict[str, JavaFileMapping]
