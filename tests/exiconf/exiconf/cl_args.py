@@ -66,6 +66,14 @@ def get_arg_parser() -> argparse.ArgumentParser:
     type=str,
     help='clears cache (or specific entries)'
   )
+  parser.add_argument(
+    '--cachefile',
+    dest='cachefile',
+    action='store',
+    help='use a different cachefile name',
+    type=str,
+    default=None
+  )
 
   # TODO: Add --extended-checks for chaining (eg. openexi -> exicpp -> exicpp -> exificient).
 

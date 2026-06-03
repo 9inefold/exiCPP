@@ -1,209 +1,222 @@
-#!@Python3_EXECUTABLE@
-# -*- coding: utf-8 -*-
-
 import json, os, sys, subprocess, traceback
 from glob import glob
 from pathlib import Path
-from subprocess import run as run_proc
-
+#from subprocess import run as run_proc
 from exiconf.constants import *
+from exiconf.constants import EXI_VERSION
 from exiconf.cl_args import parse_args
+from exiconf.logging import outs
 
-sys.path.insert(0, str(EXI_BASE_DIR / 'vendored' / 'xmldiff'))
-from xmldiff.main import diff_files
-from xmldiff.actions import UpdateTextIn, UpdateTextAfter
-import lxml.etree as etree
+#OUT_DIR = TEST_OUT_DIR
+OUT_DIR = EXI_BASE_DIR / 'tests/o2'
+if not OUT_DIR.exists():
+  OUT_DIR.mkdir(parents=True)
 
-args = parse_args()
-VERBOSE = args.diag_level == 'verbose'
-QUIET = args.diag_level == 'error'
-COLOR = args.color
-
-def qprint(*args, **kwargs):
-  if not QUIET:
-    print(*args)
-
-def vprint(*args, **kwargs):
-  if VERBOSE:
-    print(*args)
-
-class ParseOpt:
-  PRESERVE_OPTS = ['p', 'cdip']
-  ALIGN_OPTS = ['i', 'y']
-
-  def __init__(self, preserve: str, align: str):
-    if preserve in ParseOpt.PRESERVE_OPTS:
-      self.preserve = preserve
-    else:
-      self.preserve = ParseOpt.PRESERVE_OPTS[0]
-    if align in ParseOpt.ALIGN_OPTS:
-      self.align = align
-    else:
-      self.align = ParseOpt.ALIGN_OPTS[0]
-    self.mangled = f'O{self.align}P{self.preserve}'
-
-  def exificient_parse_opts(self) -> list[str]:
-    mapping = {
-      'p': '-preservePrefixes',
-      'c': '-preserveComments',
-      'd': '-preserveDTDs',
-      'i': '-preservePIs'
-    }
-    out = ['-noSchema', '-retainEntityReference']
-    for p in self.preserve:
-      if p in mapping:
-        out.append(mapping[p])
-    if self.align == 'y':
-      out.append('-bytePacked')
-    return out
-  
-  def lxml_parse_opts(self):
-    out = {
-      'remove_pis': 'i' not in self.preserve,
-      'remove_comments': 'c' not in self.preserve,
-      #'resolve_entities': False # Causes a MemoryError
-    }
-    print(out)
-    return out
-
-def gen_subfolders() -> tuple [list[ParseOpt], list[str]]:
-  out = []
-  names = []
-  for p in ParseOpt.PRESERVE_OPTS:
-    for a in ParseOpt.ALIGN_OPTS:
-      opt = ParseOpt(p, a)
-      out.append(opt)
-      names.append(opt.mangled)
-  return out, names
-
-FOLDER_NAMES = ['xd', 'xe', 'xx', 'id', 'ie', 'ii']
-# Maps mangled name to (preserve, align)
-subfolders, subfolder_names = gen_subfolders()
-
-RESTRICTIONS = []
-if len(args.restrict):
-  RESTRICTIONS = [r for r in args.restrict if r in subfolder_names]
-else:
-  RESTRICTIONS = subfolder_names
-
-# Generates all the required folders so we don't run into issues later
-def make_folders():
-  for subfolder in subfolders:
-    for folder in FOLDER_NAMES:
-      f = TEST_OUT_DIR / folder / subfolder.mangled
-      if not f.exists():
-        f.mkdir(parents=True)
-
-################################################################################
-
-def run_process(args):
-  return run_proc(args, cwd=EXI_BIN_DIR, capture_output=True, text=True)
-
-# Directly runs exificient
-def run_exificient(name, args) -> bool:
-  proc = run_process(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
-  if proc.returncode != 0:
-    try:
-      qprint(f'{name}:')
-      vprint(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
-      vprint(proc.stdout.strip(), flush=True)
-    except:
-      pass
-    vprint()
-    return proc.returncode
-  elif proc.stderr.startswith("[Fatal Error]"):
-    try:
-      qprint(f'{name}:')
-      vprint(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
-      vprint(proc.stderr.strip())
-      vprint(proc.stdout.strip(), '\n', flush=True)
-    except:
-      pass
-    return 1
-  elif proc.stdout.startswith("[ERROR]"):
-    try:
-      qprint(f'{name}:')
-      vprint(f"{JAVA_EXECUTABLE} -jar {EXIFICIENT_JAR} {args}")
-      vprint(proc.stdout.strip(), '\n', flush=True)
-    except:
-      pass
-    return 1
-  return 0
-
-# Runs exi-test-driver
-def run_exi(name, args) -> bool:
-  color_arg = '' if COLOR else '-T'
-  proc = run_process(f"{EXI_EXECUTABLE} {args} {color_arg}")
-  if proc.returncode != 0:
-    try:
-      qprint(f'{name} ({proc.returncode}):')
-      vprint(f"{EXI_EXECUTABLE} {args}:")
-      vprint(proc.stdout.strip())
-      vprint(proc.stderr.strip(), flush=True)
-    except:
-      pass
-  return proc.returncode
-
-# Runs xml-test-driver
-def run_xml(name, args) -> bool:
-  color_arg = '' if COLOR else '-T'
-  verb_arg = '-V' if VERBOSE else ''
-  proc = run_process(f"{XML_EXECUTABLE} {args} {verb_arg} {color_arg}")
-  if proc.returncode != 0:
-    try:
-      qprint(f'{name} ({proc.returncode})*:')
-      vprint(f"{XML_EXECUTABLE} {args}:")
-      vprint(proc.stdout.strip())
-      vprint(proc.stderr.strip(), flush=True)
-    except:
-      pass
-  return proc.returncode
-
-# Returns true if xml is not different.
-def diff_xml(name, file1, file2, parse_options=None) -> bool:
-  try:
-    diff_list = diff_files(file1, file2, parse_options=parse_options)
-    real_diffs = []
-    # Fixup diffs with empty data
-    # TODO: Add option to compare without preserves
-    for diff in diff_list:
-      if isinstance(diff, (UpdateTextIn, UpdateTextAfter)):
-        old = diff.oldtext if diff.oldtext is not None else ''
-        new = diff.text if diff.text is not None else ''
-        if old.strip() != new.strip():
-          real_diffs.append(diff)
-      else:
-        real_diffs.append(diff)
-    if len(real_diffs) != 0:
-      qprint(f'{name}*:')
-      vprint(f"'{file1}' is NOT equal to '{file2}'\n", diff_list, '\n')
-      return False
-    return True
-  except Exception as e:
-    qprint(f'{name}*:')
-    if not isinstance(e, etree.XMLSyntaxError):
-      # Currently doesn't work with PIs
-      vprint(traceback.format_exc())
-    vprint(e, '\n', flush=True)
-    return False
-
-################################################################################
+FOLDER_NAMES = [
+  # Exicpp, OpenEXI, Exificient encode
+  'i', 'o', #'x',
+  # Exicpp roundtrip and decode
+  'ii', 'io', #'ix',
+  # OpenEXI roundtrip and decode
+  'oo', 'oi', #'ox',
+  # Exificient roundtrip and decode
+  #'xx', 'xo', 'xi',
+]
 
 """
+NEW:
+cache: {
+  "version" : "...",
+  "data" : {
+    "at/at-01": {
+      "OyPcdip" : {
+        passed: ["i", "oi", "ii", ...],
+        failed: ["xx", "ix", ...]
+      },
+    },
+    ...
+  }
+}
+"""
+
+class ProcessCacheEntry:
+  __slots__ = ('_name', '_passed', '_failed',)
+  _passed: set[str]
+  _failed: set[str]
+
+  def __init__(self, obj=None):
+    # Check if we passed in an object
+    if obj is not None:
+      # Init passed entries
+      if 'passed' in obj and obj.passed is not None:
+        self._passed = set(obj.passed)
+      else:
+        self._passed = set()
+      # Init failed entries
+      if 'failed' in obj and obj.failed is not None:
+        self._failed = set(obj.failed)
+      else:
+        self._failed = set()
+    # Otherwise, default init
+    else:
+      self._passed = set()
+      self._failed = set()
+    pass
+  
+  # Checks if work has already been done
+  def did_work(self, name: str) -> bool:
+    assert name is not None
+    if name in self._passed:
+      return True
+    # Failed work should be repeated
+    return False
+  
+  # Adds a new passed entry
+  def passed(self, name: str):
+    if name is not None:
+      self._passed.add(name)
+      if name in self._failed:
+        self._failed.remove(name)
+  
+  # Adds a new failed entry
+  def failed(self, name: str):
+    if name is not None:
+      self._failed.add(name)
+      if name in self._passed:
+        self._passed.remove(name)
+  
+  def getdict(self):
+    return {
+      'passed': sorted(self._passed),
+      'failed': sorted(self._failed),
+    }
+# end ProcessCacheEntry
+
+class CacheJSONEncoder(json.JSONEncoder):
+  def default(self, obj):
+    if isinstance(obj, ProcessCacheEntry):
+      return obj.getdict()
+    elif isinstance(obj, set):
+      return sorted(obj)
+    # Let the base class default method raise the TypeError
+    return super().default(obj)
+# end CacheJSONEncoder
+
+class ProcessCache:
+  __slots__ = ('_cache', '_files', '_cachefile',)
+  _cache: dict[str, dict[str, ProcessCacheEntry]]
+  _files: set[str]
+  _cachefile: Path
+
+  # Gets the cache path given an input
+  def _get_cache_path(self, cache_path=None) -> Path:
+    if cache_path is None:
+      return OUT_DIR
+    if type(cache_path) == str:
+      if cache_path == '-':
+        return OUT_DIR
+    return Path(cache_path)
+  
+  # Gets the cache file given an input path
+  def _get_cache_file(self, cache_path=None) -> Path:
+    return self._get_cache_path(cache_path) / '.cache.json'
+
+  def _process_cache_data(self, cache_data):
+    for file_data in cache_data.values():
+      for mangled, mangled_data in file_data.entries():
+        cache_data[mangled] = ProcessCacheEntry(mangled_data)
+    return cache_data
+
+  def __init__(self, cache_path=None):
+    self._cache = {}
+    self._files = set([])
+    # Open cache!
+    cachefile = self._get_cache_file(cache_path)
+    if cachefile.exists():
+      try:
+        raw_text = cachefile.read_text(encoding='utf8')
+        cache_data = json.loads(raw_text,
+          object_hook=ProcessCache.as_entry)
+        if cache_data['version'] == EXI_VERSION:
+          self._cache = self._process_cache_data(cache_data['data'])
+          if cache_data['files']:
+            self._files.update(cache_data['files'])
+      except json.JSONDecodeError as json_err:
+        qprint(json_err.msg)
+        pass
+      except FileNotFoundError:
+        pass
+    self._cachefile = cachefile
+    # ...
+    if bool(self._cache):
+      outs().info('Cache loaded from file.')
+    else:
+      outs().info('Cache is unset.')
+  
+  # Clears entry (or entries)
+  def clear(self, to_clear):
+    if type(to_clear) == str:
+      to_clear = [to_clear]
+    # Clear everything
+    if len(to_clear) == 0:
+      outs().info('Clearing cache.')
+      mappings: dict
+      for mode, mappings in self._cache.items():
+        vals: set
+        for k, vals in mappings.items():
+          if k != '__entry__':
+            vals.clear()
+      pass
+    else:
+      outs().info(f'Clearing entries {to_clear}.')
+      mappings: dict
+      for mode, mappings in self._cache.items():
+        vals: set
+        for k, vals in mappings.items():
+          if k != '__entry__':
+            vals.difference_update(to_clear)
+      pass
+
+  # Prints cache data
+  def dump(self):
+    raw_text = json.dumps(self._cache,
+      cls=CacheJSONEncoder, indent=2)
+    qprint(raw_text)
+
+  # Saves cache to file
+  def save(self):
+    cachefile = self._cachefile
+    raw_text = json.dumps({
+      'version': EXI_VERSION,
+      'files': self._files,
+      'data': self._cache
+    }, cls=CacheJSONEncoder, indent=0)
+    cachefile.write_text(raw_text, encoding='utf8')
+  
+  # Loads top level entry from cache:
+  def load_entry(self, filename: str) -> dict[str, [str]]:
+    #assert filename in subfolders
+    if filename in self._cache:
+      return self._cache[filename]
+    # Make new entry:
+    self._cache[name] = {}
+    return self._cache[name]
+# end ProcessCache
+
+"""
+OLD:
 cache: {
   "version" : "...",
   "data" : {
     "OyPcdip" : {
       "ie": [ ... ],
       "ii": [ ... ],
-      "xe": [ ... ],
-      "xx": [ ... ],
-      "id": [ ... ],
-      "xd": [ ... ]
+      ...
     },
     ...
   }
 }
+"""
 """
 class CacheJSONEncoder(json.JSONEncoder):
   def default(self, obj):
@@ -211,28 +224,26 @@ class CacheJSONEncoder(json.JSONEncoder):
       return sorted(obj)
     # Let the base class default method raise the TypeError
     return super().default(obj)
+# end CacheJSONEncoder
 
 class ProcessCache:
-  # self.__cache: dict[mode, dict[name, set[str]]]
-  # self.__files: set[str]
-  # self.__cachefile: Path
+  __slots__ = ('_cache', '_files', '_cachefile',)
+  #_cache: dict[mode, dict[name, set[str]]]
+  _files: set[str]
+  _cachefile: Path
 
   @staticmethod
   def as_entry(dct):
     if '__entry__' in dct:
-      dct['xd'] = set(dct['xd'])
-      dct['xe'] = set(dct['xe'])
-      dct['xx'] = set(dct['xx'])
-      dct['id'] = set(dct['id'])
-      dct['ie'] = set(dct['ie'])
-      dct['ii'] = set(dct['ii'])
+      for folder in FOLDER_NAMES:
+        dct[folder] = set(dct[folder])
     return dct
 
   def __init__(self, cache_path=None):
-    self.__cache = {}
-    self.__files = set([])
+    self._cache = {}
+    self._files = set([])
     if cache_path is None or cache_path == '-':
-      cache_path = TEST_OUT_DIR
+      cache_path = OUT_DIR
     # Open cache!
     cachefile = Path(cache_path) / '.testcache.json'
     if cachefile.exists():
@@ -241,17 +252,17 @@ class ProcessCache:
         cache_data = json.loads(raw_text,
           object_hook=ProcessCache.as_entry)
         if cache_data['version'] == EXI_VERSION:
-          self.__cache = cache_data['data']
+          self._cache = cache_data['data']
           if cache_data['files']:
-            self.__files.update(cache_data['files'])
+            self._files.update(cache_data['files'])
       except json.JSONDecodeError as json_err:
         qprint(json_err.msg)
         pass
       except FileNotFoundError:
         pass
-    self.__cachefile = cachefile
+    self._cachefile = cachefile
     # ...
-    if bool(self.__cache):
+    if bool(self._cache):
       qprint('Cache loaded from file.')
     else:
       qprint('Cache is unset.')
@@ -264,7 +275,7 @@ class ProcessCache:
     if len(to_clear) == 0:
       print('Clearing cache.')
       mappings: dict
-      for mode, mappings in self.__cache.items():
+      for mode, mappings in self._cache.items():
         vals: set
         for k, vals in mappings.items():
           if k != '__entry__':
@@ -273,7 +284,7 @@ class ProcessCache:
     else:
       print(f'Clearing entries {to_clear}.')
       mappings: dict
-      for mode, mappings in self.__cache.items():
+      for mode, mappings in self._cache.items():
         vals: set
         for k, vals in mappings.items():
           if k != '__entry__':
@@ -282,17 +293,17 @@ class ProcessCache:
 
   # Prints cache data
   def dump(self):
-    raw_text = json.dumps(self.__cache,
+    raw_text = json.dumps(self._cache,
       cls=CacheJSONEncoder, indent=2)
     qprint(raw_text)
 
   # Saves cache to file
   def save(self):
-    cachefile = self.__cachefile
+    cachefile = self._cachefile
     raw_text = json.dumps({
       'version': EXI_VERSION,
-      'files': self.__files,
-      'data': self.__cache
+      'files': self._files,
+      'data': self._cache
     }, cls=CacheJSONEncoder, indent=0)
     cachefile.write_text(raw_text, encoding='utf8')
   
@@ -300,221 +311,52 @@ class ProcessCache:
   def load_entry(self, name: str) -> dict[str, [str]]:
     # subfolders contain full list of allowed names
     #assert name in subfolders
-    if name in self.__cache:
-      return self.__cache[name]
+    if name in self._cache:
+      return self._cache[name]
     # Make new entry:
-    self.__cache[name] = {
-      '__entry__': True,
-      'xd': set(), 'xe': set(), 'xx': set(),
-      'id': set(), 'ie': set(), 'ii': set()
-    }
-    return self.__cache[name]
+    entries = { '__entry__': True }
+    for folder in FOLDER_NAMES:
+      entries[folder] = set()
+    self._cache[name] = entries
+    return self._cache[name]
 # end ProcessCache
+"""
 
-class TestRunner:
-  @property
-  def subfolder(self) -> str:
-    return self.opts.mangled
-
-  @property
-  def preserve(self) -> str:
-    return self.opts.preserve
-
-  @property
-  def align(self) -> str:
-    return self.opts.align
-
-  @property
-  def cache_entry(self) -> dict[str, list[str]]:
-    return self.cache.load_entry(self.subfolder)
-  
-  def __init__(self, opts: ParseOpt, cache: ProcessCache, files):
-    self.opts  = opts
-    self.cache = cache
-    self.files = files
-
-  # xml -[x]> exi -[x]> xml
-  def exificient_identity(self):
-    cache = self.cache_entry
-    args = ' '.join(self.opts.exificient_parse_opts())
-    i_args = f'-O{self.preserve} -CN -A{self.align}'
-    x_args = self.opts.lxml_parse_opts()
-    encode_folder = TEST_OUT_DIR / 'xe' / self.subfolder
-    decode_folder = TEST_OUT_DIR / 'xx' / self.subfolder
-
-    for filename, name in self.files.items():
-      # Run the encoder
-      filename = TEST_SRC_DIR / filename
-      exi = encode_folder / (name + '.exi')
-      if not name in cache['xe']:
-        code = run_exificient(name + '[xe]', f'-encode {args} -i {filename} -o {exi}')
-        if code != 0:
-          continue
-        cache['xe'].add(name)
-      # Run the decoder
-      if name in cache['xx']:
-        continue
-      xml = decode_folder / (name + '.xml')
-      code = run_exificient(name + '[xx]', f'-decode {args} -i {exi} -o {xml}')
-      ## Compare the xml
-      if code != 0:
-        continue
-      #out_file = xml if code == 0 else exi
-      #code = run_xml(name, f'{filename} {out_file} {i_args}')
-      #if code == 0:
-      if diff_xml(name + '[xx]', filename, xml, x_args):
-        cache['xx'].add(name)
-    pass
-
-  # xml -[i]> exi -[i]> xml
-  def exicpp_identity(self):
-    cache = self.cache_entry
-    args = f'-O{self.preserve} -CP -A{self.align}'
-    encode_folder = TEST_OUT_DIR / 'ie' / self.subfolder
-    decode_folder = TEST_OUT_DIR / 'ii' / self.subfolder
-
-    for filename, name in self.files.items():
-      if name in cache['ii']:
-        continue
-      filename = TEST_SRC_DIR / filename
-      exi = encode_folder / (name + '.exi')
-      xml = decode_folder / (name + '.xml')
-      code = run_exi(name + '[ie]', f'{filename} {exi} -X{xml} {args}')
-      if code == 0 or code >= 3:
-        cache['ie'].add(name)
-      if code != 0 or code != 4:
-        continue
-      # Compare the xml
-      out_file = xml if code == 0 else exi
-      code = run_xml(name + '[ii]', f'{filename} {out_file} {args}')
-      if code == 0:
-        cache['ii'].add(name)
-    pass
-  
-  # xml -[x]> exi -[i]> xml
-  def exificient_roundtrip(self):
-    cache = self.cache_entry
-    args = f'-O{self.preserve} -CN -A{self.align}'
-    x_args = self.opts.lxml_parse_opts()
-    encode_folder = TEST_OUT_DIR / 'xe' / self.subfolder
-    decode_folder = TEST_OUT_DIR / 'id' / self.subfolder
-
-    for filename, name in self.files.items():
-      if name in cache['id']:
-        continue
-      if not name in cache['xe']:
-        continue
-      # Run the decoder & compare the xml
-      filename = TEST_SRC_DIR / filename
-      exi = encode_folder / (name + '.exi')
-      xml = decode_folder / (name + '.xml')
-      code = run_xml(name + '[id]', f'{filename} {exi} -X{xml} {args}')
-      if code != 0:
-        continue
-      if diff_xml(name + '[id]', filename, xml, x_args):
-        cache['id'].add(name)
-    pass
-
-  # xml -[i]> exi -[x]> xml
-  def exicpp_roundtrip(self):
-    cache = self.cache_entry
-    args = ' '.join(self.opts.exificient_parse_opts())
-    i_args = f'-O{self.preserve} -CN -E -A{self.align}'
-    x_args = self.opts.lxml_parse_opts()
-    encode_folder = TEST_OUT_DIR / 'ie' / self.subfolder
-    decode_folder = TEST_OUT_DIR / 'xd' / self.subfolder
-
-    for filename, name in self.files.items():
-      if name in cache['xd']:
-        continue
-      if not name in cache['ie']:
-        continue
-      # Run the decoder
-      exi = encode_folder / (name + '.exi')
-      xml = decode_folder / (name + '.xml')
-      code = run_exificient(name + '[xd]', f'-decode {args} -i {exi} -o {xml}')
-      if code != 0:
-        continue
-      # Compare the xml
-      filename = TEST_SRC_DIR / filename
-      #code = run_xml(name, f'{filename} {xml} {i_args}')
-      #if code == 0:
-      if diff_xml(name + '[xd]', filename, xml, x_args):
-        cache['xd'].add(name)
-    pass
-
-  def run(self):
-    try:
-      self.exicpp_identity()
-      self.exificient_identity()
-      self.exificient_roundtrip()
-      self.exicpp_roundtrip()
-      #raise Exception("xyz")
-      #self.cache.dump()
-    except Exception:
-      print(traceback.format_exc(), flush=True)
-      return False
-    finally:
-      self.cache.save()
-    return True
-# end TestRunner
-
-def main():
-  all_files = list(glob(
+def _load_xml_files() -> list[str]:
+  all_files = glob(
     '**/*.xml',
     root_dir=TEST_SRC_DIR,
     recursive=True
-  ))
+  )
+  # Convert to posix form
+  out = [Path(f).as_posix() for f in all_files]
+  out.sort()
+  return out
 
-  """
-  all_files = [
-    'at\\at-02.xml',
-    'ch\\ch-07.xml',
-    'el2\\el2-09.xml',
-    'me\\CDATA.xml',
-    'xml\\022.xml',
-    'xml\\044.xml',
-    'xml\\085.xml',
-    'xml\\116.xml',
-  ]
-  """
-  #all_files = ['me\\Newlines2.xml', 'me\\CDATA2.xml']
+def _load_ent_files() -> list[str]:
+  all_files = glob(
+    '**/*.ent',
+    root_dir=TEST_SRC_DIR,
+    recursive=True
+  )
+  # Convert to posix form
+  out = [Path(f).as_posix() for f in all_files]
+  out.sort()
+  return out
 
-  make_folders()
-  cache = ProcessCache()
+# The default program entry point
+def main():
+  #parser = get_arg_parser()
+  #print(parser.format_help(), flush=True)
+  args = parse_args()
 
-  if not args.clear is None:
-    cache.clear(args.clear)
-    cache.save()
-    sys.exit(0)
+  xml_files = _load_xml_files()
+  ent_files = _load_ent_files()
+  print(xml_files)
+  #print(ent_files)
 
-  # Filtered for using xsi:type, which is currently unsupported.
-  skiplist = ['at-02', 'SortTest', 'IPO']
-  # Currently crash...
-  crashlist = ['022']
-  # Currently don't work on exificient
-  exificientlist = [
-    '012', '079', '085', # Encoding bugs
-    'CDATA', '044', # Decoding weirdness
-    'Newlines', 'Newlines2' # Index 0 out of bounds for length 0class javax.xml.transform.TransformerException
-  ]
+  cache = ProcessCache(args.cachefile)
 
-  do_skip = lambda f : (
-    name in skiplist or
-    name in crashlist or
-    name in exificientlist)
+  # ...
 
-  file_dict = {}
-  for f in all_files:
-    name = Path(f).stem
-    if do_skip(name):
-      continue
-    file_dict[f] = name
-
-  #to_check = 'OyPcdip'
-  for opt in subfolders:
-    if not opt.mangled in RESTRICTIONS:
-      continue
-    runner = TestRunner(opt, cache, file_dict)
-    if not runner.run():
-      sys.exit(1)
+  cache.save()
