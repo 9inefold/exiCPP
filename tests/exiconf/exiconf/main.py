@@ -7,6 +7,8 @@ from exiconf.constants import EXI_VERSION
 from exiconf.cl_args import parse_args
 from exiconf.logging import outs
 
+__all__ = ['main']
+
 #OUT_DIR = TEST_OUT_DIR
 OUT_DIR = EXI_BASE_DIR / 'tests/o2'
 if not OUT_DIR.exists():
@@ -130,13 +132,15 @@ class ProcessCache:
   def __init__(self, cache_path=None):
     self._cache = {}
     self._files = set([])
+    self._cachefile = self._get_cache_file(cache_path)
+  
+  def __enter__(self):
     # Open cache!
-    cachefile = self._get_cache_file(cache_path)
+    cachefile = self._cachefile
     if cachefile.exists():
       try:
         raw_text = cachefile.read_text(encoding='utf8')
-        cache_data = json.loads(raw_text,
-          object_hook=ProcessCache.as_entry)
+        cache_data = json.loads(raw_text)
         if cache_data['version'] == EXI_VERSION:
           self._cache = self._process_cache_data(cache_data['data'])
           if cache_data['files']:
@@ -146,12 +150,15 @@ class ProcessCache:
         pass
       except FileNotFoundError:
         pass
-    self._cachefile = cachefile
     # ...
     if bool(self._cache):
       outs().info('Cache loaded from file.')
     else:
       outs().info('Cache is unset.')
+  
+  def __exit__(self, exc_type, exc_value, traceback):
+    # TODO: Do stuff with exception values?
+    self.save()
   
   # Clears entry (or entries)
   def clear(self, to_clear):
@@ -181,7 +188,7 @@ class ProcessCache:
   def dump(self):
     raw_text = json.dumps(self._cache,
       cls=CacheJSONEncoder, indent=2)
-    qprint(raw_text)
+    outs().info(raw_text)
 
   # Saves cache to file
   def save(self):
@@ -203,146 +210,14 @@ class ProcessCache:
     return self._cache[name]
 # end ProcessCache
 
-"""
-OLD:
-cache: {
-  "version" : "...",
-  "data" : {
-    "OyPcdip" : {
-      "ie": [ ... ],
-      "ii": [ ... ],
-      ...
-    },
-    ...
-  }
-}
-"""
-"""
-class CacheJSONEncoder(json.JSONEncoder):
-  def default(self, obj):
-    if isinstance(obj, set):
-      return sorted(obj)
-    # Let the base class default method raise the TypeError
-    return super().default(obj)
-# end CacheJSONEncoder
-
-class ProcessCache:
-  __slots__ = ('_cache', '_files', '_cachefile',)
-  #_cache: dict[mode, dict[name, set[str]]]
-  _files: set[str]
-  _cachefile: Path
-
-  @staticmethod
-  def as_entry(dct):
-    if '__entry__' in dct:
-      for folder in FOLDER_NAMES:
-        dct[folder] = set(dct[folder])
-    return dct
-
-  def __init__(self, cache_path=None):
-    self._cache = {}
-    self._files = set([])
-    if cache_path is None or cache_path == '-':
-      cache_path = OUT_DIR
-    # Open cache!
-    cachefile = Path(cache_path) / '.testcache.json'
-    if cachefile.exists():
-      try:
-        raw_text = cachefile.read_text(encoding='utf8')
-        cache_data = json.loads(raw_text,
-          object_hook=ProcessCache.as_entry)
-        if cache_data['version'] == EXI_VERSION:
-          self._cache = cache_data['data']
-          if cache_data['files']:
-            self._files.update(cache_data['files'])
-      except json.JSONDecodeError as json_err:
-        qprint(json_err.msg)
-        pass
-      except FileNotFoundError:
-        pass
-    self._cachefile = cachefile
-    # ...
-    if bool(self._cache):
-      qprint('Cache loaded from file.')
-    else:
-      qprint('Cache is unset.')
-  
-  # Clears entry (or entries)
-  def clear(self, to_clear):
-    if type(to_clear) == str:
-      to_clear = [to_clear]
-    # Clear everything
-    if len(to_clear) == 0:
-      print('Clearing cache.')
-      mappings: dict
-      for mode, mappings in self._cache.items():
-        vals: set
-        for k, vals in mappings.items():
-          if k != '__entry__':
-            vals.clear()
-      pass
-    else:
-      print(f'Clearing entries {to_clear}.')
-      mappings: dict
-      for mode, mappings in self._cache.items():
-        vals: set
-        for k, vals in mappings.items():
-          if k != '__entry__':
-            vals.difference_update(to_clear)
-      pass
-
-  # Prints cache data
-  def dump(self):
-    raw_text = json.dumps(self._cache,
-      cls=CacheJSONEncoder, indent=2)
-    qprint(raw_text)
-
-  # Saves cache to file
-  def save(self):
-    cachefile = self._cachefile
-    raw_text = json.dumps({
-      'version': EXI_VERSION,
-      'files': self._files,
-      'data': self._cache
-    }, cls=CacheJSONEncoder, indent=0)
-    cachefile.write_text(raw_text, encoding='utf8')
-  
-  # Loads top level entry from cache:
-  def load_entry(self, name: str) -> dict[str, [str]]:
-    # subfolders contain full list of allowed names
-    #assert name in subfolders
-    if name in self._cache:
-      return self._cache[name]
-    # Make new entry:
-    entries = { '__entry__': True }
-    for folder in FOLDER_NAMES:
-      entries[folder] = set()
-    self._cache[name] = entries
-    return self._cache[name]
-# end ProcessCache
-"""
-
-def _load_xml_files() -> list[str]:
+def _load_glob_recursive(pattern: str) -> list[str]:
   all_files = glob(
-    '**/*.xml',
+    pattern,
     root_dir=TEST_SRC_DIR,
     recursive=True
   )
   # Convert to posix form
-  out = [Path(f).as_posix() for f in all_files]
-  out.sort()
-  return out
-
-def _load_ent_files() -> list[str]:
-  all_files = glob(
-    '**/*.ent',
-    root_dir=TEST_SRC_DIR,
-    recursive=True
-  )
-  # Convert to posix form
-  out = [Path(f).as_posix() for f in all_files]
-  out.sort()
-  return out
+  return sorted([Path(f).as_posix() for f in all_files])
 
 # The default program entry point
 def main():
@@ -350,13 +225,11 @@ def main():
   #print(parser.format_help(), flush=True)
   args = parse_args()
 
-  xml_files = _load_xml_files()
-  ent_files = _load_ent_files()
+  xml_files = _load_glob_recursive('**/*.xml')
+  ent_files = _load_glob_recursive('**/*.ent')
   print(xml_files)
   #print(ent_files)
 
-  cache = ProcessCache(args.cachefile)
-
-  # ...
-
-  cache.save()
+  with ProcessCache(args.cachefile) as cache:
+    # ...
+    pass
