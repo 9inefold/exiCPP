@@ -6,12 +6,13 @@ __all__ = [
   'EXI_BASE_DIR',
   'TEST_SRC_DIR',
   'TEST_OUT_DIR',
+  'TEST_OUT_DIR2',
   'EXI_BIN_DIR',
 ]
 
 __author__ = "Ninefold"
 #__email__ = "..."
-__versioninfo__ = (0, 9, 0)
+__versioninfo__ = (0, 9, 1)
 __version__ = ".".join(str(v) for v in __versioninfo__) + "dev"
 
 EXI_VERSION = "@EXI_VERSION@"
@@ -28,6 +29,8 @@ if not TEST_OUT_DIR2.exists():
 EXI_BIN_DIR  = Path("@CMAKE_LIBRARY_OUTPUT_DIRECTORY@")
 EXI_EXECUTABLE  = EXI_BIN_DIR / 'exi-test-driver.exe'
 XML_EXECUTABLE  = EXI_BIN_DIR / 'xml-test-driver.exe'
+
+EXICPP_EXECUTABLE  = EXI_BIN_DIR / 'dual-test-driver.exe'
 
 JAVA_EXECUTABLE = Path("@Java_JAVA_EXECUTABLE@")
 EXIFICIENT_JAR  = Path("@EXIFICIENT_JAR@")

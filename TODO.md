@@ -55,6 +55,7 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## Not Started
 
+- Add `map.json` impl for test configuration
 - **Split out implementation of `ExiDecoder` like with `ExiEncoder`**
 - Improve custom logging api
 - Add version `.rc` file on windows?

@@ -4,7 +4,6 @@ from glob import glob
 from pathlib import Path
 #from subprocess import run as run_proc
 from exiconf.constants import *
-from exiconf.constants import TEST_OUT_DIR2
 from exiconf.cl_args import parse_args
 from exiconf.logging import errs, outs
 from exiconf.test.cache import ProcessCache
