@@ -95,21 +95,26 @@ class ProcessCacheInfo:
   _passed: bool
   _ent: list[Path]
 
-  def __init__(self, obj):
-    assert obj is not None
-    assert 'path' in obj
-    # Get the real filepath
-    self._path = Path(obj['path'])
-    # Check if all entries already passed
-    if 'passed' in obj:
-      self._passed = bool(obj['passed'])
+  def __init__(self, obj=None):
+    if obj is not None:
+      # Get the real filepath
+      if 'path' in obj:
+        self._path = Path(obj['path'])
+      else:
+        self._path = None
+      # Check if all entries already passed
+      if 'passed' in obj:
+        self._passed = bool(obj['passed'])
+      else:
+        self._passed = False
+      # Check for .ent files
+      if 'ent' in obj:
+        ent = obj['ent']
+        if len(ent) > 0:
+          self._ent = [Path(f) for f in ent]
     else:
+      self._path = None
       self._passed = False
-    # Check for .ent files
-    if 'ent' in obj:
-      ent = obj['ent']
-      if len(ent) > 0:
-        self._ent = [Path(f) for f in ent]
 
   def add_ent(self, ent: Path):
     if ent is not None:
@@ -117,19 +122,15 @@ class ProcessCacheInfo:
 
   def getdict(self):
     out = {
-      'path': self._path.as_posix(),
+      'path': None,
       'passed': self._passed,
     }
+    if self._path is not None:
+      out['path'] = self._path.as_posix()
     if hasattr(self, '_ent') and len(self._ent) > 0:
       out['ent'] = [f.as_posix() for f in self._ent]
     return out
 # end ProcessCacheInfo
-
-def _process_info(info):
-  if 'path' not in info:
-    return None
-  else:
-    return ProcessCacheInfo(info)
 
 class ProcessCacheEntry:
   __slots__ = ('_results', '_info',)
@@ -191,7 +192,7 @@ def _process_cache_data(cache_data) -> dict[str, ProcessCacheEntry]:
     info = None
     # Check if info exists
     if '__info__' in file_data:
-      info = _process_info(file_data['__info__'])
+      info = ProcessCacheInfo(file_data['__info__'])
       del file_data['__info__']
     out[file_name] = ProcessCacheEntry(info=info, entries=file_data)
   return out
