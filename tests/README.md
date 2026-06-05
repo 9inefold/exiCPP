@@ -94,3 +94,8 @@ where the newest `FORMAT` is appended.
 
 In the future I will add support for check chaining (full roundtrip testing),
 but for now only encode/decode will be tested.
+
+### Map format
+
+The map files (`map.json`) found in the sources folder tell the test runner what it should be doing.
+Format is currently unfinished.
