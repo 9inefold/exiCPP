@@ -53,10 +53,10 @@ add_custom_target(exi-tests-target)
 #  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 #)
 
-add_executable(xml-test-driver xml-test-driver.cpp)
+add_executable(xml-test-driver driver/old/xml-test-driver.cpp)
 target_link_libraries(xml-test-driver PUBLIC exi::exicpp)
 
-add_executable(exi-test-driver exi-test-driver.cpp)
+add_executable(exi-test-driver driver/old/exi-test-driver.cpp)
 target_link_libraries(exi-test-driver PUBLIC exi::exicpp)
 
 #add_dependencies(exi-exicpp exi-tests-target)
