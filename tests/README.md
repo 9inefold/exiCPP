@@ -44,16 +44,35 @@ It is not necessary to understand for regular usage.
 
 The `exiconf` folder contains the python code that runs the test suite.
 
-### Test Outputs
+The `jarvis` folder contains the Java classes used to fix the behaviour of
+exificient and openexi encoders.
 
 The original data sources can be found in `s/**/NAME.xml`.
 
+### Test Outputs
+
 Outputs for each file are in folders `o/NAME/`, where `NAME` is the original filename.
-For example, the file `at/at-01.xml` would create the folder `o/at/at-01/`.
+For example, the file `at/at-01.xml` would create the folder `o/at.at-01/`.
 
 Files under each `o/NAME/` follow the convention `MANGLED.FORMAT.*`.
 
+#### MANGLED section
+
 `MANGLED` is the mangled signature of the options used on a specific file.
+
+For example, if we encoded xml as byte-packed, all-preserving exi,
+we would get the mangling `yPcdip`.
+
+`MANGLED` can also have an extra section containing extra information used for encoding/decoding.
+This is encoded after a `%`, giving `MANGLED%EXTRA`.
+
+The format of this extra data is considered internal and **should not be relied on**.
+The only part that can be relied on is a number at the beginning of the sequence,
+indicating the format version (currently 0).
+
+For example, adding the data `Lec` to our previous mangling would give us `yPcdip%0Lec`.
+
+#### FORMAT section
 
 `FORMAT` has the following meanings:
 
@@ -68,9 +87,9 @@ as file extensions are easier to utilize:
 - `?e` for *encoded* exi
 
 If we encoded `at/at-01.xml` as byte-packed, all-preserving exi file using openexi,
-we would get the file `o/at/at-01/yPcdip.o.exi`.
+we would get the file `o/at.at-01/yPcdip.o.exi`.
 
-If we then decoded that file with exicpp, we would get the file `o/at/at-01/yPcdip.oi.xml`,
+If we then decoded that file with exicpp, we would get the file `o/at.at-01/yPcdip.oi.xml`,
 where the newest `FORMAT` is appended.
 
 In the future I will add support for check chaining (full roundtrip testing),

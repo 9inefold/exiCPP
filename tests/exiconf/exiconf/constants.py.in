@@ -21,6 +21,10 @@ EXI_BASE_DIR = Path("@EXI_BASE_DIR@")
 TEST_SRC_DIR = Path("@TEST_SRC_DIR@")
 TEST_OUT_DIR = Path("@TEST_OUT_DIR@")
 
+TEST_OUT_DIR2 = EXI_BASE_DIR / 'tests/o2'
+if not TEST_OUT_DIR2.exists():
+  TEST_OUT_DIR2.mkdir(parents=True)
+
 EXI_BIN_DIR  = Path("@CMAKE_LIBRARY_OUTPUT_DIRECTORY@")
 EXI_EXECUTABLE  = EXI_BIN_DIR / 'exi-test-driver.exe'
 XML_EXECUTABLE  = EXI_BIN_DIR / 'xml-test-driver.exe'
