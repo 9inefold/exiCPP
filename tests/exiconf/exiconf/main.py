@@ -1,5 +1,4 @@
-import json, os, sys, subprocess, traceback
-import itertools
+import json, os, sys, subprocess, traceback, itertools
 from glob import glob
 from pathlib import Path
 #from subprocess import run as run_proc
@@ -51,7 +50,7 @@ def _get_entries(root=None) -> list[tuple[str, str, bool]]:
     root = TEST_SRC_DIR
   # Get files of each type
   xml_files = _load_ext_recursive('xml', root, sort=True)
-  ent_files = set(_load_glob_recursive('ent', root))
+  ent_files = set(_load_ext_recursive('ent', root))
   # Make a new list
   return [(f.replace('/', '.'), Path(f + '.xml'), f in ent_files) for f in xml_files]
 
@@ -77,9 +76,12 @@ def main():
   with ProcessCache(args.cachefile) as cache:
     name, path, has_ent = xml_files[0]
     entry0 = cache.get(name, path)
-    results = entry0.get('yPcdip')
-    #errs().error(type(results))
-    results.passed('i')
-    results.failed('o')
+
+    #results = entry0.get('yPcdip')
+    #results.passed('i')
+    #results.failed('o')
+
+    #cache.clear('at.at-*/*P*')
+
     # ...
     pass

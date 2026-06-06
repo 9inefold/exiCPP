@@ -1,4 +1,4 @@
-import json
+import json, fnmatch
 from pathlib import Path
 from exiconf.constants import EXI_VERSION, TEST_OUT_DIR2
 from exiconf.logging import errs, outs
@@ -82,6 +82,11 @@ class ProcessCacheResults:
       if name in self._passed:
         self._passed.remove(name)
   
+  # Clears everything
+  def clear(self):
+    self._passed.clear()
+    self._failed.clear()
+  
   def getdict(self):
     return {
       'passed': sorted(self._passed),
@@ -90,12 +95,13 @@ class ProcessCacheResults:
 # end ProcessCacheResults
 
 class ProcessCacheInfo:
-  __slots__ = ('_path', '_passed',)
+  __slots__ = ('_path', '_passed', '_ent',)
   _path: Path
   _passed: bool
   _ent: list[Path]
 
   def __init__(self, obj=None):
+    self._ent = None
     if obj is not None:
       # Get the real filepath
       if 'path' in obj:
@@ -127,7 +133,7 @@ class ProcessCacheInfo:
     }
     if self._path is not None:
       out['path'] = self._path.as_posix()
-    if hasattr(self, '_ent') and len(self._ent) > 0:
+    if self._ent and len(self._ent) > 0:
       out['ent'] = [f.as_posix() for f in self._ent]
     return out
 # end ProcessCacheInfo
@@ -157,6 +163,33 @@ class ProcessCacheEntry:
     if self._info is not None:
       self._info.add_ent(ent)
   
+  def _update_passed(self):
+    pass
+
+  def did_all_pass(self):
+    pass
+  
+  def clear(self, to_clear=None):
+    # Optimize 'NAME/*'
+    if to_clear is None or to_clear == '*':
+      self._results.clear()
+      if self._info is not None:
+        self._info._passed = False
+      return
+    
+    # Find matching entries
+    matched = fnmatch.filter(self._results.keys(), to_clear)
+    #print(f' {to_clear}: {matched}')
+    # Optimize not found
+    if len(matched) == 0:
+      return
+    # Remove all matching
+    for match in matched:
+      del self._results[match]
+    # Mark as dirty
+    if self._info is not None:
+      self._info._passed = False
+
   def getdict(self):
     if self._info is None:
       return self._results
@@ -197,6 +230,13 @@ def _process_cache_data(cache_data) -> dict[str, ProcessCacheEntry]:
     out[file_name] = ProcessCacheEntry(info=info, entries=file_data)
   return out
 
+def _parse_pattern(pattern: str) -> (str, str):
+  split = pattern.split('/', 1)
+  if len(split) == 1:
+    return split[0], None
+  else:
+    return split[0], split[1]
+
 class CacheJSONEncoder(json.JSONEncoder):
   def default(self, obj):
     if isinstance(obj, (ProcessCacheResults, ProcessCacheInfo, ProcessCacheEntry)):
@@ -208,15 +248,15 @@ class CacheJSONEncoder(json.JSONEncoder):
 # end CacheJSONEncoder
 
 class ProcessCache:
-  __slots__ = ('_cache', '_files', '_root', '_cachefile',)
+  __slots__ = ('_cache', '_root', '_cachefile',)
   _cache: dict[str, ProcessCacheEntry]
-  _files: set[str]
+  #_files: set[str]
   _root: Path
   _cachefile: Path
 
   def __init__(self, cache_root=None):
     self._cache = {}
-    self._files = set([])
+    #self._files = set([])
     # Init the root path
     self._root = _get_cache_path(cache_root)
     self._cachefile = self._root / '.cache.json'
@@ -256,30 +296,43 @@ class ProcessCache:
   def cachefile(self) -> Path:
     return self._cachefile
 
+  def _clear_entry(self, pattern: str):
+    # TODO: Handle 'at.at-01' & 'at.at-*/MANGLED' & 'at.at-01/*'
+    name, entry = _parse_pattern(pattern)
+    matched = fnmatch.filter(self._cache.keys(), name)
+    #print(f'{name}: {matched}')
+
+    # Remove entire entry
+    if entry is None:
+      for match in matched:
+        if match in self._cache:
+          del self._cache[match]
+      return
+    
+    # Remove subentries
+    for match in matched:
+      self._cache[match].clear(entry)
+
   # Clears entry (or entries)
-  def clear(self, to_clear):
-    #if type(to_clear) == str:
-    #  to_clear = [to_clear]
-    ## Clear everything
-    #if len(to_clear) == 0:
-    #  outs().info('Clearing cache.')
-    #  mappings: dict
-    #  for mode, mappings in self._cache.items():
-    #    vals: set
-    #    for k, vals in mappings.items():
-    #      if k != '__entry__':
-    #        vals.clear()
-    #  pass
-    #else:
-    #  outs().info(f'Clearing entries {to_clear}.')
-    #  mappings: dict
-    #  for mode, mappings in self._cache.items():
-    #    vals: set
-    #    for k, vals in mappings.items():
-    #      if k != '__entry__':
-    #        vals.difference_update(to_clear)
-    #  pass
-    errs().error('ProcessCache.clear is currently unimplemented!')
+  def clear(self, to_clear=None):
+    # Clear single entry
+    if type(to_clear) == str:
+      self._clear_entry(to_clear)
+      return
+    
+    # Clear everything
+    if to_clear is None or len(to_clear) == 0:
+      outs().info('Clearing cache.')
+      self._cache.clear()
+      #self._files.clear()
+      return
+
+    # Handle multiple patterns
+    for pattern in to_clear:
+      if type(pattern) == str:
+        self._clear_entry(pattern)
+      else:
+        errs().warn(f'Invalid pattern: {pattern}')
 
   # Prints cache data
   def dump(self):
@@ -307,7 +360,7 @@ class ProcessCache:
     # Make new entry:
     if filename is not None:
       info = ProcessCacheInfo({
-        'path': filename,
+        'path': Path(filename).absolute(),
         'passed': False,
       });
       self._cache[name] = ProcessCacheEntry(info=info)
