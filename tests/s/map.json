@@ -1,3 +1,6 @@
 {
-  
+  "**/*": {
+    "alignment": ["i", "y"],
+    "preserve": ["c", "di", "p"]
+  }
 }

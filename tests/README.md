@@ -98,4 +98,86 @@ but for now only encode/decode will be tested.
 ### Map format
 
 The map files (`map.json`) found in the sources folder tell the test runner what it should be doing.
-Format is currently unfinished.
+
+At the top level, you can imagine there being a map file like this:
+
+```json
+{
+  "**/*": {
+    "alignment": ["i", "y", "p", "c"],
+    "strict": false,
+    "selfcontained": false,
+    "preserve": {
+      "value": ["c", "d", "l", "i", "p"],
+      "nullable": true,
+      "combinations": true,
+    },
+    "blocksize": null,
+    "maxlength": null,
+    "partitioncapacity": null
+  }
+}
+```
+
+The top-level keys indicate glob paths relative to the current file's folder (like CMake).
+Keys for each path (such as `alignment`) either correspond to options for encoding/decoding, or information needed to correctly encode the values.
+
+I'll make an example structure to demonstrate.
+Let's say you had a folder structure like this:
+
+```fs
+src
+|-map.json
+|-one
+| |-one.ent
+| |-a.xml
+| |-b.xml
+| `-c.xml
+`-two
+  |-v.xml
+  |-w.xml
+  |-x.xml
+  |-y.xml
+  `-z.xml
+```
+
+For `/map.json`:
+
+```json
+{
+  "**/*": {
+    "alignment": ["i", "y"],
+    "preserve": {
+      "#exclude": "l"
+    }
+  },
+  "one/*": {
+    "#depends": "one/one.ent"
+  },
+  "one/c": {
+    "preserve": {
+      "#exclude": ["d", "i"],
+      "#include": "l"
+    }
+  },
+  "#exclude": "two/[vw]"
+}
+```
+
+Any item can either be a string or an array of strings (or `null`).
+If an item is given directly, it will override any changes made previously.
+But if you just want to change a few values, you can use `#include`/`#exclude`,
+and they will do their operations (exclude will ignore any values not in the array).
+
+`preserve` is special, as it will try every possible combination if it can.
+Setting the value will not change the values of `nullable` or `combinations`,
+that must be done explicitly.
+
+Something important to note is changes *are* ordered, being applied from top to bottom. If we were to move `one/c.xml` to the top, the `"#include": "l"` would have no effect, as it would be excluded in `**/*`
+
+The exception to this rule are the `#` tagged keys, which are always handled first.
+
+The `#depends` tells the program that file is a dependency for the given files.
+The file will be moved to be adjacent with the outputs.
+
+At the top level, `#exclude` tells the program to ignore certain files.
