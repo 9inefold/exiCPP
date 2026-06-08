@@ -81,7 +81,7 @@ class Log:
     if isinstance(level, int):
       if level < len(LogLevelArgs.MAP_LEVELS):
         return LogLevel.create(LogLevelArgs.MAP_LEVELS[level])
-    raise ValueError(f'invalid log level {repr(value)} of type {type(value)}')
+    raise ValueError(f'invalid log level {repr(level)} of type {type(level)}')
 
   def __init__(self, level=DEFAULT_LEVEL, file=sys.stdout):
     self.level = Log.create_loglevel(level)

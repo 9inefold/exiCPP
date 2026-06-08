@@ -2,7 +2,7 @@ from packaging.version import parse as _parse_version, Version as VersionTuple
 
 __all__ = ['version_tuple']
 
-def _handle_multi_args(args: list[any], _recurse):
+def _handle_multi_args(args: list, _recurse):
   joined = ".".join(str(v) for v in args)
   return _parse_version(joined)
 

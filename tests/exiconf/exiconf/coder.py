@@ -30,7 +30,7 @@ _zbase32_alpha = 'ybndrfg8ejkmcpqxot1uwisza345h769'
 _mangle_header_re = [
   '_?', # Optional leading symbol (used for C++ symbols)
   '(?P<HasCookie>C)?',
-  '(?P<Version>0?\d*)',
+  '(?P<Version>0?\\d*)',
   '(?:N|(?:O(?P<Options>.+)))',
 ]
 _mangle_body_re = [
@@ -39,9 +39,9 @@ _mangle_body_re = [
   '(?P<SelfContained>C)?',
   '(?:P(?P<Preserve>c?d?l?i?p?))?',
   '(?:Y(?P<SchemaID>[{}]*)Y)?'.format(_zbase32_alpha),
-  '(?:B(?P<BlockSize>\d+))?',
-  '(?:M(?P<ValueMaxLength>\d+))?',
-  '(?:V(?P<ValuePartitionCapacity>\d+))?',
+  '(?:B(?P<BlockSize>\\d+))?',
+  '(?:M(?P<ValueMaxLength>\\d+))?',
+  '(?:V(?P<ValuePartitionCapacity>\\d+))?',
 ]
 
 MANGLE_FLAGS = re.ASCII
@@ -143,7 +143,7 @@ class PreserveType(enum.IntFlag):
       out.append('Prefixes')
     return out
 
-def parse_intopt(val: str, name=None, alt:int=None) -> int:
+def parse_intopt(val: str, name=None, alt:int|None=None) -> int:
   if name is None:
     name = '<value>'
   if val is None:
@@ -157,7 +157,7 @@ def parse_intopt(val: str, name=None, alt:int=None) -> int:
     raise ValueError(f"{name} '{val}' contains non-digits")
   return int(val)
 
-def parse_int(D: dict[str, str], name: str, alt:int=None) -> int:
+def parse_int(D: dict[str, str], name: str, alt:int|None=None) -> int:
   return parse_intopt(D[name], name=name, alt=alt)
 
 def decode_zbase32(src: str) -> str:
@@ -178,7 +178,7 @@ def _demangle_options(o, B: dict[str, str]):
   o.ValueMaxLength = parse_int(B, 'ValueMaxLength', -1)
   o.ValuePartitionCapacity = parse_int(B, 'ValuePartitionCapacity', -1)
 
-def parse_version(version: str) -> (bool, int):
+def parse_version(version: str) -> tuple[bool, int]:
   assert version is not None
   IsPreview = False
   Version = 0
@@ -220,14 +220,14 @@ class ExiOptions:
   ValuePartitionCapacity: int
 
   def __init__(self, mangled=None):
-    self.Alignment = None
-    self.Strict = None
-    self.SelfContained = None
-    self.Preserve = None
-    self.SchemaID = None
-    self.BlockSize = None
-    self.ValueMaxLength = None
-    self.ValuePartitionCapacity = None
+    self.Alignment = None # type: ignore
+    self.Strict = None # type: ignore
+    self.SelfContained = None # type: ignore
+    self.Preserve = None # type: ignore
+    self.SchemaID = None # type: ignore
+    self.BlockSize = None # type: ignore
+    self.ValueMaxLength = None # type: ignore
+    self.ValuePartitionCapacity = None # type: ignore
     if mangled is not None:
       self.demangle(mangled)
   
@@ -292,11 +292,11 @@ class ExiHeader:
   Options: ExiOptions
 
   def __init__(self, mangled=None):
-    self.HasCookie = None
-    self.IsPreview = None
-    self.Version = None
-    self.HasOptions = None
-    self.Options = None
+    self.HasCookie = None # type: ignore
+    self.IsPreview = None # type: ignore
+    self.Version = None # type: ignore
+    self.HasOptions = None # type: ignore
+    self.Options = None # type: ignore
     if mangled is not None:
       self.demangle(mangled)
   
@@ -346,7 +346,7 @@ class ExiHeader:
     return repr(self.getdict())
   pass
 
-def demangle_options(mangled: str) -> ExiOptions:
+def demangle_options(mangled: str) -> ExiOptions | None:
   matches = MANGLE_BODY_RE.fullmatch(mangled)
   if matches is None:
     errs().error(f"'{mangled}' has invalid mangled options!")
@@ -356,7 +356,7 @@ def demangle_options(mangled: str) -> ExiOptions:
   o.demangle_from(B)
   return o
 
-def demangle_header(mangled: str) -> ExiHeader:
+def demangle_header(mangled: str) -> ExiHeader | None:
   matches = MANGLE_HEADER_RE.fullmatch(mangled)
   if matches is None:
     errs().error(f"'{mangled}' has an invalid mangled header!")
@@ -366,7 +366,7 @@ def demangle_header(mangled: str) -> ExiHeader:
   o.demangle_from(H)
   return o
 
-def demangle(mangled: str) -> ExiOptions | ExiHeader:
+def demangle(mangled: str) -> ExiOptions | ExiHeader | None:
   # First try demangling header
   hmatches = MANGLE_HEADER_RE.fullmatch(mangled)
   if hmatches is not None:

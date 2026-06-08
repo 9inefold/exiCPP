@@ -12,7 +12,6 @@ class TempFile:
   _tmp: bool
 
   def __init__(self, filename, outpath):
-    self._path = None
     self._tmp = False
     if outpath is not None:
       self._path = Path(outpath).absolute()
@@ -42,7 +41,7 @@ class ExicppCoder(BaseCoder):
   def __init__(self, mangled=None, logger=None):
     super().__init__(mangled, logger)
 
-  def encode(self, xml_contents: str, filename=None, dir=None, outpath=None) -> bytes:
+  def encode(self, xml_contents: str, filename=None, dir=None, outpath=None) -> bytes | None:
     result = None
     f = TempFile(filename, outpath)
     try:
@@ -57,7 +56,7 @@ class ExicppCoder(BaseCoder):
       f.close()
       return result
 
-  def decode(self, exi_contents: bytes, filename=None, outpath=None) -> str:
+  def decode(self, exi_contents: bytes, filename=None, outpath=None) -> str | None:
     result = None
     f = TempFile(filename, outpath)
     try:

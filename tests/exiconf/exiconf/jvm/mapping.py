@@ -25,7 +25,7 @@ class JavaFileMapping:
 # Maps lines in a JException to java files
 class JavaRealFileMapping(JavaFileMapping):
   __slots__ = ('_package', '_filename', '_filedata',)
-  _package: Path
+  _package: str
   _filename: Path
   _filedata: list[str] | None
 
@@ -78,7 +78,7 @@ class JavaMultiFileMapping(JavaFileMapping):
   _mappings: list[JavaRealFileMapping]
   _mappingdict: dict[str, JavaRealFileMapping]
 
-  def __init__(self, mappings: list[JavaRealFileMapping] = None):
+  def __init__(self, mappings: list[JavaRealFileMapping] | None = None):
     super().__init__(is_multi=True)
     if mappings is None:
       self._mappings = []
@@ -154,17 +154,17 @@ class JavaSrcZip:
   __slots__ = ('_zip', '_names', '_cache',)
   #_zip: zipfile.ZipFile
   _names: list[Text]
-  _cache: dict[str, list[str] | None]
+  _cache: dict[str, JavaZipFileMapping | None]
   
   def __init__(self, _zip):
     self._zip = _zip
     if self._zip is not None:
       self._names = _zip.namelist()
     else:
-      self._names = None
+      self._names = []
     self._cache = {}
   
-  def __lookup(self, matches) -> bytes:
+  def __lookup(self, matches) -> bytes | None:
     zf = self._zip
     for match in matches:
       try:
@@ -173,7 +173,7 @@ class JavaSrcZip:
         pass
     return None
 
-  def lookup(self, modulename: str, filename: str) -> JavaZipFileMapping:
+  def lookup(self, modulename: str, filename: str) -> JavaZipFileMapping | None:
     if self._zip is None:
       return None
     if modulename in self._cache:
@@ -200,14 +200,14 @@ class JavaSrcZip:
     return None
 
 _java_file_line_dict: dict[str, JavaFileMapping]
-_java_file_line_dict = None
+_java_file_line_dict = None # type: ignore
 
 _java_src_zip: JavaSrcZip
-_java_src_zip = None
+_java_src_zip = None # type: ignore
 _java_src_zip_tried_load = False
 
 # Finds the JDK 'src.zip' file containing the sources.
-def _find_java_src() -> Path:
+def _find_java_src() -> Path | None:
   jvm_path = get_jvm_path()
   if jvm_path is None:
     errs().error('JVM was not started!')
@@ -298,7 +298,7 @@ def is_class_in_std_java_module(clazzname) -> bool:
     "java.", "javax.", "jdk.", "sun.", "com.sun."))
 
 # Finds a `.java` file with class and filename, or `None` when not found
-def lookup_ext(clazzname, filename: str) -> JavaFileMapping:
+def lookup_ext(clazzname, filename: str) -> JavaFileMapping | None:
   if filename is None or len(filename) == 0:
     return None
   d = _load_file_dict()
@@ -320,7 +320,7 @@ def lookup_ext(clazzname, filename: str) -> JavaFileMapping:
   return None
 
 # Finds a `.java` file with `filename`, or `None` when not found
-def lookup(filename: str) -> JavaFileMapping:
+def lookup(filename: str) -> JavaFileMapping | None:
   return lookup_ext(None, filename)
 
 # Looks up text at `lineno` from filename
