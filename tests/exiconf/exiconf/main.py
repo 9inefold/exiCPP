@@ -6,6 +6,7 @@ from exiconf.constants import *
 from exiconf.cl_args import parse_args
 from exiconf.logging import errs, outs
 from exiconf.test.cache import ProcessCache
+from exiconf.test.mapfile import map_files
 
 __all__ = ['main']
 
@@ -45,7 +46,7 @@ def _load_ext_recursive(extension: str, root, **kwargs) -> list[str]:
   return _load_glob_recursive(f'**/*.{extension}', root, **kwargs)
 
 # Gets all the needed entries
-def _get_entries(root=None) -> list[tuple[str, str, bool]]:
+def _get_entries(root=None) -> list[tuple[str, Path, bool]]:
   if root is None:
     root = TEST_SRC_DIR
   # Get files of each type
@@ -53,6 +54,8 @@ def _get_entries(root=None) -> list[tuple[str, str, bool]]:
   ent_files = set(_load_ext_recursive('ent', root))
   # Make a new list
   return [(f.replace('/', '.'), Path(f + '.xml'), f in ent_files) for f in xml_files]
+
+from timeit import default_timer as timer
 
 # The default program entry point
 def main():
@@ -63,6 +66,28 @@ def main():
   xml_files = _get_entries(TEST_SRC_DIR)
   #print([f[0] for f in xml_files])
 
+  """
+  toverhead = 0.0
+  for _ in range(1000):
+    tstart = timer()
+    tend = timer()
+    toverhead += (tend - tstart)
+  toverhead /= 1000.0
+
+  ttotal = 0.0
+  for _ in range(100):
+    tstart = timer()
+    map_files()
+    tend = timer()
+    ttotal += (tend - tstart)
+
+  tavg = (ttotal / 100.0) - toverhead  
+  files_time = tavg * 1000
+  outs().info(f'{files_time:.3f}ms')
+  """
+
+  files = map_files()
+
   ALIGNMENT = ['i', 'y']
   #PRESERVE = ['c', 'di', 'l', 'p']
   PRESERVE = ['c', 'di', 'p']
@@ -70,7 +95,7 @@ def main():
   preserve = ['']
   for n in range(1, len(PRESERVE) + 1):
     it = itertools.combinations(PRESERVE, n)
-    preserve.extend(['P' + ''.join(c) for c in it])
+    preserve.extend(['P' + ''.join(sorted(c)) for c in it])
   print(preserve)
 
   with ProcessCache(args.cachefile) as cache:

@@ -160,7 +160,7 @@ For `/map.json`:
       "#include": "l"
     }
   },
-  "#exclude": "two/[vw]"
+  "#ignore": "two/[vw]"
 }
 ```
 
@@ -180,4 +180,4 @@ The exception to this rule are the `#` tagged keys, which are always handled fir
 The `#depends` tells the program that file is a dependency for the given files.
 The file will be moved to be adjacent with the outputs.
 
-At the top level, `#exclude` tells the program to ignore certain files.
+At the top level, `#ignore` tells the program to ignore certain files.
