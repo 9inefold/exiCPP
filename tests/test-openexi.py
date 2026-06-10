@@ -14,7 +14,9 @@ from exiconf.constants import EXI_BASE_DIR, EXI_BIN_DIR, TEST_SRC_DIR
 from exiconf.coder import _try_demangle, _json_dump
 from exiconf.diff import diff_xml
 from exiconf.logging import LogLevel, outs, errs, set_log_level
-from exiconf.openexi import OpenEXICoder
+
+from exiconf.openexi_coder import OpenEXICoder
+from exiconf.exicpp_coder import ExicppCoder
 
 def try_demangle(mangled=str):
   try:
@@ -55,7 +57,7 @@ def do_roundtrip(test_path: Path, do_print = False):
   if do_print:
     print(xml_out, '\n', flush=True)
 
-def run_all_files(mangled=None, print_extra=False):
+def run_all_files(mangled=None, cls=OpenEXICoder, print_extra=False):
   all_files = list(glob(
     '**/*.xml',
     #'at/*.xml',
@@ -64,7 +66,7 @@ def run_all_files(mangled=None, print_extra=False):
   ))
 
   logger = outs()
-  handler = OpenEXICoder(mangled=mangled, logger=logger)
+  handler = cls(mangled=mangled, logger=logger)
   err_dir = EXI_CURR_DIR/'out/err'
   if not err_dir.exists():
     err_dir.mkdir(parents=True)
@@ -116,27 +118,37 @@ def run_all_files(mangled=None, print_extra=False):
   logger.always('Equal:', eq_count)
   logger.always('Total:', len(all_files), end='\n\n')
 
-def run_all(mangled=None, print_extra=False):
+def run_all(mangled=None, cls=OpenEXICoder, print_extra=False):
   if mangled is None:
-    run_all_files(print_extra=print_extra)
+    run_all_files(cls=cls, print_extra=print_extra)
     return
   # Actually run
   for m in mangled:
-    run_all_files(mangled=m, print_extra=print_extra)
+    run_all_files(mangled=m, cls=cls, print_extra=print_extra)
 
 if __name__ == "__main__":
   set_log_level('info')
   #run_all_files(print_extra=True)
-  run_all([
-    'iPcdip',
-    'yPcdip',
-    'pPcdip',
-    'cPcdipB1000000V0',
-  ])
+  #run_all([
+  #  'iPcdip',
+  #  'yPcdip',
+  #  'pPcdip',
+  #  'cPcdipB1000000V0',
+  #])
+
+  logger = outs()
+  f = 'me/Nested.xml'
+  try:
+    handler = ExicppCoder(logger=logger)
+    xml_in = (TEST_SRC_DIR / f).read_text('utf8')
+    data = handler.encode(xml_in, f)
+  except Exception as e:
+    logger.error(f'{f}*:')
+    logger.error(traceback.format_exc(), flush=True)
 
   #CustomSAXParserFactory.printTypeOfParser()
   # TODO: Handle doctype
-  
+
   #do_roundtrip(TEST_SRC_DIR / 'xml/008.xml', do_print=True)
   #do_roundtrip(TEST_SRC_DIR / 'xml/008r.xml', do_print=True)
   #do_roundtrip(TEST_SRC_DIR / 'xml/042.xml')
