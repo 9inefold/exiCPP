@@ -28,13 +28,12 @@ class JVMLogLevelAction(argparse.Action):
   def __call__(self, parser, namespace, value, option_string=None):
     items = getattr(namespace, self.dest, None)
     items = _copy_items(items)
-    # FIXME: Wrong variable?
-    items.append(f'-Dexicpp.loglevel={loglevel}')
+    items.append(f'-Dexicpp.loglevel={value}')
     setattr(namespace, self.dest, items)
 
 # Gets the parameters passed to the parser init
 def _get_parser_params():
-  out = {}
+  out: dict = {}
   # Get the library argparse version
   pyver = version_tuple(sys.version_info[0:3])
   if pyver > version_tuple('3.14'):
@@ -119,7 +118,7 @@ def get_arg_parser() -> argparse.ArgumentParser:
     '--jvm', '--jvm-path',
     dest='jvm_path',
     action='store',
-    type=str, default=None,
+    type=_path, default=None,
     help='set the path to a specific JVM version'
   )
   parser.add_argument(
@@ -139,7 +138,7 @@ def get_arg_parser() -> argparse.ArgumentParser:
   )
   parser.add_argument(
     '--jvm-diag', '--jvm-diagnostic-level',
-    dest='jvm_diag_level',
+    dest='jvm_args',
     action=JVMLogLevelAction,
     help="control how verbose java should be (default: error)",
     choices=LogLevelArgs.ALL_LEVELS,
@@ -148,6 +147,23 @@ def get_arg_parser() -> argparse.ArgumentParser:
   )
 
   return parser
+
+def _realpath(arg) -> Path:
+  out = _path(arg)
+  if not out.exists():
+    raise _error(f"path '{out.as_posix()}' does not exist")
+  return out
+
+def _path(arg) -> Path:
+  try:
+    return Path(arg)
+  except:
+    raise _error(f"expected path but got '{arg}'")
+
+def _error(msg):
+  return argparse.ArgumentTypeError(msg)
+
+################################################################################
 
 # Gets arguments from a file
 def _expand_file_to_args(filename: str) -> list[str]:

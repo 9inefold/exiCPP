@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 from exiconf.constants import EXI_BASE_DIR
 from exiconf.logging import errs
 sys.path.insert(0, str(EXI_BASE_DIR / 'vendored' / 'xmldiff'))

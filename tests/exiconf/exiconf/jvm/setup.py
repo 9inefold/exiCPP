@@ -1,8 +1,8 @@
-import os, sys
-import _jpype, jpype
+import sys, _jpype, jpype
 from pathlib import Path
 from exiconf.main import EXI_BASE_DIR, EXI_BIN_DIR, TEST_SRC_DIR
-from exiconf.logging import LogLevelArgs, Log, outs
+from exiconf.logging import Log, outs
+from typing import Optional
 
 __all__ = [
   'start_jvm',
@@ -12,18 +12,18 @@ __all__ = [
 ]
 
 JPYPE_DEFAULT_JVM_PATH = jpype.getDefaultJVMPath()
-_used_jvm_path = None
-_used_jvm_classpath = None
-_used_jvm_extra_args = None
+_used_jvm_path: Optional[str] = None
+_used_jvm_classpath: Optional[list[str]] = None
+_used_jvm_extra_args: Optional[list[str]] = None
 
 # Checks that the provided JVM file is valid
-def _resolve_jvm(jvm_path: str, logger: Log) -> str:
+def _resolve_jvm(jvm_path: str | Path | None, logger: Log) -> str:
   if jvm_path is None or len(str(jvm_path)) == 0:
     # No need to error, this is fine
     return JPYPE_DEFAULT_JVM_PATH
   
   # Use the provided path
-  jvm_path = Path(str(jvm_path)).absolute()
+  jvm_path = Path(jvm_path).absolute()
   msg_start = f"Provided JVM path ('{jvm_path.as_posix()}')"
   msg_end = f"'{Path(JPYPE_DEFAULT_JVM_PATH).as_posix()}'"
 
@@ -52,7 +52,7 @@ def _resolve_jvm(jvm_path: str, logger: Log) -> str:
   return JPYPE_DEFAULT_JVM_PATH
 
 # Starts the JVM if not already running. Must be called before importing anything.
-def start_jvm(jvm=None, classpath=None, jvm_args=None, logger:Log=None):
+def start_jvm(jvm_path=None, classpath=None, jvm_args=None, logger:Optional[Log]=None):
   if jpype.isJVMStarted():
     #logger.extra("JVM already running!")
     return
@@ -60,7 +60,7 @@ def start_jvm(jvm=None, classpath=None, jvm_args=None, logger:Log=None):
   if logger is None:
     logger = outs()
   
-  jvm_path = _resolve_jvm(jvm, logger)
+  jvm_path = _resolve_jvm(jvm_path, logger)
   global _used_jvm_path
   _used_jvm_path = jvm_path
 
@@ -102,19 +102,19 @@ def start_jvm(jvm=None, classpath=None, jvm_args=None, logger:Log=None):
     sys.exit(1)
 
 # Gets the path to the JVM used with JPype
-def get_jvm_path() -> str:
+def get_jvm_path() -> Optional[str]:
   if _used_jvm_path is None:
     return None
   return str(_used_jvm_path)
 
 # Gets the classpath used with JPype
-def get_jvm_classpath() -> list[str]:
+def get_jvm_classpath() -> Optional[list[str]]:
   if _used_jvm_classpath is None:
     return None
   return _used_jvm_classpath[:]
 
 # Gets the extra args used with JPype
-def get_jvm_extra_args() -> list[str]:
+def get_jvm_extra_args() -> Optional[list[str]]:
   if _used_jvm_extra_args is None:
     return None
   return _used_jvm_extra_args[:]
