@@ -1,4 +1,4 @@
-import json, os, sys, subprocess, traceback, itertools
+import json, os, sys, subprocess, traceback
 from glob import glob
 from pathlib import Path
 #from subprocess import run as run_proc
@@ -24,89 +24,25 @@ FOLDER_NAMES = [
   #'xx', 'xo', 'xi',
 ]
 
-# Loads file with glob pattern
-def _load_glob_recursive(pattern: str, root, sort=False, strip_ext=True) -> list[str]:
-  all_files = glob(
-    pattern,
-    root_dir=root,
-    recursive=True
-  )
-  # Convert to posix form
-  if strip_ext:
-    out = [Path(f).with_suffix('').as_posix() for f in all_files]
-  else:
-    out = [Path(f).as_posix() for f in all_files]
-  # Sort if needed
-  if sort:
-    out.sort()
-  return out
-
-# Loads file with glob pattern
-def _load_ext_recursive(extension: str, root, **kwargs) -> list[str]:
-  return _load_glob_recursive(f'**/*.{extension}', root, **kwargs)
-
-# Gets all the needed entries
-def _get_entries(root=None) -> list[tuple[str, Path, bool]]:
-  if root is None:
-    root = TEST_SRC_DIR
-  # Get files of each type
-  xml_files = _load_ext_recursive('xml', root, sort=True)
-  ent_files = set(_load_ext_recursive('ent', root))
-  # Make a new list
-  return [(f.replace('/', '.'), Path(f + '.xml'), f in ent_files) for f in xml_files]
-
-from timeit import default_timer as timer
-
 # The default program entry point
 def main():
   #parser = get_arg_parser()
   #print(parser.format_help(), flush=True)
   args = parse_args()
-
-  xml_files = _get_entries(TEST_SRC_DIR)
-  #print([f[0] for f in xml_files])
-
-  """
-  toverhead = 0.0
-  for _ in range(1000):
-    tstart = timer()
-    tend = timer()
-    toverhead += (tend - tstart)
-  toverhead /= 1000.0
-
-  ttotal = 0.0
-  for _ in range(100):
-    tstart = timer()
-    map_files()
-    tend = timer()
-    ttotal += (tend - tstart)
-
-  tavg = (ttotal / 100.0) - toverhead  
-  files_time = tavg * 1000
-  outs().info(f'{files_time:.3f}ms')
-  """
-
-  files = map_files()
-
-  ALIGNMENT = ['i', 'y']
-  #PRESERVE = ['c', 'di', 'l', 'p']
-  PRESERVE = ['c', 'di', 'p']
-
-  preserve = ['']
-  for n in range(1, len(PRESERVE) + 1):
-    it = itertools.combinations(PRESERVE, n)
-    preserve.extend(['P' + ''.join(sorted(c)) for c in it])
-  print(preserve)
+  file_map = map_files(root=args.root)
+  #for name, data in file_map.items():
+  #  print(name, data.dependencies)
 
   with ProcessCache(args.cachefile) as cache:
-    name, path, has_ent = xml_files[0]
-    entry0 = cache.get(name, path)
+    for name, data in file_map.items():
+      entry = cache.get(name, data.file)
+      
 
-    #results = entry0.get('yPcdip')
-    #results.passed('i')
-    #results.failed('o')
+      #results = entry.get('yPcdip')
+      #results.passed('i')
+      #results.failed('o')
 
-    #cache.clear('at.at-*/*P*')
+      #cache.clear('at.at-*/*P*')
 
-    # ...
-    pass
+      # ...
+      pass

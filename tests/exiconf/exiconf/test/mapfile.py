@@ -9,7 +9,7 @@ from exiconf.logging import errs, outs
 from typing import TypeGuard, cast
 from collections.abc import Callable
 
-__all__ = ['map_files']
+__all__ = ['map_files', 'MappingData', 'MappingDataEntry']
 
 PERMISSIVE = True
 
@@ -143,7 +143,7 @@ def _type_check_str_i(name: str, mod) -> bool:
 def _type_check_bool_i(name: str, mod) -> bool:
   if type(mod) == bool:
     return True
-  # TODO: Support truthy/falsy
+  # TODO: Support truthy/falsy?
   #elif PERMISSIVE and isinstance(mod, (int, type(None))):
   #  errs().warn(f"'{name}' coercing '{type(mod)}' to bool")
   #  return True
@@ -230,7 +230,7 @@ def _type_check(name: str, mod) -> bool:
     log_permissive(f"unknown type number '{ty}'")
     return False
 
-#########################################################
+################################################################################
 
 assert REVERSE_ORDERED_ITEMS["alignment"] == 0
 assert REVERSE_ORDERED_ITEMS["preserve"] == 3
@@ -295,7 +295,7 @@ def _copy_preserve(new: dict[int, object], mod: OrderedDict[str, object]):
   # TODO: Deduplicate value/fixed?
   pass
 
-#########################################################
+################################################################################
 
 if not hasattr(fnmatch, '_compile_pattern'):
   @functools.lru_cache(maxsize=32768, typed=True)
@@ -335,7 +335,7 @@ class TransitionMap:
   """
   __slots__ = (
     '_ffiles', '_ids', '_files',
-    '_maps', '_transitions',
+    '_maps', #'_transitions',
   )
   # id -> name
   _ffiles: list[str]
@@ -346,6 +346,7 @@ class TransitionMap:
   # trans_id -> trans
   _maps: list[dict[int, object]]
   # trans_id -> [trans_id...]
+  # TODO: Implement transitions
   _transitions: list[list[int]]
 
   def __init__(self, names: list[str], /):
@@ -353,7 +354,7 @@ class TransitionMap:
     self._ids = [0] * len(names)
     self._files = { name: id for id, name in enumerate(self._ffiles) }
     self._maps = [deepcopy(TOP_LEVEL)]
-    self._transitions = [[]]
+    #self._transitions = [[]]
   
   @property
   def maps(self) -> list[dict[int, object]]:
@@ -411,20 +412,20 @@ class TransitionMap:
   
   def _make_new_trans(self, new: dict[int, object]) -> int:
     self._maps.append(new)
-    self._transitions.append([])
+    #self._transitions.append([])
     return len(self._maps) - 1
 
   def update_ids(self, new: dict[int, object], ids: list[int], /):
     new_tid = self._make_new_trans(new)
     # Now update everything
-    old_tids: list[int] = []
+    #old_tids: list[int] = []
     for id in ids:
       # Add the old id
-      old_tids.append(self._ids[id])
+      #old_tids.append(self._ids[id])
       self._ids[id] = new_tid
     # Create new transitions
-    for tid in set(old_tids):
-      self._transitions[tid].append(new_tid)
+    #for tid in set(old_tids):
+    #  self._transitions[tid].append(new_tid)
   
   def get_trans(self, tid: int, /) -> dict[int, object]:
     assert tid < len(self._maps)
@@ -436,44 +437,50 @@ class DependenciesMap:
 
   Attributes
   ----------
-  _deps : dict[str, set[str]]
+  _deps : dict[str, set[Path]]
     The table mapping files to their dependencies
   _checked : dict[str, bool]
     The set of previously checked files
   """
-  __slots__ = ('_deps', '_checked',)
-  _deps: dict[str, set[str]]
+  __slots__ = ('_root', '_deps', '_checked',)
+  _root: Path
+  _deps: dict[str, set[Path]]
   _checked: dict[str, bool]
 
-  def __init__(self):
+  def __init__(self, root: Path):
+    self._root = root
     self._deps = {}
     self._checked = {}
   
   def add(self, files: list[str], deps: list[str]):
     """For each file of files, add the dependencies"""
-    deps = self._filter(deps)
-    if len(deps) == 0:
+    dep_paths = self._filter(deps)
+    if len(dep_paths) == 0:
       return
-    #LOG(f"#depends: {files} -> {deps}")
+    ##LOG(f"#depends: {files} -> {dep_paths}")
     # Add deps to files
     for file in files:
       if file in self._deps:
-        self._deps[file].update(deps)
+        self._deps[file].update(dep_paths)
       else:
-        self._deps[file] = set(deps)
+        self._deps[file] = set(dep_paths)
+  
+  def get(self, file: str) -> set[Path] | None:
+    if file in self._deps:
+      return self._deps[file]
+    return None
 
-  def _filter(self, deps: list[str]) -> list[str]:
+  def _filter(self, deps: list[str]) -> list[Path]:
     """Filters out invalid dependencies"""
     out = []
     for dep in deps:
+      dep_path = self._root / dep
       # Verify the file hasn't been checked
-      if dep in self._checked:
-        if self._checked[dep]:
-          # Add if valid
-          out.append(dep)
+      if dep in self._checked and self._checked[dep]:
+        # Add if valid
+        out.append(dep_path)
         continue
       # Check if dep exists
-      dep_path = Path(dep)
       if not dep_path.exists():
         errs().warn(f"dependency '{dep}' does not exist")
         self._checked[dep] = False
@@ -486,7 +493,7 @@ class DependenciesMap:
         continue
       # Add to lists
       errs().extra(f"dependency '{dep}' is valid!")
-      out.append(dep)
+      out.append(dep_path)
       self._checked[dep] = True
     return out
   
@@ -514,11 +521,14 @@ class MappingMapper:
     The stack of included folders
   """
   __slots__ = (
-    '_root', '_maps', '_dependencies', '_excluded',
+    '_root', '_curr_root',
+    '_maps', '_dependencies', '_excluded',
     '_curr', '_curr_stack',
-    '_relative_to', '_parse_stack', '_inc_stack',
+    '_relative_to',
+    #'_parse_stack', '_inc_stack',
   )
   _root: Path
+  _curr_root: Path
   _maps: TransitionMap
   _dependencies: DependenciesMap
   _excluded: set[str]
@@ -532,15 +542,16 @@ class MappingMapper:
   def __init__(self, root: Path, names: list[str]):
     assert root is not None
     self._root = Path(root)
+    self._curr_root = self._root
     self._maps = TransitionMap(names)
-    self._dependencies = DependenciesMap()
+    self._dependencies = DependenciesMap(root)
     self._excluded = set()
 
     self._curr = None # type: ignore
     self._curr_stack = []
     self._relative_to = ''
-    self._parse_stack = [[]]
-    self._inc_stack = []
+    #self._parse_stack = [[]]
+    #self._inc_stack = []
   
   @property
   def root(self) -> str:
@@ -592,6 +603,7 @@ class MappingMapper:
       rel = filepath.relative_to(self.root)
       raw_data = file.read_text(encoding='utf8')
       # TODO: Handle parse stack
+      self._curr_root = filepath
       self._relative_to = rel.as_posix()
       #LOG(f"Loaded '{file.as_posix()}'")
     except ValueError:
@@ -836,22 +848,75 @@ def _generate_options(m: dict[int, object]):
       out.append(gen)
   return [''.join(t) for t in itertools.product(*out)]
 
-def _map_files(root: Path, names: list[str]) -> MappingMapper:
+class MappingDataEntry:
+  __slots__ = ('_file', '_tests', '_deps',)
+  _file: Path
+  _tests: list[str]
+  _deps: set[Path] | None
+
+  def __init__(self, file: Path, tests: list[str], deps: set[Path] | None, /):
+    self._file = file
+    self._tests = tests
+    self._deps = deps
+  
+  @property
+  def file(self) -> Path:
+    return self._file
+
+  @property
+  def tests(self) -> list[str]:
+    return self._tests
+  
+  @property
+  def dependencies(self) -> set[Path] | None:
+    return self._deps
+
+class MappingData:
+  __slots__ = ('_root', '_data', '_deps',)
+  # [(tests, files)...]
+  _root: Path
+  _data: list[tuple[list[str], list[str]]]
+  _deps: DependenciesMap
+
+  def __init__(self, mapper: MappingMapper):
+    self._root = mapper._root
+    self._deps = mapper._dependencies
+    self._data = []
+    maps = mapper.maps
+    categorized = mapper._maps.categorized_ids()
+    for tid, ids in categorized.items():
+      tests = _generate_options(maps[tid])
+      resolved = mapper._maps.resolve_ids(ids)
+      self._data.append((tests, resolved))
+      #LOG(f'{tid}: {tests}')
+    #LOG()
+  
+  def keys(self):
+    for _, files in self._data:
+      for file in files:
+        yield file.replace('/', '.')
+  
+  def values(self):
+    for tests, files in self._data:
+      for file in files:
+        f = self._root / f'{file}.xml'
+        deps = self._deps.get(file)
+        yield MappingDataEntry(f, tests, deps)
+  
+  def items(self):
+    for tests, files in self._data:
+      for file in files:
+        name = file.replace('/', '.')
+        f = self._root / f'{file}.xml'
+        deps = self._deps.get(file)
+        yield name, MappingDataEntry(f, tests, deps)
+
+def _map_files(root: Path, names: list[str]) -> MappingData:
   mapper = MappingMapper(root, names)
   mapper.start()
   #LOG()
-
   # Get all the generated data
-  out = []
-  maps = mapper.maps
-  categorized = mapper._maps.categorized_ids()
-  for tid, ids in categorized.items():
-    transition = _generate_options(maps[tid])
-    resolved = mapper._maps.resolve_ids(ids)
-    out.append((transition, resolved))
-    #LOG(f'{tid}: {transition}')
-  #LOG()
-  return mapper
+  return MappingData(mapper)
 
 # Loads file with glob pattern
 def _load_glob_recursive(pattern: str, root) -> list[str]:
@@ -866,7 +931,7 @@ def _load_glob_recursive(pattern: str, root) -> list[str]:
   return out
 
 # Public interface
-def map_files(root=None):
+def map_files(root=None) -> MappingData:
   if root is None:
     root = TEST_SRC_DIR
   root = Path(root)
@@ -885,9 +950,7 @@ def map_files(root=None):
   
   # Actually do the stuff
   # Runs in ~2.1ms
-  out = _map_files(root, xml_names)
-  # TODO: Do mapping n shit
-  return out
+  return _map_files(root, xml_names)
 
 """
 # Loads file with glob pattern

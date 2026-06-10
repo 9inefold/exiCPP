@@ -3,42 +3,7 @@
     "alignment": ["i", "y"],
     "preserve": ["c", "di", "p"]
   },
-  "me/*": {
-    "alignment": {
-      "#include": "p"
-    },
-    "strict": [true, false],
-    "selfcontained": {
-      "#include": true
-    },
-    "preserve": {
-      "#exclude": "l"
-    },
-    "maxlength": [null, 64],
-    "partitioncapacity": {
-      "#include": [256, 1024]
-    }
-  },
-  "me/PITest*": {
-    "preserve": {
-      "#fixed": "i",
-      "#exclude": ["c"]
-    },
-    "maxlength": {
-      "#exclude": 64,
-      "#include": [256]
-    },
-    "partitioncapacity": {
-      "#exclude": [null]
-    }
-  },
-  "me/PITest2": {
-    "preserve": {
-      "#fixed": {
-        "#exclude": ["c", "i"],
-        "#include": "p"
-      }
-    },
-    "partitioncapacity": []
+  "xml/097": {
+    "#depends": "xml/097.ent"
   }
 }

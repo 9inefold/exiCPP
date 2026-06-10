@@ -71,7 +71,17 @@ def get_arg_parser() -> argparse.ArgumentParser:
     dest='cachefile',
     action='store',
     help='use a different cachefile name',
+    metavar='NAME',
     type=str,
+    default=None
+  )
+  parser.add_argument(
+    '--root',
+    dest='root',
+    action='store',
+    help='use a different root folder',
+    metavar='FOLDER',
+    type=_realpath,
     default=None
   )
 
