@@ -28,6 +28,7 @@ class JVMLogLevelAction(argparse.Action):
   def __call__(self, parser, namespace, value, option_string=None):
     items = getattr(namespace, self.dest, None)
     items = _copy_items(items)
+    # FIXME: Wrong variable?
     items.append(f'-Dexicpp.loglevel={loglevel}')
     setattr(namespace, self.dest, items)
 

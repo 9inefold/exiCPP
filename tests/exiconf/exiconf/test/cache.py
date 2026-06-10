@@ -96,12 +96,12 @@ class ProcessCacheResults:
 
 class ProcessCacheInfo:
   __slots__ = ('_path', '_passed', '_ent',)
-  _path: Path
+  _path: Path | None
   _passed: bool
   _ent: list[Path]
 
   def __init__(self, obj=None):
-    self._ent = None
+    self._ent = None # type: ignore
     if obj is not None:
       # Get the real filepath
       if 'path' in obj:
@@ -141,7 +141,7 @@ class ProcessCacheInfo:
 class ProcessCacheEntry:
   __slots__ = ('_results', '_info',)
   _results: dict[str, ProcessCacheResults]
-  _info: ProcessCacheInfo
+  _info: ProcessCacheInfo | None
 
   def __init__(self, info=None, entries=None):
     self._results = {}
@@ -209,7 +209,7 @@ def _get_cache_path(cache_root) -> Path:
   return Path(cache_root)
 
 # Gets exi_version, cache_version
-def _process_cache_versions(cache_data) -> (str, VersionTuple):
+def _process_cache_versions(cache_data) -> tuple[str, VersionTuple]:
   if '__version__' in cache_data:
     exi_version = cache_data['__version__']
     cache_version = version_tuple(cache_data['version'])
@@ -230,7 +230,7 @@ def _process_cache_data(cache_data) -> dict[str, ProcessCacheEntry]:
     out[file_name] = ProcessCacheEntry(info=info, entries=file_data)
   return out
 
-def _parse_pattern(pattern: str) -> (str, str):
+def _parse_pattern(pattern: str) -> tuple[str, str | None]:
   split = pattern.split('/', 1)
   if len(split) == 1:
     return split[0], None
@@ -276,7 +276,7 @@ class ProcessCache:
           #if cache_data['files']:
           #  self._files.update(cache_data['files'])
       except json.JSONDecodeError as json_err:
-        qprint(json_err.msg)
+        errs().error(json_err.msg)
         pass
       except FileNotFoundError:
         pass
