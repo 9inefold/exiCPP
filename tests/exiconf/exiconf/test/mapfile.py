@@ -6,7 +6,7 @@ from pathlib import Path
 from exiconf.constants import TEST_SRC_DIR
 from exiconf.logging import errs, outs
 
-from typing import TypeGuard, cast
+from typing import TypeAlias, NewType, TypeGuard, cast
 from collections.abc import Callable
 
 __all__ = ['map_files', 'MappingData', 'MappingDataEntry']
@@ -312,12 +312,15 @@ else:
 def _get_none_key(val):
   return val if val is not None else -1
 
-class MapfileJSONEncoder(json.JSONEncoder):
-  def default(self, obj):
-    if isinstance(obj, set):
-      return sorted(obj, key=_get_none_key)
-    # Let the base class default method raise the TypeError
-    return super().default(obj)
+#class MapfileJSONEncoder(json.JSONEncoder):
+#  def default(self, obj):
+#    if isinstance(obj, set):
+#      return sorted(obj, key=_get_none_key)
+#    # Let the base class default method raise the TypeError
+#    return super().default(obj)
+
+NameID = NewType('NameID', int)
+TransID = NewType('TransID', int)
 
 # TODO: Use ChainMap?
 class TransitionMap:
@@ -340,21 +343,21 @@ class TransitionMap:
   # id -> name
   _ffiles: list[str]
   # id -> trans_id
-  _ids: list[int]
-  _ex_ids: set[int]
+  _ids: list[TransID]
+  _ex_ids: set[NameID]
   # name -> id
-  _files: dict[str, int]
+  _files: dict[str, NameID]
   # trans_id -> trans
   _maps: list[dict[int, object]]
   # trans_id -> [trans_id...]
   # TODO: Implement transitions
-  _transitions: list[list[int]]
+  _transitions: list[list[TransID]]
 
   def __init__(self, names: list[str], /):
     self._ffiles = names[:]
-    self._ids = [0] * len(names)
+    self._ids = [TransID(0)] * len(names)
     self._ex_ids = set()
-    self._files = { name: id for id, name in enumerate(self._ffiles) }
+    self._files = { name: NameID(id) for id, name in enumerate(self._ffiles) }
     self._maps = [deepcopy(TOP_LEVEL)]
     #self._transitions = [[]]
   
@@ -373,16 +376,16 @@ class TransitionMap:
         out.append(key)
     return out
   
-  def match_ids(self, pattern: str, /) -> list[int]:
-    out: list[int] = []
+  def match_ids(self, pattern: str, /) -> list[NameID]:
+    out: list[NameID] = []
     match = _compile_pattern(pattern)
     for key, id in self._files.items():
       if match(key):
         out.append(id)
     return out
   
-  def match_ids_category(self, pattern: str, /) -> dict[int, list[int]]:
-    out: dict[int, list[int]] = {}
+  def match_ids_category(self, pattern: str, /) -> dict[TransID, list[NameID]]:
+    out: dict[TransID, list[NameID]] = {}
     match = _compile_pattern(pattern)
     for key, id in self._files.items():
       if match(key):
@@ -393,8 +396,8 @@ class TransitionMap:
           out[tid] = [id]
     return out
 
-  def categorize_ids(self, ids: list[int], /) -> dict[int, list[int]]:
-    out: dict[int, list[int]] = {}
+  def categorize_ids(self, ids: list[NameID], /) -> dict[TransID, list[NameID]]:
+    out: dict[TransID, list[NameID]] = {}
     for id in ids:
       if self._is_removed_id(id):
         continue
@@ -405,26 +408,26 @@ class TransitionMap:
         out[tid] = [id]
     return out
   
-  def categorized_ids(self) -> dict[int, list[int]]:
-    out: dict[int, list[int]] = {}
+  def categorized_ids(self) -> dict[TransID, list[NameID]]:
+    out: dict[TransID, list[NameID]] = {}
     for id, tid in enumerate(self._ids):
       if self._is_removed_id(id):
         continue
       if tid in out:
-        out[tid].append(id)
+        out[tid].append(NameID(id))
       else:
-        out[tid] = [id]
+        out[tid] = [NameID(id)]
     return out
 
-  def resolve_ids(self, ids: list[int], /) -> list[str]:
+  def resolve_ids(self, ids: list[NameID], /) -> list[str]:
     return [self._ffiles[id] for id in ids]
   
-  def _make_new_trans(self, new: dict[int, object]) -> int:
+  def _make_new_trans(self, new: dict[int, object]) -> TransID:
     self._maps.append(new)
     #self._transitions.append([])
-    return len(self._maps) - 1
+    return TransID(len(self._maps) - 1)
 
-  def update_ids(self, new: dict[int, object], ids: list[int], /):
+  def update_ids(self, new: dict[int, object], ids: list[NameID], /):
     new_tid = self._make_new_trans(new)
     # Now update everything
     #old_tids: list[int] = []
@@ -436,7 +439,7 @@ class TransitionMap:
     #for tid in set(old_tids):
     #  self._transitions[tid].append(new_tid)
   
-  def get_trans(self, tid: int, /) -> dict[int, object]:
+  def get_trans(self, tid: TransID, /) -> dict[int, object]:
     assert tid < len(self._maps)
     return self._maps[tid]
 
