@@ -2,7 +2,7 @@ import os, sys
 from pathlib import Path
 from glob import glob
 from typing import Text
-from exiconf.main import EXI_BASE_DIR
+from exiconf.constants import EXI_BASE_DIR
 from exiconf.logging import errs
 from exiconf.jvm.setup import get_jvm_path
 

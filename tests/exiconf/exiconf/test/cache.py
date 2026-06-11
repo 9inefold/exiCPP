@@ -4,7 +4,7 @@ from exiconf.constants import EXI_VERSION, TEST_OUT_DIR2
 from exiconf.logging import errs, outs
 from exiconf.version_tuple import version_tuple, VersionTuple
 
-__all__ = ['ProcessCache', 'ProcessCacheResults']
+__all__ = ['ProcessCache', 'ProcessCacheEntry', 'ProcessCacheResults']
 
 CACHE_VERSION = '1.1'
 CACHE_VERSION_INFO = version_tuple(CACHE_VERSION)
@@ -246,6 +246,7 @@ class ProcessCache:
   def __enter__(self):
     # Open cache!
     cachefile = self._cachefile
+    cache_out_of_date = False
     if cachefile.exists():
       try:
         raw_text = cachefile.read_text(encoding='utf8')
@@ -253,7 +254,8 @@ class ProcessCache:
         # Get cache_version and exi_version
         exi_version, cache_version = _process_cache_versions(cache_data)
         # Check this is the correct version
-        if cache_version >= CACHE_MIN_VERSION and exi_version == EXI_VERSION:
+        cache_out_of_date = (exi_version != EXI_VERSION)
+        if cache_version >= CACHE_MIN_VERSION and not cache_out_of_date:
           self._cache = _process_cache_data(cache_data['data'])
           #if cache_data['files']:
           #  self._files.update(cache_data['files'])
@@ -265,6 +267,8 @@ class ProcessCache:
     # ...
     if bool(self._cache):
       outs().info('Cache loaded from file.')
+    elif cache_out_of_date:
+      outs().info('Cache was loaded but out of date (cleared).')
     else:
       outs().info('Cache is unset.')
     return self

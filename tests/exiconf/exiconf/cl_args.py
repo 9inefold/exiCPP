@@ -6,7 +6,7 @@ from exiconf.logging import LogLevelArgs
 from exiconf.version_tuple import version_tuple
 from typing import Optional
 
-__all__ = ['parse_args']
+__all__ = ['parse_args', 'ArgNamespace']
 LOG_LEVELS = '{' + ', '.join(LogLevelArgs.MAP_LEVELS) + '}'
 
 # From argparse
@@ -47,7 +47,11 @@ class ArgNamespace(argparse.Namespace):
 
 # Gets the parameters passed to the parser init
 def _get_parser_params():
-  out: dict = {}
+  out: dict = {
+    # Loads stuff like @dir/FILE.txt
+    # Currently disabled for custom behavior
+    #'fromfile_prefix_chars': '@',
+  }
   # Get the library argparse version
   pyver = version_tuple(sys.version_info[0:3])
   if pyver > version_tuple('3.14'):
@@ -223,6 +227,7 @@ def _expand_argv(argv: list[str]) -> list[str]:
 # Parses arguments from the command line
 def parse_args(env_override=True):
   args = _expand_argv(sys.argv[1:])
+  #args = sys.argv[1:]
   if env_override:
     # Environment variables can override command line arguments by default.
     env_args = shlex.split(os.environ.get("EXICONF_OPTS", ""))

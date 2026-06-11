@@ -1,6 +1,6 @@
 import sys, _jpype, jpype
 from pathlib import Path
-from exiconf.main import EXI_BASE_DIR, EXI_BIN_DIR, TEST_SRC_DIR
+from exiconf.constants import EXI_BASE_DIR, EXI_BIN_DIR, TEST_SRC_DIR
 from exiconf.logging import Log, outs
 from typing import Optional
 
