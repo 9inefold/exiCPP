@@ -1,5 +1,4 @@
-import enum, re
-import os, sys
+import enum, re, functools
 from exiconf.logging import outs, errs
 import exiconf.zbase32 as zbase32
 
@@ -14,15 +13,15 @@ __all__ = [
 """
 Mangling format:
   C?            : HasCookie
-  0?\d*         : Version
+  0?\\d*        : Version
   O             : HasOptions
   [iypc]        : Alignment
   S?            : Strict
   C?            : SelfContained
   (P[cdlip]+)?  : Preserve [Comments, Dtds, Lexicalvalues, pIs, Prefixes]
-  (B\d+)?       : BlockSize (if compression)
-  (M\d+)?       : ValueMaxLength
-  (V\d+)?       : ValuePartitionCapacity
+  (B\\d+)?      : BlockSize (if compression)
+  (M\\d+)?      : ValueMaxLength
+  (V\\d+)?      : ValuePartitionCapacity
 """
 
 _zbase32_alpha = 'ybndrfg8ejkmcpqxot1uwisza345h769'
@@ -160,7 +159,7 @@ def parse_intopt(val: str, name=None, alt:int|None=None) -> int:
 def parse_int(D: dict[str, str], name: str, alt:int|None=None) -> int:
   return parse_intopt(D[name], name=name, alt=alt)
 
-def decode_zbase32(src: str) -> str:
+def decode_zbase32(src: str | None) -> str | None:
   if src is None:
     return None
   return zbase32.decode(src).decode()
@@ -346,6 +345,7 @@ class ExiHeader:
     return repr(self.getdict())
   pass
 
+@functools.lru_cache
 def demangle_options(mangled: str) -> ExiOptions | None:
   matches = MANGLE_BODY_RE.fullmatch(mangled)
   if matches is None:
@@ -356,6 +356,7 @@ def demangle_options(mangled: str) -> ExiOptions | None:
   o.demangle_from(B)
   return o
 
+@functools.lru_cache
 def demangle_header(mangled: str) -> ExiHeader | None:
   matches = MANGLE_HEADER_RE.fullmatch(mangled)
   if matches is None:
@@ -366,6 +367,7 @@ def demangle_header(mangled: str) -> ExiHeader | None:
   o.demangle_from(H)
   return o
 
+@functools.lru_cache(maxsize=1024)
 def demangle(mangled: str) -> ExiOptions | ExiHeader | None:
   # First try demangling header
   hmatches = MANGLE_HEADER_RE.fullmatch(mangled)

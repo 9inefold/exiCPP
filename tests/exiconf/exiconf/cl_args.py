@@ -4,6 +4,7 @@ from pathlib import Path
 from exiconf.constants import __version__
 from exiconf.logging import LogLevelArgs
 from exiconf.version_tuple import version_tuple
+from typing import Optional
 
 __all__ = ['parse_args']
 LOG_LEVELS = '{' + ', '.join(LogLevelArgs.MAP_LEVELS) + '}'
@@ -30,6 +31,19 @@ class JVMLogLevelAction(argparse.Action):
     items = _copy_items(items)
     items.append(f'-Dexicpp.loglevel={value}')
     setattr(namespace, self.dest, items)
+
+class ArgNamespace(argparse.Namespace):
+  restrict: list[str]
+  clear: Optional[list[str]]
+  cachefile: Optional[str]
+  root: Optional[Path]
+  # Printing options
+  diag_level: str
+  color: bool
+  # JVM options
+  jvm_path: Optional[Path]
+  jvm_classpath: list[str]
+  jvm_args: Optional[list[str]]
 
 # Gets the parameters passed to the parser init
 def _get_parser_params():
@@ -112,6 +126,7 @@ def get_arg_parser() -> argparse.ArgumentParser:
   )
   parser.add_argument(
     '-v', '--verbose',
+    dest='diag_level',
     action='store_const',
     help="alias for '--diagnostic-level=verbose'",
     const='verbose'
@@ -214,4 +229,5 @@ def parse_args(env_override=True):
     args.extend(env_args)
   #print(' '.join(args))
   parser = get_arg_parser()
-  return parser.parse_args(args)
+  ns = ArgNamespace()
+  return parser.parse_args(args, namespace=ns)

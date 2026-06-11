@@ -26,10 +26,8 @@ class BaseCoder(ExiOptions):
     self.mangled = mangled
     self.logger = logger
 
-  def encode(self, xml_contents: str, filename=None, dir=None) -> bytes:
-    self.logger.error("encode is not implemented!")
-    pass
+  def encode(self, xml_contents: str, filename=None, dir=None) -> bytes | None:
+    raise NotImplementedError("encode is not implemented!")
 
-  def decode(self, exi_contents: bytes, filename=None) -> str:
-    self.logger.error("decode is not implemented!")
-    pass
+  def decode(self, exi_contents: bytes, filename=None) -> str | None:
+    raise NotImplementedError("decode is not implemented!")

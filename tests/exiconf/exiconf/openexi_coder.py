@@ -119,7 +119,7 @@ class OpenEXICoder(BaseCoder):
   def grammar_cache(self):
     return GrammarCache(self.schema, self.gmr_options)
 
-  def encode(self, xml_contents: str, filename=None, dir=None) -> bytes:
+  def encode(self, xml_contents: str, filename=None, dir=None) -> bytes | None:
     """Turns a human-readable string to an EXI-encoded string. Relies on Java classes.
 
     :param xml_contents: The XML string to be encoded.
@@ -157,7 +157,7 @@ class OpenEXICoder(BaseCoder):
         return None
       return result
 
-  def decode(self, exi_contents: bytes, filename=None) -> str:
+  def decode(self, exi_contents: bytes, filename=None) -> str | None:
     """Turns encoded EXI bytes to human-readable string. Relies on Java classes.
 
     :param exi_contents: The EXI encoded contents.

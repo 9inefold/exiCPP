@@ -334,13 +334,14 @@ class TransitionMap:
     The list of transitions from each table entry
   """
   __slots__ = (
-    '_ffiles', '_ids', '_files',
+    '_ffiles', '_ids', '_ex_ids', '_files',
     '_maps', #'_transitions',
   )
   # id -> name
   _ffiles: list[str]
   # id -> trans_id
   _ids: list[int]
+  _ex_ids: set[int]
   # name -> id
   _files: dict[str, int]
   # trans_id -> trans
@@ -352,6 +353,7 @@ class TransitionMap:
   def __init__(self, names: list[str], /):
     self._ffiles = names[:]
     self._ids = [0] * len(names)
+    self._ex_ids = set()
     self._files = { name: id for id, name in enumerate(self._ffiles) }
     self._maps = [deepcopy(TOP_LEVEL)]
     #self._transitions = [[]]
@@ -359,6 +361,9 @@ class TransitionMap:
   @property
   def maps(self) -> list[dict[int, object]]:
     return self._maps[:]
+  
+  def _is_removed_id(self, id: int) -> bool:
+    return id in self._ex_ids
   
   def match(self, pattern: str, /) -> list[str]:
     out: list[str] = []
@@ -391,6 +396,8 @@ class TransitionMap:
   def categorize_ids(self, ids: list[int], /) -> dict[int, list[int]]:
     out: dict[int, list[int]] = {}
     for id in ids:
+      if self._is_removed_id(id):
+        continue
       tid = self._ids[id]
       if tid in out:
         out[tid].append(id)
@@ -401,6 +408,8 @@ class TransitionMap:
   def categorized_ids(self) -> dict[int, list[int]]:
     out: dict[int, list[int]] = {}
     for id, tid in enumerate(self._ids):
+      if self._is_removed_id(id):
+        continue
       if tid in out:
         out[tid].append(id)
       else:
@@ -666,6 +675,8 @@ class MappingMapper:
       self._excluded.update(matched)
       # TODO: Add maps.remove(...)?
       for match in matched:
+        id = maps._files[match]
+        maps._ex_ids.add(id)
         del maps._files[match]
 
   def _depends(self, files: list[str], deps: list[str]):
@@ -884,6 +895,8 @@ class MappingData:
     self._data = []
     maps = mapper.maps
     categorized = mapper._maps.categorized_ids()
+    #LOG(f"Got {len(mapper._maps._files)} files")
+    #LOG(f"Got {[len(v) for v in categorized.values()]} files")
     for tid, ids in categorized.items():
       tests = _generate_options(maps[tid])
       resolved = mapper._maps.resolve_ids(ids)

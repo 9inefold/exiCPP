@@ -31,7 +31,6 @@ cache: {
 __info__ {
   path: Path
   passed: bool
-  ent?: list[Path]
   passed_with?: ...
 }
 """
@@ -95,13 +94,11 @@ class ProcessCacheResults:
 # end ProcessCacheResults
 
 class ProcessCacheInfo:
-  __slots__ = ('_path', '_passed', '_ent',)
+  __slots__ = ('_path', '_passed',)
   _path: Path | None
   _passed: bool
-  _ent: list[Path]
 
   def __init__(self, obj=None):
-    self._ent = None # type: ignore
     if obj is not None:
       # Get the real filepath
       if 'path' in obj:
@@ -113,18 +110,9 @@ class ProcessCacheInfo:
         self._passed = bool(obj['passed'])
       else:
         self._passed = False
-      # Check for .ent files
-      if 'ent' in obj:
-        ent = obj['ent']
-        if len(ent) > 0:
-          self._ent = [Path(f) for f in ent]
     else:
       self._path = None
       self._passed = False
-
-  def add_ent(self, ent: Path):
-    if ent is not None:
-      self._ent.append(Path(ent))
 
   def getdict(self):
     out = {
@@ -133,8 +121,6 @@ class ProcessCacheInfo:
     }
     if self._path is not None:
       out['path'] = self._path.as_posix()
-    if self._ent and len(self._ent) > 0:
-      out['ent'] = [f.as_posix() for f in self._ent]
     return out
 # end ProcessCacheInfo
 
@@ -158,16 +144,12 @@ class ProcessCacheEntry:
     if mangled not in self._results:
       self._results[mangled] = ProcessCacheResults()
     return self._results[mangled]
-
-  def add_ent(self, ent: Path):
-    if self._info is not None:
-      self._info.add_ent(ent)
   
   def _update_passed(self):
     pass
 
   def did_all_pass(self):
-    pass
+    return False
   
   def clear(self, to_clear=None):
     # Optimize 'NAME/*'

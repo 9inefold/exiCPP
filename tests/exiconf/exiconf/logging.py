@@ -167,3 +167,7 @@ def set_log_level(level):
   level = Log.create_loglevel(level)
   _outs._set_level(level)
   _errs._set_level(level)
+
+def enable_color(value: bool):
+  _outs.enable_color(value)
+  _errs.enable_color(value)
