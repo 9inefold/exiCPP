@@ -32,6 +32,7 @@
 using namespace exi;
 using namespace driver;
 
+// TODO: Use VerboseFail?
 static bool VerboseFail = false;
 //static Option<String> OriginalXML = std::nullopt;
 
@@ -47,7 +48,8 @@ enum FailKind : int {
 
 static void PrintHelp() {
   outs() << "USAGE: [e|d] <mangling>[%<extra>] <file-in> <file-out> "
-                   "[-C<cdata-mode>] [-X<original>] [-E] [-V] [-T]\n";
+                   "[-C<cdata-mode>] [-E] [-V] [-T]\n";
+                   //"[-C<cdata-mode>] [-X<original>] [-E] [-V] [-T]\n";
   outs().flush();
   exit(1);
 }
@@ -85,8 +87,8 @@ static void ParseRemainingArgs(ArrayRef<StrRef> Args, ExtraOptions& Out) {
       LOG_WARN("Invalid input for '{}': {}", ErrCmd, Arg);
     } else if (Arg.consume_front("-V"))
       VerboseFail = true;
-    else if (Arg.consume_front("-X"))
-      OriginalXML.emplace(Arg.str());
+    //else if (Arg.consume_front("-X"))
+    //  OriginalXML.emplace(Arg.str());
     else if (Arg.consume_front("-E"))
       Out.EscapeData = true;
     else if (!*CodeOrErr)

@@ -60,7 +60,7 @@ class ProcessCacheResults:
     pass
   
   # Checks if work has already been done
-  def did_work(self, name: str) -> bool:
+  def did_pass(self, name: str) -> bool:
     assert name is not None
     if name in self._passed:
       return True
