@@ -8,11 +8,11 @@ from exiconf.logging import Log, LogLevel
 __all__ = ['ExicppCoder']
 
 FAIL_KIND = [
-  'Success'
-  'Failed during cl parsing, file not found, etc.'
-  'Failed while parsing input xml/exi'
-  'Failed during conversion'
-  'Failed after everything else'
+  'Success',
+  'Failed during cl parsing, file not found, etc.',
+  'Failed while parsing input xml/exi',
+  'Failed during conversion',
+  'Failed after everything else',
 ]
 
 class TempFile:
@@ -45,6 +45,12 @@ class TempFile:
     if self._tmp and f.exists():
       os.unlink(str(f))
 
+def _get_fail_kind(val: int) -> str:
+  if val < len(FAIL_KIND):
+    return FAIL_KIND[val]
+  # TODO: Check for windows error?
+  return 'Unknown'
+
 def _run_process(args: list[str]):
   return subprocess.run(args,
                         cwd=EXI_BIN_DIR, capture_output=True, text=True)
@@ -54,14 +60,19 @@ def _run_coder(args: list[str], logger: Log) -> bool:
   if result.returncode == 0:
     return True
   # Log stuff
+  mangled = args[1]
+  name = Path(args[2]).stem
+  kind = _get_fail_kind(result.returncode)
   try:
-    mangled = args[1]
-    name = Path(args[2]).stem
-    kind = FAIL_KIND[result.returncode]
-    logger.error(f'{name}.{mangled} ({result.returncode}: {kind}):')
+    logger.error(f'{name}/{mangled} ({result.returncode}: {kind}):')
     logger.extra(f"{args}:")
-    logger.extra(result.stdout.strip())
-    logger.extra(result.stderr.strip(), flush=True)
+    stdout = result.stdout.strip(' \t\r\n')
+    stderr = result.stderr.strip(' \t\r\n')
+    # TODO: Strip escape sequences
+    if len(stdout) != 0:
+      logger.extra(stdout, flush=True)
+    if len(stderr) != 0:
+      logger.extra(stderr, flush=True)
   except:
     pass
   return False
@@ -105,8 +116,8 @@ class ExicppCoder(BaseCoder):
     args = [mode, self.mangled, fin, fout]
     if self.logger.level == LogLevel.EXTRA:
       args.append('-V')
-    if self.logger.color_enabled:
-      args.append('-T')
+    #if self.logger.color_enabled:
+    args.append('-T')
     # Run the command
     return _run_coder(args, self.logger)
   

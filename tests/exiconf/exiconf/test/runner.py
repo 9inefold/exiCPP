@@ -22,6 +22,11 @@ CODER_NAMES = [
   # Exicpp, OpenEXI, Exificient encode
   'i', 'o', #'x',
 ]
+CODER_NAMES_KIND = {
+  'i': 'exicpp',
+  'o': 'openexi',
+  'x': 'exificient',
+}
 
 def handle_clear(cache: ProcessCache, clear: list[str]):
   if len(clear) == 0:
@@ -42,7 +47,7 @@ def get_coder(typ: str, mangled: str):
     case _:
       raise ValueError(f"expected {CODER_NAMES}, got '{typ}'")
   # Create new instance
-  return cls(mangled)
+  return cls(mangled, outs())
 
 def run_individual_test(
     mangled: str, name: str,
@@ -51,15 +56,57 @@ def run_individual_test(
   # ...
   encoded = []
   for typ in CODER_NAMES:
-    filename = outpath / f'{mangled}.{typ}.exi'
-    if results.did_pass(typ) and filename.exists():
+    k = CODER_NAMES_KIND[typ]
+    outfile = outpath / f'{mangled}.{typ}.exi'
+    if results.did_pass(typ) and outfile.exists():
+      #errs().extra(f"{k}: {name}.{mangled} skipped")
       # Skip work if we can
       encoded.append(typ)
       continue
+    
     # Actually run the coder
     coder = get_coder(typ, mangled)
-    if coder.encode_file(input, filename):
+    try:
+      passed = coder.encode_file(input, outfile)
+    except Exception:
+      passed = False
+      errs().error(traceback.format_exc())
+    
+    if passed:
+      results.passed(typ)
       encoded.append(typ)
+      #errs().extra(f"{k}: {name}.{mangled} encode PASSED")
+    else:
+      results.failed(typ)
+      errs().error(f"{k}: {name}/{mangled}/{typ} encode FAILED\n")
+
+  decoded = []
+  for enc in encoded:
+    infile = outpath / f'{mangled}.{enc}.exi'
+    for typ in CODER_NAMES:
+      full_typ = enc + typ
+      k = CODER_NAMES_KIND[typ]
+      outfile = outpath / f'{mangled}.{full_typ}.xml'
+      if results.did_pass(full_typ) and outfile.exists():
+        # Skip work if we can
+        decoded.append(full_typ)
+        continue
+      
+      # Actually run the coder
+      coder = get_coder(typ, mangled)
+      try:
+        passed = coder.decode_file(infile, outfile)
+      except Exception:
+        passed = False
+        errs().error(traceback.format_exc())
+    
+      if passed:
+        results.passed(full_typ)
+        decoded.append(full_typ)
+        #errs().extra(f"{k}: {name}.{mangled} decode PASSED")
+      else:
+        results.failed(full_typ)
+        errs().error(f"{k}: {name}/{mangled}/{full_typ} decode FAILED\n")
 
   # TODO: Actually do stuff
 

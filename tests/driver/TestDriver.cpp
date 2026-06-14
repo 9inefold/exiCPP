@@ -270,9 +270,9 @@ int main(int Argc, char* Argv[]) {
   if (Args.size() < 4)
     PrintHelp();
 
-  if (Args[0] == "e") // encode
+  if (Args[0] == "d") // encode
     return exi_main(Args.drop_front());
-  else if (Args[0] == "d") // decode
+  else if (Args[0] == "e") // decode
     return xml_main(Args.drop_front());
   else if (Args[0] == "x")
     exi_unimplemented("xml -> xml tests are unimplemented");

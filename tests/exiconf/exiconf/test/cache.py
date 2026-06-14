@@ -22,6 +22,7 @@ cache: {
       "OyPcdip": {
         passed: ["i", "oi", "ii", ...],
         failed: ["xx", "ix", ...]
+        matched: ["ii"]
       },
     },
     ...
@@ -36,27 +37,31 @@ __info__ {
 """
 
 class ProcessCacheResults:
-  __slots__ = ('_passed', '_failed',)
+  __slots__ = ('_passed', '_failed', '_matched',)
   _passed: set[str]
   _failed: set[str]
+  _matched: set[str]
 
   def __init__(self, obj=None):
+    self._passed = set()
+    self._failed = set()
+    self._matched = set()
     # Check if we passed in an object
     if obj is not None:
       # Init passed entries
       if 'passed' in obj:
-        self._passed = set(obj['passed'])
-      else:
-        self._passed = set()
+        self._passed.update(obj['passed'])
       # Init failed entries
       if 'failed' in obj:
-        self._failed = set(obj['failed'])
-      else:
-        self._failed = set()
+        self._failed.update(obj['failed'])
+      # Init matched entries
+      if 'matched' in obj:
+        self._matched.update(obj['matched'])
     # Otherwise, default init
     else:
       self._passed = set()
       self._failed = set()
+      self._matched = set()
     pass
   
   # Checks if work has already been done
@@ -67,6 +72,12 @@ class ProcessCacheResults:
     # Failed work should be repeated
     return False
   
+  # Adds a new passed entry
+  def matched(self, name: str):
+    assert name is not None
+    if name in self._passed:
+      self._matched.add(name)
+
   # Adds a new passed entry
   def passed(self, name: str):
     if name is not None:
@@ -85,11 +96,13 @@ class ProcessCacheResults:
   def clear(self):
     self._passed.clear()
     self._failed.clear()
+    self._matched.clear()
   
   def getdict(self):
     return {
       'passed': sorted(self._passed),
       'failed': sorted(self._failed),
+      'matched': sorted(self._matched),
     }
 # end ProcessCacheResults
 
@@ -99,20 +112,15 @@ class ProcessCacheInfo:
   _passed: bool
 
   def __init__(self, obj=None):
+    self._path = None
+    self._passed = False
     if obj is not None:
       # Get the real filepath
       if 'path' in obj:
         self._path = Path(obj['path'])
-      else:
-        self._path = None
       # Check if all entries already passed
       if 'passed' in obj:
         self._passed = bool(obj['passed'])
-      else:
-        self._passed = False
-    else:
-      self._path = None
-      self._passed = False
 
   def getdict(self):
     out = {
