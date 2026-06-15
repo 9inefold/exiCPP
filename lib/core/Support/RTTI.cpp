@@ -133,109 +133,6 @@ static RttiError RttiDemangleImpl(
   }).error_or(RttiError::Success);
 }
 
-#else
-static ALWAYS_INLINE RttiResult<String> RttiDemangleImpl(StrRef Symbol) {
-  return String(Symbol.data(), Symbol.size());
-}
-
-static ALWAYS_INLINE RttiResult<StrRef> RttiDemangleImpl(
- StrRef Symbol, SmallVecImpl<char>& Buf) {
-  return AppendToBuffer(Symbol, Buf);
-}
-#endif
-
-//===----------------------------------------------------------------===//
-// Exposed API
-//===----------------------------------------------------------------===//
-
-static Option<RttiError> DemangleChk(const char* Symbol) {
-  if EXI_UNLIKELY(!Symbol)
-    return RttiError::InvalidArgument;
-  else if EXI_UNLIKELY(Symbol[0] == '\0')
-    return RttiError::InvalidName;
-  else
-    return std::nullopt;
-}
-
-static Option<RttiError> DemangleChk(StrRef Symbol) {
-  if EXI_UNLIKELY(Symbol.empty())
-    return RttiError::InvalidName;
-  else
-    return std::nullopt;
-}
-
-//////////////////////////////////////////////////////////////////////////
-// Empty
-
-RttiResult<String> exi::rtti::demangle(const char* Symbol) {
-  if (auto OptErr = DemangleChk(Symbol))
-    return Err(*OptErr);
-  else
-    return RttiDemangleImpl(StrRef(Symbol));
-}
-
-RttiResult<String> exi::rtti::demangle(StrRef Symbol) {
-  if (auto OptErr = DemangleChk(Symbol))
-    return Err(*OptErr);
-  return RttiDemangleImpl(Symbol);
-}
-
-#if !EXI_COMPILER(MSVC)
-RttiResult<String> exi::rtti::demangle(const std::type_info& Info) {
-  return RttiDemangleImpl(StrRef(Info.name()));
-}
-#endif // !MSVC
-
-//////////////////////////////////////////////////////////////////////////
-// Buffered
-
-RttiResult<StrRef> exi::rtti::demangle(
- const char* Symbol, SmallVecImpl<char>& Buf) {
-  if (auto OptErr = DemangleChk(Symbol))
-    return Err(*OptErr);
-  else
-    return RttiDemangleImpl(StrRef(Symbol), Buf);
-}
-
-RttiResult<StrRef> exi::rtti::demangle(
- StrRef Symbol, SmallVecImpl<char>& Buf) {
-  if (auto OptErr = DemangleChk(Symbol))
-    return Err(*OptErr);
-  win_tail_return RttiDemangleImpl(Symbol, Buf);
-}
-
-RttiResult<StrRef> exi::rtti::demangle(
- const std::type_info& Info, SmallVecImpl<char>& Buf) {
-  return RttiDemangleImpl(StrRef(Info.name()), Buf);
-}
-
-//////////////////////////////////////////////////////////////////////////
-// raw_ostream
-
-RttiError exi::rtti::demangle(const char* Symbol, raw_ostream& OS) {
-  if (auto OptErr = DemangleChk(Symbol))
-    return *OptErr;
-  else
-    return RttiDemangleImpl(StrRef(Symbol), OS);
-}
-
-RttiError exi::rtti::demangle(StrRef Symbol, raw_ostream& OS) {
-  if (auto OptErr = DemangleChk(Symbol))
-    return *OptErr;
-  win_tail_return RttiDemangleImpl(Symbol, OS);
-}
-
-RttiError exi::rtti::demangle(
- const std::type_info& Info, raw_ostream& OS) {
-  return RttiDemangleImpl(StrRef(Info.name()), OS);
-}
-
-//===----------------------------------------------------------------===//
-// Implementation
-//===----------------------------------------------------------------===//
-
-#if EXI_REQUIRES_DEMANGLING
-
 namespace {
 
 //////////////////////////////////////////////////////////////////////////
@@ -446,8 +343,108 @@ DemanglerBufferHandle::~DemanglerBufferHandle() {
 
 static ManagedStatic<DemanglerBufferPool> Pool;
 
+#else
+static ALWAYS_INLINE RttiResult<String> RttiDemangleImpl(StrRef Symbol) {
+  return String(Symbol.data(), Symbol.size());
+}
+
+static ALWAYS_INLINE RttiResult<StrRef> RttiDemangleImpl(
+ StrRef Symbol, SmallVecImpl<char>& Buf) {
+  return AppendToBuffer(Symbol, Buf);
+}
+#endif
+
+//===----------------------------------------------------------------===//
+// Exposed API
+//===----------------------------------------------------------------===//
+
+static Option<RttiError> DemangleChk(const char* Symbol) {
+  if EXI_UNLIKELY(!Symbol)
+    return RttiError::InvalidArgument;
+  else if EXI_UNLIKELY(Symbol[0] == '\0')
+    return RttiError::InvalidName;
+  else
+    return std::nullopt;
+}
+
+static Option<RttiError> DemangleChk(StrRef Symbol) {
+  if EXI_UNLIKELY(Symbol.empty())
+    return RttiError::InvalidName;
+  else
+    return std::nullopt;
+}
+
 //////////////////////////////////////////////////////////////////////////
-// Demangling
+// Empty
+
+RttiResult<String> exi::rtti::demangle(const char* Symbol) {
+  if (auto OptErr = DemangleChk(Symbol))
+    return Err(*OptErr);
+  else
+    return RttiDemangleImpl(StrRef(Symbol));
+}
+
+RttiResult<String> exi::rtti::demangle(StrRef Symbol) {
+  if (auto OptErr = DemangleChk(Symbol))
+    return Err(*OptErr);
+  return RttiDemangleImpl(Symbol);
+}
+
+#if !EXI_COMPILER(MSVC)
+RttiResult<String> exi::rtti::demangle(const std::type_info& Info) {
+  return RttiDemangleImpl(StrRef(Info.name()));
+}
+#endif // !MSVC
+
+//////////////////////////////////////////////////////////////////////////
+// Buffered
+
+RttiResult<StrRef> exi::rtti::demangle(
+ const char* Symbol, SmallVecImpl<char>& Buf) {
+  if (auto OptErr = DemangleChk(Symbol))
+    return Err(*OptErr);
+  else
+    return RttiDemangleImpl(StrRef(Symbol), Buf);
+}
+
+RttiResult<StrRef> exi::rtti::demangle(
+ StrRef Symbol, SmallVecImpl<char>& Buf) {
+  if (auto OptErr = DemangleChk(Symbol))
+    return Err(*OptErr);
+  win_tail_return RttiDemangleImpl(Symbol, Buf);
+}
+
+RttiResult<StrRef> exi::rtti::demangle(
+ const std::type_info& Info, SmallVecImpl<char>& Buf) {
+  return RttiDemangleImpl(StrRef(Info.name()), Buf);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// raw_ostream
+
+RttiError exi::rtti::demangle(const char* Symbol, raw_ostream& OS) {
+  if (auto OptErr = DemangleChk(Symbol))
+    return *OptErr;
+  else
+    return RttiDemangleImpl(StrRef(Symbol), OS);
+}
+
+RttiError exi::rtti::demangle(StrRef Symbol, raw_ostream& OS) {
+  if (auto OptErr = DemangleChk(Symbol))
+    return *OptErr;
+  win_tail_return RttiDemangleImpl(Symbol, OS);
+}
+
+RttiError exi::rtti::demangle(
+ const std::type_info& Info, raw_ostream& OS) {
+  return RttiDemangleImpl(StrRef(Info.name()), OS);
+}
+
+//===----------------------------------------------------------------===//
+// Implementation
+//===----------------------------------------------------------------===//
+
+#if EXI_REQUIRES_DEMANGLING
 
 # if CXXABI_DEMANGLE
 
