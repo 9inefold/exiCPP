@@ -59,9 +59,8 @@ target_link_libraries(xml-test-driver PUBLIC exi::exicpp)
 add_executable(exi-test-driver driver/old/exi-test-driver.cpp)
 target_link_libraries(exi-test-driver PUBLIC exi::exicpp)
 
-add_executable(dual-test-driver driver/TestDriver.cpp)
+exi_add_executable(dual-test-driver driver/TestDriver.cpp ADD_PDB)
 target_link_libraries(dual-test-driver PUBLIC exi::exicpp)
-exi_add_pdb(dual-test-driver)
 
 #add_dependencies(exi-exicpp exi-tests-target)
 

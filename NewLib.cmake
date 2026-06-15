@@ -227,7 +227,7 @@ macro(exi_add_driver target)
 endmacro(exi_add_driver)
 
 if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
-  exi_add_driver(exi-driver Driver.cpp DriverTests.cpp)
+  exi_add_driver(exi-driver Driver.cpp DriverTests.cpp ADD_PDB)
   exi_minject(exi-driver CLASSIC BACKUP)
   add_dependencies(exi-exicpp exi-irgen)
 endif()

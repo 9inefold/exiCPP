@@ -24,6 +24,7 @@ set(EFL_NAMESPACE exi) # Unused... for now
 
 define_property(TARGET PROPERTY EXI_SUBPROJECT_NAME)
 define_property(TEST PROPERTY EXI_SUBPROJECT_NAME)
+define_property(TARGET PROPERTY EXI_HAS_PDB)
 
 # TODO: Remove when complete?
 option(EXI_DRIVER       "If the driver should be built (always ON at top level)." OFF)
