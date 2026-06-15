@@ -176,16 +176,61 @@ static int Decode(XMLManager* Mgr, StrRef File, ExiOptions& Opts) {
 //////////////////////////////////////////////////////////////////////////
 // Encoding
 
-static int Encode(XMLManager* Mgr, StrRef File, ExiHeader& Opts) {
+static int Encode(ExiEncoder& Encoder, XMLSerializer& S) {
+  LOG_INFO("Compiling header...");
+  Result Factory = Encoder.setup();
+  if (!Factory) {
+    errs() << Factory.error() << '\n';
+    return 1;
+  }
+
+  LOG_INFO("Encoding body...");
+  SmallStr<0> EncodeBuf;
+  if (auto E = Factory->encode(&S, EncodeBuf)) {
+    errs() << E << '\n';
+    return 1;
+  }
+
+  INFO_ONLY(dbgs() << '\n');
+  return 0;
+}
+
+static int Encode(XMLManager* Mgr, StrRef File, ExiOptions& Opts, ExiHeaderOnly Hdr = {}) {
   XMLDocument& Xml
     = Mgr->getOptXMLDocument(File, errs())
       .expect("could not locate file!");
   
 
   LOG_INFO("Encoding: \"{}\"", File);
-  // ExiDecoder Decoder(Opts, errs());
-  // return Decode(Decoder, MB);
-  return 0;
+  Result EncoderOrErr = ExiEncoder::New(Opts);
+  if (!EncoderOrErr) {
+    errs() << EncoderOrErr.error() << '\n';
+    return 1;
+  }
+
+  ExiEncoder Encoder = std::move(*EncoderOrErr);
+  Encoder.setHeaderOnly(Hdr)
+    .expect("Options already compiled??");
+
+  XMLSerializer S(Xml);
+  S.PreserveCDATA = PreserveCDATAKind::CDATA_PRESERVE;
+  //S.SkipEmptyCH = true;
+
+  return Encode(Encoder, S);
+}
+
+static int Encode(XMLManager* Mgr, StrRef File, ExiHeader& HdrOpts) {
+  ExiHeaderOnly Hdr = exi::GetHeaderOnlyData(HdrOpts);
+  if (!HdrOpts.Opts) {
+    errs() << File << ": Options not provided!\n";
+    return 1;
+  }
+  return Encode(Mgr, File, *HdrOpts.Opts, Hdr);
+}
+
+static int EncodeNoOpts(XMLManager* Mgr, StrRef File, ExiOptions& Opts) {
+  ExiHeaderOnly Hdr { .HasOptions = false };
+  return Encode(Mgr, File, Opts, Hdr);
 }
 
 //////////////////////////////////////////////////////////////////////////
