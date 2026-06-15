@@ -68,7 +68,7 @@
 #endif
 
 #ifndef EXI_MAX_SYMBOL_LENGTH
-# define EXI_MAX_SYMBOL_LENGTH (64 * 1024)
+# define EXI_MAX_SYMBOL_LENGTH ((usize)(64 * 1024))
 #endif // EXI_MAX_SYMBOL_LENGTH
 
 // TODO: Add optional SymbolCache?
@@ -150,14 +150,13 @@ class DemanglerBuffer {
   /// The type used to store the buffer.
   using StorageType = Box<char[], DemanglerBufferDeleter>;
   /// The actual buffer.
-  StorageType Storage;
+  StorageType Storage = nullptr;
 
-  EXI_PREFER_TYPE(bool)
   /// Whether the buffer has been resized.
-  usize HasResized : 1;
+  usize HasResized : 1 = 0;
 
   /// The estimated size of the buffer.
-  usize Size : sizeof(usize) - 1;
+  usize Size : bitsizeof_v<usize> - 1 = 0;
 
   /// Allocates the initial character buffer.
   static char* AllocateBuffer(usize Size);
@@ -206,27 +205,27 @@ public:
 
 char* DemanglerBuffer::AllocateBuffer(usize Size) {
   // FIXME: This can actually be done with mimalloc on MSVC.
-  void* Ptr = std::malloc(Size);
+  char* Ptr = (char*)std::malloc(Size);
   if EXI_UNLIKELY(!Ptr) {
     if (Size == 0)
       return AllocateBuffer(1);
-    fatal_alloc_error("Allocation failed");
+    fatal_alloc_error("DemanglerBuffer allocation failed");
   }
-  return static_cast<char*>(Ptr);
+  Ptr[0] = '\0';
+  return Ptr;
 }
 
 void DemanglerBuffer::maybeReplace(char* NewPtr, usize NewSize) {
   if EXI_UNLIKELY(!NewPtr)
     return;
   
-  StorageType LocalStore(NewPtr);
+  //StorageType LocalStore(NewPtr);
   if EXI_LIKELY(isPtrInRange(NewPtr)) {
     // Release to avoid double frees.
-    (void) LocalStore.release();
     if EXI_LIKELY(NewSize <= Size)
       // This is the most likely path as our buffers are huge.
       return;
-    // The buffer has been reallocated, resize.
+    // The buffer has been reallocated in place, resize.
     this->setSize(NewSize);
     return;
   }
@@ -238,7 +237,8 @@ void DemanglerBuffer::maybeReplace(char* NewPtr, usize NewSize) {
   }
 
   // Swap to deallocate the old storage.
-  std::swap(this->Storage, LocalStore);
+  Storage.reset(NewPtr);
+  //std::swap(this->Storage, LocalStore);
   this->setSize(NewSize);
 }
 
