@@ -931,6 +931,7 @@ int main(int Argc, char* Argv[]) {
   using enum raw_ostream::Colors;
   SetLogLevel(LogLevel::WARN);
   InitDriver X(Argc, Argv);
+  sys::UsePrettyStackTraceOptions();
 
   //const XMLParseOptions ParseOpts { .MergeData = true };
   const XMLParseOptions ParseOpts { .MergeData = false };

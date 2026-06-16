@@ -19,6 +19,7 @@
 #include "TestDriver.hpp"
 #include <Support/InitDriver.hpp>
 #include <Support/Logging.hpp>
+#include <Support/Signals.hpp>
 #include <Support/raw_ostream.hpp>
 #include <exi/Basic/XMLDumper.hpp>
 #include <exi/Decode/BodyDecoder.hpp>
@@ -261,6 +262,7 @@ static int xml_main(ArrayRef<StrRef> Args) {
 
 int main(int Argc, char* Argv[]) {
   InitDriver X(Argc, Argv);
+  sys::UsePrettyStackTraceOptions();
 
   SmallVec<StrRef> ArgStorage;
   for (auto* Arg : ArrayRef(Argv + 1, Argc - 1))

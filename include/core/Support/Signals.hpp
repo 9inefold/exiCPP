@@ -74,6 +74,53 @@ void PrintStackTraceOnErrorSignal(StrRef Argv0,
 /// Disable all system dialog boxes that appear when the process crashes.
 void DisableSystemDialogsOnCrash();
 
+/// Adds options for stacktraces.
+/// TODO: Implement this for unix
+struct StackTraceOptions {
+  /// If traces should be entirely printed on one line.
+  bool PrintMultiline : 1 = false;
+  /// If traces should print color.
+  bool ColoredOutput : 1 = false;
+  /// If only the base of the filename should be printed.
+  bool TrimFileNames : 1 = false;
+  /// If the Program Counter should be printed.
+  bool PrintPC : 1 = true;
+
+  /// If the module name should be printed.
+  bool PrintModule : 1 = true;
+  /// If the module location should be printed.
+  bool PrintModuleLocation : 1 = true;
+  /// If the module offset should be printed.
+  bool PrintModuleOffset : 1 = true;
+
+  /// If the file/line should be printed
+  bool PrintLocation : 1 = true;
+  /// If the line offset should be printed
+  bool PrintLocationOffset : 1 = false;
+
+  /// If the function name should be printed.
+  bool PrintFunction : 1 = true;
+  /// If the module offset should be printed.
+  bool PrintFunctionOffset : 1 = true;
+  /// If only the module filename should be printed.
+  bool DemangleFunctionName : 1 = false;
+};
+
+/// Gets the current global stack trace options.
+StackTraceOptions GetGlobalStackTraceOptions();
+/// Sets the current global stack trace options.
+void SetGlobalStackTraceOptions(StackTraceOptions TraceOpts);
+
+/// Sets the current global stack trace options to "pretty".
+inline void UsePrettyStackTraceOptions(bool Color = true) {
+  SetGlobalStackTraceOptions({
+    .PrintMultiline = true,
+    .ColoredOutput = Color,
+    .TrimFileNames = true,
+    .DemangleFunctionName = true
+  });
+}
+
 /// Capture the stack trace using the given \c SmallVec.
 /// \param Depth refers to the number of stackframes to skip. If not
 ///        specified, the entire frame is captured.

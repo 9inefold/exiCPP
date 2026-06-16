@@ -33,7 +33,9 @@
 #include <Support/Filesystem.hpp>
 #include <Support/Path.hpp>
 #include <Support/Process.hpp>
+#include <Support/RTTI.hpp>
 #include <Support/WindowsError.hpp>
+#include <Support/WithColor.hpp>
 #include <algorithm>
 #include <io.h>
 #include <signal.h>
@@ -179,43 +181,38 @@ static fpSymSetOptions fSymSetOptions;
 typedef BOOL(WINAPI *fpSymInitialize)(HANDLE, PCSTR, BOOL);
 static fpSymInitialize fSymInitialize;
 
-typedef BOOL(WINAPI *fpEnumerateLoadedModules)(HANDLE,
-                                               PENUMLOADED_MODULES_CALLBACK64,
-                                               PVOID);
-static fpEnumerateLoadedModules fEnumerateLoadedModules;
+typedef BOOL(WINAPI *fpEnumerateLoadedModules64)(HANDLE,
+                                                 PENUMLOADED_MODULES_CALLBACK64,
+                                                 PVOID);
+static fpEnumerateLoadedModules64 fEnumerateLoadedModules64;
 
 static bool isDebugHelpInitialized() {
   return fStackWalk64 && fSymInitialize && fSymSetOptions && fMiniDumpWriteDump;
 }
 
+#define LOAD_SYMBOL_INTO(LIB, NAME) \
+  f##NAME = (fp##NAME)(void *)::GetProcAddress(LIB, #NAME);
+
 static bool load64BitDebugHelp(void) {
   HMODULE hLib =
       ::LoadLibraryExA("Dbghelp.dll", NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
-  if (hLib) {
-    fMiniDumpWriteDump = (fpMiniDumpWriteDump)(void *)::GetProcAddress(
-        hLib, "MiniDumpWriteDump");
-    fStackWalk64 = (fpStackWalk64)(void *)::GetProcAddress(hLib, "StackWalk64");
-    fSymGetModuleBase64 = (fpSymGetModuleBase64)(void *)::GetProcAddress(
-        hLib, "SymGetModuleBase64");
-    fSymGetSymFromAddr64 = (fpSymGetSymFromAddr64)(void *)::GetProcAddress(
-        hLib, "SymGetSymFromAddr64");
-    fSymGetLineFromAddr64 = (fpSymGetLineFromAddr64)(void *)::GetProcAddress(
-        hLib, "SymGetLineFromAddr64");
-    fSymGetModuleInfo64 = (fpSymGetModuleInfo64)(void *)::GetProcAddress(
-        hLib, "SymGetModuleInfo64");
-    fSymFunctionTableAccess64 =
-        (fpSymFunctionTableAccess64)(void *)::GetProcAddress(
-            hLib, "SymFunctionTableAccess64");
-    fSymSetOptions =
-        (fpSymSetOptions)(void *)::GetProcAddress(hLib, "SymSetOptions");
-    fSymInitialize =
-        (fpSymInitialize)(void *)::GetProcAddress(hLib, "SymInitialize");
-    fEnumerateLoadedModules =
-        (fpEnumerateLoadedModules)(void *)::GetProcAddress(
-            hLib, "EnumerateLoadedModules64");
-  }
+  if (!hLib)
+    return isDebugHelpInitialized();
+  // Load everything
+  LOAD_SYMBOL_INTO(hLib, MiniDumpWriteDump);
+  LOAD_SYMBOL_INTO(hLib, StackWalk64);
+  LOAD_SYMBOL_INTO(hLib, SymGetModuleBase64);
+  LOAD_SYMBOL_INTO(hLib, SymGetSymFromAddr64);
+  LOAD_SYMBOL_INTO(hLib, SymGetLineFromAddr64);
+  LOAD_SYMBOL_INTO(hLib, SymGetModuleInfo64);
+  LOAD_SYMBOL_INTO(hLib, SymFunctionTableAccess64);
+  LOAD_SYMBOL_INTO(hLib, EnumerateLoadedModules64);
+  LOAD_SYMBOL_INTO(hLib, SymSetOptions);
+  LOAD_SYMBOL_INTO(hLib, SymInitialize);
   return isDebugHelpInitialized();
 }
+
+#undef LOAD_SYMBOL_INTO
 
 using namespace exi;
 
@@ -264,6 +261,9 @@ struct FindModuleData {
   intptr_t *Offsets;
   StringSaver *StrPool;
 };
+
+//static constexpr usize kSymbolBufferLen = 512 + sizeof(IMAGEHLP_SYMBOL64);
+static constexpr usize kSymbolBufferLen = 512;
 } // namespace `anonymous`
 
 static BOOL CALLBACK findModuleCallback(PCSTR ModuleName, DWORD64 ModuleBase,
@@ -287,7 +287,7 @@ static bool findModulesAndOffsets(void **StackTrace, int Depth,
                                   const char **Modules, intptr_t *Offsets,
                                   const char *MainExecutableName,
                                   StringSaver &StrPool) {
-  if (!fEnumerateLoadedModules)
+  if (!fEnumerateLoadedModules64)
     return false;
   FindModuleData Data;
   Data.StackTrace = StackTrace;
@@ -295,7 +295,7 @@ static bool findModulesAndOffsets(void **StackTrace, int Depth,
   Data.Modules = Modules;
   Data.Offsets = Offsets;
   Data.StrPool = &StrPool;
-  fEnumerateLoadedModules(GetCurrentProcess(), findModuleCallback, &Data);
+  fEnumerateLoadedModules64(GetCurrentProcess(), findModuleCallback, &Data);
   return true;
 }
 
@@ -304,9 +304,157 @@ static bool printMarkupContext(exi::raw_ostream &OS,
   return false;
 }
 
+static StrRef TrimStackTraceFileName(StrRef Name, exi::sys::StackTraceOptions Opts) {
+  // TODO: Convert path separators?
+  if (!Opts.TrimFileNames || Name.empty())
+    return Name;
+  // Handle trimming name
+  bool CheckedOnce = false;
+  usize Ix = Name.size();
+  while (--Ix > 0) {
+    if (Name[Ix] == '/' || Name[Ix] == '\\') {
+      if (CheckedOnce)
+        return Name.substr(Ix + 1);
+      CheckedOnce = true;
+    }
+  }
+  return Name;
+}
+
+ALWAYS_INLINE static void PrintStackTraceAtPC(exi::raw_ostream &OS,
+                                              exi::sys::StackTraceOptions Opts,
+                                              DWORD64 PC, HANDLE hProcess) {
+  using namespace exi;
+  using enum raw_ostream::Colors;
+
+  const bool isMultiline = Opts.PrintMultiline;
+  int printCount = 0;
+  auto separator = [isMultiline, &printCount] () -> StrRef {
+    const int N = printCount;
+    printCount += 1;
+    if (printCount == 0)
+      return "";
+    else if (printCount == 1)
+      return isMultiline ? ":\n  " : ": ";
+    else
+      return isMultiline ? "\n  " : ", ";
+  };
+
+  const DWORD64 dwModuleBase = fSymGetModuleBase64(hProcess, PC);
+  // Print the PC in hexadecimal.
+  if (Opts.PrintPC || !dwModuleBase) {
+    if (isMultiline)
+      OS << "At ";
+#if defined(_M_X64) || defined(_M_ARM64)
+    OS << BRIGHT_WHITE << format("0x{:016X}", PC) << RESET;
+#elif defined(_M_IX86) || defined(_M_ARM)
+    OS << BRIGHT_WHITE << format("0x{:08X}", static_cast<DWORD>(PC)) << RESET;
+#endif
+    ++printCount;
+  }
+
+  // Verify the PC belongs to a module in this process.
+  if (!dwModuleBase) {
+    OS << BRIGHT_YELLOW << " <unknown module>" << RESET << '\n';
+    return;
+  }
+
+  IMAGEHLP_MODULE64 M;
+  if (Opts.PrintModule) {
+    // Load module
+    memset(&M, 0, sizeof(IMAGEHLP_MODULE64));
+    M.SizeOfStruct = sizeof(IMAGEHLP_MODULE64);
+    OS << separator();
+    if (fSymGetModuleInfo64(hProcess, dwModuleBase, &M)) {
+      // Print module name
+      auto* imageName = static_cast<char*>(M.ImageName);
+      if (isMultiline)
+        OS << "In ";
+      OS << BRIGHT_YELLOW << TrimStackTraceFileName(imageName, Opts) << RESET;
+      // Print module location
+      if (Opts.PrintModuleLocation) {
+        //OS << '(' << BRIGHT_BLUE
+        //   << format_hex(M.BaseOfImage, 16, true)
+        //   << RESET << ')';
+        OS << BRIGHT_BLUE << format("(0x{:016X})", M.BaseOfImage) << RESET;
+        // Print module offset
+        if (Opts.PrintModuleOffset) {
+          const DWORD64 disp = PC - M.BaseOfImage;
+          OS << " + " << BRIGHT_BLUE
+             << format("0x{:X}", static_cast<long long>(disp))
+             << RESET << " byte(s)";
+        }
+      }
+    } else {
+      if (isMultiline)
+        OS << "In ";
+      OS << BRIGHT_YELLOW << "<unknown module>" << RESET;
+    }
+  }
+
+  IMAGEHLP_LINE64 line = {};
+  DWORD dwLineDisp;
+  if (Opts.PrintLocation) {
+    // Print the source file and line number information.
+    line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
+    if (fSymGetLineFromAddr64(hProcess, PC, &dwLineDisp, &line)) {
+      OS << separator();
+      auto filename = TrimStackTraceFileName(line.FileName, Opts);
+      if (Opts.ColoredOutput) {
+        OS << BRIGHT_YELLOW << filename
+           << RESET << ':' << BLUE
+           << line.LineNumber << RESET;
+      } else {
+        OS << format("{}:{}", filename, line.LineNumber);
+      }
+      // Print line offset
+      if (Opts.PrintLocationOffset)
+        OS << format(" + 0x{:X} byte(s)", dwLineDisp);
+    }
+  }
+
+  alignas(IMAGEHLP_SYMBOL64) char buffer[kSymbolBufferLen];
+  if (Opts.PrintFunction) {
+    IMAGEHLP_SYMBOL64* symbol = reinterpret_cast<IMAGEHLP_SYMBOL64*>(buffer);
+    memset(symbol, 0, sizeof(IMAGEHLP_SYMBOL64));
+    symbol->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
+    symbol->MaxNameLength = kSymbolBufferLen - sizeof(IMAGEHLP_SYMBOL64);
+
+    DWORD64 dwDisp;
+    if (!fSymGetSymFromAddr64(hProcess, PC, &dwDisp, symbol)) {
+      OS << '\n';
+      return;
+    }
+
+    buffer[kSymbolBufferLen - 1] = '\0';
+    // Print the symbol name.
+    OS << separator() << BRIGHT_GREEN;
+    // Print the actual name
+    const char* symbolName = static_cast<char*>(symbol->Name);
+    bool shouldPrintNormally = !Opts.DemangleFunctionName;
+    if (Opts.DemangleFunctionName) {
+      auto status = rtti::demangle(symbolName, OS);
+      if (status != rtti::RttiError::Success)
+        shouldPrintNormally = true;
+    }
+    // Handle demangle failure
+    if (shouldPrintNormally)
+      OS << symbolName << "()";
+    OS << RESET;
+    // Print the offset
+    if (Opts.PrintFunctionOffset) {
+      OS << " + " << BRIGHT_BLUE
+         << format("0x{:X}", static_cast<long long>(dwDisp))
+         << RESET << " byte(s)";
+    }
+  }
+
+  OS << '\n';
+}
+
 static void PrintStackTraceForThread(exi::raw_ostream &OS,
                                      const SmallVecImpl<uptr> &Frames,
-                                     HANDLE hProcess, HANDLE hThread) {
+                                     HANDLE hProcess, HANDLE) {
   // It's possible that DbgHelp.dll hasn't been loaded yet.
   // In this case, just return, no stacktrace will be printed.
   if (!isDebugHelpInitialized())
@@ -316,62 +464,14 @@ static void PrintStackTraceForThread(exi::raw_ostream &OS,
   fSymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
   fSymInitialize(hProcess, NULL, TRUE);
 
-  for (DWORD64 PC : Frames) {
-    using namespace exi;
-    // Print the PC in hexadecimal.
-#if defined(_M_X64) || defined(_M_ARM64)
-    OS << format("0x{:016X}", PC);
-#elif defined(_M_IX86) || defined(_M_ARM)
-    OS << format("0x{:08X}", static_cast<DWORD>(PC));
-#endif
-
-    // Verify the PC belongs to a module in this process.
-    if (!fSymGetModuleBase64(hProcess, PC)) {
-      OS << " <unknown module>\n";
-      continue;
-    }
-
-    IMAGEHLP_MODULE64 M;
-    memset(&M, 0, sizeof(IMAGEHLP_MODULE64));
-    M.SizeOfStruct = sizeof(IMAGEHLP_MODULE64);
-    if (fSymGetModuleInfo64(hProcess, fSymGetModuleBase64(hProcess, PC), &M)) {
-      DWORD64 const disp = PC - M.BaseOfImage;
-      OS << format(", {}(0x{:016X}) + 0x{:X} byte(s)",
-                   static_cast<char *>(M.ImageName), M.BaseOfImage,
-                   static_cast<long long>(disp));
-    } else {
-      OS << ", <unknown module>";
-    }
-
-    // Print the symbol name.
-    char buffer[512];
-    IMAGEHLP_SYMBOL64 *symbol = reinterpret_cast<IMAGEHLP_SYMBOL64 *>(buffer);
-    memset(symbol, 0, sizeof(IMAGEHLP_SYMBOL64));
-    symbol->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
-    symbol->MaxNameLength = 512 - sizeof(IMAGEHLP_SYMBOL64);
-
-    DWORD64 dwDisp;
-    if (!fSymGetSymFromAddr64(hProcess, PC, &dwDisp, symbol)) {
-      OS << '\n';
-      continue;
-    }
-
-    // TODO: Add demangling?
-    buffer[511] = 0;
-    OS << format(", {}() + 0x{:X} byte(s)", static_cast<char *>(symbol->Name),
-                 static_cast<long long>(dwDisp));
-
-    // Print the source file and line number information.
-    IMAGEHLP_LINE64 line = {};
-    DWORD dwLineDisp;
-    line.SizeOfStruct = sizeof(line);
-    if (fSymGetLineFromAddr64(hProcess, PC, &dwLineDisp, &line)) {
-      OS << format(", {}, line {} + 0x{:X} byte(s)", line.FileName,
-                   line.LineNumber, dwLineDisp);
-    }
-
-    OS << '\n';
-  }
+  auto Opts = exi::sys::GetGlobalStackTraceOptions();
+  WithColor Save(OS);
+  exi::buffer_ostream BufOS(OS);
+  if (OS.colors_enabled())
+    BufOS.enable_colors(Opts.ColoredOutput);
+  
+  for (DWORD64 PC : Frames)
+    PrintStackTraceAtPC(BufOS, Opts, PC, hProcess);
 }
 
 static void PrintStackTraceForThread(exi::raw_ostream &OS, HANDLE hProcess,
@@ -386,6 +486,12 @@ static void PrintStackTraceForThread(exi::raw_ostream &OS, HANDLE hProcess,
   fSymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
   fSymInitialize(hProcess, NULL, TRUE);
 
+  auto Opts = exi::sys::GetGlobalStackTraceOptions();
+  WithColor Save(OS);
+  exi::buffer_ostream BufOS(OS);
+  if (OS.colors_enabled())
+    BufOS.enable_colors(Opts.ColoredOutput);
+  
   while (true) {
     if (!fStackWalk64(NativeMachineType, hProcess, hThread, &StackFrame,
                       Context, 0, fSymFunctionTableAccess64,
@@ -401,61 +507,8 @@ static void PrintStackTraceForThread(exi::raw_ostream &OS, HANDLE hProcess,
       continue;
     }
 
-    using namespace exi;
-    // Print the PC in hexadecimal.
     DWORD64 PC = StackFrame.AddrPC.Offset;
-#if defined(_M_X64) || defined(_M_ARM64)
-    OS << format("0x{:016X}", PC);
-#elif defined(_M_IX86) || defined(_M_ARM)
-    OS << format("0x{:08X}", static_cast<DWORD>(PC));
-#endif
-
-    // Verify the PC belongs to a module in this process.
-    if (!fSymGetModuleBase64(hProcess, PC)) {
-      OS << " <unknown module>\n";
-      continue;
-    }
-
-    IMAGEHLP_MODULE64 M;
-    memset(&M, 0, sizeof(IMAGEHLP_MODULE64));
-    M.SizeOfStruct = sizeof(IMAGEHLP_MODULE64);
-    if (fSymGetModuleInfo64(hProcess, fSymGetModuleBase64(hProcess, PC), &M)) {
-      DWORD64 const disp = PC - M.BaseOfImage;
-      OS << format(", {}(0x{:016X}) + 0x{:X} byte(s)",
-                   static_cast<char *>(M.ImageName), M.BaseOfImage,
-                   static_cast<long long>(disp));
-    } else {
-      OS << ", <unknown module>";
-    }
-
-    // Print the symbol name.
-    char buffer[512];
-    IMAGEHLP_SYMBOL64 *symbol = reinterpret_cast<IMAGEHLP_SYMBOL64 *>(buffer);
-    memset(symbol, 0, sizeof(IMAGEHLP_SYMBOL64));
-    symbol->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
-    symbol->MaxNameLength = 512 - sizeof(IMAGEHLP_SYMBOL64);
-
-    DWORD64 dwDisp;
-    if (!fSymGetSymFromAddr64(hProcess, PC, &dwDisp, symbol)) {
-      OS << '\n';
-      continue;
-    }
-
-    // TODO: Add demangling?
-    buffer[511] = 0;
-    OS << format(", {}() + 0x{:X} byte(s)", static_cast<char *>(symbol->Name),
-                 static_cast<long long>(dwDisp));
-
-    // Print the source file and line number information.
-    IMAGEHLP_LINE64 line = {};
-    DWORD dwLineDisp;
-    line.SizeOfStruct = sizeof(line);
-    if (fSymGetLineFromAddr64(hProcess, PC, &dwLineDisp, &line)) {
-      OS << format(", {}, line {} + 0x{:X} byte(s)", line.FileName,
-                   line.LineNumber, dwLineDisp);
-    }
-
-    OS << '\n';
+    PrintStackTraceAtPC(BufOS, Opts, PC, hProcess);
   }
 }
 

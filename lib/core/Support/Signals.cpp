@@ -47,9 +47,11 @@
 #include <Support/Path.hpp>
 #include <Support/Program.hpp>
 #include <Support/StringSaver.hpp>
+#include <Support/Threading.hpp>
 #include <Support/raw_ostream.hpp>
 #include <array>
 #include <cmath>
+#include <mutex>
 
 #include "DebugOptions.hpp"
 
@@ -64,6 +66,44 @@ static ManagedStatic<String> CrashDiagnosticsDirectory;
 
 void exi::initSignalsOptions() {
   *CrashDiagnosticsDirectory;
+}
+
+/// The global options for stack traces.
+static constinit sys::StackTraceOptions GlobalStackTraceOptions {};
+
+static std::recursive_mutex *getStackTraceOptionsMutex() {
+  static std::recursive_mutex m;
+  return &m;
+}
+
+static void FixupStackTraceOptions(sys::StackTraceOptions& Opts) {
+  if (!Opts.PrintPC && !Opts.PrintModule && !Opts.PrintFunction) {
+    // In this case, if these weren't enabled, nothing would ever be printed.
+    // We definitely want to avoid this, so forcibly enable some of the options
+    // so stacktraces are still useful.
+    Opts.PrintModule = true;
+    Opts.PrintModuleLocation = true;
+    Opts.PrintModuleOffset = true;
+  }
+}
+
+EXI_NO_INLINE sys::StackTraceOptions sys::GetGlobalStackTraceOptions() {
+  if (exi_is_multithreaded()) {
+    std::lock_guard<std::recursive_mutex> Lock(*getStackTraceOptionsMutex());
+    return ::GlobalStackTraceOptions;
+  } else {
+    return ::GlobalStackTraceOptions;
+  }
+}
+
+void sys::SetGlobalStackTraceOptions(sys::StackTraceOptions TraceOpts) {
+  FixupStackTraceOptions(TraceOpts);
+  if (exi_is_multithreaded()) {
+    std::lock_guard<std::recursive_mutex> Lock(*getStackTraceOptionsMutex());
+    ::GlobalStackTraceOptions = TraceOpts;
+  } else {
+    ::GlobalStackTraceOptions = TraceOpts;
+  }
 }
 
 // Callbacks to run in signal handler must be lock-free because a signal handler
