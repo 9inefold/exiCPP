@@ -1,6 +1,6 @@
 //===- exi/Basic/D/LogPosition.mac ----------------------------------===//
 //
-// Copyright (C) 2025 Ninefold
+// Copyright (C) 2025-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,20 +16,21 @@
 //
 //===----------------------------------------------------------------===//
 
-// TODO: Move
+// TODO: Move EXI_LOG_POSITION
 #define EXI_LOG_POSITION 1
 
 #undef LOG_POSITION
 #if EXI_LOG_POSITION
-// FIXME: Update if needed...
+/// Logs the current position using `bitPos`
+/// FIXME: Update LOG_POSITION if needed...
 # define LOG_POSITION(...) do {                                               \
   if (hasDbgLogLevel(VERBOSE)) {                                              \
-    const auto BitPos = ((__VA_ARGS__)->bitPos() / 8);                        \
-    const auto BitOff = ((__VA_ARGS__)->bitPos() % 8);                        \
-    LOG_EXTRA("@[0x{:02x}:{}]:", BitPos, BitOff);                             \
+    const auto BitPos  = (__VA_ARGS__)->bitPos();                             \
+    const auto BytePos = BitPos >> 3;                                         \
+    const auto ByteOff = BitPos & 0b111;                                      \
+    LOG_EXTRA("@[0x{:02x}:{}]:", BytePos, ByteOff);                           \
   }                                                                           \
 } while(0)
 #else
-// FIXME: Update if needed...
 # define LOG_POSITION(...) ((void)0)
 #endif

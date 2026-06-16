@@ -25,6 +25,7 @@
 
 #include <Support/Debug.hpp>
 #include <Support/Format.hpp>
+#include <Support/LogLevel.hpp>
 
 #ifdef EXI_LOG_LINES
 # error EXI_LOG_LINES should be defined AFTER including Logging.hpp!

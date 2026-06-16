@@ -67,6 +67,7 @@
 #  define EXI_MIN_LOG_LEVEL_VAL EXI_LLINFO
 # endif
 #else
+// Defined when EXI_MIN_LOG_LEVEL is defined in the cmake
 # define EXI_MIN_LOG_LEVEL_VAL EXI_LL@EXI_MIN_LOG_LEVEL@
 #endif
 
