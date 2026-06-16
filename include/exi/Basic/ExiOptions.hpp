@@ -97,6 +97,10 @@ struct ExiOptions {
   /// Default: false
   bool Strict : 1 = false;
 
+  /// Body is encoded as an EXI fragment instead of an EXI document
+  /// Default: false
+  bool Fragment : 1 = false;
+
   /// Enables self-contained elements.
   /// Default: false
   bool SelfContained : 1 = false;
