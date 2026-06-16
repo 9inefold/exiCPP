@@ -155,8 +155,7 @@ public:
   EXI_DUMP_METHOD void dump(BodyEncoder* BE) const;
   EXI_DUMP_METHOD void dump(const ExiOptions& Opts) const;
 private:
-  inline void dumpPacked(const ExiOptions& Opts) const;
-  inline void dumpNonPacked(const ExiOptions& Opts) const;
+  inline void dumpImpl(const ExiOptions& Opts, bool IsPacked) const;
 #endif
 };
 
@@ -200,20 +199,6 @@ private:
   inline void initElementContent();
   inline void initCCItems(eventmap::FatElementArray& A,
                           unsigned Count, unsigned Bits);
-
-  bool hasThirdLevelCodes() const {
-    return Preserve.PIs || Preserve.Comments;
-  }
-  bool hasCMPI() const {
-    return Preserve.PIs && Preserve.Comments;
-  }
-
-  unsigned countCCItemsBits() const {
-    unsigned Count = 2;            // {SE, CH}
-    Count += Preserve.DTDs;        // ER
-    Count += hasThirdLevelCodes(); // {CM, PI}
-    return Count;
-  }
 };
 
 BIEventMap BIEventMap::New(const ExiOptions& Opts) {

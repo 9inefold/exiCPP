@@ -430,7 +430,9 @@ private:
   }
   template <State S>
   CC ExiError handleSE(OrderedEncoder* OE, const StartElemEvent& SE) {
+    // Check if this isn't a SE(qname)
     if (SE.tag() != StringEventKind::Simple)
+      // Handle SE(uri:*) separately
       tail_return this->handleSEUri<S>(OE, SE);
     if constexpr (S != DocContent) {
       static constexpr bool IsStart = (S != ElementContent);
@@ -438,6 +440,10 @@ private:
       if (LN != nullptr)
         return this->handlePrevSE<IsStart>(OE, SE, LN);
       this->handleSEDefaultCode<IsStart>(OE);
+    } else if constexpr (S == DocContent) {
+      // HACK: Add a special function for this pls
+      this->encodePrecomputedCode(OE,
+        TMap.mapDocContent(SimpleEventTerm::SE));
     }
     LocalNameInfo* LN = EXI_UNWRAP(OE->encodeSE<StrmT>(SE));
     return this->handleNewSE<S>(OE, LN);
@@ -452,6 +458,7 @@ private:
         return this->handlePrevSEUri<IsStart>(OE, SEUri, LN);
       this->handleSEDefaultCode<IsStart>(OE);
     }
+    // TODO: Add DocContent check here?
     LocalNameInfo* LN = EXI_UNWRAP(OE->encodeSEUri<StrmT>(SEUri));
     return this->handleNewSE<S>(OE, LN);
   }
