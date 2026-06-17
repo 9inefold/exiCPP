@@ -19,7 +19,7 @@
 #include "Driver.hpp"
 #include <Common/APInt.hpp>
 #include <Common/EnumArray.hpp>
-#include <Common/IntrusiveRefCntPtr.hpp>
+#include <Common/RefCntPtr.hpp>
 #include <Common/MMatch.hpp>
 #include <Common/MaybeBox.hpp>
 #include <Common/PointerIntPair.hpp>
@@ -176,7 +176,7 @@ static int Decode(XMLManager* Mgr, StrRef File, ExiOptions& Opts) {
 //////////////////////////////////////////////////////////////////////////
 // Encoding
 
-static int Encode(ExiEncoder& Encoder, XMLSerializer& S) {
+static int Encode(ExiEncoder& Encoder, XMLSerializer& S, SmallVecImpl<char>& EncodeBuf) {
   LOG_INFO("Compiling header...");
   Result Factory = Encoder.setup();
   if (!Factory) {
@@ -185,7 +185,7 @@ static int Encode(ExiEncoder& Encoder, XMLSerializer& S) {
   }
 
   LOG_INFO("Encoding body...");
-  SmallStr<0> EncodeBuf;
+  EncodeBuf.clear();
   if (auto E = Factory->encode(&S, EncodeBuf)) {
     errs() << E << '\n';
     return 1;
@@ -195,11 +195,17 @@ static int Encode(ExiEncoder& Encoder, XMLSerializer& S) {
   return 0;
 }
 
-static int Encode(XMLManager* Mgr, StrRef File, ExiOptions& Opts, ExiHeaderOnly Hdr = {}) {
+static int Encode(ExiEncoder& Encoder, XMLSerializer& S) {
+  SmallStr<0> EncodeBuf;
+  return Encode(Encoder, S, EncodeBuf);
+}
+
+static int Encode(XMLManager* Mgr, StrRef File,
+                  ExiOptions& Opts, ExiHeaderOnly Hdr = {},
+                  SmallVecImpl<char>* EncodeBuf = nullptr) {
   XMLDocument& Xml
     = Mgr->getOptXMLDocument(File, errs())
       .expect("could not locate file!");
-  
 
   LOG_INFO("Encoding: \"{}\"", File);
   Result EncoderOrErr = ExiEncoder::New(Opts);
@@ -216,21 +222,26 @@ static int Encode(XMLManager* Mgr, StrRef File, ExiOptions& Opts, ExiHeaderOnly 
   S.PreserveCDATA = PreserveCDATAKind::CDATA_PRESERVE;
   //S.SkipEmptyCH = true;
 
-  return Encode(Encoder, S);
+  if (EncodeBuf)
+    return Encode(Encoder, S, *EncodeBuf);
+  else
+    return Encode(Encoder, S);
 }
 
-static int Encode(XMLManager* Mgr, StrRef File, ExiHeader& HdrOpts) {
+static int Encode(XMLManager* Mgr, StrRef File, ExiHeader& HdrOpts,
+                  SmallVecImpl<char>* EncodeBuf = nullptr) {
   ExiHeaderOnly Hdr = exi::GetHeaderOnlyData(HdrOpts);
   if (!HdrOpts.Opts) {
     errs() << File << ": Options not provided!\n";
     return 1;
   }
-  return Encode(Mgr, File, *HdrOpts.Opts, Hdr);
+  return Encode(Mgr, File, *HdrOpts.Opts, Hdr, EncodeBuf);
 }
 
-static int EncodeNoOpts(XMLManager* Mgr, StrRef File, ExiOptions& Opts) {
+static int EncodeNoOpts(XMLManager* Mgr, StrRef File, ExiOptions& Opts,
+                        SmallVecImpl<char>* EncodeBuf = nullptr) {
   ExiHeaderOnly Hdr { .HasOptions = false };
-  return Encode(Mgr, File, Opts, Hdr);
+  return Encode(Mgr, File, Opts, Hdr, EncodeBuf);
 }
 
 //////////////////////////////////////////////////////////////////////////
