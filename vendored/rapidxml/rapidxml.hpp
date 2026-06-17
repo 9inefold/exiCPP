@@ -1431,12 +1431,26 @@ template <class Ch = char>
 class alignas(kAlignVal) XMLDocument
                 : public XMLNode<Ch>, public MemoryPool<Ch> {
   RAPIDXML_ALIASES(Ch)
+  StrRefT m_identifier;
 public:
   /// Constructs empty XML document
   XMLDocument() : NodeType(node_document), MemoryPool<Ch>() {}
   /// Constructs pool from input allocator.
   explicit XMLDocument(exi::Option<XMLBumpAllocator&> A) :
    NodeType(node_document), MemoryPool<Ch>(A) {
+  }
+
+  StrRefT identifier() const {
+    return this->m_identifier;
+  }
+  void identifier(StrRefT name) {
+    if (name.empty()) {
+      this->m_identifier = StrRefT();
+      return;
+    }
+    const auto sz = name.size();
+    Ch* str = this->allocString(name.data(), sz);
+    this->m_identifier = StrRefT(str, sz);
   }
 
   /// Parses zero-terminated XML string according to given flags.

@@ -281,6 +281,7 @@ Expected<XMLDocument&> XMLContainer::parse() const {
       .Strict     = bool(Strict),
       .MergeData  = bool(MergeData)
     });
+    TheDocument.identifier(ME->getKey());
     this->Parsed = true;
     return TheDocument;
   } catch (const std::exception& Ex) {

@@ -128,7 +128,14 @@ static void TestSchemas() {
 //////////////////////////////////////////////////////////////////////////
 // Decoding
 
-static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
+static ExiError DecodeBody(ExiDecoder& Decoder, Deserializer* S = nullptr) {
+  if (S)
+    return Decoder.decodeBody(S);
+  else
+    return Decoder.decodeBody();
+}
+
+static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB, Deserializer* S = nullptr) {
   LOG_INFO("Decoding header...");
   if (auto E = Decoder.decodeHeader(MB)) {
     errs() << E << '\n';
@@ -136,7 +143,7 @@ static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
   }
 
   LOG_INFO("Decoding body...");
-  if (auto E = Decoder.decodeBody()) {
+  if (auto E = DecodeBody(Decoder, S)) {
     errs() << E << '\n';
     return 1;
   }
@@ -145,21 +152,10 @@ static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB) {
   return 0;
 }
 
-static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB, Deserializer* S) {
-  LOG_INFO("Decoding header...");
-  if (auto E = Decoder.decodeHeader(MB)) {
-    errs() << E << '\n';
-    return 1;
-  }
-
-  LOG_INFO("Decoding body...");
-  if (auto E = Decoder.decodeBody(S)) {
-    errs() << E << '\n';
-    return 1;
-  }
-
-  INFO_ONLY(dbgs() << '\n');
-  return 0;
+static int Decode(MemoryBufferRef MB, ExiOptions& Opts, Deserializer* S = nullptr) {
+  LOG_INFO("Decoding: \"{}\"", MB.getBufferIdentifier());
+  ExiDecoder Decoder(Opts);
+  return Decode(Decoder, MB, S);
 }
 
 static int Decode(XMLManager* Mgr, StrRef File, ExiOptions& Opts) {
@@ -200,14 +196,9 @@ static int Encode(ExiEncoder& Encoder, XMLSerializer& S) {
   return Encode(Encoder, S, EncodeBuf);
 }
 
-static int Encode(XMLManager* Mgr, StrRef File,
-                  ExiOptions& Opts, ExiHeaderOnly Hdr = {},
+static int Encode(XMLDocument& Xml, ExiOptions& Opts, ExiHeaderOnly Hdr = {},
                   SmallVecImpl<char>* EncodeBuf = nullptr) {
-  XMLDocument& Xml
-    = Mgr->getOptXMLDocument(File, errs())
-      .expect("could not locate file!");
-
-  LOG_INFO("Encoding: \"{}\"", File);
+  LOG_INFO("Encoding: \"{}\"", Xml.identifier());
   Result EncoderOrErr = ExiEncoder::New(Opts);
   if (!EncoderOrErr) {
     errs() << EncoderOrErr.error() << '\n';
@@ -226,6 +217,15 @@ static int Encode(XMLManager* Mgr, StrRef File,
     return Encode(Encoder, S, *EncodeBuf);
   else
     return Encode(Encoder, S);
+}
+
+static int Encode(XMLManager* Mgr, StrRef File,
+                  ExiOptions& Opts, ExiHeaderOnly Hdr = {},
+                  SmallVecImpl<char>* EncodeBuf = nullptr) {
+  XMLDocument& Xml
+    = Mgr->getOptXMLDocument(File, errs())
+      .expect("could not locate file!");
+  return Encode(Xml, Opts, Hdr, EncodeBuf);
 }
 
 static int Encode(XMLManager* Mgr, StrRef File, ExiHeader& HdrOpts,
