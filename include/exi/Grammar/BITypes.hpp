@@ -50,12 +50,14 @@ using BIInfoArray = BIGrammarStateArray<BIInfo>;
 
 /// EventCode which represents a `([x.y.z], Size)`.
 struct FullEventCode {
+  static constexpr bool kIsFullCode = true;
   u32 Data : 24 = 0;
   u32 Bits : 8  = 0;
 };
 
 /// Partial EventCode which represents a `(x.[y.z], Size)`.
 struct SecondLevelEventCode {
+  static constexpr bool kIsFullCode = false;
   u32 Data : 16 = 0;
   u32 Bits : 16 = 0;
 };

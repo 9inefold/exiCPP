@@ -72,14 +72,16 @@ public:
   }
   /// Batches setting the terminal symbols of the same type (if possible).
   template <bool IsRoot = false, is_encode_event EventT>
-  ALWAYS_INLINE ExiError batchEncode(BodyEncoder* BE, ArrayRef<EventT> Arr) {
+  ExiError batchEncode(BodyEncoder* BE, ArrayRef<EventT> Arr) {
     static_assert(!is_empty_event<EventT>, "Empty events cannot be batched!");
     static constexpr SimpleEventTerm K = unmap_event_v<EventT>;
     using enum SimpleEventTerm;
     // Disallow SE events as they have dynamic size.
     static_assert(EventMatch(K).isnt(SE, PI, DT, ER));
+    // Encoding nothing?
     if EXI_NEVER(Arr.size() == 0)
       return ExiError::OK;
+    // We check if this is root to avoid doing extra work during dispatch.
     if constexpr (IsRoot)
       return this->batchEncodeRoot(BE, Arr.data(), Arr.size(), K);
     else

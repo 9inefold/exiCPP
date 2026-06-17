@@ -253,6 +253,7 @@ public:
       return encode::StringTable::GetURI(SE.OpaqueURI);
   }
 
+  /// Checks for a [URI, LocalName] pair given an SE(*) event.
   std::pair<URIEntry*, NameEntry*> lookupSE(const StartElemEvent& SE) {
     auto [Pfx, LN] = SplitName(SE.name());
     URIEntry* URIV = Strings.getURIFromPfx(Pfx);
@@ -260,9 +261,10 @@ public:
       return {nullptr, nullptr};
     return {URIV, Strings.lookupLocalName(URIV, LN).value_or(nullptr)};
   }
+  // Checks for a [URI, LocalName] pair given an SE(uri:*) event.
   std::pair<URIEntry*, NameEntry*> lookupSEUri(const StartElemURIEvent& SE) {
     URIEntry* URIV = Strings.lookupURI(GetSEUriValue(SE));
-    if (!URIV)
+    if EXI_UNLIKELY(!URIV)
       return {nullptr, nullptr};
     auto [Pfx, LN] = SplitName(SE.name());
     return {URIV, Strings.lookupLocalName(URIV, LN).value_or(nullptr)};
@@ -275,10 +277,12 @@ public:
     return {URIV, Strings.lookupLocalName(URIV, LN).value_or(nullptr)};
   }
 
+  /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.
   template <typename StrmT>
   ExiResult<NameEntry*> encodeSE(const StartElemEvent& SE) {
     return encodeQName<StrmT>(SE.name());
   }
+  /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.
   template <typename StrmT>
   ExiResult<NameEntry*> encodeSEUri(const StartElemURIEvent& SE) {
     return encodeLateBoundQName<StrmT>(SE.name(), GetSEUriValue(SE));

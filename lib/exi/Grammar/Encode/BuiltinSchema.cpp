@@ -47,6 +47,7 @@ using namespace exi::encode;
 #define DEBUG_TYPE "BuiltinSchema"
 
 #if EXI_LOG_POSITION
+/// Encodes extra information.
 # define LOG_META(...) LOG_EXTRA(__VA_ARGS__)
 #else
 # define LOG_META(...) ((void)0)
@@ -214,23 +215,20 @@ public:
   }
 
 private:
+  /// Encodes a precomputed first-level event code.
   ALWAYS_INLINE CC void encodePrecomputedCode(OrderedEncoder* OE,
                                               FullEventCode EC) {
-    if constexpr (std::same_as<StrmT, BitWriter>)
-      LOG_EXTRA("Code[0:2]: @{}:0b{:0{}b}", EC.Bits, EC.Data, EC.Bits);
-    else
-      LOG_EXTRA("Code[0:2]: @{}:0x{:0{}x}", EC.Bits, EC.Data, (EC.Bits / 8));
+    this->logPrecomputedCode(EC);
     Get::Writer(OE).writeBits64(EC.Data, EC.Bits);
   }
+  /// Encodes a precomputed second-level event code.
   ALWAYS_INLINE CC void encodePrecomputedCode(OrderedEncoder* OE,
                                               SecondLevelEventCode EC) {
-    if constexpr (std::same_as<StrmT, BitWriter>)
-      LOG_EXTRA("Code[1:2]: @{}:0b{:0{}b}", EC.Bits, EC.Data, EC.Bits);
-    else
-      LOG_EXTRA("Code[1:2]: @{}:0x{:0{}x}", EC.Bits, EC.Data, (EC.Bits / 8));
+    this->logPrecomputedCode(EC);
     Get::Writer(OE).writeBits64(EC.Data, EC.Bits);
   }
 
+  /// Encodes a precomputed second-level event code.
   template <bool IsStart, SimpleEventTerm K>
   ALWAYS_INLINE CC void encodeSLCode(OrderedEncoder* OE) {
     if constexpr (IsStart)
@@ -299,6 +297,7 @@ private:
     case StartTagContent:
       tail_return this->batchStartTag<IsRoot>(ORDERED_BNEXT);
     case ElementContent:
+      // We can never transition to ElementContent from root.
       if constexpr (!IsRoot)
         tail_return this->batchElement(ORDERED_BNEXT);
     case Fragment:
@@ -423,35 +422,36 @@ private:
   ////////////////////////////////////////////////////////////////////////
   // Event Handling
 
+  /// Dispatcher function for all SE codes.
   template <State S>
   EXI_FLATTEN CC ExiError handleSE(ORDERED_ARGS) {
+    // Dispatches to the SE handler
     return this->handleSE<S>(OE,
       event_cast<SimpleEventTerm::SE>(Event, K));
   }
   template <State S>
   CC ExiError handleSE(OrderedEncoder* OE, const StartElemEvent& SE) {
     // Check if this isn't a SE(qname)
-    if (SE.tag() != StringEventKind::Simple)
+    if (isa<StartElemURIEvent>(SE))
       // Handle SE(uri:*) separately
       tail_return this->handleSEUri<S>(OE, SE);
     if constexpr (S != DocContent) {
       static constexpr bool IsStart = (S != ElementContent);
       auto [URIV, LN] = OE->lookupSE(SE);
+      // Check if LocalName was previously used for this uri
       if (LN != nullptr)
+        // Handle SE(uri:localname)
         return this->handlePrevSE<IsStart>(OE, SE, LN);
       this->handleSEDefaultCode<IsStart>(OE);
-    } else if constexpr (S == DocContent) {
-      // HACK: Add a special function for this pls
-      this->encodePrecomputedCode(OE,
-        TMap.mapDocContent(SimpleEventTerm::SE));
     }
     LocalNameInfo* LN = EXI_UNWRAP(OE->encodeSE<StrmT>(SE));
     return this->handleNewSE<S>(OE, LN);
   }
+  // Handles productions of SE(uri:*) when this is known to the event code producer.
   template <State S>
   CC ExiError handleSEUri(OrderedEncoder* OE, const StartElemEvent& SE) {
     static constexpr bool IsStart = (S != ElementContent);
-    auto& SEUri = static_cast<const StartElemURIEvent&>(SE);
+    auto& SEUri = cast<StartElemURIEvent>(SE);
     if constexpr (S != DocContent) {
       auto [URIV, LN] = OE->lookupSEUri(SEUri);
       if (LN != nullptr)
@@ -462,6 +462,7 @@ private:
     LocalNameInfo* LN = EXI_UNWRAP(OE->encodeSEUri<StrmT>(SEUri));
     return this->handleNewSE<S>(OE, LN);
   }
+  /// Adds a new SE term to the current grammar.
   template <State S>
   CC ExiError handleNewSE(OrderedEncoder* OE, LocalNameInfo* LN) {
     if constexpr (S != DocContent) {
@@ -496,12 +497,14 @@ private:
   template <bool IsStart = false>
   CC ExiError handleEE(ORDERED_ARGS) {
     exi_invariant(!GStack.empty());
-    auto* G = GStack.back();
+    encode::BuiltinGrammar* G = GStack.back();
+    // Checks if second-level encoding is needed.
     if (G->setEETerm<IsStart>(&Get::Writer(OE))) {
       exi_invariant(IsStart, "Invalid EE!");
       // Must be StartTagContent.
       this->encodePrecomputedCode(OE,
         TMap.mapStartTagContent(SimpleEventTerm::EE));
+      // Creates a new EE grammar node.
       auto* EENode = new (*OE) gnode::EENode;
       G->addEETerm<IsStart>(EENode);
     }
@@ -513,6 +516,7 @@ private:
     return ExiError::OK;
   }
 
+  /// Dispatcher function for all AT codes.
   EXI_FLATTEN CC ExiError handleAT(ORDERED_ARGS) {
     return this->handleAT(OE,
       event_cast<SimpleEventTerm::AT>(Event, K));
@@ -540,6 +544,7 @@ private:
     return OE->encodeATKnown<StrmT>(AT);
   }
 
+  /// Dispatcher function for all NS codes.
   template <bool IsRoot = false>
   EXI_FLATTEN CC ExiError handleNS(ORDERED_ARGS) {
     return this->handleNS<IsRoot>(OE,
@@ -549,6 +554,7 @@ private:
   CC ExiError handleNS(OrderedEncoder* OE, const NamespaceEvent& NS) {
     if constexpr (IsRoot)
       exi_assert(GStack.size() == 1, "Don't use root on child items!");
+    // Encoding is only needed if prefixes are preserved.
     if (OE->PreservePrefixes()) {
       StrmT* OW = &Get::Writer(OE);
       GStack.back()->writeFallbackCode<true>(OW);
@@ -708,6 +714,7 @@ private:
     LOG_EXTRA("Grammar hit");
     return false;
   }
+  /// Handles writing the 
   template <bool IsStart>
   void handleSEDefaultCode(OrderedEncoder* OE) {
     auto* G = GStack.back();
@@ -748,11 +755,13 @@ public:
 private:
 #if EXI_LOGGING
   EXI_PRESERVE_CALLSITE void logCurrentGrammar();
+  EXI_PRESERVE_CALLSITE void logPrecomputedCode(auto EC);
   EXI_PRESERVE_CALLSITE void logEvent(SimpleEventTerm Term);
   EXI_PRESERVE_CALLSITE void logEventEx(const BaseEvent& Event, SimpleEventTerm K);
   EXI_PRESERVE_CALLSITE void logEventEx(const void*, usize N, SimpleEventTerm K);
 #else
   ALWAYS_INLINE constexpr void logCurrentGrammar() {}
+  ALWAYS_INLINE constexpr void logPrecomputedCode(auto) {}
   ALWAYS_INLINE constexpr void logEvent(SimpleEventTerm) {}
   ALWAYS_INLINE constexpr void logEventEx(const BaseEvent&, SimpleEventTerm) {}
   ALWAYS_INLINE constexpr void logEventEx(const void*, usize, SimpleEventTerm) {}
@@ -828,6 +837,18 @@ EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logCurrentGrammar() {
       OS << format("[{}:{}]", URI, Name);
   }
   OS << '\n';
+}
+
+template <is_ordwriter_stream StrmT>
+EXI_PRESERVE_CALLSITE void OrderedBuiltinSchema<StrmT>::logPrecomputedCode(auto EC) {
+  constexpr int kFirstCode = EC.kIsFullCode ? 0 : 1;
+  if constexpr (std::same_as<StrmT, BitWriter>) {
+    LOG_EXTRA("Code[{}:2]: @{}:0b{:0{}b}", kFirstCode,
+              EC.Bits, EC.Data, EC.Bits);
+  } else {
+    LOG_EXTRA("Code[{}:2]: @{}:0x{:0{}x}", kFirstCode,
+              EC.Bits, EC.Data, ((EC.Bits + 7) / 8));
+  }
 }
 
 template <is_ordwriter_stream StrmT>

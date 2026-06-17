@@ -100,6 +100,9 @@ public:
 struct StartElemEvent : StringEventData {
   inline constexpr StrRef uri() const;
   inline encode::STURIEntry* opaque() const;
+  static bool classof(const StringEventData* SE) {
+    return SE->tag() == StringEventKind::Simple;
+  }
 };
 // Start Element (uri:*)
 struct StartElemURIEvent : StartElemEvent {
@@ -107,6 +110,10 @@ struct StartElemURIEvent : StartElemEvent {
     const char* URI;
     encode::STURIEntry* OpaqueURI;
   };
+  static bool classof(const StringEventData* SE) {
+    return SE->tag() == StringEventKind::URI
+        || SE->tag() == StringEventKind::Opaque;
+  }
 };
 /// End Element
 struct EndElemEvent   : NoEventData {};
