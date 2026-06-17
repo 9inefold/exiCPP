@@ -114,7 +114,7 @@ def get_arg_parser() -> argparse.ArgumentParser:
     default='info'
   )
   parser.add_argument(
-    '-d', '--diag',
+    '-d', '--diag', '--diag-level',
     dest='diag_level',
     help="alias for '--diagnostic-level=LEVEL'",
     choices=LogLevelArgs.ALL_LEVELS,
@@ -166,7 +166,7 @@ def get_arg_parser() -> argparse.ArgumentParser:
     const='-ea'
   )
   parser.add_argument(
-    '--jvm-diag', '--jvm-diagnostic-level',
+    '--jvm-diag', '--jvm-diag-level', '--jvm-diagnostic-level',
     dest='jvm_args',
     action=JVMLogLevelAction,
     help="control how verbose java should be (default: error)",
