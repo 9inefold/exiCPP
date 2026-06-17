@@ -28,6 +28,7 @@ This is a TODO list for the C++ version of exiCPP.
 - Add compatibility for ~~exificient~~xerces' terrible escaping scheme
   - Preserve `&#nnn;`/`CDATA` for xerces encoding (openexi)
   - Preserve `&#nnn;`/`CDATA` for xml decoding (openexi)
+- Remove tabs added with broken vscode?
 
 ## In Progress
 
@@ -36,6 +37,9 @@ This is a TODO list for the C++ version of exiCPP.
   - Make setting features a bit easier to work with
   - Fix attribute buffer swap hack to handle entities
   - Fix cases like `xyz:="..."` with weird attributes enabled
+- Add `map.json` impl for test configuration
+  - Still needs `#import` and `#ignore` for specific impls
+  - Code is sloppy, needs rework eventually
 - Check depth when parsing
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense
 - Make XML comparison match failures more useful
@@ -46,7 +50,6 @@ This is a TODO list for the C++ version of exiCPP.
 - Prepare for doxygen support
 - Update rapidxml
 - `ErrorCode` customization
-- Remove tabs added with broken vscode
 - Remove EXIP, merge `NewLib`
 - Fix weird `__FILE__` normalization on windows
 - Implement `bitset`/`BitSpan` to get constexpr functions...
@@ -55,8 +58,11 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## Not Started
 
-- Add `map.json` impl for test configuration
 - **Split out implementation of `ExiDecoder` like with `ExiEncoder`**
+- Update `ExiOptions.SchemaID` to not use `Box<String>`?
+  - Use `RefCntPtr<String>` for easier management?
+  - Create `Global<T>`/`Interned<T>` and accept that?
+  - Specific `SchemaID` type with a `SchemaIDHandler`? *May be the best option*
 - Improve custom logging api
 - Add version `.rc` file on windows?
 - Match exificient namespaces generated with `Preserve.Prefixes=0`
@@ -64,7 +70,6 @@ This is a TODO list for the C++ version of exiCPP.
 - Fix mimalloc setup on windows
 - **`sys::` implementation on linux**
 - Fully test `IntCast` and friends, improve support for non-integral types
-- Change schema from `Box<String>` to regular `String`
 - Implement `StackExhaustionHandler`
 - Schema parser
 - Refactor `PagedVec`
@@ -85,7 +90,7 @@ This is a TODO list for the C++ version of exiCPP.
 - Namespace overwriting/nesting
 - No prefixes required in partition at POI in SE events
 
-## Exificient bugs
+## Exificient Bugs
 
 - Entity references are not correctly handled (`&e;` becomes `&amp;e;`)
 - Crashes on DOCTYPE `<!ENTITY % X ...>` as it removes the space between the `%` and `X`
@@ -93,6 +98,10 @@ This is a TODO list for the C++ version of exiCPP.
 - Escapes all characters (even already escaped sequences and CDATA) when decoding
 - Always removes `CDATA` blocks, should be a flag
 - Sometimes adds `xmlns:xsi="..."` with `Preserve.Prefixes=0` at the top level??
+
+## OpenEXI Bugs
+
+- Always explicitly adding the xml namespace? *Needs verification*
 
 ## Stretch Goals
 
