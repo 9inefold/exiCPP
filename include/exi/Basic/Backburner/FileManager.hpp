@@ -26,7 +26,7 @@
 #include <core/Common/Box.hpp>
 #include <core/Common/DenseMap.hpp>
 #include <core/Common/Fundamental.hpp>
-#include <core/Common/IntrusiveRefCntPtr.hpp>
+#include <core/Common/RefCntPtr.hpp>
 #include <core/Common/SmallVec.hpp>
 #include <core/Common/StringMap.hpp>
 #include <core/Common/StrRef.hpp>
@@ -49,7 +49,7 @@ struct FileSystemOptions {
 /// and directory search management.
 class FileManager : public RefCountedBase<FileManager> {
   friend class XMLManager;
-  IntrusiveRefCntPtr<vfs::FileSystem> FS;
+  RefCntPtr<vfs::FileSystem> FS;
   FileSystemOptions FileSystemOpts;
   SpecificBumpPtrAllocator<FileEntry> FilesAlloc;
   SpecificBumpPtrAllocator<DirectoryEntry> DirsAlloc;
@@ -115,7 +115,7 @@ public:
   /// Create a FileManager with an optional VFS.
   /// If no VFS is provided, the `RealFileSystem` will be used.
   FileManager(const FileSystemOptions& Opts,
-              IntrusiveRefCntPtr<vfs::FileSystem> VFS = nullptr);
+              RefCntPtr<vfs::FileSystem> VFS = nullptr);
   ~FileManager();
 
   /// Returns the number of unique real file entries cached by the file manager.
@@ -190,10 +190,10 @@ public:
   }
 
   vfs::FileSystem& getVirtualFileSystem() const { return *FS; }
-  IntrusiveRefCntPtr<vfs::FileSystem>
+  RefCntPtr<vfs::FileSystem>
    getVirtualFileSystemPtr() const { return FS; }
 
-  void setVirtualFileSystem(IntrusiveRefCntPtr<vfs::FileSystem> VFS) {
+  void setVirtualFileSystem(RefCntPtr<vfs::FileSystem> VFS) {
     this->FS = std::move(VFS);
   }
 

@@ -1,0 +1,335 @@
+//===- Common/RefCntPtr.hpp ------------------------------------------===//
+//
+// MODIFIED FOR THE PURPOSES OF THE EXICPP LIBRARY.
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------===//
+//
+// Copyright (C) 2024-2026 Ninefold
+//
+// Relicensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+//     limitations under the License.
+//
+//===----------------------------------------------------------------===//
+///
+/// \file
+/// This file defines the RefCountedBase, ThreadSafeRefCountedBase, and
+/// RefCntPtr classes.
+///
+/// RefCntPtr is a smart pointer to an object which maintains a
+/// reference count.  (ThreadSafe)RefCountedBase is a mixin class that adds a
+/// refcount member variable and methods for updating the refcount.  An object
+/// that inherits from (ThreadSafe)RefCountedBase deletes itself when its
+/// refcount hits zero.
+///
+/// For example:
+///
+/// ```
+///   class MyClass : public RefCountedBase<MyClass> {};
+///
+///   void foo() {
+///     // Constructing an RefCntPtr increases the pointee's refcount
+///     // by 1 (from 0 in this case).
+///     RefCntPtr<MyClass> Ptr1(new MyClass());
+///
+///     // Copying an RefCntPtr increases the pointee's refcount by 1.
+///     RefCntPtr<MyClass> Ptr2(Ptr1);
+///
+///     // Constructing an RefCntPtr has no effect on the object's
+///     // refcount.  After a move, the moved-from pointer is null.
+///     RefCntPtr<MyClass> Ptr3(std::move(Ptr1));
+///     assert(Ptr1 == nullptr);
+///
+///     // Clearing an RefCntPtr decreases the pointee's refcount by 1.
+///     Ptr2.reset();
+///
+///     // The object deletes itself when we return from the function, because
+///     // Ptr3's destructor decrements its refcount to 0.
+///   }
+/// ```
+///
+/// You can use RefCntPtr with isa<T>(), dyn_cast<T>(), etc.:
+///
+/// ```
+///   RefCntPtr<MyClass> Ptr(new MyClass());
+///   OtherClass *Other = dyn_cast<OtherClass>(Ptr);  // Ptr.get() not required
+/// ```
+///
+/// RefCntPtr works with any class that
+///
+///  - inherits from (ThreadSafe)RefCountedBase,
+///  - has Retain() and Release() methods, or
+///  - specializes RefCntPtrInfo.
+///
+//===----------------------------------------------------------------===//
+
+#pragma once
+
+#include <Common/Box.hpp>
+#include <Support/ErrorHandle.hpp>
+#include <atomic>
+#include <cassert>
+#include <cstddef>
+
+namespace exi {
+
+/// A CRTP mixin class that adds reference counting to a type.
+///
+/// The lifetime of an object which inherits from RefCountedBase is managed by
+/// calls to Release() and Retain(), which increment and decrement the object's
+/// refcount, respectively.  When a Release() call decrements the refcount to 0,
+/// the object deletes itself.
+template <class Derived> class RefCountedBase {
+  mutable unsigned RefCount = 0;
+
+protected:
+  RefCountedBase() = default;
+  RefCountedBase(const RefCountedBase &) {}
+  RefCountedBase &operator=(const RefCountedBase &) = delete;
+
+#if EXI_ASSERTS
+  ~RefCountedBase() {
+    exi_assert(RefCount == 0,
+               "Destruction occurred when there are still references to this.");
+  }
+#else
+  // Default the destructor in release builds, A trivial destructor may enable
+  // better codegen.
+  ~RefCountedBase() = default;
+#endif
+
+public:
+  unsigned UseCount() const { return RefCount; }
+
+  void Retain() const { ++RefCount; }
+
+  void Release() const {
+    exi_assert(RefCount > 0, "Reference count is already zero.");
+    if (--RefCount == 0)
+      delete static_cast<const Derived *>(this);
+  }
+};
+
+/// A thread-safe version of \c RefCountedBase.
+template <class Derived> class ThreadSafeRefCountedBase {
+  mutable std::atomic<int> RefCount{0};
+
+protected:
+  ThreadSafeRefCountedBase() = default;
+  ThreadSafeRefCountedBase(const ThreadSafeRefCountedBase &) {}
+  ThreadSafeRefCountedBase &
+  operator=(const ThreadSafeRefCountedBase &) = delete;
+
+#if EXI_ASSERTS
+  ~ThreadSafeRefCountedBase() {
+    exi_assert(RefCount == 0,
+               "Destruction occurred when there are still references to this.");
+  }
+#else
+  // Default the destructor in release builds, A trivial destructor may enable
+  // better codegen.
+  ~ThreadSafeRefCountedBase() = default;
+#endif
+
+public:
+  unsigned UseCount() const { return RefCount.load(std::memory_order_relaxed); }
+
+  void Retain() const { RefCount.fetch_add(1, std::memory_order_relaxed); }
+
+  void Release() const {
+    int NewRefCount = RefCount.fetch_sub(1, std::memory_order_acq_rel) - 1;
+    exi_assert(NewRefCount >= 0, "Reference count was already zero.");
+    if (NewRefCount == 0)
+      delete static_cast<const Derived *>(this);
+  }
+};
+
+/// Class you can specialize to provide custom retain/release functionality for
+/// a type.
+///
+/// Usually specializing this class is not necessary, as RefCntPtr
+/// works with any type which defines Retain() and Release() functions -- you
+/// can define those functions yourself if RefCountedBase doesn't work for you.
+///
+/// One case when you might want to specialize this type is if you have
+///  - Foo.h defines type Foo and includes Bar.h, and
+///  - Bar.h uses RefCntPtr<Foo> in inline functions.
+///
+/// Because Foo.h includes Bar.h, Bar.h can't include Foo.h in order to pull in
+/// the declaration of Foo.  Without the declaration of Foo, normally Bar.h
+/// wouldn't be able to use RefCntPtr<Foo>, which wants to call
+/// `T::Retain` and `T::Release`.
+///
+/// To resolve this, Bar.h could include a third header, FooFwd.h, which
+/// forward-declares Foo and specializes RefCntPtrInfo<Foo>.  Then
+/// Bar.h could use RefCntPtr<Foo>, although it still couldn't call any
+/// functions on Foo itself, because Foo would be an incomplete type.
+template <typename T> struct RefCntPtrInfo {
+  static unsigned useCount(const T *obj) { return obj->UseCount(); }
+  static void retain(T *obj) { obj->Retain(); }
+  static void release(T *obj) { obj->Release(); }
+};
+
+/// A smart pointer to a reference-counted object that inherits from
+/// RefCountedBase or ThreadSafeRefCountedBase.
+///
+/// This class increments its pointee's reference count when it is created, and
+/// decrements its refcount when it's destroyed (or is changed to point to a
+/// different object).
+template <typename T> class RefCntPtr {
+  T *Obj = nullptr;
+
+public:
+  using element_type = T;
+
+  explicit RefCntPtr() = default;
+  RefCntPtr(T *obj) : Obj(obj) { retain(); }
+  RefCntPtr(const RefCntPtr &S) : Obj(S.Obj) { retain(); }
+  RefCntPtr(RefCntPtr &&S) : Obj(S.Obj) { S.Obj = nullptr; }
+
+  template <class X,
+            std::enable_if_t<std::is_convertible<X *, T *>::value, bool> = true>
+  RefCntPtr(RefCntPtr<X> S) : Obj(S.get()) {
+    S.Obj = nullptr;
+  }
+
+  template <class X,
+            std::enable_if_t<std::is_convertible<X *, T *>::value, bool> = true>
+  RefCntPtr(Box<X> S) : Obj(S.release()) {
+    retain();
+  }
+
+  ~RefCntPtr() { release(); }
+
+  RefCntPtr &operator=(RefCntPtr S) {
+    swap(S);
+    return *this;
+  }
+
+  T &operator*() const { return *Obj; }
+  T *operator->() const { return Obj; }
+  T *get() const { return Obj; }
+  explicit operator bool() const { return Obj; }
+
+  void swap(RefCntPtr &other) {
+    T *tmp = other.Obj;
+    other.Obj = Obj;
+    Obj = tmp;
+  }
+
+  void reset() {
+    release();
+    Obj = nullptr;
+  }
+
+  void resetWithoutRelease() { Obj = nullptr; }
+
+  unsigned useCount() const {
+    return Obj ? RefCntPtrInfo<T>::useCount(Obj) : 0;
+  }
+
+private:
+  void retain() {
+    if (Obj)
+      RefCntPtrInfo<T>::retain(Obj);
+  }
+
+  void release() {
+    if (Obj)
+      RefCntPtrInfo<T>::release(Obj);
+  }
+
+  template <typename X> friend class RefCntPtr;
+};
+
+template <class T, class U>
+inline bool operator==(const RefCntPtr<T> &A,
+                       const RefCntPtr<U> &B) {
+  return A.get() == B.get();
+}
+
+template <class T, class U>
+inline bool operator!=(const RefCntPtr<T> &A,
+                       const RefCntPtr<U> &B) {
+  return A.get() != B.get();
+}
+
+template <class T, class U>
+inline bool operator==(const RefCntPtr<T> &A, U *B) {
+  return A.get() == B;
+}
+
+template <class T, class U>
+inline bool operator!=(const RefCntPtr<T> &A, U *B) {
+  return A.get() != B;
+}
+
+template <class T, class U>
+inline bool operator==(T *A, const RefCntPtr<U> &B) {
+  return A == B.get();
+}
+
+template <class T, class U>
+inline bool operator!=(T *A, const RefCntPtr<U> &B) {
+  return A != B.get();
+}
+
+template <class T>
+bool operator==(std::nullptr_t, const RefCntPtr<T> &B) {
+  return !B;
+}
+
+template <class T>
+bool operator==(const RefCntPtr<T> &A, std::nullptr_t B) {
+  return B == A;
+}
+
+template <class T>
+bool operator!=(std::nullptr_t A, const RefCntPtr<T> &B) {
+  return !(A == B);
+}
+
+template <class T>
+bool operator!=(const RefCntPtr<T> &A, std::nullptr_t B) {
+  return !(A == B);
+}
+
+// Make RefCntPtr work with dyn_cast, isa, and the other idioms from
+// Casting.h.
+template <typename From> struct simplify_type;
+
+template <class T> struct simplify_type<RefCntPtr<T>> {
+  using SimpleType = T *;
+
+  static SimpleType getSimplifiedValue(RefCntPtr<T> &Val) {
+    return Val.get();
+  }
+};
+
+template <class T> struct simplify_type<const RefCntPtr<T>> {
+  using SimpleType = /*const*/ T *;
+
+  static SimpleType getSimplifiedValue(const RefCntPtr<T> &Val) {
+    return Val.get();
+  }
+};
+
+/// Factory function for creating intrusive ref counted pointers.
+template <typename T>
+RefCntPtr<T> make_refcounted(auto&&...Args) {
+  return RefCntPtr<T>(new T(EXI_FWD(Args)...));
+}
+
+} // namespace exi

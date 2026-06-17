@@ -32,7 +32,7 @@
 #pragma once
 
 #include <Common/Box.hpp>
-#include <Common/IntrusiveRefCntPtr.hpp>
+#include <Common/RefCntPtr.hpp>
 #include <Common/Option.hpp>
 #include <Common/SmallVec.hpp>
 #include <Common/String.hpp>
@@ -385,7 +385,7 @@ protected:
 /// the operating system.
 /// The working directory is linked to the process's working directory.
 /// (This is usually thread-hostile).
-IntrusiveRefCntPtr<FileSystem> getRealFileSystem();
+RefCntPtr<FileSystem> getRealFileSystem();
 
 /// Create an \p vfs::FileSystem for the 'real' file system, as seen by
 /// the operating system.

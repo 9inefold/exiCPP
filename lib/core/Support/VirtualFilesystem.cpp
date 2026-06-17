@@ -34,7 +34,7 @@
 #include <Common/Box.hpp>
 #include <Common/DenseMap.hpp>
 #include <Common/Fundamental.hpp>
-#include <Common/IntrusiveRefCntPtr.hpp>
+#include <Common/RefCntPtr.hpp>
 #include <Common/Option.hpp>
 #include <Common/Map.hpp>
 #include <Common/STLExtras.hpp>
@@ -441,8 +441,8 @@ void RealFileSystem::printImpl(raw_ostream& OS, PrintType Type,
   OS << " CWD\n";
 }
 
-IntrusiveRefCntPtr<FileSystem> vfs::getRealFileSystem() {
-  static IntrusiveRefCntPtr<FileSystem> FS(new RealFileSystem(true));
+RefCntPtr<FileSystem> vfs::getRealFileSystem() {
+  static RefCntPtr<FileSystem> FS(new RealFileSystem(true));
   return FS;
 }
 

@@ -25,7 +25,7 @@
 
 #include <core/Common/Box.hpp>
 #include <core/Common/EnumTraits.hpp>
-#include <core/Common/IntrusiveRefCntPtr.hpp>
+#include <core/Common/RefCntPtr.hpp>
 #include <core/Common/Option.hpp>
 #include <core/Common/StringMap.hpp>
 #include <core/Support/Error.hpp>
@@ -83,6 +83,6 @@ public:
                      bool IsVolatile = false);
 };
 
-using XMLManagerRef = IntrusiveRefCntPtr<XMLManager>;
+using XMLManagerRef = RefCntPtr<XMLManager>;
 
 } // namespace exi

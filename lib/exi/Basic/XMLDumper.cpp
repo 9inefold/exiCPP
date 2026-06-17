@@ -18,7 +18,7 @@
 
 #include <exi/Basic/XMLDumper.hpp>
 #include <core/Common/SmallStr.hpp>
-#include <core/Common/IntrusiveRefCntPtr.hpp>
+#include <core/Common/RefCntPtr.hpp>
 #include <core/Common/MMatch.hpp>
 #include <core/Common/StringExtras.hpp>
 #include <core/Common/STLExtras.hpp>

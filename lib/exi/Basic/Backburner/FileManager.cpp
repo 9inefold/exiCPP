@@ -54,7 +54,7 @@ constexpr int kMaxVirtualDirDepth = 126; // May change...
 } // namespace `anonymous`
 
 FileManager::FileManager(const FileSystemOptions& Opts,
-                         IntrusiveRefCntPtr<vfs::FileSystem> VFS) :
+                         RefCntPtr<vfs::FileSystem> VFS) :
  FS(std::move(VFS)), FileSystemOpts(Opts),
  SeenDirEntries(kStartingCacheSize),
  SeenFileEntries(kStartingCacheSize)
