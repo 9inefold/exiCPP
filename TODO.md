@@ -58,6 +58,7 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## Not Started
 
+- Add `wrapped_raw_ostream`
 - **Split out implementation of `ExiDecoder` like with `ExiEncoder`**
 - Update `ExiOptions.SchemaID` to not use `Box<String>`?
   - Use `RefCntPtr<String>` for easier management?

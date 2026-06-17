@@ -28,7 +28,8 @@
     const auto BitPos  = (__VA_ARGS__)->bitPos();                             \
     const auto BytePos = BitPos >> 3;                                         \
     const auto ByteOff = BitPos & 0b111;                                      \
-    LOG_EXTRA("@[0x{:02x}:{}]:", BytePos, ByteOff);                           \
+    const auto FuncName = __func__;                                           \
+    LOG_EXTRA("@[0x{:02x}:{}] in {}:", BytePos, ByteOff, FuncName);           \
   }                                                                           \
 } while(0)
 #else

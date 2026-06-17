@@ -16,6 +16,8 @@
 //
 //===----------------------------------------------------------------===//
 
+// HACK: Remove ReaderMethods if this is bumped to C++23
+
 #ifndef CLASSNAME
 # error CLASSNAME must be defined to generate ReaderMethods!
 #endif
