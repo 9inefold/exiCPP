@@ -65,7 +65,7 @@ def _run_coder(args: list[str], logger: Log) -> bool:
   kind = _get_fail_kind(result.returncode)
   try:
     logger.error(f'{name}/{mangled} ({result.returncode}: {kind}):')
-    logger.extra(f"{args}:")
+    #logger.extra(f"{args}:")
     stdout = result.stdout.strip(' \t\r\n')
     stderr = result.stderr.strip(' \t\r\n')
     # TODO: Strip escape sequences

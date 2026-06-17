@@ -244,10 +244,11 @@ static void AssertWithDetails(H::AssertionKind Kind, const char* Msg) {
   AssertWithLocation(File, Func, Line);
 #endif
   AssertWithDetails(Kind, Msg);
+  errs() << "\nStacktrace:\n";
 #if EXI_ENABLE_STACKTRACES
   errs() << trace::GetTrace() << '\n';
 #else
-  sys::PrintStackTrace(errs());
+  sys::PrintStackTrace(errs(), 1);
 #endif
 #if EXI_DEBUG
   if (!sys::Process::IsDebugging())

@@ -63,6 +63,8 @@ def run_individual_test(
       # Skip work if we can
       encoded.append(typ)
       continue
+    elif outfile.exists():
+      outfile.unlink()
     
     # Actually run the coder
     coder = get_coder(typ, mangled)
@@ -91,6 +93,8 @@ def run_individual_test(
         # Skip work if we can
         decoded.append(full_typ)
         continue
+      elif outfile.exists():
+        outfile.unlink()
       
       # Actually run the coder
       coder = get_coder(typ, mangled)

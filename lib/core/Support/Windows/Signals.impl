@@ -37,6 +37,7 @@
 #include <Support/WindowsError.hpp>
 #include <Support/WithColor.hpp>
 #include <algorithm>
+#include <mutex>
 #include <io.h>
 #include <signal.h>
 #include <stdio.h>
@@ -262,8 +263,14 @@ struct FindModuleData {
   StringSaver *StrPool;
 };
 
-//static constexpr usize kSymbolBufferLen = 512 + sizeof(IMAGEHLP_SYMBOL64);
-static constexpr usize kSymbolBufferLen = 512;
+static constexpr usize kSymbolBufferLen = 512 + sizeof(IMAGEHLP_SYMBOL64);
+//static constexpr usize kSymbolBufferLen = 512;
+
+static std::recursive_mutex* getDebugHelpMutex() {
+  static std::recursive_mutex mtx;
+  return &mtx;
+}
+
 } // namespace `anonymous`
 
 static BOOL CALLBACK findModuleCallback(PCSTR ModuleName, DWORD64 ModuleBase,
@@ -321,6 +328,35 @@ static StrRef TrimStackTraceFileName(StrRef Name, exi::sys::StackTraceOptions Op
   return Name;
 }
 
+static void writeLastErrorToImpl(exi::raw_ostream* OS, ...)  { 
+  va_list arglist;
+  va_start(arglist, OS);
+
+  DWORD dFlags = FORMAT_MESSAGE_ALLOCATE_BUFFER | 
+                 FORMAT_MESSAGE_FROM_SYSTEM;
+  DWORD dw = ::GetLastError();
+  DWORD dLangId = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
+  LPVOID lpMsgBuf = nullptr;
+
+  if (!::FormatMessageA(dFlags, NULL, dw, dLangId, (LPSTR)&lpMsgBuf, 0, &arglist)) {
+    va_end(arglist);
+    *OS << format("Failed to format message: {}", ::GetLastError());
+    return;
+  }
+
+  StrRef msg((const char*)lpMsgBuf);
+  *OS << format("Error {}: {}", dw, msg.rtrim());
+
+  va_end(arglist);
+  LocalFree(lpMsgBuf);
+}
+
+template <typename Ret, typename...ArgT>
+ALWAYS_INLINE static void writeLastErrorTo(
+    exi::raw_ostream &OS, Ret(*Fn)(ArgT...), ArgT...Args)  { 
+  writeLastErrorToImpl(&OS, Args...);
+}
+
 ALWAYS_INLINE static void PrintStackTraceAtPC(exi::raw_ostream &OS,
                                               exi::sys::StackTraceOptions Opts,
                                               DWORD64 PC, HANDLE hProcess) {
@@ -330,11 +366,10 @@ ALWAYS_INLINE static void PrintStackTraceAtPC(exi::raw_ostream &OS,
   const bool isMultiline = Opts.PrintMultiline;
   int printCount = 0;
   auto separator = [isMultiline, &printCount] () -> StrRef {
-    const int N = printCount;
-    printCount += 1;
-    if (printCount == 0)
+    const int N = printCount++;
+    if (N == 0)
       return "";
-    else if (printCount == 1)
+    else if (N == 1)
       return isMultiline ? ":\n  " : ": ";
     else
       return isMultiline ? "\n  " : ", ";
@@ -392,7 +427,7 @@ ALWAYS_INLINE static void PrintStackTraceAtPC(exi::raw_ostream &OS,
     }
   }
 
-  IMAGEHLP_LINE64 line = {};
+  IMAGEHLP_LINE64 line;
   DWORD dwLineDisp;
   if (Opts.PrintLocation) {
     // Print the source file and line number information.
@@ -410,6 +445,10 @@ ALWAYS_INLINE static void PrintStackTraceAtPC(exi::raw_ostream &OS,
       // Print line offset
       if (Opts.PrintLocationOffset)
         OS << format(" + 0x{:X} byte(s)", dwLineDisp);
+    } else {
+      // TODO: Fix this?
+      //OS << separator();
+      //writeLastErrorTo(OS, fSymGetLineFromAddr64, hProcess, PC, &dwLineDisp, &line);
     }
   }
 
@@ -459,7 +498,8 @@ static void PrintStackTraceForThread(exi::raw_ostream &OS,
   // In this case, just return, no stacktrace will be printed.
   if (!isDebugHelpInitialized())
     return;
-
+  
+  std::unique_lock Lock(*getDebugHelpMutex());
   // Initialize the symbol handler.
   fSymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
   fSymInitialize(hProcess, NULL, TRUE);
@@ -482,6 +522,7 @@ static void PrintStackTraceForThread(exi::raw_ostream &OS, HANDLE hProcess,
   if (!isDebugHelpInitialized())
     return;
 
+  std::unique_lock Lock(*getDebugHelpMutex());
   // Initialize the symbol handler.
   fSymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
   fSymInitialize(hProcess, NULL, TRUE);

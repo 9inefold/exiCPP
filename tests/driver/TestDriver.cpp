@@ -122,6 +122,9 @@ static int exi_main(ArrayRef<StrRef> Args) {
   auto InData = LoadFile(InFile);
   XMLParseOptions ParseOpts { /*.MergeData = Opts.MergeData*/ };
 
+  if (VerboseFail)
+    exi::DebugFlag = LogLevel::VERBOSE;
+
   // Set up for decoding
   ExiDecoder Decoder(Opts);
   MemoryBufferRef MB = InData->getMemBufferRef();
@@ -218,6 +221,9 @@ static int xml_main(ArrayRef<StrRef> Args) {
     .HasCookie = false,
     .HasOptions = false
   };
+
+  if (VerboseFail)
+    exi::DebugFlag = LogLevel::VERBOSE;
   
   // Try creating encoder
   Result EncoderOrErr = ExiEncoder::New(Opts);
@@ -262,7 +268,14 @@ static int xml_main(ArrayRef<StrRef> Args) {
 
 int main(int Argc, char* Argv[]) {
   InitDriver X(Argc, Argv);
-  sys::UsePrettyStackTraceOptions();
+  sys::SetGlobalStackTraceOptions({
+    .PrintMultiline = true,
+    .ColoredOutput = true,
+    .TrimFileNames = true,
+    .PrintPC = false,
+    .PrintModule = false,
+    .DemangleFunctionName = true
+  });
 
   SmallVec<StrRef> ArgStorage;
   for (auto* Arg : ArrayRef(Argv + 1, Argc - 1))
