@@ -1,3 +1,4 @@
+from exiconf.logging import Log, LogLevel
 from exiconf.cl_args import parse_args
 from exiconf.logging import set_log_level, enable_color
 from exiconf.jvm.setup import start_jvm
@@ -18,8 +19,15 @@ FOLDER_NAMES = [
 # The default program entry point
 def main(extra_args={}):
   args = parse_args()
-  set_log_level(args.diag_level)
+  diag_level = Log.create_loglevel(args.diag_level)
+  set_log_level(diag_level)
   enable_color(args.color)
+
+  has_info_level = (diag_level >= LogLevel.INFO)
+  if args.print_passed is None:
+    args.print_passed = has_info_level
+  if args.print_skipped is None:
+    args.print_skipped = has_info_level
 
   # Needs to be started before adding the test runner!
   start_jvm(

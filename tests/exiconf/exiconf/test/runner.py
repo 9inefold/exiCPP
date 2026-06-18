@@ -4,7 +4,7 @@ from pathlib import Path
 from jpype._core import JVMNotRunning
 from exiconf.constants import *
 from exiconf.cl_args import ArgNamespace
-from exiconf.logging import outs, outs, Color
+from exiconf.logging import errs, outs, Color, LogLevel
 from .cache import *
 from .mapfile import map_files, MappingDataEntry
 from .counter import TestCounter
@@ -54,7 +54,8 @@ def get_coder(typ: str, mangled: str):
 
 def run_individual_test(
     mangled: str, name: str, input: Path, outpath: Path,
-    results: ProcessCacheResults, counter: TestCounter, /):
+    results: ProcessCacheResults, counter: TestCounter, /,
+    print_passed: bool, print_skipped: bool):
   # ...
   invalidated = set()
   encoded = []
@@ -64,10 +65,11 @@ def run_individual_test(
     # Check file cache
     outfile = outpath / f'{mangled}.{typ}.exi'
     if results.did_pass(typ) and outfile.exists():
-      outs().info(f"{id} skipped [{k}]", color=Color.BRIGHT_GREEN)
       # Skip work if we can
       encoded.append(typ)
       counter.add_skipped()
+      if print_skipped:
+        outs().info(f"{id} skipped [{k}]", color=Color.BRIGHT_GREEN)
       continue
     
     # Actually run the coder
@@ -86,7 +88,8 @@ def run_individual_test(
       results.passed(typ)
       encoded.append(typ)
       counter.add_passed()
-      outs().info(f"{id} encode PASSED [{k}]", color=Color.BRIGHT_GREEN)
+      if print_passed:
+        outs().info(f"{id} encode PASSED [{k}]", color=Color.BRIGHT_GREEN)
     else:
       results.failed(typ)
       counter.add_failed()
@@ -103,10 +106,11 @@ def run_individual_test(
       # Check file cache
       outfile = outpath / f'{mangled}.{full_typ}.xml'
       if results.did_pass(full_typ) and outfile.exists():
-        outs().info(f"{id} skipped [{k}]", color=Color.BRIGHT_GREEN)
         # Skip work if we can
         decoded.append(full_typ)
         counter.add_skipped()
+        if print_skipped:
+          outs().info(f"{id} skipped [{k}]", color=Color.BRIGHT_GREEN)
         continue
       
       # Actually run the coder
@@ -126,7 +130,8 @@ def run_individual_test(
         results.passed(full_typ)
         decoded.append(full_typ)
         counter.add_passed()
-        outs().info(f"{id} decode PASSED [{k}]", color=Color.BRIGHT_GREEN)
+        if print_passed:
+          outs().info(f"{id} decode PASSED [{k}]", color=Color.BRIGHT_GREEN)
       else:
         invalidated.add(enc)
         results.failed(full_typ)
@@ -143,7 +148,8 @@ def run_individual_test(
   results.invalidate_all(invalidated)
 
 def run_tests(name: str, data: MappingDataEntry, 
-              entry: ProcessCacheEntry, counter: TestCounter, /):
+              entry: ProcessCacheEntry, counter: TestCounter, /,
+              print_passed, print_skipped):
   outpath = OUT_DIR / name
   if not outpath.exists():
     outpath.mkdir(parents=True)
@@ -164,7 +170,7 @@ def run_tests(name: str, data: MappingDataEntry,
     # TODO: Actually do stuff
     run_individual_test(
       mangled, name, input, outpath,
-      results, counter)
+      results, counter, print_passed, print_skipped)
   pass
 
 def handle_clear(cache: ProcessCache, clear: list[str]):
@@ -186,6 +192,7 @@ def print_results(results: TestCounter):
 
 # The default program entry point
 def runner_main(args: ArgNamespace, extra_args: dict, /):
+  # Set up the mapfiles
   file_map = map_files(root=args.root)
   with ProcessCache(args.cachefile) as cache:
     if args.clear is not None:
@@ -197,7 +204,8 @@ def runner_main(args: ArgNamespace, extra_args: dict, /):
       entry = cache.get(name, data.file)
       #if entry.did_all_pass():
       #  continue
-      run_tests(name, data, entry, counter)
+      run_tests(name, data, entry, counter,
+                args.print_passed, args.print_skipped)
     # Print pass/fail info
     if args.print_results:
       print_results(counter)

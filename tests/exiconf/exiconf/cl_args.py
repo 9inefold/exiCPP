@@ -40,6 +40,8 @@ class ArgNamespace(argparse.Namespace):
   root: Optional[Path]
   # Testing options
   print_results: bool
+  print_passed: Optional[bool]
+  print_skipped: Optional[bool]
   # Printing options
   diag_level: str
   x_diag_level: str
@@ -113,6 +115,20 @@ def get_arg_parser() -> argparse.ArgumentParser:
     action='store_true',
     help='print results of the tests ran',
     default=False
+  )
+  parser.add_argument(
+    '--print-passed',
+    dest='print_passed',
+    action=argparse.BooleanOptionalAction,
+    help='print passing test results',
+    default=None
+  )
+  parser.add_argument(
+    '--print-skipped',
+    dest='print_skipped',
+    action=argparse.BooleanOptionalAction,
+    help='print skipped test results',
+    default=None
   )
 
   # TODO: Add --extended-checks for chaining (eg. openexi -> exicpp -> exicpp -> exificient).
