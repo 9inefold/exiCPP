@@ -5,7 +5,7 @@ from typing import Text
 from exiconf.constants import EXI_BASE_DIR
 from exiconf.logging import errs
 from .setup import get_jvm_path
-from typing import TYPE_CHECKING
+from typing import Optional, TypeAlias, TypeGuard, Union
 
 __all__ = [
   'lookup_line',
@@ -16,18 +16,16 @@ JAVA_SEARCH_DIRS = [
   EXI_BASE_DIR/'tests/jarvis'
 ]
 
-if TYPE_CHECKING:
-  from typing import Optional, TypeAlias, TypeGuard, Union
-  NormalFileMapping: TypeAlias = Union[
-    'JavaRealFileMapping',
-    'JavaMultiFileMapping',
-  ]
-  AnyFileMapping: TypeAlias = Union[
-    'JavaRealFileMapping',
-    'JavaMultiFileMapping',
-    'JavaZipFileMapping'
-  ]
-  JavaFileLineDict: TypeAlias = dict[str, NormalFileMapping]
+NormalFileMapping: TypeAlias = Union[
+  'JavaRealFileMapping',
+  'JavaMultiFileMapping',
+]
+AnyFileMapping: TypeAlias = Union[
+  'JavaRealFileMapping',
+  'JavaMultiFileMapping',
+  'JavaZipFileMapping',
+]
+JavaFileLineDict: TypeAlias = dict[str, NormalFileMapping]
 
 class JavaFileMapping:
   __slots__ = ('is_multi',)
@@ -219,7 +217,7 @@ class JavaSrcZip:
     return None
 
 try:
-  from zipfile import ZipFile # type: ignore
+  import zipfile # type: ignore
   _java_src_zip_tried_load = False
 except (ModuleNotFoundError, ImportError):
   _java_src_zip_tried_load = True
@@ -264,7 +262,7 @@ def _load_java_src() -> Optional[JavaSrcZip]:
       errs().info(f"unable to find 'src.zip'")
       _java_src_zip = JavaSrcZip(None)
       return None
-    zf = ZipFile(str(src_zip), 'r')
+    zf = zipfile.ZipFile(str(src_zip), 'r') # type: ignore
     _java_src_zip = JavaSrcZip(zf)
     #print(zf.namelist())
     return _java_src_zip
