@@ -966,6 +966,7 @@ def map_files(root=None) -> MappingData:
   
   # Actually do the stuff
   # Runs in ~2.1ms
+  # TODO: Pickle this to speed up setup?
   return _map_files(root, xml_names)
 
 """

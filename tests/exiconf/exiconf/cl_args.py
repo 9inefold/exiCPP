@@ -38,6 +38,8 @@ class ArgNamespace(argparse.Namespace):
   clear: Optional[list[str]]
   cachefile: Optional[str]
   root: Optional[Path]
+  # Testing options
+  print_results: bool
   # Printing options
   diag_level: str
   x_diag_level: str
@@ -103,6 +105,14 @@ def get_arg_parser() -> argparse.ArgumentParser:
     metavar='FOLDER',
     type=_realpath,
     default=None
+  )
+
+  parser.add_argument(
+    '--print-results',
+    dest='print_results',
+    action='store_true',
+    help='print results of the tests ran',
+    default=False
   )
 
   # TODO: Add --extended-checks for chaining (eg. openexi -> exicpp -> exicpp -> exificient).
@@ -247,7 +257,8 @@ def _expand_file_to_args(filename: str) -> list[str]:
   for line in lines:
     stripped = line.strip()
     if not stripped.startswith('#'):
-      out.append(stripped)
+      if len(stripped) > 0:
+        out.append(stripped)
   return out
 
 # Expands arguments from a @FILE argument

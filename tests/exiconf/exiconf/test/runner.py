@@ -1,14 +1,13 @@
 import os, sys, shutil
 import traceback, functools
-#from glob import glob
 from pathlib import Path
-#from subprocess import run as run_proc
+from jpype._core import JVMNotRunning
 from exiconf.constants import *
 from exiconf.cl_args import ArgNamespace
-from exiconf.logging import errs, outs, Color
-from exiconf.jvm.running import is_fatal_exception
+from exiconf.logging import outs, outs, Color
 from .cache import *
 from .mapfile import map_files, MappingDataEntry
+from .counter import TestCounter
 
 from exiconf.exicpp_coder import ExicppCoder, set_exicpp_verbosity
 from exiconf.openexi_coder import OpenEXICoder
@@ -36,12 +35,8 @@ class FatalException(RuntimeError):
     else:
       super().__init__(f"Encountered fatal error")
 
-def handle_clear(cache: ProcessCache, clear: list[str]):
-  if len(clear) == 0:
-    cache.clear()
-  else:
-    for to_clear in clear:
-      cache.clear(to_clear)
+def is_fatal_exception(e: Exception) -> bool:
+  return isinstance(e, (JVMNotRunning, FatalException))
 
 @functools.cache
 def get_coder(typ: str, mangled: str):
@@ -58,9 +53,8 @@ def get_coder(typ: str, mangled: str):
   return cls(mangled, outs())
 
 def run_individual_test(
-    mangled: str, name: str,
-    input: Path, outpath: Path,
-    results: ProcessCacheResults, /):
+    mangled: str, name: str, input: Path, outpath: Path,
+    results: ProcessCacheResults, counter: TestCounter, /):
   # ...
   invalidated = set()
   encoded = []
@@ -70,32 +64,33 @@ def run_individual_test(
     # Check file cache
     outfile = outpath / f'{mangled}.{typ}.exi'
     if results.did_pass(typ) and outfile.exists():
-      errs().info(f"{id} skipped [{k}]", color=Color.BRIGHT_GREEN)
+      outs().info(f"{id} skipped [{k}]", color=Color.BRIGHT_GREEN)
       # Skip work if we can
       encoded.append(typ)
+      counter.add_skipped()
       continue
-    #elif outfile.exists():
-    #  outfile.unlink()
     
     # Actually run the coder
     coder = get_coder(typ, mangled)
     try:
-      passed = coder.encode_file(input, outfile)
+      did_pass = coder.encode_file(input, outfile)
     except Exception as ex:
       if is_fatal_exception(ex):
         results.failed(typ)
         results.invalidate_all(invalidated)
         raise FatalException(id)
-      passed = False
-      errs().error(traceback.format_exc())
+      did_pass = False
+      outs().error(traceback.format_exc())
     
-    if passed:
+    if did_pass:
       results.passed(typ)
       encoded.append(typ)
-      errs().info(f"{id} encode PASSED [{k}]", color=Color.BRIGHT_GREEN)
+      counter.add_passed()
+      outs().info(f"{id} encode PASSED [{k}]", color=Color.BRIGHT_GREEN)
     else:
       results.failed(typ)
-      errs().always(f"{id} encode FAILED [{k}]\n")
+      counter.add_failed()
+      outs().always(f"{id} encode FAILED [{k}]\n")
 
   decoded = []
   for enc in encoded:
@@ -104,37 +99,39 @@ def run_individual_test(
       k = CODER_NAMES_KIND[typ]
       full_typ = enc + typ
       id = f'{name}/{mangled}/{full_typ}'
+
       # Check file cache
       outfile = outpath / f'{mangled}.{full_typ}.xml'
       if results.did_pass(full_typ) and outfile.exists():
-        errs().info(f"{id} skipped [{k}]", color=Color.BRIGHT_GREEN)
+        outs().info(f"{id} skipped [{k}]", color=Color.BRIGHT_GREEN)
         # Skip work if we can
         decoded.append(full_typ)
+        counter.add_skipped()
         continue
-      #elif outfile.exists():
-      #  outfile.unlink()
       
       # Actually run the coder
       coder = get_coder(typ, mangled)
       try:
-        passed = coder.decode_file(infile, outfile)
+        did_pass = coder.decode_file(infile, outfile)
       except Exception as ex:
         if is_fatal_exception(ex):
           results.failed(typ)
           results.invalidate(enc)
           results.invalidate_all(invalidated)
           raise FatalException(id)
-        passed = False
-        errs().error(traceback.format_exc())
+        did_pass = False
+        outs().error(traceback.format_exc())
     
-      if passed:
+      if did_pass:
         results.passed(full_typ)
         decoded.append(full_typ)
-        errs().info(f"{id} decode PASSED [{k}]", color=Color.BRIGHT_GREEN)
+        counter.add_passed()
+        outs().info(f"{id} decode PASSED [{k}]", color=Color.BRIGHT_GREEN)
       else:
         invalidated.add(enc)
         results.failed(full_typ)
-        errs().always(f"{id} decode FAILED [{k}]\n")
+        counter.add_failed()
+        outs().always(f"{id} decode FAILED [{k}]\n")
   
   # TODO: Actually do stuff
     
@@ -144,9 +141,9 @@ def run_individual_test(
   # an error I had already fixed in the first 30 minutes :(
   # FIXME: Make cache entries a "trie" to encode this directly?
   results.invalidate_all(invalidated)
-  pass
 
-def run_tests(name: str, data: MappingDataEntry, entry: ProcessCacheEntry, /):
+def run_tests(name: str, data: MappingDataEntry, 
+              entry: ProcessCacheEntry, counter: TestCounter, /):
   outpath = OUT_DIR / name
   if not outpath.exists():
     outpath.mkdir(parents=True)
@@ -165,8 +162,27 @@ def run_tests(name: str, data: MappingDataEntry, entry: ProcessCacheEntry, /):
   for mangled in data.tests:
     results = entry.get(mangled)
     # TODO: Actually do stuff
-    run_individual_test(mangled, name, input, outpath, results)
+    run_individual_test(
+      mangled, name, input, outpath,
+      results, counter)
   pass
+
+def handle_clear(cache: ProcessCache, clear: list[str]):
+  if len(clear) == 0:
+    cache.clear()
+  else:
+    for to_clear in clear:
+      cache.clear(to_clear)
+
+def print_results(results: TestCounter):
+  passed = results.total_passed
+  total = results.total
+  percent, color = results.percent_and_color()
+  outs().always(
+    '\nTEST RESULTS:',
+    f'{passed}/{total} tests passed',
+    f'{percent:.1f}% success',
+    sep='\n', color=color)
 
 # The default program entry point
 def runner_main(args: ArgNamespace, extra_args: dict, /):
@@ -176,8 +192,12 @@ def runner_main(args: ArgNamespace, extra_args: dict, /):
       handle_clear(cache, args.clear)
     set_exicpp_verbosity(args.x_diag_level)
     # Run the actual tests
+    counter = TestCounter()
     for name, data in file_map.items():
       entry = cache.get(name, data.file)
       #if entry.did_all_pass():
       #  continue
-      run_tests(name, data, entry)
+      run_tests(name, data, entry, counter)
+    # Print pass/fail info
+    if args.print_results:
+      print_results(counter)
