@@ -1,7 +1,7 @@
 import enum
 import os, sys
 from io import StringIO
-from exiconf.ansi import has_color as _has_color
+from exiconf.ansi import has_color
 from typing import Optional, TypeAlias, NewType
 
 __all__ = [
@@ -93,7 +93,7 @@ class Log:
     if file is None:
       self._has_color = False
     else:
-      self._has_color = _has_color(file)
+      self._has_color = has_color(file)
     self.color_enabled = self._has_color
   
   @property

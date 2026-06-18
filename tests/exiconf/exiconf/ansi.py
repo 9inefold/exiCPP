@@ -1,64 +1,76 @@
-import os, time, platform, ctypes
-from sys import stdout, stderr
+import os, sys, functools
+from typing import TextIO, Any
+
+if os.name == 'nt':
+  try:
+    import msvcrt, ctypes, ctypes.wintypes
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    _has_windows_imports = True
+  except (ModuleNotFoundError, ImportError):
+    _has_windows_imports = False
 
 __all__ = ['has_color']
-
-def _check_term_ansi() -> bool:
-  return 'TERM' in os.environ and os.environ['TERM'] == 'ANSI'
 
 def _check_isatty(handle) -> bool:
   return hasattr(handle, "isatty") and handle.isatty()
 
-_is_windows = (platform.system() == 'Windows')
-_is_ansi_term = _check_term_ansi()
+def _check_is_ansi_console(handle) -> bool:
+  if _check_isatty(handle):
+    return True
+  return os.environ.get('TERM') == 'ANSI'
 
-_kernel32 = None
-_msvcrt = None
-
-def _init_windows():
-  global _kernel32, _msvcrt
-  import msvcrt
-  _kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
-  _msvcrt = msvcrt
-
-def _check_when_windows(handle) -> bool:
-  global _kernel32, _msvcrt
-  if _kernel32 is None:
-    _init_windows()
-  from ctypes.wintypes import DWORD
-  h = _msvcrt.get_osfhandle(handle.fileno())
-  out = DWORD()
-  res = _kernel32.GetConsoleMode(h, ctypes.byref(out))
-  if not res:
-    return False
-  # Check ENABLE_VIRTUAL_TERMINAL_PROCESSING
-  return (out.value & 0x004) != 0
-
-def _check_handle(handle) -> bool:
-  try:
-    if _is_ansi_term or _check_isatty(handle):
-      if platform.system() == 'Windows' and not _is_ansi_term:
-        return _check_when_windows(handle)
-      else:
+if _has_windows_imports:
+  def _enable_console_color(file_out: TextIO | Any) -> bool:
+    handle = msvcrt.get_osfhandle(file_out.fileno())
+    curr_mode = ctypes.wintypes.DWORD()
+    if kernel32.GetConsoleMode(handle, ctypes.byref(curr_mode)):
+      # ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x004
+      if (curr_mode.value & 0x004) != 0:
         return True
-    else:
-      return False
-  except:
+      # Try enabling ANSI mode
+      mode = curr_mode.value | 0x004
+      if kernel32.SetConsoleMode(handle, mode):
+        return True
     return False
 
-_color_check = {
-  k: _check_handle(k) for k in [stdout, stderr]
-}
+# Things consistent across handles
+def _default_terminal_setup() -> bool:
+  # Windows handling
+  if os.name == 'nt':
+    if 'ANSICON' in os.environ:
+      return True
+    elif 'WT_SESSION' in os.environ:  # Windows Terminal
+      return True
+    elif os.environ.get('TERM_PROGRAM') == 'vscode':
+      return False
+  else: # Unix-like systems
+    term = os.environ.get('TERM', '')
+    if term in ['dumb', '']:
+      return False
+  return True
 
-def force_color(handle, state: bool):
-  global _color_check
-  assert isinstance(state, bool)
-  _color_check[handle] = state
+# Save this to avoid work
+DEFAULT_CHECKS = _default_terminal_setup()
 
+def handle_supports_color(handle: TextIO | Any) -> bool:
+  # Check this is actually a console
+  if not _check_is_ansi_console(handle):
+    return False
+  elif not DEFAULT_CHECKS:
+    return False
+
+  # Windows handling
+  if os.name == 'nt' and _has_windows_imports:
+    try:
+      return _enable_console_color(handle)
+    except Exception:
+      pass
+    # Not enabled
+    return False
+  else:
+    # Other systems should be ok
+    return True
+
+@functools.cache
 def has_color(handle) -> bool:
-  global _color_check
-  if handle not in _color_check:
-    res = _check_handle(handle)
-    _color_check[handle] = res
-    return res
-  return bool(_color_check[handle])
+  return handle_supports_color(handle)
