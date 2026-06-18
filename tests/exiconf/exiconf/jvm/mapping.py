@@ -4,12 +4,30 @@ from glob import glob
 from typing import Text
 from exiconf.constants import EXI_BASE_DIR
 from exiconf.logging import errs
-from exiconf.jvm.setup import get_jvm_path
+from .setup import get_jvm_path
+from typing import TYPE_CHECKING
 
 __all__ = [
   'lookup_line',
   'lookup_line_ext'
 ]
+
+JAVA_SEARCH_DIRS = [
+  EXI_BASE_DIR/'tests/jarvis'
+]
+
+if TYPE_CHECKING:
+  from typing import Optional, TypeAlias, TypeGuard, Union
+  NormalFileMapping: TypeAlias = Union[
+    'JavaRealFileMapping',
+    'JavaMultiFileMapping',
+  ]
+  AnyFileMapping: TypeAlias = Union[
+    'JavaRealFileMapping',
+    'JavaMultiFileMapping',
+    'JavaZipFileMapping'
+  ]
+  JavaFileLineDict: TypeAlias = dict[str, NormalFileMapping]
 
 class JavaFileMapping:
   __slots__ = ('is_multi',)
@@ -27,10 +45,10 @@ class JavaRealFileMapping(JavaFileMapping):
   __slots__ = ('_package', '_filename', '_filedata',)
   _package: str
   _filename: Path
-  _filedata: list[str] | None
+  _filedata: Optional[list[str]]
 
   def __init__(self, package: str, filename: Path):
-    super().__init__()
+    super().__init__(is_multi=False)
     self._package = str(package)
     self._filename = Path(filename)
     self._filedata = None
@@ -67,7 +85,7 @@ class JavaRealFileMapping(JavaFileMapping):
     cache = self.cache
     if lineno > 0:
       lineno -= 1
-    if cache is None or len(cache) <= lineno:
+    if len(cache) <= lineno:
       return ''
     line = cache[lineno].strip()
     return line
@@ -78,13 +96,10 @@ class JavaMultiFileMapping(JavaFileMapping):
   _mappings: list[JavaRealFileMapping]
   _mappingdict: dict[str, JavaRealFileMapping]
 
-  def __init__(self, mappings: list[JavaRealFileMapping] | None = None):
+  def __init__(self, mappings: list[JavaRealFileMapping] = []):
     super().__init__(is_multi=True)
-    if mappings is None:
-      self._mappings = []
-    else:
-      assert isinstance(mappings, list)
-      self._mappings = mappings[:]
+    assert isinstance(mappings, list)
+    self._mappings = mappings[:]
     # Set up dict
     md = {}
     for mapping in self._mappings:
@@ -122,13 +137,17 @@ class JavaMultiFileMapping(JavaFileMapping):
       return md[ppath].get_line(lineno)
     return ''
 
+# Checks if this is a multi-mapping
+def _is_multimapping(obj: NormalFileMapping) -> TypeGuard[JavaMultiFileMapping]:
+  return obj.is_multi
+
 # Wraps behaviour for lines in a zipped file.
 class JavaZipFileMapping(JavaFileMapping):
   __slots__ = ('_filedata',)
   _filedata: list[str]
   
   def __init__(self, filedata: list[str]):
-    super().__init__()
+    super().__init__(is_multi=False)
     assert filedata is not None
     self._filedata = filedata
   
@@ -154,7 +173,7 @@ class JavaSrcZip:
   __slots__ = ('_zip', '_names', '_cache',)
   #_zip: zipfile.ZipFile
   _names: list[Text]
-  _cache: dict[str, JavaZipFileMapping | None]
+  _cache: dict[str, Optional[JavaZipFileMapping]]
   
   def __init__(self, _zip):
     self._zip = _zip
@@ -164,7 +183,7 @@ class JavaSrcZip:
       self._names = []
     self._cache = {}
   
-  def __lookup(self, matches) -> bytes | None:
+  def _lookup(self, matches) -> Optional[bytes]:
     zf = self._zip
     for match in matches:
       try:
@@ -173,7 +192,7 @@ class JavaSrcZip:
         pass
     return None
 
-  def lookup(self, modulename: str, filename: str) -> JavaZipFileMapping | None:
+  def lookup(self, modulename: str, filename: str) -> Optional[JavaZipFileMapping]:
     if self._zip is None:
       return None
     if modulename in self._cache:
@@ -183,7 +202,7 @@ class JavaSrcZip:
     modulepath += f'/{filename}'
     matches = [x for x in self._names if x.endswith(modulepath)]
     # Read from the zip
-    data = self.__lookup(matches)
+    data = self._lookup(matches)
     if data is None:
       return None
     # Parse lines from the zip
@@ -199,15 +218,17 @@ class JavaSrcZip:
       self._cache[modulename] = None
     return None
 
-_java_file_line_dict: dict[str, JavaFileMapping]
-_java_file_line_dict = None # type: ignore
+try:
+  from zipfile import ZipFile # type: ignore
+  _java_src_zip_tried_load = False
+except (ModuleNotFoundError, ImportError):
+  _java_src_zip_tried_load = True
 
-_java_src_zip: JavaSrcZip
-_java_src_zip = None # type: ignore
-_java_src_zip_tried_load = False
+_java_src_zip: JavaSrcZip = None # type: ignore
+_java_file_line_dict: JavaFileLineDict = None # type: ignore
 
 # Finds the JDK 'src.zip' file containing the sources.
-def _find_java_src() -> Path | None:
+def _find_java_src() -> Optional[Path]:
   jvm_path = get_jvm_path()
   if jvm_path is None:
     errs().error('JVM was not started!')
@@ -229,24 +250,21 @@ def _find_java_src() -> Path | None:
   return None
 
 # Finds 'src.zip', if not already loaded.
-def _load_java_src() -> JavaSrcZip:
+def _load_java_src() -> Optional[JavaSrcZip]:
   global _java_src_zip
   global _java_src_zip_tried_load
   # See if the file is cached
-  if _java_src_zip is not None:
+  if _java_src_zip_tried_load:
     return _java_src_zip
-  elif _java_src_zip_tried_load:
-    return None
   # Try and load the file
   _java_src_zip_tried_load = True
   try:
-    import zipfile
     src_zip = _find_java_src()
     if src_zip is None:
       errs().info(f"unable to find 'src.zip'")
       _java_src_zip = JavaSrcZip(None)
       return None
-    zf = zipfile.ZipFile(str(src_zip), 'r')
+    zf = ZipFile(str(src_zip), 'r')
     _java_src_zip = JavaSrcZip(zf)
     #print(zf.namelist())
     return _java_src_zip
@@ -254,51 +272,56 @@ def _load_java_src() -> JavaSrcZip:
     errs().info(f"unable to load 'src.zip': {e}")
     return None
 
+def _search_dir_for_java(search_dir: Union[str, Path], out: JavaFileLineDict):
+  all_java_files = glob(
+    '**/*.java',
+    root_dir=str(search_dir),
+    recursive=True
+  )
+  for java_file in all_java_files:
+    # Path relative to tests/jarvis
+    rpath = str(java_file)
+    ppath = Path(rpath).parent.as_posix()
+    # Absolute path
+    abs_path = Path(search_dir)/rpath
+    jfile = abs_path.name
+    # Create a basic mapping
+    mapping = JavaRealFileMapping(ppath, abs_path)
+    # Check if this is a new file
+    if jfile not in out:
+      out[jfile] = mapping
+      continue
+    # Get the existing mapping
+    other_mapping = out[jfile]
+    if not _is_multimapping(other_mapping):
+      out[jfile] = JavaMultiFileMapping([
+        other_mapping, mapping # type: ignore
+      ])
+    else:
+      # JavaMultiFileMapping
+      other_mapping.add(mapping)
+
 # Loads the file dict
-def _load_file_dict() -> dict[str, JavaFileMapping]:
+def _load_file_dict() -> JavaFileLineDict:
   global _java_file_line_dict
   if _java_file_line_dict is not None:
     return _java_file_line_dict
 
-  SEARCH_DIR = EXI_BASE_DIR/'tests/jarvis'
-  all_java_files = glob(
-    '**/*.java',
-    root_dir=SEARCH_DIR,
-    recursive=True
-  )
-
-  file_line_dict: dict[str, JavaFileMapping]
-  file_line_dict = {}
-  for java_file in all_java_files:
-    rpath = str(java_file)
-    ppath = Path(rpath).parent.as_posix()
-    fpath = SEARCH_DIR/rpath
-    jfile = fpath.name
-    mapping = JavaRealFileMapping(ppath, fpath)
-    if jfile in file_line_dict:
-      other_mapping = file_line_dict[jfile]
-      if not other_mapping.is_multi:
-        file_line_dict[jfile] = JavaMultiFileMapping([
-          other_mapping, mapping
-        ])
-        continue
-      # JavaMultiFileMapping
-      other_mapping.add(mapping)
-    else:
-      file_line_dict[jfile] = mapping
+  file_line_dict: JavaFileLineDict = {}
+  for dir in JAVA_SEARCH_DIRS:
+    # Add all the files found in a given folder
+    _search_dir_for_java(dir, file_line_dict)
   
   _java_file_line_dict = file_line_dict
   return _java_file_line_dict
 
 # Checks if class is any of the core java modules
-def is_class_in_std_java_module(clazzname) -> bool:
-  if clazzname is None:
-    return False
+def is_class_in_std_java_module(clazzname: str) -> bool:
   return clazzname.startswith((
     "java.", "javax.", "jdk.", "sun.", "com.sun."))
 
 # Finds a `.java` file with class and filename, or `None` when not found
-def lookup_ext(clazzname, filename: str) -> JavaFileMapping | None:
+def lookup_ext(clazzname, filename: str) -> Optional[AnyFileMapping]:
   if filename is None or len(filename) == 0:
     return None
   d = _load_file_dict()
@@ -308,7 +331,7 @@ def lookup_ext(clazzname, filename: str) -> JavaFileMapping | None:
     return None
   
   clazzname = str(clazzname)
-  modulename, _clazzname = clazzname.rsplit('.', 1)
+  modulename = clazzname.rsplit('.', 1)[0]
   # Check if this is a standard module
   if is_class_in_std_java_module(clazzname):
     src_zip = _load_java_src()
@@ -320,7 +343,7 @@ def lookup_ext(clazzname, filename: str) -> JavaFileMapping | None:
   return None
 
 # Finds a `.java` file with `filename`, or `None` when not found
-def lookup(filename: str) -> JavaFileMapping | None:
+def lookup(filename: str) -> Optional[AnyFileMapping]:
   return lookup_ext(None, filename)
 
 # Looks up text at `lineno` from filename

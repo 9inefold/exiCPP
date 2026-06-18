@@ -1,8 +1,8 @@
 import re, traceback
 from jpype.types import JException
 from exiconf.logging import Log
-from exiconf.jvm.check import jvm_check
-from exiconf.jvm.mapping import lookup_line_ext
+from .check import jvm_check
+from .mapping import lookup_line_ext
 
 __all__ = [
   'format_jexception',
@@ -11,6 +11,7 @@ __all__ = [
 ]
 
 _jvm_check = jvm_check(__file__)
+XERCES_ERROR = re.compile('report([A-Z][a-z]+)?Error')
 
 # Handles formatting jexceptions on the java side. Formatted like normal python exceptions
 def _format_jexception_like_py(ex: JException) -> list[str]:
@@ -23,7 +24,7 @@ def _format_jexception_like_py(ex: JException) -> list[str]:
     # Skip reportError and friends
     if not found_nonerr:
       if _clazz.startswith('org.apache.xerces.'):
-        if re.fullmatch("report([A-Z][a-z]+)?Error", _method):
+        if XERCES_ERROR.fullmatch(_method):
           continue
       found_nonerr = True
 
