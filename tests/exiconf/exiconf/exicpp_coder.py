@@ -15,36 +15,6 @@ def set_exicpp_verbosity(val: str):
 ENVIRON = { k: v for k, v in os.environ.items() }
 ENVIRON['EXICPP_NO_ANSI'] = '1'
 
-class TempFile:
-  __slots__ = ('_path', '_tmp',)
-  _path: Path
-  _tmp: bool
-
-  def __init__(self, filename, outpath):
-    self._tmp = False
-    if outpath is not None:
-      self._path = Path(outpath).absolute()
-    else:
-      #if filename is not None:
-      #  filename = str(Path(filename))
-      #fd, name = tempfile.mkstemp(suffix=filename, text=False)
-      fd, name = tempfile.mkstemp(text=False)
-      os.close(fd)
-      self._path = Path(name).absolute()
-      self._tmp = True
-
-  @property
-  def path(self) -> Path:
-    return self._path
-  
-  def is_temporary(self) -> bool:
-    return self._tmp
-
-  def close(self):
-    f = self._path
-    if self._tmp and f.exists():
-      os.unlink(str(f))
-
 FAIL_KIND = [
   'Success',
   'Early exit',
@@ -102,7 +72,7 @@ def _strip_ansi(output: str, logger: Log, keep_back: bool = False) -> str:
 
 def _run_process(args: list[str], logger: Log):
   env = None if logger.color_enabled else ENVIRON
-  return subprocess.run(args,
+  return subprocess.run(args, timeout=5,
                         cwd=EXI_BIN_DIR, env=env,
                         capture_output=True, text=True)
 
@@ -131,7 +101,37 @@ def _run_coder(args: list[str], logger: Log) -> bool:
     pass
   return False
 
-# TODO: Implement encode/decode
+class TempFile:
+  __slots__ = ('_path', '_tmp',)
+  _path: Path
+  _tmp: bool
+
+  def __init__(self, filename, outpath):
+    self._tmp = False
+    if outpath is not None:
+      self._path = Path(outpath).absolute()
+    else:
+      #if filename is not None:
+      #  filename = str(Path(filename))
+      #fd, name = tempfile.mkstemp(suffix=filename, text=False)
+      fd, name = tempfile.mkstemp(text=False)
+      os.close(fd)
+      self._path = Path(name).absolute()
+      self._tmp = True
+
+  @property
+  def path(self) -> Path:
+    return self._path
+  
+  def is_temporary(self) -> bool:
+    return self._tmp
+
+  def close(self):
+    f = self._path
+    if self._tmp and f.exists():
+      os.unlink(str(f))
+
+# TODO: Implement encode/decode?
 class ExicppCoder(BaseCoder):
   def __init__(self, mangled=None, logger=None):
     super().__init__(mangled, logger)

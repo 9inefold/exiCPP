@@ -3,6 +3,7 @@ from pathlib import Path
 from exiconf.constants import EXI_VERSION, TEST_OUT_DIR2
 from exiconf.logging import errs, outs
 from exiconf.version_tuple import version_tuple, VersionTuple
+from typing import Iterable
 
 __all__ = ['ProcessCache', 'ProcessCacheEntry', 'ProcessCacheResults']
 
@@ -98,6 +99,10 @@ class ProcessCacheResults:
       self._passed.remove(name)
     if name in self._matched:
       self._matched.remove(name)
+  
+  def invalidate_all(self, invalids: Iterable[str]):
+    for invalid in invalids:
+      self.invalidate(invalid)
   
   # Clears everything
   def clear(self):
@@ -271,6 +276,7 @@ class ProcessCache:
         # Check this is the correct version
         cache_out_of_date = (exi_version != EXI_VERSION)
         if cache_version >= CACHE_MIN_VERSION and not cache_out_of_date:
+          # TODO: Add a hash of the mapped files/values
           self._cache = _process_cache_data(cache_data['data'])
           #if cache_data['files']:
           #  self._files.update(cache_data['files'])

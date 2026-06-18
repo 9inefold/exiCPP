@@ -1,13 +1,14 @@
 import os, sys, shutil
-import json, subprocess, traceback, functools
+import traceback, functools
 #from glob import glob
 from pathlib import Path
 #from subprocess import run as run_proc
 from exiconf.constants import *
 from exiconf.cl_args import ArgNamespace
 from exiconf.logging import errs, outs, Color
-from exiconf.test.cache import *
-from exiconf.test.mapfile import map_files, MappingDataEntry
+from exiconf.jvm.running import is_fatal_exception
+from .cache import *
+from .mapfile import map_files, MappingDataEntry
 
 from exiconf.exicpp_coder import ExicppCoder, set_exicpp_verbosity
 from exiconf.openexi_coder import OpenEXICoder
@@ -27,6 +28,13 @@ CODER_NAMES_KIND = {
   'o': 'openexi',
   'x': 'exificient',
 }
+
+class FatalException(RuntimeError):
+  def __init__(self, id=None):
+    if id is not None:
+      super().__init__(f"Encountered fatal error while processing '{id}'")
+    else:
+      super().__init__(f"Encountered fatal error")
 
 def handle_clear(cache: ProcessCache, clear: list[str]):
   if len(clear) == 0:
@@ -58,10 +66,11 @@ def run_individual_test(
   encoded = []
   for typ in CODER_NAMES:
     k = CODER_NAMES_KIND[typ]
+    id = f'{name}/{mangled}/{typ}'
+    # Check file cache
     outfile = outpath / f'{mangled}.{typ}.exi'
     if results.did_pass(typ) and outfile.exists():
-      errs().info(f"{k}: {name}/{mangled}/{typ} skipped",
-                  color=Color.BRIGHT_GREEN)
+      errs().info(f"{id} skipped [{k}]", color=Color.BRIGHT_GREEN)
       # Skip work if we can
       encoded.append(typ)
       continue
@@ -72,28 +81,33 @@ def run_individual_test(
     coder = get_coder(typ, mangled)
     try:
       passed = coder.encode_file(input, outfile)
-    except Exception:
+    except Exception as ex:
+      if is_fatal_exception(ex):
+        results.failed(typ)
+        results.invalidate_all(invalidated)
+        raise FatalException(id)
       passed = False
       errs().error(traceback.format_exc())
     
     if passed:
       results.passed(typ)
       encoded.append(typ)
-      #errs().extra(f"{k}: {name}.{mangled} encode PASSED")
+      errs().info(f"{id} encode PASSED [{k}]", color=Color.BRIGHT_GREEN)
     else:
       results.failed(typ)
-      errs().error(f"{k}: {name}/{mangled}/{typ} encode FAILED\n")
+      errs().always(f"{id} encode FAILED [{k}]\n")
 
   decoded = []
   for enc in encoded:
     infile = outpath / f'{mangled}.{enc}.exi'
     for typ in CODER_NAMES:
-      full_typ = enc + typ
       k = CODER_NAMES_KIND[typ]
+      full_typ = enc + typ
+      id = f'{name}/{mangled}/{full_typ}'
+      # Check file cache
       outfile = outpath / f'{mangled}.{full_typ}.xml'
       if results.did_pass(full_typ) and outfile.exists():
-        errs().info(f"{k}: {name}/{mangled}/{full_typ} skipped",
-                    color=Color.BRIGHT_GREEN)
+        errs().info(f"{id} skipped [{k}]", color=Color.BRIGHT_GREEN)
         # Skip work if we can
         decoded.append(full_typ)
         continue
@@ -104,18 +118,23 @@ def run_individual_test(
       coder = get_coder(typ, mangled)
       try:
         passed = coder.decode_file(infile, outfile)
-      except Exception:
+      except Exception as ex:
+        if is_fatal_exception(ex):
+          results.failed(typ)
+          results.invalidate(enc)
+          results.invalidate_all(invalidated)
+          raise FatalException(id)
         passed = False
         errs().error(traceback.format_exc())
     
       if passed:
         results.passed(full_typ)
         decoded.append(full_typ)
-        #errs().extra(f"{k}: {name}.{mangled} decode PASSED")
+        errs().info(f"{id} decode PASSED [{k}]", color=Color.BRIGHT_GREEN)
       else:
         invalidated.add(enc)
         results.failed(full_typ)
-        errs().error(f"{k}: {name}/{mangled}/{full_typ} decode FAILED\n")
+        errs().always(f"{id} decode FAILED [{k}]\n")
   
   # TODO: Actually do stuff
     
@@ -124,8 +143,7 @@ def run_individual_test(
   # Accidentally didn't do this originally, and spent 2 days trying to debug
   # an error I had already fixed in the first 30 minutes :(
   # FIXME: Make cache entries a "trie" to encode this directly?
-  for invalid in invalidated:
-    results.invalidate(invalid)
+  results.invalidate_all(invalidated)
   pass
 
 def run_tests(name: str, data: MappingDataEntry, entry: ProcessCacheEntry, /):
