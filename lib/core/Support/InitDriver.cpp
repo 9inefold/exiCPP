@@ -81,11 +81,9 @@ static bool CheckEnv(StrRef EnvName, bool EmptyResult = false) {
 }
 
 static bool HandleEscapeCodeSetup() {
-  if (Process::IsReallyDebugging()) {
-    if (CheckEnv("EXICPP_NO_ANSI", /*EmptyResult=*/false)) {
-      Process::UseANSIEscapeCodes(false);
-      return false;
-    }
+  if (CheckEnv("EXICPP_NO_ANSI", /*EmptyResult=*/false)) {
+    Process::UseANSIEscapeCodes(false);
+    return false;
   }
 
   Process::UseANSIEscapeCodes(true);

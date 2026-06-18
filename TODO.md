@@ -29,6 +29,7 @@ This is a TODO list for the C++ version of exiCPP.
   - Preserve `&#nnn;`/`CDATA` for xerces encoding (openexi)
   - Preserve `&#nnn;`/`CDATA` for xml decoding (openexi)
 - Remove tabs added with broken vscode?
+- Fixed test cache retaining potentially invalid entries
 
 ## In Progress
 
@@ -59,6 +60,7 @@ This is a TODO list for the C++ version of exiCPP.
 ## Not Started
 
 - Add `wrapped_raw_ostream`
+- Add logger channels, will make testing much easier
 - **Split out implementation of `ExiDecoder` like with `ExiEncoder`**
 - Update `ExiOptions.SchemaID` to not use `Box<String>`?
   - Use `RefCntPtr<String>` for easier management?

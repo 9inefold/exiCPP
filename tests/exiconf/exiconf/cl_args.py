@@ -2,12 +2,13 @@ import argparse, shlex
 import os, sys
 from pathlib import Path
 from exiconf.constants import __version__
-from exiconf.logging import LogLevelArgs
+from exiconf.logging import LogLevel, LogLevelArgs
 from exiconf.version_tuple import version_tuple
 from typing import Optional
 
 __all__ = ['parse_args', 'ArgNamespace']
 LOG_LEVELS = '{' + ', '.join(LogLevelArgs.MAP_LEVELS) + '}'
+EXICPP_LOG_LEVELS = ['q','0','1','2','3','']
 
 # From argparse
 def _copy_items(items):
@@ -39,6 +40,7 @@ class ArgNamespace(argparse.Namespace):
   root: Optional[Path]
   # Printing options
   diag_level: str
+  x_diag_level: str
   color: bool
   # JVM options
   jvm_path: Optional[Path]
@@ -109,16 +111,18 @@ def get_arg_parser() -> argparse.ArgumentParser:
     '--diagnostic-level',
     dest='diag_level',
     help="control how verbose exiconf should be (default: info)",
-    choices=LogLevelArgs.ALL_LEVELS,
+    #choices=LogLevelArgs.ALL_LEVELS,
     metavar=LOG_LEVELS,
+    type=_diag_level,
     default='info'
   )
   parser.add_argument(
     '-d', '--diag', '--diag-level',
     dest='diag_level',
     help="alias for '--diagnostic-level=LEVEL'",
-    choices=LogLevelArgs.ALL_LEVELS,
+    #choices=LogLevelArgs.ALL_LEVELS,
     metavar='LEVEL',
+    type=_diag_level,
     default='info'
   )
   parser.add_argument(
@@ -141,6 +145,16 @@ def get_arg_parser() -> argparse.ArgumentParser:
     action='store_true',
     help='print with color',
     default=False
+  )
+
+  parser.add_argument(
+    '--x-diag', '--x-diag-level', '--x-diagnostic-level',
+    dest='x_diag_level',
+    action='store',
+    help="control how verbose exicpp should be",
+    metavar='LEVEL',
+    type=_x_diag_level,
+    default=''
   )
 
   parser.add_argument(
@@ -170,12 +184,39 @@ def get_arg_parser() -> argparse.ArgumentParser:
     dest='jvm_args',
     action=JVMLogLevelAction,
     help="control how verbose java should be (default: error)",
-    choices=LogLevelArgs.ALL_LEVELS,
+    #choices=LogLevelArgs.ALL_LEVELS,
     metavar='LEVEL',
+    type=_diag_level,
     default='error'
   )
 
   return parser
+
+def _x_diag_level(arg) -> str:
+  if arg is None:
+    raise _error(f"expected str but got None")
+  try:
+    arg = str(arg).lower()
+    if arg in EXICPP_LOG_LEVELS:
+      return arg
+    val = LogLevel.create(arg)
+    return EXICPP_LOG_LEVELS[int(val.value)]
+  except ValueError:
+    raise _error(f"expected log level but got '{arg}'")
+
+def _diag_level(arg) -> str:
+  if arg is None:
+    raise _error(f"expected str but got None")
+  arg = str(arg).lower()
+  if arg not in LogLevelArgs.ALL_LEVELS:
+    raise _error(f"expected log level but got '{arg}'")
+  if arg in LogLevelArgs.MAP_LEVELS:
+    return arg
+  try:
+    val = LogLevel.create(arg)
+    return LogLevelArgs.MAP_LEVELS[int(val.value)]
+  except ValueError:
+    raise _error(f"expected log level but got '{arg}'")
 
 def _realpath(arg) -> Path:
   out = _path(arg)

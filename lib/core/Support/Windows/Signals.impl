@@ -505,11 +505,11 @@ static void PrintStackTraceForThread(exi::raw_ostream &OS,
   fSymInitialize(hProcess, NULL, TRUE);
 
   auto Opts = exi::sys::GetGlobalStackTraceOptions();
-  WithColor Save(OS);
   exi::buffer_ostream BufOS(OS);
-  if (OS.colors_enabled())
-    BufOS.enable_colors(Opts.ColoredOutput);
+  if (Opts.ColoredOutput)
+    BufOS.enable_colors(OS.colors_enabled());
   
+  WithColor Save(OS);
   for (DWORD64 PC : Frames)
     PrintStackTraceAtPC(BufOS, Opts, PC, hProcess);
 }
@@ -528,11 +528,11 @@ static void PrintStackTraceForThread(exi::raw_ostream &OS, HANDLE hProcess,
   fSymInitialize(hProcess, NULL, TRUE);
 
   auto Opts = exi::sys::GetGlobalStackTraceOptions();
-  WithColor Save(OS);
   exi::buffer_ostream BufOS(OS);
-  if (OS.colors_enabled())
-    BufOS.enable_colors(Opts.ColoredOutput);
+  if (Opts.ColoredOutput)
+    BufOS.enable_colors(OS.colors_enabled());
   
+  WithColor Save(OS);
   while (true) {
     if (!fStackWalk64(NativeMachineType, hProcess, hThread, &StackFrame,
                       Context, 0, fSymFunctionTableAccess64,

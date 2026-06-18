@@ -1,4 +1,4 @@
-import os, tempfile, traceback, subprocess
+import os, re, tempfile, traceback, subprocess
 from pathlib import Path
 from exiconf.constants import EXICPP_EXECUTABLE, EXI_BIN_DIR
 #from exiconf.coder import ExiOptions, PreserveType, AlignmentType as PyAlignmentType
@@ -7,13 +7,13 @@ from exiconf.logging import Log, LogLevel
 
 __all__ = ['ExicppCoder']
 
-FAIL_KIND = [
-  'Success',
-  'Failed during cl parsing, file not found, etc.',
-  'Failed while parsing input xml/exi',
-  'Failed during conversion',
-  'Failed after everything else',
-]
+EXICPP_VERBOSITY = ''
+def set_exicpp_verbosity(val: str):
+  global EXICPP_VERBOSITY
+  EXICPP_VERBOSITY = val
+
+ENVIRON = { k: v for k, v in os.environ.items() }
+ENVIRON['EXICPP_NO_ANSI'] = '1'
 
 class TempFile:
   __slots__ = ('_path', '_tmp',)
@@ -45,18 +45,70 @@ class TempFile:
     if self._tmp and f.exists():
       os.unlink(str(f))
 
+FAIL_KIND = [
+  'Success',
+  'Early exit',
+  'Failed during cl parsing, file not found, etc.',
+  'Failed while parsing input xml/exi',
+  'Failed during conversion',
+  'Failed after everything else',
+]
+
 def _get_fail_kind(val: int) -> str:
   if val < len(FAIL_KIND):
-    return FAIL_KIND[val]
-  # TODO: Check for windows error?
-  return 'Unknown'
+    return f'{val}: {FAIL_KIND[val]}'
+  # Check os specific codes
+  if os.name == 'nt':
+    return f'0x{val:08X}: Unknown' 
+  return f'{val}: Unknown'
 
-def _run_process(args: list[str]):
+# There are more end sequences, but I won't be including them.
+ANSI_PATTERN = r'(\x1B\[\d{1,3}(?:;\d{1,3}){,4}m)'
+ANSI_FRONT = re.compile(ANSI_PATTERN + r'\s*') # Front
+ANSI_BACK = re.compile(r'\s*' + ANSI_PATTERN + '$') # Back
+
+# Try ' \x1B[0m  \n\x1B[1;31m  abc \x1B[0m xyz \x1B[33m \x1B[1;31m\n '
+def _strip_ansi(output: str, logger: Log, keep_back: bool = False) -> str:
+  stripped = output.strip()
+  if not logger.color_enabled:
+    return stripped
+
+  # Strip ANSI codes on the front
+  front = []
+  while stripped.startswith('\x1B['):
+    m = ANSI_FRONT.match(stripped)
+    if m is None:
+      raise ValueError('unterminated escape sequence')
+    front.append(m.group(1))
+    stripped = stripped[m.end():]
+  
+  # Strip ANSI codes from the back
+  back = []
+  while stripped.endswith('m'):
+    m = ANSI_BACK.search(stripped)
+    if m is None:
+      break
+    elif m.start() == 0:
+      raise ValueError('uncleared starting ansi sequence?')
+    elif keep_back:
+      back.insert(0, m.group(1))
+    stripped = stripped[:m.start()]
+  
+  # Recombine
+  if keep_back:
+    return ''.join(front) + stripped + ''.join(back)
+  else:
+    return ''.join(front) + stripped
+
+def _run_process(args: list[str], logger: Log):
+  env = None if logger.color_enabled else ENVIRON
   return subprocess.run(args,
-                        cwd=EXI_BIN_DIR, capture_output=True, text=True)
+                        cwd=EXI_BIN_DIR, env=env,
+                        capture_output=True, text=True)
 
 def _run_coder(args: list[str], logger: Log) -> bool:
-  result = _run_process([EXICPP_EXECUTABLE.as_posix(), *args])
+  args = [EXICPP_EXECUTABLE.as_posix(), *args]
+  result = _run_process(args, logger)
   if result.returncode == 0:
     return True
   # Log stuff
@@ -64,15 +116,17 @@ def _run_coder(args: list[str], logger: Log) -> bool:
   name = Path(args[2]).stem
   kind = _get_fail_kind(result.returncode)
   try:
-    logger.error(f'{name}/{mangled} ({result.returncode}: {kind}):')
-    #logger.extra(f"{args}:")
-    stdout = result.stdout.strip(' \t\r\n')
-    stderr = result.stderr.strip(' \t\r\n')
-    # TODO: Strip escape sequences
-    if len(stdout) != 0:
-      logger.extra(stdout, flush=True)
-    if len(stderr) != 0:
-      logger.extra(stderr, flush=True)
+    logger.error(f'{name}/{mangled} ({kind}):')
+    logger.extra(f"{' '.join(args)}:")
+    if logger.level >= LogLevel.EXTRA:
+      stdout = _strip_ansi(result.stdout, logger)
+      stderr = _strip_ansi(result.stderr, logger)
+      if len(stdout) != 0:
+        logger.warn()
+        logger.warn(stdout, flush=True)
+      if len(stderr) != 0:
+        logger.error()
+        logger.error(stderr, flush=True)
   except:
     pass
   return False
@@ -115,9 +169,9 @@ class ExicppCoder(BaseCoder):
   def _code_file_common(self, mode: str, fin: str, fout: str) -> bool:
     args = [mode, self.mangled, fin, fout]
     if self.logger.level == LogLevel.EXTRA:
-      args.append('-V')
-    #if self.logger.color_enabled:
-    args.append('-T')
+      args.append('-V' + EXICPP_VERBOSITY)
+    if not self.logger.color_enabled:
+      args.append('-T')
     # Run the command
     return _run_coder(args, self.logger)
   

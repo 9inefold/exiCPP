@@ -248,7 +248,7 @@ static void AssertWithDetails(H::AssertionKind Kind, const char* Msg) {
 #if EXI_ENABLE_STACKTRACES
   errs() << trace::GetTrace() << '\n';
 #else
-  sys::PrintStackTrace(errs(), 1);
+  sys::PrintStackTrace(errs(), 0);
 #endif
 #if EXI_DEBUG
   if (!sys::Process::IsDebugging())

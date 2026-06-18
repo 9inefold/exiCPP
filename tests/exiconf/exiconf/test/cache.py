@@ -92,6 +92,13 @@ class ProcessCacheResults:
       if name in self._passed:
         self._passed.remove(name)
   
+  # Removes an entry from passed/matched
+  def invalidate(self, name: str):
+    if name in self._passed:
+      self._passed.remove(name)
+    if name in self._matched:
+      self._matched.remove(name)
+  
   # Clears everything
   def clear(self):
     self._passed.clear()

@@ -2,6 +2,7 @@ import enum
 import os, sys
 from io import StringIO
 from exiconf.ansi import has_color as _has_color
+from typing import Optional, TypeAlias, NewType
 
 __all__ = [
   'Color', 'Log', 'LogLevel',
@@ -43,25 +44,28 @@ class LogLevel(enum.IntEnum):
         return cls.INFO
     raise ValueError(f'invalid log level {repr(value)} of type {type(value)}')
 
+ColorType = NewType('ColorType', str)
+ColorPType: TypeAlias = Optional[ColorType]
+
 # Represents all ansi color codes
 class Color:
-  BLACK           = '\x1b[30m'
-  RED             = '\x1b[31m'
-  GREEN           = '\x1b[32m'
-  YELLOW          = '\x1b[33m'
-  BLUE            = '\x1b[34m'
-  MAGENTA         = '\x1b[35m'
-  CYAN            = '\x1b[36m'
-  WHITE           = '\x1b[37m'
-  BRIGHT_BLACK    = '\x1b[90m'
-  BRIGHT_RED      = '\x1b[91m'
-  BRIGHT_GREEN    = '\x1b[92m'
-  BRIGHT_YELLOW   = '\x1b[93m'
-  BRIGHT_BLUE     = '\x1b[94m'
-  BRIGHT_MAGENTA  = '\x1b[95m'
-  BRIGHT_CYAN     = '\x1b[96m'
-  BRIGHT_WHITE    = '\x1b[97m'
-  RESET           = '\x1b[0m'
+  BLACK           = ColorType('\x1b[30m')
+  RED             = ColorType('\x1b[31m')
+  GREEN           = ColorType('\x1b[32m')
+  YELLOW          = ColorType('\x1b[33m')
+  BLUE            = ColorType('\x1b[34m')
+  MAGENTA         = ColorType('\x1b[35m')
+  CYAN            = ColorType('\x1b[36m')
+  WHITE           = ColorType('\x1b[37m')
+  BRIGHT_BLACK    = ColorType('\x1b[90m')
+  BRIGHT_RED      = ColorType('\x1b[91m')
+  BRIGHT_GREEN    = ColorType('\x1b[92m')
+  BRIGHT_YELLOW   = ColorType('\x1b[93m')
+  BRIGHT_BLUE     = ColorType('\x1b[94m')
+  BRIGHT_MAGENTA  = ColorType('\x1b[95m')
+  BRIGHT_CYAN     = ColorType('\x1b[96m')
+  BRIGHT_WHITE    = ColorType('\x1b[97m')
+  RESET           = ColorType('\x1b[0m')
 
 # A class used for logging
 class Log:
@@ -121,32 +125,33 @@ class Log:
       print(*args, file=output, end='', **kwargs)
       return output.getvalue()
 
-  def _color_print(self, color, *args, end=None, flush=False, **kwargs):
-    if self._has_color:
+  def _color_print(self, color: ColorPType, *args, end=None, flush=False, **kwargs):
+    if self._has_color and color is not None:
       out = self._print_str(*args, **kwargs)
       out = color + out + Color.RESET
       print(out, file=self.file, end=end, flush=flush, **kwargs)
     else:
       print(*args, file=self.file, end=end, flush=flush, **kwargs)
 
-  def always(self, *args, file=None, **kwargs):
-    print(*args, file=self.file, **kwargs)
+  def always(self, *args, color: ColorPType = None, file=None, **kwargs):
+    #print(*args, file=self.file, **kwargs)
+    self._color_print(color, *args, **kwargs)
 
-  def error(self, *args, file=None, **kwargs):
+  def error(self, *args, color: ColorPType = Color.BRIGHT_RED, file=None, **kwargs):
     if self.level >= LogLevel.ERROR:
-      self._color_print(Color.BRIGHT_RED, *args, **kwargs)
+      self._color_print(color, *args, **kwargs)
   
-  def warn(self, *args, file=None, **kwargs):
+  def warn(self, *args, color: ColorPType = Color.BRIGHT_YELLOW, file=None, **kwargs):
     if self.level >= LogLevel.WARN:
-      self._color_print(Color.BRIGHT_YELLOW, *args, **kwargs)
+      self._color_print(color, *args, **kwargs)
 
-  def info(self, *args, file=None, **kwargs):
+  def info(self, *args, color: ColorPType = None, file=None, **kwargs):
     if self.level >= LogLevel.INFO:
-      print(*args, file=self.file, **kwargs)
+      self._color_print(color, *args, **kwargs)
   
-  def extra(self, *args, file=None, **kwargs):
+  def extra(self, *args, color: ColorPType = Color.BRIGHT_CYAN, file=None, **kwargs):
     if self.level >= LogLevel.EXTRA:
-      self._color_print(Color.BRIGHT_CYAN, *args, **kwargs)
+      self._color_print(color, *args, **kwargs)
 
 _log_loglevel = LogLevel(LogLevel.INFO)
 

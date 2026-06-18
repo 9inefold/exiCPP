@@ -85,21 +85,21 @@ inline void DisableColors() {
 inline Result<bool, StrRef> ParseCommonArgs(StrRef Arg, ExtraOptions& Out) {
   if (Arg.consume_front("-C")) {
     auto CDATA = ParseCDATAOpt(Arg);
-    if (CDATA.has_value())
-      Out.PreserveCDATA = *CDATA;
-    else
+    if (!CDATA.has_value())
       return Err("-C");
-  } else if (Arg.consume_front("-T"))
-    DisableColors();
-  else
-    return false;
-  // Found command.
-  return true;
+    Out.PreserveCDATA = *CDATA;
+    return true;
+  } else if (Arg.consume_front("-T")) {
+    driver::DisableColors();
+    return true;
+  }
+  // Did not find command.
+  return false;
 }
 
 //////////////////////////////////////////////////////////////
 
-static Expected<std::string> GetAbsoluteFilename(StrRef File) {
+inline Expected<std::string> GetAbsoluteFilename(StrRef File) {
   std::string FileName = File.str();
   if (!sys::path::is_absolute(File)) {
     SmallStr<256> Path(File);
@@ -129,9 +129,9 @@ inline auto LoadFile(const Twine& Path) {
 
   auto ErrOrBuf = LoadFileImpl<IsWritable>(Storage.str());
   if (!ErrOrBuf) {
-    WithColor(errs(), raw_ostream::BRIGHT_RED)
+    WithColor(outs(), raw_ostream::BRIGHT_RED)
       << "Error opening file: " << ErrOrBuf.getError().message() << "\n\n";
-    exit(1);
+    exit(2);
   }
 
   return std::move(*ErrOrBuf);
@@ -157,7 +157,7 @@ inline Error WriteFile(StrRef File, StrRef Contents) {
 inline bool ParseXMLFromBuf(XMLDocument& Doc, MemoryBuffer& MB) {
   static constexpr XMLParseOptions Default = {};
   if (Error E = exi::parseXMLFromBuffer(Doc, MB)) {
-    logAllUnhandledErrors(std::move(E), errs());
+    logAllUnhandledErrors(std::move(E), outs());
     return true;
   }
   return false;
@@ -167,7 +167,7 @@ inline bool ParseXMLFromBuf(XMLDocument& Doc, WritableMemoryBuffer& MB,
                             Option<XMLParseOptions> Opts = std::nullopt) {
   static constexpr XMLParseOptions Default = {};
   if (Error E = exi::parseXMLFromBuffer(Doc, MB, Opts.value_or(Default))) {
-    logAllUnhandledErrors(std::move(E), errs());
+    logAllUnhandledErrors(std::move(E), outs());
     return true;
   }
   return false;

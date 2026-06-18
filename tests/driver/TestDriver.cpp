@@ -35,21 +35,22 @@ using namespace driver;
 
 // TODO: Use VerboseFail?
 static bool VerboseFail = false;
+static Option<LogLevelType> InputLogLevel;
 //static Option<String> OriginalXML = std::nullopt;
 
 namespace {
 enum FailKind : int {
   FKSuccess     = 0, // All good!
-  FKEarly       = 1, // Failed during cl parsing, file not found, etc.
-  FKInput       = 2, // Failed while parsing input xml/exi
-  FKProcessing  = 3, // Failed during conversion
-  FKLate        = 4, // Failed after everything else
+  FKEarly       = 2, // Failed during cl parsing, file not found, etc.
+  FKInput       = 3, // Failed while parsing input xml/exi
+  FKProcessing  = 4, // Failed during conversion
+  FKLate        = 5, // Failed after everything else
 };
 } // namespace `anonymous`
 
 static void PrintHelp() {
   outs() << "USAGE: [e|d] <mangling>[%<extra>] <file-in> <file-out> "
-                   "[-C<cdata-mode>] [-E] [-V] [-T]\n";
+                   "[-C<cdata-mode>] [-E] [-V[q|0|1|2|3]] [-T]\n";
                    //"[-C<cdata-mode>] [-X<original>] [-E] [-V] [-T]\n";
   outs().flush();
   exit(1);
@@ -64,14 +65,14 @@ static bool CheckFileTypes(StrRef InFile, StrRef OutFile, const XMLKind InKind) 
 
   if (classifyXMLKind(InFile) != InKind) {
     StrRef Ex = IsInXml ? ".xml" : ".exi";
-    WithColor(errs(), raw_ostream::BRIGHT_RED)
+    WithColor(outs(), raw_ostream::BRIGHT_RED)
       << "Invalid in-file '" << InFile << "', expected " << Ex << "\n\n";
     return false;
   }
 
   if (classifyXMLKind(OutFile) != OutKind) {
     StrRef Ex = IsInXml ? ".exi" : ".xml";
-    WithColor(errs(), raw_ostream::BRIGHT_RED)
+    WithColor(outs(), raw_ostream::BRIGHT_RED)
       << "Invalid out-file '" << OutFile << "', expected " << Ex << "\n\n";
     return false;
   }
@@ -79,18 +80,51 @@ static bool CheckFileTypes(StrRef InFile, StrRef OutFile, const XMLKind InKind) 
   return true;
 }
 
+static bool ParseVArg(StrRef Arg) {
+  VerboseFail = true;
+  if (Arg.empty())
+    return true;
+  // Check if -Vq
+  if (Arg[0] == 'q') {
+    InputLogLevel = LogLevel::QUIET;
+    return true;
+  }
+  // Check if -V[0|1|2|3]
+  unsigned V = 0;
+  if (Arg.consumeInteger(10, V)) {
+    // Not an integer value?
+    return false;
+  }
+  // Got something!
+  if (V <= 3)
+    InputLogLevel = IntCast<LogLevelType>(V + 1u);
+  else
+    InputLogLevel = LogLevel::VERBOSE;
+
+  return true;
+}
+
 static void ParseRemainingArgs(ArrayRef<StrRef> Args, ExtraOptions& Out) {
   for (StrRef Arg : Args) {
     auto CodeOrErr = ParseCommonArgs(Arg, Out);
+    if (CodeOrErr.is_ok() && *CodeOrErr) {
+      // Success!
+      continue;
+    }
+    // Check if there is a direct error.
     if (CodeOrErr.is_err()) {
       StrRef ErrCmd = CodeOrErr.error();
       Arg.consume_front(ErrCmd);
       LOG_WARN("Invalid input for '{}': {}", ErrCmd, Arg);
-    } else if (Arg.consume_front("-V"))
-      VerboseFail = true;
-    //else if (Arg.consume_front("-X"))
-    //  OriginalXML.emplace(Arg.str());
-    else if (Arg.consume_front("-E"))
+      continue;
+    }
+    // Try other arguments.
+    if (Arg.consume_front("-V")) {
+      if (!ParseVArg(Arg))
+        LOG_WARN("Invalid argument '-V{}'", Arg);
+    } else if (Arg.consume_front("-X")) {
+      //OriginalXML.emplace(Arg.str());
+    } else if (Arg.consume_front("-E"))
       Out.EscapeData = true;
     else if (!*CodeOrErr)
       LOG_WARN("Invalid argument '{}'", Arg);
@@ -106,7 +140,8 @@ static int exi_main(ArrayRef<StrRef> Args) {
   ExtraOptions ExtraOpts;
 
   if (!ParseMangling(Args[0], Opts, ExtraOpts)) {
-    LOG_ERROR("Failed to parse mangled sequence: {}", Args[0]);
+    WithColor(outs(), raw_ostream::BRIGHT_RED)
+      << "Failed to parse mangled sequence: " << Args[0] << '\n';
     return FKEarly;
   }
 
@@ -122,15 +157,15 @@ static int exi_main(ArrayRef<StrRef> Args) {
   auto InData = LoadFile(InFile);
   XMLParseOptions ParseOpts { /*.MergeData = Opts.MergeData*/ };
 
-  if (VerboseFail)
-    exi::DebugFlag = LogLevel::VERBOSE;
+  if (InputLogLevel)
+    exi::DebugFlag = *InputLogLevel;
 
   // Set up for decoding
   ExiDecoder Decoder(Opts);
   MemoryBufferRef MB = InData->getMemBufferRef();
 
   if (auto E = Decoder.decodeHeader(MB)) {
-    WithColor(errs(), BRIGHT_RED)
+    WithColor(outs(), BRIGHT_RED)
       << "Error decoding exi header: " << E << "\n\n";
     return FKInput;
   }
@@ -145,7 +180,7 @@ static int exi_main(ArrayRef<StrRef> Args) {
   //S.SkipEmptyCH = true;
 
   if (auto E = Decoder.decodeBody(&S)) {
-    WithColor(errs(), BRIGHT_RED)
+    WithColor(outs(), BRIGHT_RED)
       << "Error decoding exi body: " << E << "\n\n";
     return FKInput;
   }
@@ -153,7 +188,7 @@ static int exi_main(ArrayRef<StrRef> Args) {
 #if EXI_DEBUG
   auto HOOptsOrErr = Decoder.headerOnly();
   if (HOOptsOrErr.is_err()) {
-    WithColor(errs(), BRIGHT_RED)
+    WithColor(outs(), BRIGHT_RED)
       << "Decoding failed? "
       << HOOptsOrErr.error() << "\n\n";
     return FKProcessing;
@@ -178,7 +213,7 @@ static int exi_main(ArrayRef<StrRef> Args) {
   }
 
   if (auto E = WriteFile(OutFile, OutData.str())) {
-    logAllUnhandledErrors(std::move(E), errs());
+    logAllUnhandledErrors(std::move(E), outs());
     return FKLate;
   }
 
@@ -194,7 +229,8 @@ static int xml_main(ArrayRef<StrRef> Args) {
   ExtraOptions ExtraOpts;
   
   if (!ParseMangling(Args[0], Opts, ExtraOpts)) {
-    LOG_ERROR("Failed to parse mangled sequence: {}", Args[0]);
+    WithColor(outs(), raw_ostream::BRIGHT_RED)
+      << "Failed to parse mangled sequence: " << Args[0] << '\n';
     return FKEarly;
   }
 
@@ -222,14 +258,14 @@ static int xml_main(ArrayRef<StrRef> Args) {
     .HasOptions = false
   };
 
-  if (VerboseFail)
-    exi::DebugFlag = LogLevel::VERBOSE;
+  if (InputLogLevel)
+    exi::DebugFlag = *InputLogLevel;
   
   // Try creating encoder
   Result EncoderOrErr = ExiEncoder::New(Opts);
   if (!EncoderOrErr) {
-    errs() << EncoderOrErr.error() << '\n';
-    WithColor(errs(), BRIGHT_RED)
+    outs() << EncoderOrErr.error() << '\n';
+    WithColor(outs(), BRIGHT_RED)
       << "Encoding failed.\n";
     return FKProcessing;
   }
@@ -240,8 +276,8 @@ static int xml_main(ArrayRef<StrRef> Args) {
 
   Result Factory = Encoder.setup();
   if (!Factory) {
-    errs() << Factory.error() << '\n';
-    WithColor(errs(), BRIGHT_RED)
+    outs() << Factory.error() << '\n';
+    WithColor(outs(), BRIGHT_RED)
       << "Encoding failed.\n";
     return FKProcessing;
   }
@@ -250,14 +286,14 @@ static int xml_main(ArrayRef<StrRef> Args) {
   XMLSerializer S(In);
   S.PreserveCDATA = ExtraOpts.PreserveCDATA;
   if (auto E = Factory->encode(&S, OutData)) {
-    errs() << E << '\n';
-    WithColor(errs(), BRIGHT_RED)
+    outs() << E << '\n';
+    WithColor(outs(), BRIGHT_RED)
       << "Encoding failed.\n";
     return FKProcessing;
   }
 
   if (auto E = WriteFile(OutFile, OutData.str())) {
-    logAllUnhandledErrors(std::move(E), errs());
+    logAllUnhandledErrors(std::move(E), outs());
     return FKLate;
   }
 
