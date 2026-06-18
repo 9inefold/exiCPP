@@ -1,5 +1,5 @@
 import sys, traceback
-from exiconf.jvm.setup import get_jvm_path
+from .setup import get_jvm_path
 
 __all__ = ['jvm_check', 'do_jvm_check']
 
