@@ -28,6 +28,8 @@ CODER_NAMES_KIND = {
   'x': 'exificient',
 }
 
+OUTPUT = outs()
+
 class FatalException(RuntimeError):
   def __init__(self, id=None):
     if id is not None:
@@ -42,21 +44,20 @@ def is_fatal_exception(e: Exception) -> bool:
 def get_coder(typ: str, mangled: str):
   match typ:
     case 'i':
-      cls = ExicppCoder
+      return ExicppCoder(mangled, OUTPUT)
     case 'o':
-      cls = OpenEXICoder
+      return OpenEXICoder(mangled, OUTPUT)
     case 'x':
       raise NotImplementedError('exificient coder is not implemented yet!')
     case _:
       raise ValueError(f"expected {CODER_NAMES}, got '{typ}'")
-  # Create new instance
-  return cls(mangled, outs())
 
 def run_individual_test(
     mangled: str, name: str, input: Path, outpath: Path,
     results: ProcessCacheResults, counter: TestCounter, /,
     print_passed: bool, print_skipped: bool):
   # ...
+  os = OUTPUT
   invalidated = set()
   encoded = []
   for typ in CODER_NAMES:
@@ -69,7 +70,7 @@ def run_individual_test(
       encoded.append(typ)
       counter.add_skipped()
       if print_skipped:
-        outs().info(f"{id} skipped [{k}]", color=Color.BRIGHT_GREEN)
+        os.info(f"{id} skipped [{k}]", color=Color.BRIGHT_GREEN)
       continue
     
     # Actually run the coder
@@ -82,18 +83,18 @@ def run_individual_test(
         results.invalidate_all(invalidated)
         raise FatalException(id)
       did_pass = False
-      outs().error(traceback.format_exc())
+      os.error(traceback.format_exc())
     
     if did_pass:
       results.passed(typ)
       encoded.append(typ)
       counter.add_passed()
       if print_passed:
-        outs().info(f"{id} encode PASSED [{k}]", color=Color.BRIGHT_GREEN)
+        os.info(f"{id} encode PASSED [{k}]", color=Color.BRIGHT_GREEN)
     else:
       results.failed(typ)
       counter.add_failed()
-      outs().always(f"{id} encode FAILED [{k}]\n")
+      os.always(f"{id} encode FAILED [{k}]\n", color=Color.RED)
 
   decoded = []
   for enc in encoded:
@@ -110,7 +111,7 @@ def run_individual_test(
         decoded.append(full_typ)
         counter.add_skipped()
         if print_skipped:
-          outs().info(f"{id} skipped [{k}]", color=Color.BRIGHT_GREEN)
+          os.info(f"{id} skipped [{k}]", color=Color.BRIGHT_GREEN)
         continue
       
       # Actually run the coder
@@ -124,19 +125,19 @@ def run_individual_test(
           results.invalidate_all(invalidated)
           raise FatalException(id)
         did_pass = False
-        outs().error(traceback.format_exc())
+        os.error(traceback.format_exc())
     
       if did_pass:
         results.passed(full_typ)
         decoded.append(full_typ)
         counter.add_passed()
         if print_passed:
-          outs().info(f"{id} decode PASSED [{k}]", color=Color.BRIGHT_GREEN)
+          os.info(f"{id} decode PASSED [{k}]", color=Color.BRIGHT_GREEN)
       else:
         invalidated.add(enc)
         results.failed(full_typ)
         counter.add_failed()
-        outs().always(f"{id} decode FAILED [{k}]\n")
+        os.always(f"{id} decode FAILED [{k}]\n", color=Color.RED)
   
   # TODO: Actually do stuff
     
@@ -150,6 +151,7 @@ def run_individual_test(
 def run_tests(name: str, data: MappingDataEntry, 
               entry: ProcessCacheEntry, counter: TestCounter, /,
               print_passed, print_skipped):
+  # TODO: Change working directory to outpath
   outpath = OUT_DIR / name
   if not outpath.exists():
     outpath.mkdir(parents=True)
@@ -184,7 +186,7 @@ def print_results(results: TestCounter):
   passed = results.total_passed
   total = results.total
   percent, color = results.percent_and_color()
-  outs().always(
+  OUTPUT.always(
     '\nTEST RESULTS:',
     f'{passed}/{total} tests passed',
     f'{percent:.1f}% success',

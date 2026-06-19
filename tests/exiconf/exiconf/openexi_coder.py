@@ -1,3 +1,4 @@
+# type: ignore
 import traceback
 from pathlib import Path
 from exiconf.jvm import do_jvm_check, log_jexception
@@ -5,9 +6,10 @@ do_jvm_check(__file__)
 
 from exiconf.coder import ExiOptions, PreserveType, AlignmentType as PyAlignmentType
 from exiconf.base_coder import BaseCoder
-from exiconf.logging import outs, errs
+from exiconf.logging import outs, errs, LogLevel
 from exiconf.jvm import *
 
+# TODO: Add a .pyi generator for these
 import jpype.imports
 from jpype.types import *
 from java.io import ByteArrayInputStream, ByteArrayOutputStream, StringWriter
@@ -142,12 +144,14 @@ class OpenEXICoder(BaseCoder):
       result = output.toByteArray()
       w.resetEntityManagerSearchDirectories()
     except Exception as e:
-      if filename is not None:
-        self.logger.error(Path(filename).as_posix(), ':', sep='')
-      if isinstance(e, JException):
-        log_jexception(e, logger=self.logger)
-      else:
-        self.logger.error(traceback.format_exc())
+      #if filename is not None:
+      #  self.logger.error(Path(filename).as_posix(), ':', sep='')
+      self.logger.error(f'{self.mangled}/e* ({type(e).__name__}):')
+      if self.logger.level >= LogLevel.EXTRA:
+        if isinstance(e, JException):
+          log_jexception(e, logger=self.logger)
+        else:
+          self.logger.error(traceback.format_exc())
     finally:
       if input:
         input.close()
@@ -177,13 +181,14 @@ class OpenEXICoder(BaseCoder):
       result = stringWriter.getBuffer().toString()
       self.handler.reset()
     except Exception as e:
-      if filename is not None:
-        print(Path(filename).as_posix(), ':', sep='')
-      if isinstance(e, JException):
-        log_jexception(e, logger=self.logger)
-      else:
-        self.logger.error(traceback.format_exc())
-      pass
+      #if filename is not None:
+      #  print(Path(filename).as_posix(), ':', sep='')
+      self.logger.error(f'{self.mangled}/d* ({type(e).__name__}):')
+      if self.logger.level >= LogLevel.EXTRA:
+        if isinstance(e, JException):
+          log_jexception(e, logger=self.logger)
+        else:
+          self.logger.error(traceback.format_exc())
     finally:
       if input:
         input.close()
