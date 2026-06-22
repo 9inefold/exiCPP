@@ -5,17 +5,6 @@ from exiconf.jvm.setup import start_jvm
 
 __all__ = ['main']
 
-FOLDER_NAMES = [
-  # Exicpp, OpenEXI, Exificient encode
-  'i', 'o', #'x',
-  # Exicpp roundtrip and decode
-  'ii', 'io', #'ix',
-  # OpenEXI roundtrip and decode
-  'oo', 'oi', #'ox',
-  # Exificient roundtrip and decode
-  #'xx', 'xo', 'xi',
-]
-
 # The default program entry point
 def main(extra_args={}):
   args = parse_args()

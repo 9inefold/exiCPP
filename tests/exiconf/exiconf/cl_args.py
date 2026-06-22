@@ -68,7 +68,6 @@ def _get_parser_params():
 def get_arg_parser() -> argparse.ArgumentParser:
   parser_params = _get_parser_params()
   parser = argparse.ArgumentParser(prog="exiconf", **parser_params)
-  #parser = argparse.ArgumentParser(prog="exiconf", suggest_on_error=True)
   parser.add_argument(
     '--version', action='version',
     version="%(prog)s " + __version__
