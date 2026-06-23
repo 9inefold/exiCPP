@@ -85,7 +85,6 @@ if __name__ == '__main__':
   start_jvm(jvm_args=['-ea', '-Dexicpp.loglevel=verbose'])
   coder = get_coder(args.coder, args.mangling)
 
-  is_eq = False
   xml_out = None
   try:
     xml_in = f.read_text('utf8')
@@ -98,8 +97,11 @@ if __name__ == '__main__':
       outs().extra(f'decoding {f.as_posix()} failed', flush=True)
       sys.exit(1)
     # Print results
-    is_eq = diff_xml(f, xml_in, xml_out)
-    outs().extra(f'{f.as_posix()}: {is_eq}', flush=True)
+    diff = diff_xml(f, xml_in, xml_out)
+    if diff:
+      outs().extra(f'{f.as_posix()}: DIFF', flush=True)
+    else:
+      outs().extra(f'{f.as_posix()}: SAME', flush=True)
   except Exception as e:
     outs().extra(f'{f.as_posix()}*: {type(e).__name__}: {e}', flush=True)
     sys.exit(1)
