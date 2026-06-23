@@ -42,6 +42,16 @@ void logColoredInDbgWithLevelAndType(
     EXI_ENABLE_IF(Level <= unsigned(LogLevel::EXTRA), "Invalid logging level!")
     EXI_NONNULL(3);
 
+/// Defined in `Debug.cpp`. Only runs when verbose.
+void logColoredInDbgWithPositionAndType(
+  usize BitPos, const char* FuncName = "", unsigned Line = 0)
+    EXI_NONNULL(2);
+
+# define logColoredInDbgWithLevelAndType(...)                                 \
+  (::exi::logColoredInDbgWithLevelAndType(__VA_ARGS__))
+# define logColoredInDbgWithPositionAndType(...)                              \
+  (::exi::logColoredInDbgWithPositionAndType(__VA_ARGS__))
+
 /// Format with a specified debug type.
 /// TODO: Check EXI_PRESERVE_MOST
 /// TODO: Add source_location?
@@ -58,6 +68,7 @@ LOG_WITH_LEVEL_AND_TYPE(LEVEL, TYPE, [&]() EXI_PRESERVE_MOST {                \
 
 #else
 # define logColoredInDbgWithLevelAndType(...) ((void)(0))
+# define logColoredInDbgWithPositionAndType(...) ((void)(0))
 # define LOG_FORMAT_WITH(LEVEL, TYPE, ...) do { } while(false)
 # define LOG_FORMAT(LEVEL, ...) do { } while(false)
 #endif

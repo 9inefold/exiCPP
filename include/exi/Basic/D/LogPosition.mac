@@ -22,14 +22,11 @@
 #undef LOG_POSITION
 #if EXI_LOG_POSITION
 /// Logs the current position using `bitPos`
-/// FIXME: Update LOG_POSITION if needed...
+/// FIXME: Update LOG_POSITION to take any Ref?
 # define LOG_POSITION(...) do {                                               \
   if (hasDbgLogLevel(VERBOSE)) {                                              \
-    const auto BitPos  = (__VA_ARGS__)->bitPos();                             \
-    const auto BytePos = BitPos >> 3;                                         \
-    const auto ByteOff = BitPos & 0b111;                                      \
-    const auto FuncName = __func__;                                           \
-    LOG_EXTRA("@[0x{:02x}:{}] in {}:", BytePos, ByteOff, FuncName);           \
+    const auto BitPos = (__VA_ARGS__)->bitPos();                              \
+    logColoredInDbgWithPositionAndType(BitPos, __func__, __LINE__);           \
   }                                                                           \
 } while(0)
 #else

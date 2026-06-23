@@ -58,6 +58,7 @@
 #undef setCurrentDebugType
 #undef setCurrentDebugTypes
 #undef logColoredInDbgWithLevelAndType
+#undef logColoredInDbgWithPositionAndType
 
 using namespace exi;
 
@@ -132,6 +133,24 @@ void logColoredInDbgWithLevelAndType(unsigned Level,
   if (FileAndLine[0])
     dbgs() << raw_ostream::RESET << FileAndLine << ": ";
   dbgs() << LogLevelMapping[Level] << Fmt << OldColor << '\n';
+}
+
+void logColoredInDbgWithPositionAndType(
+ usize BitPos, const char* FuncName, unsigned Line) {
+  const auto kCurrColor = raw_ostream::MAGENTA;
+  const raw_ostream::Colors OldColor = dbgs().getColor();
+  const auto BytePos = BitPos >> 3;
+  const auto ByteOff = BitPos & 0b111;
+  dbgs() << kCurrColor
+    //<< format("@[0x{:02x}:{}]", BytePos, ByteOff);
+    << format("@[{}::0x{:02x}:{}]", BitPos, BytePos, ByteOff);
+  if (FuncName[0]) {
+    dbgs() << raw_ostream::RESET << " in "
+           << kCurrColor << FuncName;
+    if (Line > 0)
+      dbgs() << ":" << Line;
+  }
+  dbgs() << raw_ostream::RESET << ":\n" << OldColor;
 }
 
 } // namespace exi
