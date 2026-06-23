@@ -28,6 +28,7 @@
 #include <exi/Basic/ExiHeader.hpp>
 #include <exi/Basic/NBitInt.hpp>
 #include <exi/Decode/BodyDecoder.hpp>
+#include <exi/Basic/D/LogPosition.mac>
 
 #define DEBUG_TYPE "HeaderDecoder"
 
@@ -89,9 +90,11 @@ static ExiError DecodeCookieAndBits(ExiHeader& Header, BitReader* Strm) {
   
   if (DistinguishingBits != 0b10) {
     // File does not start with a valid sequence.
+    LOG_ERROR("invalid distinguishing bits: {:02b}", DistinguishingBits.data());
     return ExiError::HeaderBits(DistinguishingBits);
   }
 
+  LOG_POSITION(Strm);
   return ExiError::OK;
 }
 
@@ -129,6 +132,7 @@ static ExiError DecodeVersion(ExiHeader& Header, BitReader* Strm) {
     exi_try(Strm->readBits(VersionChunk));
     VersionOut += u32(VersionChunk);
   } while (VersionChunk == 0b1111);
+  LOG_POSITION(Strm);
 
   Header.ExiVersion = VersionOut;
   return ExiError::OK;
@@ -138,6 +142,7 @@ static ExiError decodeHeaderImpl(ExiHeader& Header, BitReader& Strm) {
   safe_bool PresenceBit;
   exi_try(DecodeCookieAndBits(Header, &Strm));
   exi_try(Strm.readBits(PresenceBit));
+  LOG_POSITION(&Strm);
 
   Header.HasOptions = bool(PresenceBit);
   if (!Header.Opts) {
@@ -160,8 +165,7 @@ static ExiError decodeHeaderImpl(ExiHeader& Header, BitReader& Strm) {
   if (!PresenceBit)
     LOG_EXTRA("out of band options provided");
   else {
-    // TODO: Decode options from file.
-    exi_unreachable("options decoding unimplemented");
+    exi_todo("options decoding unimplemented");
   }
 
   exi_invariant(Header.Opts, "EXI Options must be initialized!");
@@ -206,11 +210,11 @@ ExiError ExiDecoder::decodeHeader(UnifiedBuffer Buffer) {
   if (Out || Header.Opts->Alignment == AlignKind::BitPacked)
     Reader.emplace<BitReader>(Pos);
   else {
-    // TODO: Check alignment
-    // exi_assert(Strm.bitOffset() == 0, "Misaligned stream!");
+    exi_invariant(Pos.bits() == 0, "Misaligned stream!");
     Reader.emplace<ByteReader>(Pos);
   }
-  
+  LOG_POSITION(&*Reader);
+
   if (Out == ExiError::OK) {
     if (ExiError E = this->init())
       return E;

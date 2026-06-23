@@ -96,14 +96,15 @@ public:
 protected:
   // TODO: EXI_PRESERVE_MOST for DerivedT::fillStore?
   ExiResult<size_type> fillStoreImpl() {
-    if EXI_UNLIKELY(ByteOffset >= Stream.size())
+    const usize StreamSize = Stream.size();
+    if EXI_UNLIKELY(ByteOffset >= StreamSize)
       // Read of an empty buffer.
       return Err(ExiError::OOB);
 
     // Read the next "word" from the stream.
     const u8* WordPtr = Stream.data() + ByteOffset;
     size_type BytesRead;
-    if EXI_LIKELY(Stream.size() >= ByteOffset + sizeof(word_t)) {
+    if EXI_LIKELY(StreamSize >= ByteOffset + sizeof(word_t)) {
       // Read full "word" of data.
       BytesRead = sizeof(word_t);
       // TODO: Change this on arm?
@@ -111,7 +112,7 @@ protected:
       Store = support::endian::read<word_t, endianness::big>(WordPtr);
     } else {
       // Partial read.
-      BytesRead = Stream.size() - ByteOffset;
+      BytesRead = StreamSize - ByteOffset;
       exi_invariant(Store == 0);
       for (size_type Ix = 0; Ix != BytesRead; ++Ix)
         Store |= word_t(WordPtr[Ix]) << (Ix * 8);
@@ -119,10 +120,8 @@ protected:
     }
 
     ByteOffset += BytesRead;
-    if (ByteOffset == Stream.size())
-      // Set the byte offset larger than the stream size.
-      // This will allow us to introspect on the state later.
-      ++ByteOffset;
+    // Disabled to accurately keep track of the byte offset
+    exi_invariant(ByteOffset <= StreamSize);
     return Ok(BytesRead);
   }
 
@@ -243,8 +242,7 @@ public:
   }
 
   proxy_t getProxy() const override {
-    const usize BitOffset = (ByteOffset * 8) - BitsInStore;
-    return proxy_t::FromBits(BaseT::Stream, BitOffset);
+    return proxy_t::FromBits(BaseT::Stream, this->bitPos());
   }
 
   void setProxy(proxy_t Proxy) override {

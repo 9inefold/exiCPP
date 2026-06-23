@@ -174,8 +174,8 @@ private:
       if (Code.Data[0] == 0)
         Start = 1;
     } else if (Start == 1 && Code.Data[0]) {
-      const u64 CData = Code.Data[0] - 1;
-      if (At != CData)
+      const u64 CodeData = Code.Data[0] - 1;
+      if (At != CodeData)
         return this->createDecodedTerm(At);
     }
 
@@ -187,9 +187,9 @@ private:
       LOG_EXTRA("Code[{}]: @{}:{}", Ix, Bits, Data);
       exi_invariant(Code.Data[Ix] != 0, "EventCode node not pruned!");
 
-      const u64 CData = Code.Data[Ix] - 1;
-      exi_invariant(Data <= CData, "Event code out of range!");
-      if (Data != CData)
+      const u64 CodeData = Code.Data[Ix] - 1;
+      exi_invariant(Data <= CodeData, "Event code out of range!");
+      if (Data != CodeData)
         break;
     }
 

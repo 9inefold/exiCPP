@@ -142,8 +142,8 @@ void logColoredInDbgWithPositionAndType(
   const auto BytePos = BitPos >> 3;
   const auto ByteOff = BitPos & 0b111;
   dbgs() << kCurrColor
-    //<< format("@[0x{:02x}:{}]", BytePos, ByteOff);
-    << format("@[{}::0x{:02x}:{}]", BitPos, BytePos, ByteOff);
+    << format("@[0x{:02x}:{}]", BytePos, ByteOff);
+    //<< format("@[{}::0x{:02x}:{}]", BitPos, BytePos, ByteOff);
   if (FuncName[0]) {
     dbgs() << raw_ostream::RESET << " in "
            << kCurrColor << FuncName;

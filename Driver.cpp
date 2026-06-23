@@ -377,9 +377,9 @@ static void ByteDiffViewer(StrRef Original, StrRef Encoded,
   }
 }
 
-static void PadByteDiffViewer(StrRef Original, StrRef Encoded,
-                              usize BreakOn = 4, bool Hex = false,
-                              bool LabelX = false, usize SkipY = 0) {
+static void PadByteDiffViewerStr(StrRef Original, StrRef Encoded,
+                                 usize BreakOn = 4, bool Hex = false,
+                                 bool LabelX = false, usize SkipY = 0) {
   if (Original.size() > Encoded.size()) {
     std::string E(Encoded.data(), Encoded.size());
     E.resize(Original.size(), '\0');
@@ -392,6 +392,13 @@ static void PadByteDiffViewer(StrRef Original, StrRef Encoded,
     return ByteDiffViewer(OData, Encoded, BreakOn, Hex, LabelX, SkipY);
   }
   return ByteDiffViewer(Original, Encoded, BreakOn, Hex, LabelX, SkipY);
+}
+
+static void PadByteDiffViewer(UnifiedBuffer Original, UnifiedBuffer Encoded,
+                              usize BreakOn = 4, bool Hex = false,
+                              bool LabelX = false, usize SkipY = 0) {
+  return PadByteDiffViewerStr(Original.str(), Encoded.str(),
+                              BreakOn, Hex, LabelX, SkipY);
 }
 
 static void PrintByteCompareStrings(bool Val) {
@@ -861,7 +868,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
     AddExificientCmdOpts(OS, Opts);
     sys::fs::make_absolute(FilenameStore);
     OS << format("-i \"{0}\" -o \"{0}.xml\"", FilenameStore.str());
-
+#if 0
     Cmds->RawCommands.emplace_back(std::move(Cmd));
     //if (Opts.Preserve.Prefixes) {
       Cmds->OldToNewMapping.emplace_back(
@@ -870,6 +877,7 @@ int ECDCTestRunner::runWithRet(StrRef ExiFile, StrRef XmlFile,
         this->Opts.Preserve
       );
     //}
+#endif
   }
   
   return 0;
@@ -938,6 +946,178 @@ static bool DemangleTests(bool Print = false) {
   return true;
 }
 
+static bool isExiFile(XMLContainerRef FileData, raw_ostream* OS = nullptr) {
+  auto Outs = [&FileData, OS] () -> raw_ostream& {
+    if (!OS)
+      return nulls();
+    return *OS << FileData.getRelativeName() << ": "_str;
+  };
+
+  using enum XMLKind;
+  if (!FileData.hasBuffer()) {
+    Outs() << "file does not have buffer!\n";
+    return false;
+  }
+  // Check if it is an exi type
+  const XMLKind K = FileData.getKind();
+  if (MMatch(K).is(ExiDocument, XsdExiSchema)) {
+    if (K == XsdExiSchema)
+      LOG_WARN("XsdExiSchema loaded as ExiDocument.");
+    return true;
+  }
+  // Check the extension...
+  StrRef FullName = FileData.getName();
+  if (K != XMLKind::Unknown || !FullName.ends_with_insensitive(".exi")) {
+    Outs() << "invalid file type!\n";
+    return false;
+  }
+  return true;
+}
+
+static constinit StrRef TestOutputFolder = "tests/o2";
+
+/// @returns the number of failed tests
+static int LoadExiTestFilesCallback(XMLManagerRef Mgr, UniqueStringSaver& Saver,
+                                    function_ref<void(MemoryBufferRef)> Output,
+                                    StrRef SubFolder, ArrayRef<StrRef> Files) {
+  auto Folder = fmt::format("{}/{}/", TestOutputFolder, SubFolder);
+  raw_ostream& OS = errs();
+  int NumFailed = 0;
+  for (StrRef File : Files) {
+    Option<XMLContainerRef> OptFileData
+      = Mgr->getOptXMLRef(Twine(Folder) + File, OS);
+    // Check if we need a fake file.
+    if (!OptFileData.has_value() || !isExiFile(*OptFileData, &OS)) {
+      StrRef FullPath = Saver.save(Twine(Folder) + File);
+      Output(MemoryBufferRef("", FullPath));
+      ++NumFailed;
+      continue;
+    }
+    // Everything went smoothly!
+    Output(OptFileData->getBufferRef());
+  }
+  return NumFailed;
+}
+
+/// @returns the number of failed tests
+static int LoadExiTestFiles(XMLManagerRef Mgr, UniqueStringSaver& Saver,
+                            std::vector<MemoryBufferRef>& Output,
+                            StrRef SubFolder, ArrayRef<StrRef> Files) {
+  auto OutputFn = [&] (MemoryBufferRef MB) { Output.push_back(MB); };
+  return LoadExiTestFilesCallback(Mgr, Saver, OutputFn, SubFolder, Files);
+}
+/// @returns the number of failed tests
+static int LoadExiTestFiles(XMLManagerRef Mgr, UniqueStringSaver& Saver,
+                            SmallVecImpl<MemoryBufferRef>& Output,
+                            StrRef SubFolder, ArrayRef<StrRef> Files) {
+  auto OutputFn = [&] (MemoryBufferRef MB) { Output.push_back(MB); };
+  return LoadExiTestFilesCallback(Mgr, Saver, OutputFn, SubFolder, Files);
+}
+
+void doTestTests(RefCntPtr<XMLManager> Mgr) {
+  auto LoadExiBuffer = [Mgr] (const Twine& Path) -> MemoryBufferRef {
+    raw_ostream& OS = errs();
+    XMLContainerRef File
+      = Mgr->getOptXMLRef(Twine(TestOutputFolder) + "/" + Path, OS)
+        .expect("could not locate file!");
+    // Validate the type
+    exi_relassert(isExiFile(File, &OS));
+    return File.getBufferRef();
+  };
+
+  BumpPtrAllocator NameAlloc;
+  UniqueStringSaver NameSaver(NameAlloc);
+
+  auto LoadExiTests = [&] (StrRef SubFolder, ArrayRef<StrRef> Files) {
+    SmallVec<MemoryBufferRef> Out;
+    int Failed = LoadExiTestFiles(Mgr, NameSaver, Out, SubFolder, Files);
+    if (Failed > 0)
+      LOG_WARN("Failed to load {} files", Failed);
+    return Out;
+  };
+
+  auto PrintBreak = [] () {
+    if (!hasDbgLogLevel(INFO)) {
+      errs() << '\n';
+      return;
+    }
+    WithColor(errs(), raw_ostream::BRIGHT_MAGENTA)
+      << "\n**********************************************************************\n";
+  };
+
+  //{{
+  //  auto MBo = LoadExiBuffer("ch.ch-01/iPc.o.exi");
+  //  auto MBi = LoadExiBuffer("ch.ch-01/iPc.i.exi");
+  //  PadByteDiffViewer(MBo.getBuffer(), MBi.getBuffer());
+  //}
+  //{
+  //  auto MBo = LoadExiBuffer("ch.ch-01/yPc.o.exi");
+  //  auto MBi = LoadExiBuffer("ch.ch-01/yPc.i.exi");
+  //  PadByteDiffViewer(MBo.getBuffer(), MBi.getBuffer(), 8, true);
+  //}}
+
+  ExiOptions Opts { .SchemaID = Some(nullptr) };
+  ExiHeaderOnly Hdr { .HasOptions = false };
+  SmallStr<0> EncodeBuf;
+  
+  {
+    //SetLogLevel(LogLevel::EXTRA);
+    //exi_demangle_options(Opts, "iPc");
+
+    //PrintBreak();
+    //Decode(Mgr.get(), "tests/o2/ch.ch-01/iPc.o.exi", Opts);
+    //PrintBreak();
+    //Encode(Mgr.get(), "tests/o2/ch.ch-01/ch-01.xml", Opts, Hdr);
+    ////PrintBreak();
+    ////Decode(Mgr.get(), "tests/o2/ch.ch-01/iPc.i.exi", Opts);
+  }
+
+  SetLogLevel(LogLevel::EXTRA);
+
+  auto CheckOutput = [&] (StrRef SubFolder, StrRef Mangling) {
+    auto oexi = fmt::format("{}/{}.o.exi", SubFolder, Mangling);
+    auto iexi = fmt::format("{}/{}.i.exi", SubFolder, Mangling);
+    auto [Folder, Entry] = SubFolder.split('.');
+    auto xml = fmt::format("tests/o2/{}/{}.xml", SubFolder, Entry);
+
+    auto MBo = LoadExiBuffer(oexi);
+    auto MBi = LoadExiBuffer(iexi);
+    PadByteDiffViewer(MBo.getBuffer(), MBi.getBuffer(), 8, true);
+
+    exi_demangle_options(Opts, Mangling);
+    PrintBreak();
+    Decode(MBo, Opts);
+
+    PrintBreak();
+    Decode(MBi, Opts);
+
+    PrintBreak();
+    Encode(Mgr.get(), xml, Opts, Hdr, &EncodeBuf);
+    PadByteDiffViewer(MBo.getBuffer(), EncodeBuf.str(), 8, true);
+  };
+
+  //CheckOutput("el.el-01", "yPcdi");
+  //CheckOutput("ch.ch-01", "yPc");
+
+  /*{
+    SetLogLevel(LogLevel::EXTRA);
+    exi_demangle_options(Opts, "yPc");
+
+    PrintBreak();
+    auto yPcMBo = LoadExiBuffer("ch.ch-01/yPc.o.exi");
+    Decode(yPcMBo, Opts);
+
+    PrintBreak();
+    Encode(Mgr.get(), "tests/o2/ch.ch-01/ch-01.xml", Opts, Hdr, &EncodeBuf);
+    PadByteDiffViewer(yPcMBo.getBuffer(), EncodeBuf.str(), 8, true);
+
+    PrintBreak();
+    auto yPcMBi = LoadExiBuffer("ch.ch-01/yPc.i.exi");
+    PadByteDiffViewer(yPcMBo.getBuffer(), yPcMBi.getBuffer(), 8, true);
+    Decode(yPcMBi, Opts);
+  }*/
+}
+
 int main(int Argc, char* Argv[]) {
   using enum raw_ostream::Colors;
   SetLogLevel(LogLevel::WARN);
@@ -949,6 +1129,11 @@ int main(int Argc, char* Argv[]) {
   XMLManagerRef Mgr = make_refcounted<XMLManager>(ParseOpts);
 
   //outs() << "Is debugging: " << sys::Process::IsReallyDebugging() << '\n';
+
+#if 1
+  doTestTests(Mgr);
+  return 0;
+#endif
 
 #if STRESS_TEST_DECODING
 
@@ -963,6 +1148,29 @@ int main(int Argc, char* Argv[]) {
 
 #else
 
+#if 0
+
+  auto TryDump = [&Mgr, Embed = ParseOpts.MergeData] (const Twine& Path) {
+    WithColor OS(outs(), raw_ostream::BRIGHT_WHITE);
+    XMLDumpOptions DumpOpts {
+      .InitialIndent        = 0,
+      .Conforming           = false,
+      .PreserveDeclaration  = false,
+      .PreserveCDATA        = PreserveCDATAKind::CDATA_NONE,
+      .EmbeddedCDATA        = Embed
+    };
+    //XMLDump::full(*Mgr, Path, DumpOpts);
+    XMLDump::raw(*Mgr, Path, DumpOpts);
+  };
+
+  TryDump("examples/at-01.xml");
+  TryDump("tests/s/me/Newlines2.xml");
+  TryDump("tests/s/me/CDATA2.xml");
+
+  return 0;
+
+#endif
+
   // Add https://www.w3.org/TR/xmlschema-0/#ipo.xsd
 
   CompareMetadata ExificientFileData;
@@ -976,10 +1184,14 @@ int main(int Argc, char* Argv[]) {
     // TODO: Add defaulted jar
   }
 
+#if 0
   /*BytePacked*/ {
     auto Zil = MAKE_EXTEST_RUNNER(AlignKind::BytePacked);
     auto Pfx = MAKE_EXTEST_RUNNER(AlignKind::BytePacked, Prefixes);
     auto All = MAKE_EXTEST_RUNNER(AlignKind::BytePacked, All & ~LexicalValues);
+    //All().run("CDATANooptB.exi",      "CDATA.xml", false, true);
+    All().run("116NooptB.exi",        "116.xml", false, true);
+    return 0;
     Zil().run("SpecExampleB.exi",     "SpecExample.xml");
     Zil().run("BasicNooptB.exi",      "Basic.xml");
     Zil().run("ThaiNooptB.exi",       "Thai.xml");
@@ -1027,8 +1239,16 @@ int main(int Argc, char* Argv[]) {
     Pfx().run("Orders.exi", "Orders.xml", /*Diff=*/false);
 #endif
   }
+#endif
+  /*BitPacked - tests*/ {
+    auto All = MAKE_TEST_RUNNER(AlignKind::BitPacked, "tests", All & ~LexicalValues);
+    SetLogLevel(LogLevel::EXTRA);
+    //All().run("o/xe/OiPcdip/021.exi", "s/xml/021.xml");
+    //All().run("o/xe/OiPcdip/042.exi", "s/xml/042.xml");
+  }
 
   return 0;
+
   if (EXIFICIENT_DIR.has_value()) {
     WriteExificientCmds(ExificientFileData);
     errs() << "Running exificient...\n";
