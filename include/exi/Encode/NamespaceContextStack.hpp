@@ -29,9 +29,7 @@
 #include <core/Common/Fundamental.hpp>
 #include <core/Common/iterator.hpp>
 #include <exi/Basic/Except.hpp>
-//#include <core/Support/Limits.hpp>
-// TODO: Remove StringTable include
-#include <exi/Encode/StringTable.hpp>
+#include <exi/Encode/StringTableHandles.hpp>
 
 // TODO: Do NSContextStack -> ContextPtrStack<T> and move to core/Common/?
 
@@ -41,6 +39,7 @@ static_assert(sizeof(void*) >= 4,
   "Contact me if you need this on 16-bit machines.");
 
 class NSContextStack;
+namespace encode { class StringTable; }
 
 /// Stores info about the context stack and its blocks.
 template <typename Int /*SentinelValue=0*/>
@@ -202,8 +201,7 @@ private:
   }
 
   /// Pushes the contexts to the `StringTable` and adds to a new scope.
-  EXI_PRESERVE_MOST void pushScope(encode::StringTable& SM,
-                                            ArrayRef<value_type> Elts);
+  void pushScope(encode::StringTable& SM, ArrayRef<value_type> Elts);
   /// Pops the contexts from the `StringTable` and removes the scope.
   EXI_PRESERVE_MOST void popScope(encode::StringTable& SM);
 
@@ -212,7 +210,7 @@ public:
   NSContextStack() : Head(addHeadImpl(0)) {}
 
   /// Adds to the current scope.
-  inline void inc(encode::StringTable&) { this->incDepth(); }
+  inline void inc() { this->incDepth(); }
 
   /// If empty, adds to the depth. Otherwise, pushes the contexts to the
   /// `StringTable` and adds to a new scope.
@@ -228,7 +226,7 @@ public:
 
   /// If empty, adds element to the current scope. If it is the global scope,
   /// returns. Creates a new scope if depth is >1.
-  void add(encode::StringTable& SM, value_type Elt) {
+  void add(value_type Elt) {
     if EXI_UNLIKELY(Head->Depth != 1) {
       exi_assert(Head->Depth > 1);
       this->decDepth();

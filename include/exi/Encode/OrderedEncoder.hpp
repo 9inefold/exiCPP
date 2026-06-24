@@ -176,17 +176,17 @@ public:
   }
 
   ExiError StartElement(StrRef Name) {
-    CtxStack.inc(Strings);
+    CtxStack.inc();
     return getSchema()->encode(this,
       make_event<SimpleEventTerm::SE>(Name));
   }
   ExiError StartElementURI(StrRef Name, StrRef URI) {
-    CtxStack.inc(Strings);
+    CtxStack.inc();
     return getSchema()->encode(this,
       make_event<SimpleEventTerm::SE>(Name, URI));
   }
   ExiError StartElementURI(StrRef Name, encode::STURIEntry* URI) {
-    CtxStack.inc(Strings);
+    CtxStack.inc();
     return getSchema()->encode(this,
       make_event<SimpleEventTerm::SE>(Name, URI));
   }
@@ -243,6 +243,9 @@ public:
   using PrefixEntry = encode::STPrefixEntry;
   using NameEntry   = encode::LocalNameInfo;
   using ValueEntry  = encode::STValueEntry;
+
+  /// Represents a [Prefix, IsNew] pair
+  using TaggedPrefixEntry = std::pair<PrefixEntry*, bool>;
 
   using BodyEncoder::SplitName;
 
@@ -306,31 +309,35 @@ public:
     return encodeValue<StrmT>(LNV, AT[1]);
   }
 
+  // FIXME: Handle popping scope after inner ns decl?
+
   template <typename StrmT, bool IsRoot = false>
   ExiError encodeNS(const NamespaceEvent& NS) {
     StrRef URI(NS.UriData, NS.UriSize);
     URIEntry* URIV = encodeURI<StrmT>(URI);
     exi_assert(URIV != nullptr);
     StrRef Pfx(NS.PfxData, NS.PfxSize);
-    Result PfxOrErr = encodePfx<StrmT>(URIV, Pfx);
-    exi_try_unwrap(PfxOrErr);
+    ExiResult<TaggedPrefixEntry> PfxInfoOrErr = encodePfx<StrmT>(URIV, Pfx);
+    exi_try_unwrap(PfxInfoOrErr);
 
     if constexpr (!IsRoot)
-      if (!PfxOrErr->second)
-        CtxStack.add(Strings, PfxOrErr->first);
+      if (!PfxInfoOrErr->second)
+        CtxStack.add(PfxInfoOrErr->first);
     
     LOG_POSITION(this);
     LOG_INFO(">> {}", NS.IsLocal ? "LOCAL" : "NON-LOCAL");
     writer<StrmT>().writeBit(NS.IsLocal);
     return ExiError::OK;
   }
+  /// Handles the case of a pseudo-NS event with Preserve.Prefixes off.
   template <bool IsRoot = false>
   ExiError saveNSToTableOnly(const NamespaceEvent& NS) {
     StrRef Pfx(NS.PfxData, NS.PfxSize);
     StrRef URI(NS.UriData, NS.UriSize);
-    auto* PfxV = Strings.enterNamespaceFacade(Pfx, URI);
+    TaggedPrefixEntry PfxInfo = Strings.enterNamespaceFacade(Pfx, URI);
     if constexpr (!IsRoot)
-      CtxStack.add(Strings, PfxV);
+      if (!PfxInfo.second)
+        CtxStack.add(PfxInfo.first);
     return ExiError::OK;
   }
 
@@ -507,27 +514,29 @@ public:
 
   /// Encodes a NS event prefix.
   template <typename StrmT>
-  ExiResult<std::pair<PrefixEntry*, bool>> encodePfx(URIEntry* URI, StrRef Pfx) {
+  ExiResult<TaggedPrefixEntry> encodePfx(URIEntry* URI, StrRef Pfx) {
 #if EXI_DEBUG
     if (!this->PreservePrefixes()) {
       LOG_ERROR("Encoded NS prefix with prefixes disabled!");
       return Err(ErrorCode::kInconsistentProcState);
     }
 #endif
-    if (PrefixEntry* PfxV = Strings.lookupPfxForURI(URI, Pfx))
+    if (PrefixEntry* PfxV = Strings.lookupPfxForURI(URI, Pfx)) {
+      (void) encodePfxID<StrmT>(URI, PfxV);
       /// TODO: Verify this...
-      return std::make_pair(encodePfxID<StrmT>(URI, PfxV), false);
+      return TaggedPrefixEntry{PfxV, false};
+    }
     LOG_POSITION(this);
     unsigned Bits = Strings.getPfxLog(URI);
     writer<StrmT>().writeBits64(0, Bits);
     writer<StrmT>().encodeString(Pfx);
     auto [PfxV, IsNew] = Strings.addPrefix(URI, Pfx);
     LOG_INFO(">> PXNS (Miss) @{}: \"{}\"", Strings.GetID(PfxV), Pfx);
-    return std::make_pair(PfxV, IsNew);
+    return TaggedPrefixEntry{PfxV, IsNew};
   }
   template <typename StrmT>
   PrefixEntry* encodePfxID(URIEntry* URI, PrefixEntry* Pfx) {
-    Strings.enterNamespace(URI, Pfx);
+    Strings.enterKnownNamespace(URI, Pfx);
     if (unsigned Bits = Strings.getPfxLog(Pfx)) {
       LOG_POSITION(this);
       unsigned ID = Strings.GetID(Pfx);

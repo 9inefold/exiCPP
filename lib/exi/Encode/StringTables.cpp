@@ -143,7 +143,11 @@ void StringTable::pushURIContext(PrefixEntry* EPfx, URIEntry* URI) {
     }
   }
 
-  URIStackMap[EPfx].emplace_back(Pfx);
+  URIStack& TheStack = URIStackMap[EPfx];
+  TheStack.emplace_back(Pfx);
+  LOG_EXTRA("Pushing xmlns:{}#{}=\"{}\"",
+            EPfx->getKey(), TheStack.size(), URI->getKey());
+  // Refresh all the entries
   if EXI_UNLIKELY(WillInsert)
     URIStackMap.updateCacheIfOutOfDate();
   // Only remap if the value is different.
@@ -168,6 +172,7 @@ void StringTable::popURIContext(PrefixEntry* EPfx) {
       "Prefix '{}' has no saved context.", EPfx->getKey());
   }
 
+  LOG_EXTRA("Popping xmlns:{} #{}", EPfx->getKey(), TheStack.size());
   Pfx = TheStack.pop_back_val();
   Pfx.syncWithURI();
   exi_assert(Pfx.isSyncedWithURI());
@@ -277,18 +282,38 @@ NSContext StringTable::createURIAssociation(CachedHashStrRef URI,
                                             Option<CachedHashStrRef> Pfx) {
   XEntry<URIEntry> UEntry = createURIOnly(URI);
   NSContext Ctx(UEntry);
-  if (!Pfx)
+  if (!Pfx) {
+    LOG_EXTRA("Creating unbound xmlns:*=\"{}\"", URI.val());
     return Ctx.Unbound();
+  }
 
   auto [PI, IsNewPfx] = createPfxOnly(*Pfx);
   Ctx.Prefix(PI, IsNewPfx).Anonymous(PI == Pfx_NIL);
   if (IsNewPfx) {
+    LOG_EXTRA("Creating xmlns:{}=\"{}\"", Pfx->val(), URI.val());
     BindPrefixToNewURI(&PI->second, UEntry.data());
     return Ctx;
   } else {
+    // Logs in pushURIContext
     pushURIContext(PI, UEntry.data());
     return Ctx.Overwrite(true);
   }
+}
+
+std::pair<STPrefixEntry*, bool>
+StringTable::createFakeURIAssociation(CachedHashStrRef URI,
+                                      CachedHashStrRef Pfx) {
+  URIEntry* URIV = X(lookupURIOrAddFake(URI));
+  exi_invariant(URIV != nullptr, "Unable to locate or add URI!");
+  auto [PfxV, IsNewPfx] = createPfxOnly(Pfx);
+  if (IsNewPfx) {
+    LOG_EXTRA("Creating fake xmlns:{}=\"{}\"", Pfx.val(), URI.val());
+    BindPrefixToNewURI(&PfxV->second, URIV);
+  } else {
+    // Logs in pushURIContext
+    pushURIContext(PfxV, URIV);
+  }
+  return {X(PfxV), IsNewPfx};
 }
 
 NSContext StringTable::createURIAssociationForInit(StrRef URI, StrRef Pfx) {

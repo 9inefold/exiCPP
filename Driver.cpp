@@ -135,9 +135,9 @@ static ExiError DecodeBody(ExiDecoder& Decoder, Deserializer* S = nullptr) {
     return Decoder.decodeBody();
 }
 
-static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB, Deserializer* S = nullptr) {
+static int Decode(ExiDecoder& Decoder, UnifiedBuffer MB, Deserializer* S = nullptr) {
   LOG_INFO("Decoding header...");
-  if (auto E = Decoder.decodeHeader(MB)) {
+  if (auto E = Decoder.decodeHeader(MB.buf())) {
     errs() << E << '\n';
     return 1;
   }
@@ -152,8 +152,8 @@ static int Decode(ExiDecoder& Decoder, MemoryBufferRef MB, Deserializer* S = nul
   return 0;
 }
 
-static int Decode(MemoryBufferRef MB, ExiOptions& Opts, Deserializer* S = nullptr) {
-  LOG_INFO("Decoding: \"{}\"", MB.getBufferIdentifier());
+static int Decode(UnifiedBuffer MB, ExiOptions& Opts, Deserializer* S = nullptr) {
+  LOG_INFO("Decoding: \"{}\"", MB.buf().getBufferIdentifier());
   ExiDecoder Decoder(Opts);
   return Decode(Decoder, MB, S);
 }
@@ -1074,30 +1074,44 @@ void doTestTests(RefCntPtr<XMLManager> Mgr) {
 
   SetLogLevel(LogLevel::EXTRA);
 
-  auto CheckOutput = [&] (StrRef SubFolder, StrRef Mangling) {
-    auto oexi = fmt::format("{}/{}.o.exi", SubFolder, Mangling);
-    auto iexi = fmt::format("{}/{}.i.exi", SubFolder, Mangling);
+  auto DoEncodeOnly = [&] (StrRef SubFolder, StrRef Mangling, bool DecodeAfter = true) {
     auto [Folder, Entry] = SubFolder.split('.');
     auto xml = fmt::format("tests/o2/{}/{}.xml", SubFolder, Entry);
 
+    PrintBreak();
+    Encode(Mgr.get(), xml, Opts, Hdr, &EncodeBuf);
+
+    if (DecodeAfter) {
+      PrintBreak();
+      Decode(EncodeBuf.str(), Opts);
+    }
+  };
+
+  auto CheckOutput = [&] (StrRef SubFolder, StrRef Mangling) {
+    exi_demangle_options(Opts, Mangling);
+    const bool IsHex = (Opts.Alignment != AlignKind::BitPacked);
+    const int BreakOn = IsHex ? 8 : 4;
+
+    auto oexi = fmt::format("{}/{}.o.exi", SubFolder, Mangling);
+    auto iexi = fmt::format("{}/{}.i.exi", SubFolder, Mangling);
+
     auto MBo = LoadExiBuffer(oexi);
     auto MBi = LoadExiBuffer(iexi);
-    PadByteDiffViewer(MBo.getBuffer(), MBi.getBuffer(), 8, true);
+    PadByteDiffViewer(MBo, MBi, BreakOn, IsHex);
 
-    exi_demangle_options(Opts, Mangling);
     PrintBreak();
     Decode(MBo, Opts);
 
     PrintBreak();
     Decode(MBi, Opts);
 
-    PrintBreak();
-    Encode(Mgr.get(), xml, Opts, Hdr, &EncodeBuf);
-    PadByteDiffViewer(MBo.getBuffer(), EncodeBuf.str(), 8, true);
+    DoEncodeOnly(SubFolder, Mangling, /*DecodeAfter=*/false);
+    PadByteDiffViewer(MBo, EncodeBuf.str(), BreakOn, IsHex);
   };
 
   //CheckOutput("el.el-01", "yPcdi");
   //CheckOutput("ch.ch-01", "yPc");
+  DoEncodeOnly("el2.el2-07", "iPcdi");
 
   /*{
     SetLogLevel(LogLevel::EXTRA);

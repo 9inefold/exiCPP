@@ -771,25 +771,18 @@ public:
   STValueEntry* addValue(LocalNameInfo* LN, CachedHashStrRef Value);
 
   /// When encountering a `xmlns:[Pfx]=[URI]`.
-  NSContext enterNamespace(ImplicitHashStrRef Pfx, ImplicitHashStrRef URI) {
+  EXI_INLINE NSContext
+  enterNamespace(ImplicitHashStrRef Pfx, ImplicitHashStrRef URI) {
     return createURIAssociation(URI, Pfx);
   }
-  /// When encountering a `xmlns:[Pfx]=[URI]` without Preserve.Prefixes on.
-  STPrefixEntry* enterNamespaceFacade(ImplicitHashStrRef Pfx,
-                                      ImplicitHashStrRef URI) {
-    URIEntry* URIV = X(lookupURIOrAddFake(URI));
-    exi_invariant(URIV != nullptr, "Unable to locate or add URI!");
-    auto [PfxV, IsNewPfx] = createPfxOnly(Pfx);
-    if (IsNewPfx)
-      BindPrefixToNewURI(&PfxV->second, URIV);
-    else {
-      pushURIContext(PfxV, URIV);
-    }
-    return X(PfxV);
-  }
   /// When adding a known mapping.
-  void enterNamespace(STURIEntry* URI, STPrefixEntry* Pfx) {
+  void enterKnownNamespace(STURIEntry* URI, STPrefixEntry* Pfx) {
     pushURIContext(X(Pfx), X(URI));
+  }
+  /// When encountering a `xmlns:[Pfx]=[URI]` without Preserve.Prefixes on.
+  EXI_INLINE std::pair<STPrefixEntry*, bool>
+  enterNamespaceFacade(ImplicitHashStrRef Pfx, ImplicitHashStrRef URI) {
+    return createFakeURIAssociation(URI, Pfx);
   }
   /// When exiting a scoped namespace context.
   void exitNamespace(STPrefixEntry* Pfx) {
@@ -1003,6 +996,9 @@ private:
       return StringTable::prehash(S);
     }));
   }
+  /// Gets a new (Pfx*, IsNew) pair from a URI and Prefix.
+  std::pair<STPrefixEntry*, bool>
+  createFakeURIAssociation(CachedHashStrRef URI, CachedHashStrRef Pfx);
   /// Gets a new (URI*, Pfx*?) pair from a URI and Prefix.
   /// Used during initialization to avoid usage of potentially uninitialized data.
   /// Simpler than createURIAssociation, as it assumes all inputs are simple and valid.

@@ -24,7 +24,7 @@
 
 #include <exi/Encode/NamespaceContextStack.hpp>
 #include <core/Support/Lifetimes.hpp>
-#include <core/Support/Logging.hpp>
+//#include <core/Support/Logging.hpp>
 #include <exi/Basic/Except.hpp>
 #include <exi/Encode/StringTable.hpp>
 
@@ -33,18 +33,11 @@ using encode::StringTable;
 
 // TODO: Profile PRESERVE_MOST
 
-EXI_PRESERVE_MOST void NSContextStack::pushScope(
+void NSContextStack::pushScope(
  StringTable& SM, ArrayRef<NSContextStack::value_type> Elts) {
   exi_invariant(!Elts.empty());
   const usize N = Elts.size();
   Scopes.reserve_back(N + 1);
-#if 0
-  exi_todo("Implement parts in StringTable for pushScope...");
-  for (auto* Entry : Elts) {
-    if EXI_NEVER(Entry == nullptr)
-      continue;
-  }
-#endif
   const usize OldSize = Scopes.size();
   Scopes.resize_for_overwrite(OldSize + N);
   exi::trivial_copy_bytes<ContextEntry, true>(
