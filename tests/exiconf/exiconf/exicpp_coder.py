@@ -24,12 +24,17 @@ FAIL_KIND = [
   'Failed after everything else',
 ]
 
+def _get_win_fail_kind(val: int) -> str:
+  if val == 0xC000001D:
+    return 'SIGILL'
+  return 'Unknown'
+
 def _get_fail_kind(val: int) -> str:
   if val < len(FAIL_KIND):
     return f'{val}: {FAIL_KIND[val]}'
   # Check os specific codes
   if os.name == 'nt':
-    return f'0x{val:08X}: Unknown' 
+    return f'0x{val:08X}: {_get_win_fail_kind(val)}' 
   return f'{val}: Unknown'
 
 # There are more end sequences, but I won't be including them.
