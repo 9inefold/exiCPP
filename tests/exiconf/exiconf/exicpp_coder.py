@@ -14,6 +14,7 @@ def set_exicpp_verbosity(val: str):
 
 ENVIRON = { k: v for k, v in os.environ.items() }
 ENVIRON['EXICPP_NO_ANSI'] = '1'
+ENVIRON['EXICPP_DEBUG_ERRORS'] = '1'
 
 FAIL_KIND = [
   'Success',
@@ -24,18 +25,50 @@ FAIL_KIND = [
   'Failed after everything else',
 ]
 
+POSIX_FAIL_KIND: dict[int, str] = {
+  1: 'SIGHUP',
+  2: 'SIGINT',
+  3: 'SIGQUIT',
+  4: 'SIGILL',
+  6: 'SIGABRT',
+  22: 'SIGABRT', # Windows compat
+  8: 'SIGFPE',
+  9: 'SIGKILL',
+  11: 'SIGSEGV',
+  13: 'SIGPIPE',
+  14: 'SIGALRM',
+  15: 'SIGTERM',
+  17: 'SIGCHLD',
+  18: 'SIGCHLD',
+  20: 'SIGCHLD',
+}
+
 def _get_win_fail_kind(val: int) -> str:
   if val == 0xC000001D:
     return 'SIGILL'
-  return 'Unknown'
+  else:
+    return 'Unknown'
+
+def _get_fail_name(val: int) -> str | None:
+  if val < len(FAIL_KIND):
+    return FAIL_KIND[val]
+  elif val in POSIX_FAIL_KIND:
+    return POSIX_FAIL_KIND[val]
+  # Platform extras
+  if os.name == 'nt':
+    return _get_win_fail_kind(val)
+  else:
+    return 'Unknown'
 
 def _get_fail_kind(val: int) -> str:
-  if val < len(FAIL_KIND):
-    return f'{val}: {FAIL_KIND[val]}'
+  name = _get_fail_name(val)
+  if name is not None:
+    return f'{val}: {name}'
   # Check os specific codes
   if os.name == 'nt':
     return f'0x{val:08X}: {_get_win_fail_kind(val)}' 
-  return f'{val}: Unknown'
+  else:
+    return f'{val}: Unknown'
 
 # There are more end sequences, but I won't be including them.
 ANSI_PATTERN = r'(\x1B\[\d{1,3}(?:;\d{1,3}){,4}m)'

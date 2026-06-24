@@ -176,6 +176,10 @@ bool Process::IsDebugging() {
   return exi::IsDebuggingFlag && Process::IsReallyDebugging();
 }
 
+bool Process::IsTrapping() {
+  return exi::IsTrappingFlag && Process::IsReallyDebugging();
+}
+
 [[noreturn]] void Process::Exit(int RetCode, bool NoCleanup) {
 #if EXI_HAS_CRASHRECOVERYCONTEXT
   if (CrashRecoveryContext *CRC = CrashRecoveryContext::GetCurrent())

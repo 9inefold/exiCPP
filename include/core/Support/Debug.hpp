@@ -145,10 +145,16 @@ do {                                                                          \
 #endif
 
 /// This boolean is set to true if the `-debug` command line option
-/// is specified.  This should probably not be referenced directly, instead, use
-/// the `DEBUG_ONLY` macro below.
+/// is specified, or the `EXICPP_DEBUG_ERRORS` environment variable is truthy.
+/// This should probably not be referenced directly, instead, use the
+/// `DEBUG_ONLY` macro below.
 ///
 extern bool IsDebuggingFlag;
+
+/// This boolean is set to true if the `-trap-on-error` command line option
+/// is specified, or the `EXICPP_TRAP_ERRORS` environment variable is truthy.
+///
+extern bool IsTrappingFlag;
 
 /// This value is set if the `-debug` command line option is specified.
 ///

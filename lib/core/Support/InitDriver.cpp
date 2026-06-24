@@ -93,8 +93,10 @@ static bool HandleEscapeCodeSetup() {
 
 static void HandleDebugSetup() {
 #if EXI_DEBUG
-  if (CheckEnv("EXICPP_TRAP_ERRORS"))
+  if (CheckEnv("EXICPP_DEBUG_ERRORS"))
     exi::IsDebuggingFlag = true;
+  if (CheckEnv("EXICPP_TRAP_ERRORS"))
+    exi::IsTrappingFlag = true;
 #endif
 }
 

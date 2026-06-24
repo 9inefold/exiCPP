@@ -253,15 +253,19 @@ public:
   /// supported on the current platform, it will default to `false`.
   static bool IsReallyDebugging();
 
-  /// This function returns whether a debugger is present and `DebugFlag` is
-  /// enabled.
+  /// This function returns whether a debugger is present and `IsDebuggingFlag`
+  /// is enabled.
   static bool IsDebugging();
+
+  /// This function returns whether a debugger is present and `IsTrappingFlag`
+  /// is enabled.
+  static bool IsTrapping();
 
   /// This function traps if a debugger is present and `DebugFlag` is enabled.
   /// Does nothing in release builds.
   ALWAYS_INLINE EXI_NODEBUG static void TrapIfDebugging() {
 #if EXI_DEBUG
-    if (Process::IsDebugging())
+    if (Process::IsTrapping())
       EXI_TRAP;
 #endif
   }

@@ -579,7 +579,13 @@ static EXI_UNUSED int
 
 extern "C" void HandleAbort(int Sig) {
   if (Sig == SIGABRT) {
-    EXI_TRAP;
+    // TODO: Rethink HandleAbort implementation?
+    if (exi::IsTrappingFlag || !sys::Process::IsDebugging())
+      EXI_TRAP;
+    else
+      sys::PrintStackTrace(exi::errs(), 1);
+    // Quick exit
+    sys::Process::Exit(Sig, /*NoCleanup=*/true);
   }
 }
 
@@ -802,7 +808,7 @@ static void Cleanup(bool ExecuteSignalHandlers) {
   if (CleanupExecuted)
     return;
 
-  EnterCriticalSection(&CriticalSection);
+  ScopedCriticalSection SCS(CriticalSection);
 
   // Prevent other thread from registering new files and directories for
   // removal, should we be executing because of the console handler callback.
@@ -817,8 +823,6 @@ static void Cleanup(bool ExecuteSignalHandlers) {
 
   if (ExecuteSignalHandlers)
     exi::sys::RunSignalHandlers();
-
-  LeaveCriticalSection(&CriticalSection);
 }
 
 void exi::sys::RunInterruptHandlers() {
@@ -937,14 +941,10 @@ static bool GetDumpType(HKEY Key, MINIDUMP_TYPE &ResultType) {
 /// otherwise.
 static std::error_code WINAPI
 WriteWindowsDumpFile(PMINIDUMP_EXCEPTION_INFORMATION ExceptionInfo) {
-  struct ScopedCriticalSection {
-    ScopedCriticalSection() { EnterCriticalSection(&CriticalSection); }
-    ~ScopedCriticalSection() { LeaveCriticalSection(&CriticalSection); }
-  } SCS;
-
   using namespace exi;
   using namespace exi::sys;
 
+  ScopedCriticalSection SCS(CriticalSection);
   String MainExecutableName = fs::getMainExecutable(nullptr, nullptr);
   StrRef ProgramName;
 
@@ -1070,7 +1070,7 @@ static LONG WINAPI EXIUnhandledExceptionFilter(LPEXCEPTION_POINTERS ep) {
 
 static BOOL WINAPI EXIConsoleCtrlHandler(DWORD dwCtrlType) {
   // We are running in our very own thread, courtesy of Windows.
-  EnterCriticalSection(&CriticalSection);
+  ScopedCriticalSection SCS(CriticalSection);
   // This function is only ever called when a CTRL-C or similar control signal
   // is fired. Killing a process in this way is normal, so don't trigger the
   // signal handlers.
@@ -1085,12 +1085,10 @@ static BOOL WINAPI EXIConsoleCtrlHandler(DWORD dwCtrlType) {
     // Note: if the interrupt function throws an exception, there is nothing
     // to catch it in this thread so it will kill the process.
     IF(); // Run it now.
-    LeaveCriticalSection(&CriticalSection);
     return TRUE; // Don't kill the process.
   }
 
   // Allow normal processing to take place; i.e., the process dies.
-  LeaveCriticalSection(&CriticalSection);
   return FALSE;
 }
 

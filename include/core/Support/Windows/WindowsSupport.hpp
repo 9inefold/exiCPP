@@ -122,6 +122,19 @@ public:
   }
 };
 
+class ScopedCriticalSection {
+  CRITICAL_SECTION& CriticalSection;
+public:
+  ALWAYS_INLINE ScopedCriticalSection(CRITICAL_SECTION& CS) : CriticalSection(CS) {
+    ::EnterCriticalSection(&CriticalSection);
+  }
+  ScopedCriticalSection(const ScopedCriticalSection&) = delete;
+  ScopedCriticalSection(ScopedCriticalSection&&) = delete;
+  ScopedCriticalSection& operator=(const ScopedCriticalSection&) = delete;
+  ScopedCriticalSection& operator=(ScopedCriticalSection&&) = delete;
+  ~ScopedCriticalSection() { ::LeaveCriticalSection(&CriticalSection); }
+};
+
 struct CommonHandleTraits {
   typedef HANDLE handle_type;
 

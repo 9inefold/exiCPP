@@ -69,6 +69,8 @@ using DbgTVec = exi::SmallVec<exi::String, 0>;
 namespace exi {
 /// Exported flag set by the -debug option.
 bool IsDebuggingFlag = false;
+/// Exported flag set by the -trap-on-error option.
+bool IsTrappingFlag = false;
 /// Exported flag set by the -debug option.
 LogLevelType DebugFlag = LogLevel::WARN;
 
