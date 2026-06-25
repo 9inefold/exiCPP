@@ -10,3 +10,4 @@ vendored/** linguist-vendored
 *.inc   linguist-language=cpp
 *.impl  linguist-language=cpp
 *.py.in linguist-language=python3
+*.jsonc linguist-language=json5

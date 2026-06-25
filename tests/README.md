@@ -97,11 +97,21 @@ but for now only encode/decode will be tested.
 
 ### Map format
 
-The map files (`map.json`) found in the sources folder tell the test runner what it should be doing.
+The map files (`map.jsonc`) found in the sources folder tell the test runner what it should be doing.
+The Schema can be found at [`map.schema.json`](map.schema.json).
+
+If using VSCode, add the following to your `settings.json`:
+
+```json
+"json.schemas": [{
+  "fileMatch": ["map.jsonc"],
+  "url": "./PATH/TO/TESTS/map.schema.json"
+}],
+```
 
 At the top level, you can imagine there being a map file like this:
 
-```json
+```jsonc
 {
   "**/*": {
     "alignment": ["i", "y", "p", "c"],
@@ -143,23 +153,29 @@ src
 
 For `/map.json`:
 
-```json
+```jsonc
 {
   "**/*": {
+    // Sets alignment for all files
     "alignment": ["i", "y"],
+    // EXCLUDES Preserve.LexicalValues for all files
     "preserve": {
       "#exclude": "l"
     }
   },
   "one/*": {
+    // Adds dependency for one/*.xml
     "#depends": "one/one.ent"
   },
   "one/c": {
     "preserve": {
+      // EXCLUDES Preserve.DTDs, Preserve.PIs and
+      // INCLUDES Preserve.LexicalValues for one/c.xml
       "#exclude": ["d", "i"],
       "#include": "l"
     }
   },
+  // IGNORES two/v.xml and two/w.xml
   "#ignore": "two/[vw]"
 }
 ```

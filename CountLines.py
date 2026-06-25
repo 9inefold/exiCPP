@@ -19,7 +19,7 @@ SKIP_EMPTY = args.noempty
 SKIP_COMMENTS = args.nocomments
 SKIP_HEADER = not args.header
 
-IS_CPP_STYLE_FILE = re.compile(r'.*\.(hpp|cpp|impl|mac|in|java)')
+IS_CPP_STYLE_FILE = re.compile(r'.*\.(hpp|cpp|impl|mac|in|java|jsonc)')
 CSTYLE_COMMENT = '//'.encode()
 PYSTYLE_COMMENT = '#'.encode()
 

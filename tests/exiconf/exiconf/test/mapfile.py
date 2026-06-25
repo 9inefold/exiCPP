@@ -5,6 +5,7 @@ from glob import glob
 from pathlib import Path
 from exiconf.constants import TEST_SRC_DIR
 from exiconf.logging import errs, outs
+from exiconf.jsonc import loads as jsonc_loads
 
 from typing import TypeAlias, NewType, TypeGuard, cast
 from collections.abc import Callable
@@ -72,7 +73,7 @@ def _check_directive(name: str) -> bool:
   return False
 
 def _json_ordered(raw_data: str) -> OrderedDict:
-  return json.loads(raw_data, object_pairs_hook=OrderedDict)
+  return jsonc_loads(raw_data, object_pairs_hook=OrderedDict)
 
 def _as_list(item) -> list[str]:
   """Converts str to [str], otherwise nothing"""
@@ -511,12 +512,12 @@ class DependenciesMap:
   
 class MappingMapper:
   """
-  Handles the parsing of map.json files.
+  Handles the parsing of map.jsonc files.
 
   Attributes
   ----------
   _root : Path
-    Path to the base map.json file's folder
+    Path to the base map.jsonc file's folder
   
   _maps : TransitionMap
     The table of unique changes
@@ -526,7 +527,7 @@ class MappingMapper:
   _curr : OrderedDict
     The dict currently used for parsing
   _relative_to : Path
-    The folder the map.json file is in
+    The folder the map.jsonc file is in
   _parse_stack : list[list[str]]
     The list of files queued to be parsed
   _inc_stack
@@ -599,9 +600,10 @@ class MappingMapper:
     else:
       self._curr = None # type: ignore
   
-  def _load(self, filepath: Path, name='map.json') -> bool:
-    """Loads PATH/map.json into _curr"""
+  def _load(self, filepath: Path, name='map.jsonc') -> bool:
+    """Loads PATH/map.jsonc into _curr"""
     # TODO: Allow alternate filenames?
+    # FIXME: Change loading strategy to allow for different extensions
     file = filepath / name
     # Simple checks
     if not file.exists():
@@ -761,7 +763,7 @@ class MappingMapper:
           _copy_trans_dict(new, mod, key_id)  
       # Now create a new entry
       self._maps.update_ids(new, ids)
-      ##LOG("new:", json.dumps(new, cls=MapfileJSONEncoder, indent=1))
+      ##LOG("new:", jsonc.dumps(new, cls=MapfileJSONEncoder, indent=1))
     pass
 
   # Top-level iteration
@@ -952,9 +954,10 @@ def map_files(root=None) -> MappingData:
     root = TEST_SRC_DIR
   root = Path(root)
   assert root.exists()
-  # Check we have a base map.json
-  if not (root / 'map.json').exists():
-    raise FileNotFoundError(f"No map.json in '{root.as_posix()}'")
+  # Check we have a base map.jsonc
+  if not (root / 'map.jsonc').exists():
+    if not (root / 'map.json').exists():
+      raise FileNotFoundError(f"No map.jsonc in '{root.as_posix()}'")
   
   # Get all the xml files
   xml_files = _load_glob_recursive('**/*.xml', root)

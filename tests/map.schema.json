@@ -1,0 +1,6 @@
+{
+  "title": "Mapfile",
+  "description": "Defines the test layout",
+  "type": "object",
+  "allowTrailingCommas": true
+}

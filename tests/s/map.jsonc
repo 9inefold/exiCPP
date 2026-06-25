@@ -1,13 +1,20 @@
 {
   "**/*": {
     "alignment": ["i", "y"],
-    "preserve": ["c", "di", "p"]
+    "preserve": ["c", "di", "p"],
   },
   "xml/097": {
     "#depends": "xml/097.ent"
   },
   "#ignore": [
+    "at/*",
+    //"ch/*",
+    //"el/*",
+    //"el2/*",
+    "me/*",
+    "xml/*",
+
     "el2/el2-07a",
-    "xml/097"
+    "xml/097",
   ]
 }
