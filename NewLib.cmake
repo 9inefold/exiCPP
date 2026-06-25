@@ -114,6 +114,7 @@ include_items(EXICPP_DECODE "lib/exi"
   Decode/Grammar.cpp
   Decode/HeaderDecoder.cpp
   Decode/StringTables.cpp
+  Decode/XMLDeserializer.cpp
 )
 
 include_items(EXICPP_ENCODE "lib/exi"

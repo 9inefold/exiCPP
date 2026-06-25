@@ -1074,9 +1074,10 @@ void doTestTests(RefCntPtr<XMLManager> Mgr) {
 
   SetLogLevel(LogLevel::EXTRA);
 
-  auto DoEncodeOnly = [&] (StrRef SubFolder, StrRef Mangling, bool DecodeAfter = true) {
+  auto DoEncodeOnly = [&] (StrRef SubFolder, StrRef Mangling,
+                           bool DecodeAfter = true) {
     auto [Folder, Entry] = SubFolder.split('.');
-    auto xml = fmt::format("tests/o2/{}/{}.xml", SubFolder, Entry);
+    auto xml = fmt::format("tests/s/{}/{}.xml", Folder, Entry);
 
     PrintBreak();
     Encode(Mgr.get(), xml, Opts, Hdr, &EncodeBuf);
@@ -1084,6 +1085,11 @@ void doTestTests(RefCntPtr<XMLManager> Mgr) {
     if (DecodeAfter) {
       PrintBreak();
       Decode(EncodeBuf.str(), Opts);
+      XMLDeserializer XD;
+      //XD.UURIType = UnboundURIKind::UURI_OPENEXI;
+      //XD.UURIType = UnboundURIKind::UURI_EXIFICIENT;
+      Decode(EncodeBuf.str(), Opts, &XD);
+      XMLDump::full(XD.document(), {.Conforming = true});
     }
   };
 
@@ -1112,6 +1118,8 @@ void doTestTests(RefCntPtr<XMLManager> Mgr) {
   //CheckOutput("el.el-01", "yPcdi");
   //CheckOutput("ch.ch-01", "yPc");
   DoEncodeOnly("el2.el2-07", "iPcdi");
+  // TODO: Support universal names in decoding
+  //DoEncodeOnly("el2.el2-07a", "iPpcdi");
 
   /*{
     SetLogLevel(LogLevel::EXTRA);

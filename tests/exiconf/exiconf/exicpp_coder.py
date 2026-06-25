@@ -54,11 +54,7 @@ def _get_fail_name(val: int) -> str | None:
     return FAIL_KIND[val]
   elif val in POSIX_FAIL_KIND:
     return POSIX_FAIL_KIND[val]
-  # Platform extras
-  if os.name == 'nt':
-    return _get_win_fail_kind(val)
-  else:
-    return 'Unknown'
+  return None
 
 def _get_fail_kind(val: int) -> str:
   name = _get_fail_name(val)

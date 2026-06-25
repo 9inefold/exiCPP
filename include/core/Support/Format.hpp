@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------===//
 //
-// Copyright (C) 2024 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -80,10 +80,7 @@ class FormatObject final : public IFormatObject {
   fmt::vargs<const Args&...> Sto;
 public:
   FormatObject(fmt::string_view Str, const Args&...args) :
-   IFormatObject(
-    StrRef(Str.data(), Str.size()),
-    this->Sto
-   ),
+   IFormatObject(StrRef(Str.data(), Str.size()), this->Sto),
    Sto{{args...}} {
   }
 };

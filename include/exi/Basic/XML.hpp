@@ -63,9 +63,28 @@ struct XMLParseOptions {
   bool MergeData = false;
 };
 
+/// The methods for handling URIs unbound to prefixes.
+enum class UnboundURIKind : u8 {
+  /// Use extended XML universal names.
+  /// See http://www.jclark.com/xml/xmlns.htm
+  /// eg. `{"URI", LocalName}` -> `{URI}LocalName`
+  UURI_UNIVERSAL,
+  /// Use Exificient decoder behavior. Uses `ns{URID}` as the name.
+  /// See https://github.com/EXIficient/exificient-core/blob/d4a6e51/src/main/java/com/siemens/ct/exi/core/context/QNameContext.java#L103
+  /// eg. `{"URI", LocalName}` -> `ns3:LocalName xmlns:ns3="URI"`
+  UURI_EXIFICIENT,
+  /// Use OpenEXI decoder behavior. Uses `ns{NEncountered}` as the name.
+  /// See https://github.com/9inefold/exiCPP/blob/3e0def3/tests/jarvis/org/openexi/sax/EXIReader2.java#L515
+  /// eg. `{"URI", LocalName}` -> `p0:LocalName xmlns:p0="URI"`
+  /// TODO: Verify OpenEXI Preserve.Prefixes=0 behavior.
+  UURI_OPENEXI,
+  /// TODO: Add custom replacement syntax.
+  UURI_CUSTOM,
+};
+
 /// The methods for handling CDATA blocks.
 enum class PreserveCDATAKind : u8 {
-  // Preserves block and characters.
+  /// Preserves block and characters.
   CDATA_PRESERVE,
   /// Escapes reserved characters, removes block.
   /// eg. `<![CDATA[&<"]]>` becomes `&amp;&lt;&quot;`.
@@ -77,6 +96,9 @@ enum class PreserveCDATAKind : u8 {
 
 /// Options for the encoding/decoding of EXI and XML.
 struct XMLCoderOptions {
+  /// How unbound URIs should be handled.
+  UnboundURIKind UURIType = UnboundURIKind::UURI_UNIVERSAL;
+  StrRef UURIReplacement = "n{URI}";
   /// If CDATA blocks should be preserved.
   PreserveCDATAKind PreserveCDATA = PreserveCDATAKind::CDATA_PRESERVE;
   /// Skip empty CH events

@@ -38,6 +38,10 @@ This is a TODO list for the C++ version of exiCPP.
   - Make setting features a bit easier to work with
   - Fix attribute buffer swap hack to handle entities
   - Fix cases like `xyz:="..."` with weird attributes enabled
+- Allow decoder to handle "prefixes" in different ways when `Preserve.Prefixes` is `false`
+  - ~~[Use raw prefixes](http://www.jclark.com/xml/xmlns.htm) (`{URI}LocalName`)~~
+  - OpenEXI behavior (`p0:LocalName xmlns:p0="URI"`)
+  - Exificient behavior (`ns3:LocalName xmlns:ns3="URI"`)
 - Add `map.json` impl for test configuration
   - Still needs `#import` and `#ignore` for specific impls
   - Code is sloppy, needs rework eventually
@@ -68,7 +72,6 @@ This is a TODO list for the C++ version of exiCPP.
   - Specific `SchemaID` type with a `SchemaIDHandler`? *May be the best option*
 - Improve custom logging api
 - Add version `.rc` file on windows?
-- Match exificient namespaces generated with `Preserve.Prefixes=0`
 - Add `ANSIState` class for colored output + rethink strategy
 - Fix mimalloc setup on windows
 - **`sys::` implementation on linux**

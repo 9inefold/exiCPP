@@ -1,6 +1,6 @@
 //===- exi/Decode/Deserializer.hpp -----------------------------------===//
 //
-// Copyright (C) 2025 Ninefold
+// Copyright (C) 2025-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,9 +26,11 @@
 #include <core/Common/ArrayRef.hpp>
 #include <core/Common/PointerIntPair.hpp>
 #include <core/Common/StrRef.hpp>
+#include <core/Support/IntCast.hpp>
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
 #include <exi/Basic/EventCodes.hpp>
+#include <exi/Decode/D/BodyDecoderTemp.hpp>
 
 #define DEBUG_TYPE "Deserializer"
 
@@ -61,14 +63,34 @@ public:
 
   StrRef uri() const { return {URI, URISize}; }
   StrRef name() const { return {Name, NameSize}; }
-  StrRef pfx() const { return Pfx ? StrRef(Pfx, PfxSizeOrID) : "?"_str; }
-  u64 id() const { return EXI_ALWAYS(!Pfx) ? PfxSizeOrID : kInvalidLNI; }
+  StrRef pfx() const { return hasPrefix() ? StrRef(Pfx, PfxSizeOrID) : ""_str; }
+  u64 id() const { return hasID() ? PfxSizeOrID : kInvalidLNI; }
   bool hasPrefix() const { return Pfx; }
   bool hasID() const { return !Pfx; }
 };
 
 class Deserializer {
+protected:
+  BodyDecoder* TheDecoder = nullptr;
 public:
+  /// Destructor.
+  virtual ~Deserializer() = default;
+
+  ExiError start(BodyDecoder* BD) {
+    this->TheDecoder = BD;
+    return this->SD();
+  }
+  ExiError end() {
+    try {
+      ExiError E = this->ED();
+      this->TheDecoder = nullptr;
+      return E;
+    } catch (exi::runtime_error&) {
+      this->TheDecoder = nullptr;
+      throw;
+    }
+  }
+
   /// Start Document
   virtual ExiError SD() {
     LOG_EXTRA("Beginning decoding...");
@@ -156,9 +178,6 @@ public:
 
   /// Customization point for simplifying DOCTYPE passing.
   virtual bool simpleDoctype() const { return false; }
-
-  /// Destructor.
-  virtual ~Deserializer() = default;
 
 private:
   virtual void anchor();

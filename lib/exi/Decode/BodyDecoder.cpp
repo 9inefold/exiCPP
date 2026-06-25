@@ -248,11 +248,11 @@ EXI_COLD ExiError ExiDecoder::dispatchUncommonEvent(Deserializer* S,
 // Terms
 
 ExiError ExiDecoder::handleSD(Deserializer* S) {
-  return S->SD();
+  return S->start(this);
 }
 
 ExiError ExiDecoder::handleED(Deserializer* S) {
-  if (ExiError E = S->ED())
+  if (ExiError E = S->end())
     return E;
   return ExiError::DONE;
 }

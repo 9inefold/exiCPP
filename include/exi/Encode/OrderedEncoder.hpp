@@ -310,6 +310,7 @@ public:
   }
 
   // FIXME: Handle popping scope after inner ns decl?
+  // TODO: Add option to keep/prune useless ns events
 
   template <typename StrmT, bool IsRoot = false>
   ExiError encodeNS(const NamespaceEvent& NS) {

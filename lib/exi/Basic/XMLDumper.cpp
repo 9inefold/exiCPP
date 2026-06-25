@@ -124,7 +124,17 @@ public:
   static bool HasAttributes(NodeT Node);
 
   static std::pair<StrRef, StrRef> SplitNodeName(StrRef Name) {
-    return Name.split_back(':');
+    if EXI_LIKELY(!Name.starts_with('{'))
+      return Name.rsplit_back(':');
+    // Handle cases of `{URI}LocalName`.
+    const usize EndPos = Name.rfind('}');
+    if (EndPos == StrRef::npos)
+      return {"", Name};
+    // Found the end.
+    return {
+      Name.substr(0, EndPos + 1),
+      Name.substr(EndPos + 1)
+    };
   }
   static std::pair<StrRef, StrRef>
    SplitNodeName(const XMLBase* Node) {
@@ -292,16 +302,30 @@ void XMLDumper::putName(StrRef Name) {
   Save << Name;
 }
 void XMLDumper::putNs(StrRef NS) {
-  WithColor Save(OS, COLOR_ns);
-  Save << NS;
+  if (NS.consume_pinch("{", "}")) {
+    WithColor Save(OS, COLOR_string);
+    putSplit('{');
+    Save << NS;
+    putSplit('}');
+  } else {
+    WithColor Save(OS, COLOR_ns);
+    Save << NS;
+  }
 }
 void XMLDumper::putAttr(StrRef Attr) {
   WithColor Save(OS, COLOR_attr);
   Save << Attr;
 }
 void XMLDumper::putAttrNs(StrRef NS) {
-  WithColor Save(OS, COLOR_attrns);
-  Save << NS;
+  if (NS.consume_pinch("{", "}")) {
+    WithColor Save(OS, COLOR_string);
+    putSplit('{');
+    Save << NS;
+    putSplit('}');
+  } else {
+    WithColor Save(OS, COLOR_attrns);
+    Save << NS;
+  }
 }
 void XMLDumper::putString(StrRef Str) {
   WithColor Save(OS, COLOR_string);
@@ -364,7 +388,8 @@ void XMLDumper::printName(NodeT Node) {
   // TODO: Check if prefix is xml/xsi
   if (PreservePrefixes && !Ns.empty()) {
     this->putNs(Ns);
-    this->putSplit(':');
+    if (Ns[0] != '{')
+      this->putSplit(':');
     if EXI_UNLIKELY(Name.empty()) {
       WithColor(OS, BRIGHT_RED) << "@no-name";
       return;
@@ -393,7 +418,8 @@ void XMLDumper::printAttrName(const XMLAttribute* Attr) {
   // TODO: Check if prefix is xml/xsi
   if (PreservePrefixes && !Ns.empty()) {
     this->putAttrNs(Ns);
-    this->putSplit(':');
+    if (Ns[0] != '{')
+      this->putSplit(':');
     if EXI_UNLIKELY(Name.empty()) {
       WithColor(OS, BRIGHT_RED) << "@no-attr-name";
       return;

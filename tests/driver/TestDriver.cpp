@@ -176,6 +176,7 @@ static int exi_main(ArrayRef<StrRef> Args) {
 
   // Set up deserialization
   XMLDeserializer S(Out);
+  S.UURIType = UnboundURIKind::UURI_OPENEXI;
   S.PreserveCDATA = ExtraOpts.PreserveCDATA;
   //S.SkipEmptyCH = true;
 

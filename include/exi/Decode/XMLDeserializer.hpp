@@ -23,25 +23,35 @@
 
 #pragma once
 
+#include <core/Common/Box.hpp>
+#include <core/Common/DenseMap.hpp>
 #include <core/Common/Twine.hpp>
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/Except.hpp>
 #include <exi/Basic/XMLContainer.hpp>
 #include <exi/Decode/Deserializer.hpp>
 
+#define DEBUG_TYPE "XMLDeserializer"
+
 namespace exi {
 
 // TODO: Definitely wanna do some caching here...
 class XMLDeserializer final : public Deserializer, public XMLCoderOptions {
   using enum xml::NodeKind;
+  using enum UnboundURIKind;
+  using enum PreserveCDATAKind;
+  using NSSlotMap = SmallDenseMap<u64, u64>;
 
   mutable Option<XMLDocument> SelfDoc;
   XMLDocument* Doc = nullptr;
   XMLNode* Curr = nullptr;
   XMLAttribute* Attr = nullptr;
   u64 UnboundURI = kInvalidPrefix;
+  StrRef CurrURI = "";
+  MiBox<NSSlotMap> NSSlots;
+  SmallStr<32> ScratchBuf;
   // For exificient compat
-  bool HasPrefix = false;
+  bool HasPrefix = true;
 
 public:
   XMLDeserializer(XMLDocument& Doc) : Doc(&Doc), Curr(Doc.document()) {}
@@ -50,11 +60,23 @@ public:
     Curr = Doc->document();
   }
 
+  XMLDeserializer(const XMLDeserializer&) = delete;
+  XMLDeserializer(XMLDeserializer&&) = delete;
+  XMLDeserializer& operator=(const XMLDeserializer&) = delete;
+  XMLDeserializer& operator=(XMLDeserializer&&) = delete;
+
   /// Start Document
   ExiError SD() override {
     Doc->clear();
     this->Curr = Doc->document();
     this->Attr = nullptr;
+    this->CurrURI = "";
+    if (XMLCoderOptions::UURIType == UURI_CUSTOM) {
+      LOG_WARN("UURI_CUSTOM is unsupported, setting to UURI_UNIVERSAL");
+      XMLCoderOptions::UURIType = UURI_UNIVERSAL;
+    } else if (XMLCoderOptions::UURIType != UURI_UNIVERSAL) {
+      NSSlots = make_miunique<NSSlotMap>();
+    }
     return ExiError::OK;
   }
 
@@ -62,21 +84,27 @@ public:
   ExiError ED() override {
     this->Curr = Doc->document();
     this->Attr = nullptr;
+    this->CurrURI = "";
+    NSSlots.reset();
     return ExiError::DONE;
   }
 
   /// Start Element
   ExiError SE(QName Name) override {
+    this->setURIPrefixForUnboundSE();
     XMLNode* Node = allocNode(node_element, Name);
-    UnboundURI = Name.id();
-    HasPrefix = Name.hasPrefix();
     Curr->append_node(Node);
+    this->UnboundURI = Name.id();
+    this->HasPrefix = Name.hasPrefix();
+    if (!this->HasPrefix)
+      this->CurrURI = Name.uri();
     Curr = Node;
     return ExiError::OK;
   }
 
   /// End Element
   ExiError EE(QName Name) override {
+    this->setURIPrefixForUnboundSE();
     Curr = Curr->parent();
     if EXI_UNLIKELY(!Curr)
       Curr = Doc->document();
@@ -85,7 +113,7 @@ public:
 
   /// Attribute
   ExiError AT(QName Name, StrRef Value) override {
-    this->Attr = allocAttr(Name, Value);
+    this->Attr = allocAttr</*IsNS=*/false>(Name, Value);
     Curr->append_attribute(Attr);
     return ExiError::OK;
   }
@@ -101,15 +129,17 @@ public:
   /// Namespace Declaration - Local
   ExiError NS_Local(StrRef URI, StrRef Prefix, u64 ID) override {
     if (this->HasPrefix) {
-      HasPrefix = false;
+      this->HasPrefix = false;
       return this->NS(URI, Prefix);
     }
     if EXI_NEVER(!hasUnboundPrefix())
       Throw<argument_error>("local-name-ns set without valid SE!");
     if EXI_UNLIKELY(UnboundURI != ID)
       Throw<argument_error>("local-name-ns does not match SE URI!");
+    // Last sanity check!
+    exi_expensive_invariant(CurrURI == URI);
     // TODO: Verify this is correct?
-    UnboundURI = kInvalidLNI;
+    this->UnboundURI = kInvalidLNI;
     StrRef FullName = getFullName(Prefix, Curr->name());
     Curr->name(FullName);
     return this->NS(URI, Prefix);
@@ -118,13 +148,13 @@ public:
   /// Characters
   ExiError CH(StrRef Value) override {
     usize From = 0;
-    if (SkipEmptyCH) {
+    if (XMLCoderOptions::SkipEmptyCH) {
       // Save result.
       From = Value.find_first_not_of(" \t\r\n");
       if (From == StrRef::npos)
         return ExiError::OK;
     }
-    if (PreserveCDATA == PreserveCDATAKind::CDATA_PRESERVE) {
+    if (XMLCoderOptions::PreserveCDATA == CDATA_PRESERVE) {
       if (auto I = Value.find("<![CDATA[", From); I != StrRef::npos)
         return this->CH_CDATA(Value, I);
     }
@@ -151,8 +181,7 @@ public:
       StrRef::size_type End = Value.find(
         CDATA_End, CDATA_Start.size());
       if EXI_UNLIKELY(End == StrRef::npos) {
-        LOG_WARN_WITH("XMLDeserializer",
-          "Unterminated CDATA block: {}", Value);
+        LOG_WARN("Unterminated CDATA block: {}", Value);
         return ErrorCode::kUnexpectedError;
       }
       
@@ -233,9 +262,9 @@ private:
     return Doc->allocate_node(Kind, Name, Value);
   }
 
-  template <bool IsNS = false>
+  template <bool IsNS>
   ALWAYS_INLINE XMLAttribute* allocAttr(QName Name, StrRef Value) {
-    StrRef FullName = getFullName<IsNS>(Name);
+    StrRef FullName = getFullNameAT(Name, IsNS);
     return Doc->allocate_attribute(FullName, Value);
   }
 
@@ -250,42 +279,48 @@ private:
     );
   }
 
+  /// If there is an unbound prefix, and the URI is not empty, the name will be
+  /// set to whatever the provided mode is.
+  void setURIPrefixForUnboundSE();
+
+  /// Creates a new unbound prefix given the type in `XMLCoderOptions`.
+  StrRef getURIPrefixForUnbound(StrRef URI, StrRef LocalName, u64 ID);
+  /// Creates a new unbound prefix given the type in `XMLCoderOptions`.
+  EXI_INLINE StrRef getURIPrefixForUnbound(const QName& Name) {
+    exi_invariant(Name.hasID());
+    return getURIPrefixForUnbound(Name.uri(), Name.name(), Name.id());
+  }
+
+  /// Creates a name like `{URI}LocalName`.
+  StrRef getUnboundPrefixUniversal(StrRef URI, StrRef LocalName);
+  /// Creates a name like `ns3:LocalName`.
+  StrRef getUnboundPrefixExificient(StrRef URI, StrRef LocalName, u64 ID);
+  /// Creates a name like `p0:LocalName`.
+  StrRef getUnboundPrefixOpenexi(StrRef URI, StrRef LocalName, u64 ID);
+
+  StrRef getUnboundPrefixCommon(StrRef URI, StrRef LocalName, bool IsNew);
+  std::pair<u64, bool> getNSSlot(u64 ID);
+
+  EXI_INLINE StrRef getFullName(const QName& Name) {
+    return getFullName(Name.pfx(), Name.name());
+  }
+
   StrRef getFullName(StrRef Pfx, StrRef Name) {
     // TODO: Handle Name.empty()
     if (Name.empty()) {
-      LOG_WARN_WITH("XMLDeserializer",
-        "Empty name SE: {}:{}", Pfx, Name);
-      return Pfx;
+      LOG_WARN("Empty name SE: {}:{}", Pfx, Name);
+      return intern(Pfx, Name);
     }
     if (!Pfx.empty())
       return intern(Pfx, Name);
-    return Name;
+    return intern(Name);
   }
 
-  template <bool IsNS = false>
-  EXI_INLINE StrRef getFullName(const QName& Name) {
-    StrRef FullName = Name.name();
-    if constexpr (IsNS) {
-      if (FullName.empty())
-        return "xmlns"_str;
-      return intern("xmlns"_str, FullName);
-    } else if (Name.hasPrefix()) {
-      auto Pfx = Name.pfx();
-      // TODO: Handle FullName.empty() when !IsNS
-      if (FullName.empty()) {
-        LOG_WARN_WITH("XMLDeserializer",
-          "Empty name AT: {}:=\"{}\"", Pfx, Name.uri());
-        return Pfx;
-      }
-      if (!Pfx.empty())
-        return intern(Name.pfx(), FullName);
-    }
-    return FullName;
-  }
+  StrRef getFullNameAT(const QName& Name, bool IsNS);
 
   StrRef intern(const Twine& FullName) {
-    SmallStr<32> Data;
-    StrRef Val = FullName.toStrRef(Data);
+    SmallStr<32> Buf;
+    StrRef Val = FullName.toStrRef(Buf);
     return this->intern(Val);
   }
 
@@ -305,3 +340,5 @@ private:
 // TODO: Add InFlightXMLSerializer
 
 } // namespace exi
+
+#undef DEBUG_TYPE

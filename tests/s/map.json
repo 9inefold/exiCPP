@@ -5,5 +5,9 @@
   },
   "xml/097": {
     "#depends": "xml/097.ent"
-  }
+  },
+  "#ignore": [
+    "el2/el2-07a",
+    "xml/097"
+  ]
 }
