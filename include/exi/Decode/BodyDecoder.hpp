@@ -1,6 +1,6 @@
 //===- exi/Decode/BodyDecoder.hpp ------------------------------------===//
 //
-// Copyright (C) 2025 Ninefold
+// Copyright (C) 2025-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@
 #include <exi/Grammar/DecoderSchema.hpp>
 #include <exi/Stream/OrderedReader.hpp>
 #include <exi/Basic/D/LogPosition.mac>
+#include <exi/Decode/D/BodyDecoderTemp.hpp>
 
 #define DEBUG_TYPE "BodyDecoder"
 

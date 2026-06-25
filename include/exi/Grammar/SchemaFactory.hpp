@@ -1,6 +1,6 @@
 //===- exi/Grammar/SchemaFactory.hpp --------------------------------===//
 //
-// Copyright (C) 2025 Ninefold
+// Copyright (C) 2025-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,13 +26,14 @@
 #include <core/Common/Box.hpp>
 #include <core/Common/unique_function.hpp>
 #include <exi/Basic/ErrorCodes.hpp>
+#include <exi/Decode/D/BodyDecoderTemp.hpp>
 
 namespace exi {
 
 struct ExiOptions;
 class ExiDecoder;
 class ExiEncoder;
-class BodyDecoder;
+//class BodyDecoder;
 class BodyEncoder;
 
 namespace decode {
