@@ -42,7 +42,7 @@
 using namespace exi;
 using namespace exi::decode;
 
-#define DEBUG_TYPE "BuiltinSchema"
+#define DEBUG_TYPE "Decode.BuiltinSchema"
 
 /// Emits diagnostic for an error.
 EXI_ERROR_CC static void Diagnose(const ExiError& E) {

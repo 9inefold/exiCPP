@@ -44,7 +44,7 @@
 using namespace exi;
 using namespace exi::encode;
 
-#define DEBUG_TYPE "BuiltinSchema"
+#define DEBUG_TYPE "Encode.BuiltinSchema"
 
 #if EXI_LOG_POSITION
 /// Encodes extra information.
