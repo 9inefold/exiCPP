@@ -170,6 +170,7 @@ ALWAYS_INLINE EXI_FLATTEN T* new_arr_impl(usize N) {
 
 template <typename T>
 ALWAYS_INLINE EXI_FLATTEN void delete_impl(T* Ptr) {
+  if EXI_NEVER(!Ptr) return;
   std::destroy_at(Ptr);
   exi::exi_free(Ptr);
 }
@@ -177,8 +178,10 @@ ALWAYS_INLINE EXI_FLATTEN void delete_impl(T* Ptr) {
 template <typename T>
 ALWAYS_INLINE EXI_FLATTEN void delete_arr_impl(T* Ptr) {
   using BlockType = InlineArr<T>;
+  constexpr uptr kOffset = offsetof(BlockType, Data);
+  if EXI_NEVER(!Ptr) return;
   auto* Block = reinterpret_cast<BlockType*>(
-    reinterpret_cast<char*>(Ptr) - offsetof(BlockType, Data));
+    reinterpret_cast<char*>(Ptr) - kOffset);
   if constexpr (!std::is_trivially_destructible_v<T>)
     std::destroy_n(Block->Data, Block->Size);
   exi::exi_free(Block);
