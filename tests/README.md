@@ -108,7 +108,7 @@ If using VSCode, add the following to your `settings.json`:
   // url can be this:
   "url": "./PATH/TO/TESTS/map.schema.json",
   // OR this (temporary):
-  "url": "https://github.com/9inefold/exiCPP/blob/main/tests/map.schema.json",
+  "url": "https://raw.githubusercontent.com/9inefold/exiCPP/refs/heads/main/tests/map.schema.json",
 }],
 ```
 

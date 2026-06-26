@@ -108,6 +108,9 @@ def get_arg_parser() -> argparse.ArgumentParser:
     default=None
   )
 
+  # TODO: Add --validate-schema
+  # TODO: Add --fail-fast -> --fail-after=3
+
   parser.add_argument(
     '--print-results',
     dest='print_results',
