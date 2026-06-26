@@ -102,10 +102,13 @@ The Schema can be found at [`map.schema.json`](map.schema.json).
 
 If using VSCode, add the following to your `settings.json`:
 
-```json
+```jsonc
 "json.schemas": [{
   "fileMatch": ["map.jsonc"],
-  "url": "./PATH/TO/TESTS/map.schema.json"
+  // url can be this:
+  "url": "./PATH/TO/TESTS/map.schema.json",
+  // OR this (temporary):
+  "url": "https://github.com/9inefold/exiCPP/blob/main/tests/map.schema.json",
 }],
 ```
 

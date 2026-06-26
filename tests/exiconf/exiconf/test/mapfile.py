@@ -12,6 +12,7 @@ from collections.abc import Callable
 
 __all__ = ['map_files', 'MappingData', 'MappingDataEntry']
 
+# r"^(([\w\-.?*]+|\[[^\]/]+\])+\/)*([\w\-.?*]+|\[[^\]/]+\])+$"
 PERMISSIVE = True
 
 ALLOWED_ALIGNMENT = set('iypc')

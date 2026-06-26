@@ -44,11 +44,11 @@ This is a TODO list for the C++ version of exiCPP.
   - Exificient behavior (`ns3:LocalName xmlns:ns3="URI"`)
 - Add `map.json` impl for test configuration
   - Still needs `#import` and `#ignore` for specific impls
-  - Update `map.json` format
+  - ~~Update `map.json` format~~
     - ~~Implement comments for JSON, switch to `map.jsonc`~~
-    - Implement `map.jsonc` schema
-      - Add object requirements
-      - Add schema permalink (github or exicpp site?)
+    - ~~Implement `map.jsonc` schema~~
+      - ~~Add object requirements~~
+      - ~~Add schema permalink (github or exicpp site?)~~
   - Code is sloppy, needs rework eventually
 - Check depth when parsing
 - Refactor initialization of `ExiDecoder`, it makes no fucking sense

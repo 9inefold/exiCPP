@@ -2,5 +2,203 @@
   "title": "Mapfile",
   "description": "Defines the test layout",
   "type": "object",
-  "allowTrailingCommas": true
+  "allowTrailingCommas": true,
+
+  "properties": {
+    "#ignore": { "$ref": "#/$defs/glob_array" },
+    "#import": { "$ref": "#/$defs/file_array" }
+  },
+  "patternProperties": {
+    "^(([\\w\\-.?*]+|\\[[^\\]\/]+\\])+\\\/)*([\\w\\-.?*]+|\\[[^\\]\/]+\\])+$": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "#depends": { "$ref": "#/$defs/file_array" },
+        "alignment": { "$ref": "#/$defs/align_object" },
+        "strict": { "$ref": "#/$defs/bool_object" },
+        "selfcontained": { "$ref": "#/$defs/bool_object" },
+        "preserve": { "$ref": "#/$defs/preserve_object" },
+        "blocksize": { "$ref": "#/$defs/nint_object" },
+        "maxlength": { "$ref": "#/$defs/nint_object" },
+        "partitioncapacity": { "$ref": "#/$defs/nint_object" }
+      }
+    }
+  },
+  "additionalProperties": false,
+
+  "$defs": {
+    "align_object": {
+      "oneOf": [
+        { "$ref": "#/$defs/align_array" },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "#include": { "$ref": "#/$defs/align_array" },
+            "#exclude": { "$ref": "#/$defs/align_array" },
+            "value": { "$ref": "#/$defs/align_array" }
+          }
+        }
+      ]
+    },
+    "align_array": {
+      "oneOf": [
+        { "$ref": "#/$defs/align" },
+        {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/align" }
+        }
+      ]
+    },
+    "align": {
+      "enum": ["i", "y", "p", "c"]
+    },
+
+    "bool_object": {
+      "oneOf": [
+        { "$ref": "#/$defs/bool_array" },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "#include": { "$ref": "#/$defs/bool_array" },
+            "#exclude": { "$ref": "#/$defs/bool_array" },
+            "value": { "$ref": "#/$defs/bool_array" }
+          }
+        }
+      ]
+    },
+    "bool_array": {
+      "oneOf": [
+        { "type": "boolean" },
+        {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "type": "boolean" }
+        }
+      ]
+    },
+
+    "nint_object": {
+      "oneOf": [
+        { "$ref": "#/$defs/nint_array" },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "#include": { "$ref": "#/$defs/nint_array" },
+            "#exclude": { "$ref": "#/$defs/nint_array" },
+            "value": { "$ref": "#/$defs/nint_array" }
+          }
+        }
+      ]
+    },
+    "nint_array": {
+      "oneOf": [
+        { "$ref": "#/$defs/nint" },
+        {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nint" }
+        }
+      ]
+    },
+    "nint": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "multipleOf": 2
+        }
+      ]
+    },
+
+    "preserve_object": {
+      "oneOf": [
+        { "$ref": "#/$defs/preserve_array" },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "#include": { "$ref": "#/$defs/preserve_array" },
+            "#exclude": { "$ref": "#/$defs/preserve_array" },
+            "#fixed": { "$ref": "#/$defs/preserve_fixed_array" },
+            "value": { "$ref": "#/$defs/preserve_array" },
+            "nullable": { "type": "boolean" },
+            "combinations": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "preserve_fixed_array": {
+      "oneOf": [
+        { "$ref": "#/$defs/preserve_array" },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "#include": { "$ref": "#/$defs/preserve_array" },
+            "#exclude": { "$ref": "#/$defs/preserve_array" },
+            "value": { "$ref": "#/$defs/preserve_array" }
+          }
+        }
+      ]
+    },
+    "preserve_array": {
+      "oneOf": [
+        { "$ref": "#/$defs/preserve" },
+        {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/preserve" }
+        }
+      ]
+    },
+    "preserve": {
+      "type": "string",
+      "pattern": "^c?d?i?l?p?$",
+      "minLength": 1
+    },
+
+    "glob_array": {
+      "oneOf": [
+        { "$ref": "#/$defs/glob" },
+        {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/glob" }
+        }
+      ]
+    },
+    "glob": {
+      "type": "string",
+      "pattern": "^(([\\w\\-.?*]+|\\[[^\\]\/]+\\])+\\\/)*([\\w\\-.?*]+|\\[[^\\]\/]+\\])+$"
+    },
+
+    "file_array": {
+      "oneOf": [
+        { "$ref": "#/$defs/file" },
+        {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/file" }
+        }
+      ]
+    },
+    "file": {
+      "type": "string",
+      "pattern": "^([\\w\\-.]+\\\/)*[\\w\\-.]+$"
+    }
+  }
 }
