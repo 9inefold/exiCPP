@@ -33,6 +33,7 @@
 
 #include <Common/D/Str.hpp>
 #include <Common/WrapCall.hpp>
+#include <Support/D/StackFrame.hpp>
 #include <cstdint>
 
 namespace exi {
@@ -44,8 +45,6 @@ template <typename>
 class SmallVecImpl;
 
 namespace sys {
-
-using StackFrame = uptr;
 
 /// This function runs all the registered interrupt handlers, including the
 /// removal of files registered by RemoveFileOnSignal.

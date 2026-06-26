@@ -1,6 +1,6 @@
 //===- Support/Stacktrace.hpp ---------------------------------------===//
 //
-// Copyright (C) 2024-2025 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,28 +24,42 @@
 #pragma once
 
 #include <Support/D/Stacktrace-fwd.hpp>
+#include <Support/D/StackFrame.hpp>
 #if EXI_ENABLE_STACKTRACES
 # include <cpptrace/basic.hpp>
 #endif
 
 namespace exi {
 class raw_ostream;
-namespace trace {
+template <typename T> class SmallVecImpl;
+namespace sys { struct StackTraceOptions; }
 
 #if EXI_ENABLE_STACKTRACES
-EXI_NO_INLINE inline StackTrace GetTrace(usize Skip = 0) {
-  return cpptrace::generate_trace(Skip + 1);
-}
-EXI_NO_INLINE inline StackTrace GetTrace(usize Skip, usize MaxDepth) {
-  return cpptrace::generate_trace(Skip + 1, MaxDepth);
-}
+/// Gets a `cpptrace::stacktrace` from frames captured ahead of time.
+trace::StackTrace ResolveCpptraceStackTrace(const SmallVecImpl<sys::StackFrame>& Frames);
+/// Prints a single `cpptrace::stacktrace_frame` to \param OS.
+void PrintCpptraceStackTraceFrame(raw_ostream& OS,
+                                  const sys::StackTraceOptions& Opts,
+                                  const trace::StackFrame& Frame);
+raw_ostream& operator<<(raw_ostream& OS, const trace::StackTrace& Trace);
 #else
-ALWAYS_INLINE StackTrace GetTrace(usize = 0) { return {}; }
-ALWAYS_INLINE StackTrace GetTrace(usize, usize) { return {}; }
+inline StackTrace ResolveCpptraceStackTrace(const SmallVecImpl<StackFrame>& Frames) {
+  return StackTrace {};
+}
+inline void PrintCpptraceStackTraceFrame(raw_ostream& OS,
+                                         const sys::StackTraceOptions& Opts,
+                                         const trace::StackFrame& Frame) {
+  // ...
+}
+inline raw_ostream& operator<<(raw_ostream& OS, const trace::StackTrace& Trace) {
+  return OS;
+}
 #endif
 
 //////////////////////////////////////////////////////////////////////////
 // JIT
+
+namespace trace {
 
 #if EXI_ENABLE_STACKTRACES
 inline void JITRegisterObject(const char* Name, usize Size) {
@@ -57,15 +71,12 @@ inline void JITUnregisterObject(const char* Name) {
 inline void JITClearAllObjects() {
   return cpptrace::clear_all_jit_objects();
 }
+#else
+ALWAYS_INLINE void JITRegisterObject(const char*, usize) {}
+ALWAYS_INLINE void JITUnregisterObject(const char*) {}
+ALWAYS_INLINE void JITClearAllObjects() {}
 #endif
 
 } // namespace trace
-
-#if EXI_ENABLE_STACKTRACES
-raw_ostream& operator<<(raw_ostream& OS, const trace::StackTrace& Trace);
-#else
-inline raw_ostream& operator<<(raw_ostream& OS,
-                               const trace::StackTrace&) { return OS; }
-#endif
 
 } // namespace exi 

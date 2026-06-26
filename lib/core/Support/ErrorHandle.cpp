@@ -105,9 +105,6 @@ static FmtBuffer::WriteState formatFatalError(FmtBuffer& Buf, StrRef Str) {
   }
   (void)::write(2, FullMsg.data(), FullMsg.size());
 
-#if EXI_ENABLE_STACKTRACES
-  errs() << trace::GetTrace(1) << '\n';
-#endif
   // If we reached here, we are failing ungracefully. Run the interrupt handlers
   // to make sure any special cleanups get done, in particular that we remove
   // files registered with RemoveFileOnSignal.
@@ -245,11 +242,7 @@ static void AssertWithDetails(H::AssertionKind Kind, const char* Msg) {
 #endif
   AssertWithDetails(Kind, Msg);
   errs() << "\nStacktrace:\n";
-#if EXI_ENABLE_STACKTRACES
-  errs() << trace::GetTrace() << '\n';
-#else
   sys::PrintStackTrace(errs(), 0);
-#endif
 #if EXI_DEBUG
   if (!sys::Process::IsDebugging())
     // This avoids annoying signal handling.

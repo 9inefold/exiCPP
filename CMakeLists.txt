@@ -215,12 +215,16 @@ add_subdirectory(vendored/rapidxml)
 add_library(exi-cpptrace INTERFACE)
 if(EXI_ENABLE_STACKTRACES AND NOT EXI_USE_MIMALLOC)
   # TODO: Add check for debug symbols
+  set(CMAKE_REQUIRED_QUIET_OLD "${CMAKE_REQUIRED_QUIET}")
+  set(CMAKE_REQUIRED_QUIET ON CACHE BOOL "" FORCE)
   CPMAddPackage(
     URI "gh:jeremy-rifkin/cpptrace@1.0.4"
     OPTIONS
       "CPPTRACE_DISABLE_CXX_20_MODULES ON"
-      "CMAKE_REQUIRED_QUIET ON"
+      #"CMAKE_REQUIRED_QUIET ON"
   )
+  unset(CMAKE_REQUIRED_QUIET CACHE)
+  set(CMAKE_REQUIRED_QUIET "${CMAKE_REQUIRED_QUIET_OLD}")
   target_link_libraries(exi-cpptrace INTERFACE cpptrace::cpptrace)
 elseif(EXI_ENABLE_STACKTRACES)
   message(WARNING "cpptrace does not work with mimalloc!")

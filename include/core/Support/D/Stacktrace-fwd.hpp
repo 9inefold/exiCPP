@@ -43,16 +43,6 @@ using StackTrace  = stacktrace;
 using ObjectFrame = object_frame;
 using StackFrame  = stacktrace_frame;
 
-#if EXI_ENABLE_STACKTRACES
-inline void JITRegisterObject(const char*, usize);
-inline void JITUnregisterObject(const char*);
-inline void JITClearAllObjects();
-#else
-ALWAYS_INLINE void JITRegisterObject(const char*, usize) {}
-ALWAYS_INLINE void JITUnregisterObject(const char*) {}
-ALWAYS_INLINE void JITClearAllObjects() {}
-#endif
-
 } // namespace trace
 } // namespace exi 
 

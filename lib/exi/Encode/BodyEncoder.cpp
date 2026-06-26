@@ -27,6 +27,7 @@
 #include <core/Support/Format.hpp>
 #include <core/Support/Logging.hpp>
 #include <core/Support/Signals.hpp>
+#include <core/Support/Stacktrace.hpp>
 #include <core/Support/WithColor.hpp>
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/ErrorCodes.hpp>

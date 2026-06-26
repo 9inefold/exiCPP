@@ -34,6 +34,7 @@
 #include <Support/Path.hpp>
 #include <Support/Process.hpp>
 #include <Support/RTTI.hpp>
+#include <Support/Stacktrace.hpp>
 #include <Support/WindowsError.hpp>
 #include <Support/WithColor.hpp>
 #include <algorithm>
@@ -380,11 +381,10 @@ ALWAYS_INLINE static void PrintStackTraceAtPC(exi::raw_ostream &OS,
   if (Opts.PrintPC || !dwModuleBase) {
     if (isMultiline)
       OS << "At ";
-#if defined(_M_X64) || defined(_M_ARM64)
-    OS << BRIGHT_WHITE << format("0x{:016X}", PC) << RESET;
-#elif defined(_M_IX86) || defined(_M_ARM)
-    OS << BRIGHT_WHITE << format("0x{:08X}", static_cast<DWORD>(PC)) << RESET;
-#endif
+    if constexpr (sizeof(void*) == 8)
+      OS << BRIGHT_WHITE << format("0x{:016X}", PC) << RESET;
+    else if constexpr (sizeof(void*) == 4)
+      OS << BRIGHT_WHITE << format("0x{:08X}", static_cast<DWORD>(PC)) << RESET;
     ++printCount;
   }
 
@@ -514,9 +514,9 @@ static void PrintStackTraceForThread(exi::raw_ostream &OS,
     PrintStackTraceAtPC(BufOS, Opts, PC, hProcess);
 }
 
-static void PrintStackTraceForThread(exi::raw_ostream &OS, HANDLE hProcess,
-                                     HANDLE hThread, STACKFRAME64 &StackFrame,
-                                     CONTEXT *Context, int Depth) {
+EXI_NO_INLINE static void PrintStackTraceForThread(exi::raw_ostream &OS, HANDLE hProcess,
+                                                   HANDLE hThread, STACKFRAME64 &StackFrame,
+                                                   CONTEXT *Context, int Depth) {
   // It's possible that DbgHelp.dll hasn't been loaded yet.
   // In this case, just return, no stacktrace will be printed.
   if (!isDebugHelpInitialized())
@@ -703,8 +703,8 @@ extern "C" VOID WINAPI RtlCaptureContext(PCONTEXT ContextRecord);
 #endif
 
 /// Adapted from cpptrace `/unwind/unwind_with_winapi.cpp`
-static void LocalCaptureStackTrace(SmallVecImpl<sys::StackFrame> &Frames,
-                                   int Depth = 0) {
+EXI_NO_INLINE static void LocalCaptureStackTrace(
+ SmallVecImpl<sys::StackFrame> &Frames, int Depth = 0) {
   if EXI_UNLIKELY(Depth < 0)
     Depth = 0;
   
@@ -726,11 +726,13 @@ static void LocalCaptureStackTrace(SmallVecImpl<sys::StackFrame> &Frames,
   }
 }
 
-void exi::sys::CaptureStackTrace(SmallVecImpl<StackFrame> &Frames, int Depth) {
+EXI_NO_INLINE void exi::sys::CaptureStackTrace(
+ SmallVecImpl<StackFrame> &Frames, int Depth) {
   LocalCaptureStackTrace(Frames, Depth + 1);
 }
 
-static void LocalPrintStackTrace(raw_ostream &OS, PCONTEXT C, int Depth = 0) {
+EXI_NO_INLINE static void LocalPrintStackTrace(
+ raw_ostream &OS, PCONTEXT C, int Depth = 0) {
   STACKFRAME64 StackFrame{};
   CONTEXT Context{};
   if (!C) {
@@ -761,14 +763,22 @@ static void LocalPrintStackTrace(raw_ostream &OS, PCONTEXT C, int Depth = 0) {
                            StackFrame, C, Depth + 1);
 }
 
-void exi::sys::PrintStackTrace(raw_ostream &OS, int Depth) {
+EXI_NO_INLINE void exi::sys::PrintStackTrace(raw_ostream &OS, int Depth) {
+#if !EXI_ENABLE_STACKTRACES
   LocalPrintStackTrace(OS, nullptr, Depth + 1);
+#else
+  OS << cpptrace::generate_trace(/*skip=*/1) << '\n';
+#endif
 }
 
-void exi::sys::PrintStackTrace(raw_ostream &OS,
-                               const SmallVecImpl<StackFrame> &Frames) {
+EXI_NO_INLINE void exi::sys::PrintStackTrace(
+ raw_ostream &OS, const SmallVecImpl<StackFrame> &Frames) {
+#if !EXI_ENABLE_STACKTRACES
   PrintStackTraceForThread(OS, Frames,
                            GetCurrentProcess(), GetCurrentThread());
+#else
+  OS << ResolveCpptraceStackTrace(Frames) << '\n';
+#endif
 }
 
 void exi::sys::SetInterruptFunction(void (*IF)()) {
