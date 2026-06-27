@@ -33,6 +33,8 @@
 
 // TODO: Do NSContextStack -> ContextPtrStack<T> and move to core/Common/?
 
+#define EXI_LOG_DEPTH 0
+
 namespace exi {
 
 static_assert(sizeof(void*) >= 4,
@@ -205,12 +207,24 @@ private:
   /// Pops the contexts from the `StringTable` and removes the scope.
   EXI_PRESERVE_MOST void popScope(encode::StringTable& SM);
 
+#if EXI_LOG_DEPTH
+  /// Logs the current depth.
+  void logDepth(const char* Name) const;
+  ALWAYS_INLINE void logDepth() const { logDepth(nullptr); }
+#else
+  ALWAYS_INLINE constexpr void logDepth(const char* Name) const {}
+  ALWAYS_INLINE constexpr void logDepth() const {}
+#endif
+
 public:
   /// New element is always added to preserve `end()` invariants.
   NSContextStack() : Head(addHeadImpl(0)) {}
 
   /// Adds to the current scope.
-  inline void inc() { this->incDepth(); }
+  inline void inc() {
+    this->incDepth();
+    this->logDepth("inc");
+  }
 
   /// If empty, adds to the depth. Otherwise, pushes the contexts to the
   /// `StringTable` and adds to a new scope.
@@ -218,9 +232,11 @@ public:
   bool push(encode::StringTable& SM, ArrayRef<value_type> Elts) {
     if (Elts.empty()) {
       this->incDepth();
+      this->logDepth("push:0");
       return false;
     }
     pushScope(SM, Elts);
+    this->logDepth("push:1+");
     return true;
   }
 
@@ -232,12 +248,14 @@ public:
       this->decDepth();
       Scopes.emplace_back(Elt);
       Head = this->addHeadImpl(1);
+      this->logDepth("add:1");
       return;
     }
     const usize NewNumElts = Head->NumElts + 1;
     Scopes.pop_back();
     Scopes.emplace_back(Elt);
     Head = this->addHeadImpl(NewNumElts);
+    this->logDepth("add:2+");
   }
 
   /// If scope remains, subs from the depth. Otherwise, pops the contexts from
@@ -245,6 +263,7 @@ public:
   void pop(encode::StringTable& SM) {
     if (decDepth() == 0)
       popScope(SM);
+    this->logDepth("pop");
   }
 
   iterator begin() const { return iterator(Head); }

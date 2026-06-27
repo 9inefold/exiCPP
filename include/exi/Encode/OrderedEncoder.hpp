@@ -407,6 +407,10 @@ public:
   /// Encodes a given `URIEntry`.
   template <typename StrmT>
   URIEntry* encodeURIID(URIEntry* URI) {
+    if EXI_UNLIKELY(Strings.IsFakeID(URI)) {
+      StrRef URIData = Strings.GetURI(URI);
+      return encodeURIStr<StrmT>(URIData);
+    }
     LOG_POSITION(this);
     auto [ID, Bits] = Strings.getURIIDAndLog(URI);
     writer<StrmT>().writeBits64(ID + 1, Bits);

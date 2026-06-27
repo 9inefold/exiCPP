@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <core/Common/CRTPTraits.hpp>
 #include <core/Common/Fundamental.hpp>
 #include <core/Common/bit.hpp>
 #include <core/Support/ErrorHandle.hpp>
@@ -180,7 +181,6 @@ class IntrusiveLogCounter {
 public:
   constexpr IntrusiveLogCounter(auto&&...Args) :
    Data(EXI_FWD(Args)...), LogValue(Log2(Data.size())) {}
-  
   /// Returns the minimum bits required for current value of the counter.
   EXI_INLINE constexpr unsigned bits() const { return LogValue; }
   /// Returns the minimum bytes required for current value of the counter.
@@ -189,7 +189,6 @@ public:
       return 0;
     return (LogValue / 8) + 1u;
   }
-
   /// Runs the compact log2 calculation on the current value. 
   EXI_INLINE constexpr void recalculateLog() {
     LogValue = Log2(Data.size());
@@ -204,6 +203,42 @@ public:
   constexpr Clazz* operator->() { return &Data; }
   constexpr const Clazz* operator->() const { return &Data; }
 };
+
+/// CRTP class for creating log counters.
+template <class Derived, u64 Offset = 0>
+class CRTPLogCounter {
+  template <class> friend class IntrusiveCounterHandle;
+  EXI_CRTP_DEFINE_SUPER(Derived)
+  u32 LogValue = 0;
+
+  ALWAYS_INLINE constexpr u32 Log2(auto ID) {
+    return ID_AddOffsetLog2<Offset>(ID);
+  }
+
+public:
+  constexpr CRTPLogCounter() = default;
+  /// Returns the minimum bits required for current value of the counter.
+  EXI_INLINE constexpr unsigned bits() const { return LogValue; }
+  /// Returns the minimum bytes required for current value of the counter.
+  EXI_INLINE constexpr unsigned bytes() const {
+    EXI_CRTP_REQUIRE(Derived, size)
+    if EXI_UNLIKELY(super()->size() == 0)
+      return 0;
+    return (LogValue / 8) + 1u;
+  }
+  /// Runs the compact log2 calculation on the current value. 
+  EXI_INLINE constexpr void recalculateLog() {
+    EXI_CRTP_REQUIRE(Derived, size)
+    LogValue = Log2(super()->size());
+  }
+};
+
+template <typename T, typename...ArgsT>
+EXI_INLINE constexpr T make_logcounter(ArgsT&&...Args) {
+  T Out {EXI_FWD(Args)...};
+  Out.recalculateLog();
+  return Out;
+}
 
 /// An RTTI handle that updates the log at the end of the scope.
 template <class Counter> class IntrusiveCounterHandle {

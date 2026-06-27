@@ -101,8 +101,11 @@ void StringTable::setup(const ExiOptions& Opts) {
   }
 
   if (!Opts.Preserve.Prefixes) {
+    this->PreservePrefixes = false;
+#if !EXI_USE_NEW_FAKE_URI
     auto& A = URIMap->getAllocator();
     FakeURIMap = std::make_unique<URIMapType>(4, A);
+#endif
   }
 
   if (Bounded I = Opts.ValuePartitionCapacity; I.bounded()) {
@@ -213,9 +216,14 @@ void StringTable::cleanupURIStacks() {
 Result<LocalNameInfo*, LocalNameInsert*>
  StringTable::lookupLocalName(STURIEntry* URI, StrRef Name) {
   exi_invariant(URI != nullptr);
+  URIInfo* URIV = VOfX(URI);
+  if (URIV->isFake()) {
+    // TODO: Handle Fake URI with LocalName?
+    return Err(nullptr);
+  }
   FoldingSetNodeID ID;
   ID.AddString(Name);
-  ID.AddInteger(VOfX(URI)->uri());
+  ID.AddInteger(URIV->uri());
   void* InsertPoint;
   auto* LN = LVMap.FindNodeOrInsertPos(ID, InsertPoint);
   if (LN == nullptr)
@@ -241,13 +249,47 @@ std::pair<STValueEntry*, bool>
 void StringTable::initializeURI(StringTable::URIEntry* URI) {
   URIMap.recalculateLog();
   // Since the URI was already inserted, decrement.
-  const u32 NewURI = URIMap->size() - 1;
+  const u32 NewURI = URIMap.size() - 1;
   if EXI_NEVER(NewURI > kURIMax)
     Throw<range_error>("Exceeded the maximum number of URIs!");
-  URI->second.URI = NewURI;
+  VOf(URI)->URI = NewURI;
+}
+
+STURIEntry* StringTable::addFakeURI(ImplicitHashStrRef URI) {
+#if EXI_USE_NEW_FAKE_URI
+  auto [It, DidInsert] = URIMap->try_emplace(URI);
+  URIEntry* URIV = &*It;
+  if (!DidInsert) {
+    LOG_WARN("Fake URI '{}' already existed.", URI.val());
+    if (!VOf(URIV)->isUninitialized())
+      return X(URIV);
+  }
+  VOf(URIV)->URI = kURIFacade;
+  URIMap.addFake();
+  return X(URIV);
+#else
+  if EXI_NEVER(!FakeURIMap)
+    Throw("Cannot use fake uris with Preserve.Prefixes enabled.");
+  exi_assert(!this->lookupURI(URI), "URI already exists!");
+  auto [It, DidInsert] = FakeURIMap->try_emplace(URI);
+  if (!DidInsert)
+    LOG_WARN("URI '{}' already existed.", URI.val());
+  It->second.URI = kURIFacade;
+  return X(&*It);
+#endif
 }
 
 StringTable::URIEntry* StringTable::makeFakeURIReal(StringTable::URIEntry* URI) {
+#if EXI_USE_NEW_FAKE_URI
+  exi_invariant(URI && VOf(URI)->isFake());
+  if EXI_NEVER(PreservePrefixes)
+    Throw<argument_error>("Cannot have fake URIs with Preserve.Prefixes!");
+  URIMap.removeFake();
+  this->initializeURI(URI);
+  for (PrefixInfo* Pfx : VOf(URI)->PfxMap)
+    Pfx->WithURI = VOf(URI)->URI;
+  return URI;
+#else
   exi_invariant(FakeURIMap && URI);
   if (!URIMap->insert(URI)) {
     LOG_ERROR("Fake uri \"{}\" found in real table.", URI->first());
@@ -257,16 +299,26 @@ StringTable::URIEntry* StringTable::makeFakeURIReal(StringTable::URIEntry* URI) 
     URI->Destroy(FakeURIMap->getAllocator());
     return OldURI;
   }
-  LOG_WARN("URI '{}' already in map!", URI->first());
+  //LOG_WARN("URI '{}' already in map!", URI->first());
   FakeURIMap->remove(URI);
   this->initializeURI(URI);
   for (PrefixInfo* Pfx : VOf(URI)->PfxMap)
     Pfx->WithURI = VOf(URI)->URI;
   return URI;
+#endif
 }
 
 std::pair<StringTable::URIEntry*, bool>
  StringTable::createURIOnly(CachedHashStrRef URI) {
+#if EXI_USE_NEW_FAKE_URI
+  auto [It, DidInsert] = URIMap->try_emplace(URI);
+  URIEntry* URIV = &*It;
+  if (DidInsert)
+    this->initializeURI(URIV);
+  else if (VOf(URIV)->isFake())
+    this->makeFakeURIReal(URIV);
+  return {URIV, DidInsert};
+#else
   if (auto* FakeEntry = X(lookupFakeURI(URI))) [[unlikely]] {
     auto* RealEntry = this->makeFakeURIReal(FakeEntry);
     return {RealEntry, true};
@@ -276,6 +328,7 @@ std::pair<StringTable::URIEntry*, bool>
   if (DidInsert)
     this->initializeURI(URIV);
   return {URIV, DidInsert};
+#endif
 }
 
 NSContext StringTable::createURIAssociation(CachedHashStrRef URI,

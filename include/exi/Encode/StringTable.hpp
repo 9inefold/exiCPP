@@ -53,6 +53,8 @@
 /// If the cache should be LRU (a single pair otherwise).
 #define EXI_ENCODE_URISTACK_CACHE 0
 
+#define EXI_USE_NEW_FAKE_URI 1
+
 namespace exi {
 
 struct ExiOptions;
@@ -347,10 +349,50 @@ public:
   using PrefixEntry = PrefixMapType::value_type;
 
 private:
+#if EXI_USE_NEW_FAKE_URI
+  /// TODO: Implement this!!!
+  class URIMapCounter : public CRTPLogCounter<URIMapCounter, 1> {
+    u32 FakeElts = 0;
+    URIMapType TheMap;
+  public:
+    URIMapCounter(auto&&...Args) : TheMap(EXI_FWD(Args)...) {
+      this->recalculateLog();  
+    }
+
+    usize addFake() {
+      FakeElts += 1;
+      this->recalculateLog();
+      return FakeElts;
+    }
+    usize removeFake() {
+      exi_assert(FakeElts > 0);
+      FakeElts -= 1;
+      this->recalculateLog();
+      return FakeElts;
+    }
+
+    usize size() const {
+      exi_invariant(FakeElts <= TheMap.size());
+      return TheMap.size() - usize(FakeElts);
+    }
+    usize total_size() const {
+      return TheMap.size();
+    }
+
+    constexpr URIMapType* operator->() { return &TheMap; }
+    constexpr const URIMapType* operator->() const { return &TheMap; }
+  };
+  /// Used to map URIs to IDs.
+  URIMapCounter URIMap;
+#else
   /// Used to map URIs to IDs.
   IntrusiveLogCounter<URIMapType, 1> URIMap;
+//#endif
   /// Used to keep track of fake URIs when Preserve.Prefixes is false.
+  /// Stores URIs declared in namespaces before they get used.
+  /// TODO: Remove this? It's pretty clunky and there's other ways to implement it.
   Box<URIMapType> FakeURIMap = nullptr;
+#endif
   /// Used to map Prefixes to URIs (and their IDs).
   PrefixMapType PrefixMap;
 
@@ -512,6 +554,9 @@ private:
   PrefixEntry* Pfx_xsi = nullptr; // xmlns:xsi="..."
   PrefixEntry* Pfx_xsd = nullptr; // xmlns:xsd="..."
 
+  /// If prefixes are preserved (fake URIs allowed)
+  bool PreservePrefixes = true;
+  /// If table has been set up.
   bool DidSetup : 1 = false;
   /// If the tables should wrap once reaching their capacity.
   bool WrappingValues : 1 = false;
@@ -614,7 +659,12 @@ public:
   }
   EXI_INLINE static unsigned GetID(const STURIEntry* Entry) {
     exi_invariant(Entry != nullptr);
-    return VOfX(Entry)->URI;
+    return VOfX(Entry)->uri();
+  }
+  /// Checks if a URI is fake.
+  EXI_INLINE static bool IsFakeID(STURIEntry* URI) {
+    exi_invariant(URI != nullptr);
+    return VOfX(URI)->isFake();
   }
   EXI_INLINE static usize GetPfxCount(const STURIEntry* Entry) {
     exi_invariant(Entry != nullptr);
@@ -743,15 +793,7 @@ public:
     return X(UI);
   }
   /// Creates a new fake URI.
-  STURIEntry* addFakeURI(ImplicitHashStrRef URI) {
-    if EXI_NEVER(!FakeURIMap)
-      Throw("Cannot use fake uris with Preserve.Prefixes enabled.");
-    exi_assert(!this->lookupURI(URI), "URI already exists!");
-    auto [It, DidInsert] = FakeURIMap->try_emplace(URI);
-    // TODO: LOG_WARN("URI '{}' already existed.")
-    It->second.URI = kURIFacade;
-    return X(&*It);
-  }
+  STURIEntry* addFakeURI(ImplicitHashStrRef URI);
   /// Creates a new Prefix entry for a URI.
   std::pair<STPrefixEntry*, bool> addPrefix(STURIEntry* URI,
                                             ImplicitHashStrRef Pfx) {
@@ -822,13 +864,18 @@ public:
     auto It = URIMap->find(URI);
     if (It == URIMap->end())
       return nullptr;
-    return X(&*It);
+    URIEntry* URIV = &*It;
+    if (VOf(URIV)->isFake()) {
+      exi_invariant(!PreservePrefixes);
+      return nullptr;
+    }
+    return X(URIV);
   }
-  /// Same as `lookupURI`, but searches `FakeURIMap` if possible.
+  /// Same as `lookupURI`, but creates a fake URI if possible.
   STURIEntry* lookupURIOrAddFake(ImplicitHashStrRef URI) {
     auto It = URIMap->find(URI);
     if (It == URIMap->end()) {
-      if (!FakeURIMap)
+      if (PreservePrefixes)
         return nullptr;
       win_tail_return this->addFakeURI(URI);
     }
@@ -837,12 +884,22 @@ public:
   /// Returns the `URIEntry` for `URI`, or makes a new entry.
   /// This should generally only be used when Preserve.Prefixes is true.
   STURIEntry* lookupFakeURI(ImplicitHashStrRef URI) {
-    if EXI_UNLIKELY(!FakeURIMap)
+    if EXI_UNLIKELY(PreservePrefixes)
       return nullptr;
+#if EXI_USE_NEW_FAKE_URI
+    auto It = URIMap->find(URI);
+    if (It == URIMap->end())
+      return nullptr;
+    URIEntry* URIV = &*It;
+    if (!VOf(URIV)->isFake())
+      return nullptr;
+    return X(URIV);
+#else
     auto It = FakeURIMap->find(URI);
     if (It == FakeURIMap->end())
       return nullptr;
     return X(&*It);
+#endif
   }
   /// Gets `URIEntry*` for a given Prefix.
   /// @tparam IsAttribute If the lookup is for an attribute.

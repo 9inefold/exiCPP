@@ -1075,25 +1075,27 @@ void doTestTests(RefCntPtr<XMLManager> Mgr) {
   SetLogLevel(LogLevel::EXTRA);
 
   auto DoEncodeOnly = [&] (StrRef SubFolder, StrRef Mangling,
-                           bool DecodeAfter = true) {
+                           bool DecodeAfter = true) -> int {
     auto [Folder, Entry] = SubFolder.split('.');
     auto xml = fmt::format("tests/s/{}/{}.xml", Folder, Entry);
 
     PrintBreak();
-    Encode(Mgr.get(), xml, Opts, Hdr, &EncodeBuf);
+    exi_try(Encode(Mgr.get(), xml, Opts, Hdr, &EncodeBuf));
 
     if (DecodeAfter) {
       PrintBreak();
-      Decode(EncodeBuf.str(), Opts);
+      exi_try(Decode(EncodeBuf.str(), Opts));
       XMLDeserializer XD;
       //XD.UURIType = UnboundURIKind::UURI_OPENEXI;
       //XD.UURIType = UnboundURIKind::UURI_EXIFICIENT;
-      Decode(EncodeBuf.str(), Opts, &XD);
+      //exi_try(Decode(EncodeBuf.str(), Opts, &XD));
       XMLDump::full(XD.document(), {.Conforming = true});
     }
+
+    return 0;
   };
 
-  auto CheckOutput = [&] (StrRef SubFolder, StrRef Mangling) {
+  auto CheckOutput = [&] (StrRef SubFolder, StrRef Mangling) -> int {
     exi_demangle_options(Opts, Mangling);
     const bool IsHex = (Opts.Alignment != AlignKind::BitPacked);
     const int BreakOn = IsHex ? 8 : 4;
@@ -1106,18 +1108,21 @@ void doTestTests(RefCntPtr<XMLManager> Mgr) {
     PadByteDiffViewer(MBo, MBi, BreakOn, IsHex);
 
     PrintBreak();
-    Decode(MBo, Opts);
+    exi_try(Decode(MBo, Opts));
 
     PrintBreak();
-    Decode(MBi, Opts);
+    exi_try(Decode(MBi, Opts));
 
-    DoEncodeOnly(SubFolder, Mangling, /*DecodeAfter=*/false);
+    exi_try(DoEncodeOnly(SubFolder, Mangling, /*DecodeAfter=*/false));
     PadByteDiffViewer(MBo, EncodeBuf.str(), BreakOn, IsHex);
+
+    return 0;
   };
 
   //CheckOutput("el.el-01", "yPcdi");
   //CheckOutput("ch.ch-01", "yPc");
-  DoEncodeOnly("el2.el2-07", "iPcdi");
+  //DoEncodeOnly("el2.el2-07", "iPcdi");
+  DoEncodeOnly("el2.el2-09", "i");
   // TODO: Support universal names in decoding
   //DoEncodeOnly("el2.el2-07a", "iPpcdi");
 

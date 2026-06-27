@@ -35,10 +35,12 @@ namespace exi::encode {
 template <class T> class DepthValidator {
   T& Data;
   usize OldDepth = 0;
+  bool Active = false;
 public:
   DepthValidator(T& Data) : Data(Data), OldDepth(Data.depth()) {}
+  void activate() { this->Active = true; }
   EXI_NO_INLINE ~DepthValidator() {
-    if EXI_UNLIKELY(Data.depth() != OldDepth)
+    if EXI_UNLIKELY(Active && Data.depth() != OldDepth)
       exi::format_fatal_error(
         "Scope was not restored correctly! "
         "Expected {}, got {}.", OldDepth, Data.depth());
@@ -48,6 +50,7 @@ public:
 template <class T> class DepthValidator {
 public:
   ALWAYS_INLINE constexpr DepthValidator(T&) {}
+  ALWAYS_INLINE void activate() {}
 };
 #endif
 

@@ -24,9 +24,12 @@
 
 #include <exi/Encode/NamespaceContextStack.hpp>
 #include <core/Support/Lifetimes.hpp>
-//#include <core/Support/Logging.hpp>
+#include <core/Support/Logging.hpp>
+#include <core/Support/WithColor.hpp>
 #include <exi/Basic/Except.hpp>
 #include <exi/Encode/StringTable.hpp>
+
+#define DEBUG_TYPE "NamespaceContextStack"
 
 using namespace exi;
 using encode::StringTable;
@@ -58,3 +61,15 @@ EXI_PRESERVE_MOST void NSContextStack::popScope(StringTable& SM) {
   Scopes.pop_back_n(N + 1);
   this->Head = getHead();
 }
+
+#if EXI_LOG_DEPTH
+void NSContextStack::logDepth(const char* Name) const {
+  if (!hasDbgLogLevel(VERBOSE))
+    return;
+  WithColor OS(dbgs(), raw_ostream::BRIGHT_MAGENTA);
+  OS << "NS Depth: " << this->total_depth();
+  if (Name && Name[0])
+    OS << " [" << Name << "]";
+  OS << '\n';
+}
+#endif

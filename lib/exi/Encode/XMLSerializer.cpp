@@ -361,6 +361,8 @@ private:
     exi_try(handleSEAndAT<IsRoot>(N));
     if (auto* Child = N->first_node())
       exi_try(walkXMLContent(Child));
+    // Handle EE
+    X.activate();
     return BE.EndElement();
   }
 
