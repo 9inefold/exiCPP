@@ -504,12 +504,13 @@ static void PrintStackTraceForThread(exi::raw_ostream &OS,
   fSymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
   fSymInitialize(hProcess, NULL, TRUE);
 
-  auto Opts = exi::sys::GetGlobalStackTraceOptions();
+  WithColor Save(OS);
   exi::buffer_ostream BufOS(OS);
+  
+  auto Opts = exi::sys::GetGlobalStackTraceOptions();
   if (Opts.ColoredOutput)
     BufOS.enable_colors(OS.colors_enabled());
-  
-  WithColor Save(OS);
+
   for (DWORD64 PC : Frames)
     PrintStackTraceAtPC(BufOS, Opts, PC, hProcess);
 }
@@ -527,12 +528,13 @@ EXI_NO_INLINE static void PrintStackTraceForThread(exi::raw_ostream &OS, HANDLE 
   fSymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
   fSymInitialize(hProcess, NULL, TRUE);
 
-  auto Opts = exi::sys::GetGlobalStackTraceOptions();
+  WithColor Save(OS);
   exi::buffer_ostream BufOS(OS);
+
+  auto Opts = exi::sys::GetGlobalStackTraceOptions();
   if (Opts.ColoredOutput)
     BufOS.enable_colors(OS.colors_enabled());
   
-  WithColor Save(OS);
   while (true) {
     if (!fStackWalk64(NativeMachineType, hProcess, hThread, &StackFrame,
                       Context, 0, fSymFunctionTableAccess64,

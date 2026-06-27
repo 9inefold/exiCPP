@@ -25,7 +25,6 @@
 #include <Common/SmallVec.hpp>
 #include <Common/StringExtras.hpp>
 #include <Support/Format.hpp>
-#include <Support/RTTI.hpp>
 #include <Support/Signals.hpp>
 #include <Support/WithColor.hpp>
 #include <Support/raw_ostream.hpp>
@@ -139,19 +138,8 @@ ALWAYS_INLINE static void PrintCpptraceFrameImpl(raw_ostream& OS,
 
   if (Opts.PrintFunction) {
     // Print the symbol name.
-    OS << separator() << BRIGHT_GREEN;
-    // Print the actual name
-    StrRef symbolName = Frame.symbol;
-    bool shouldPrintNormally = !Opts.DemangleFunctionName;
-    if (Opts.DemangleFunctionName) {
-      auto status = rtti::demangle(symbolName, OS);
-      if (status != rtti::RttiError::Success)
-        shouldPrintNormally = true;
-    }
-    // Handle demangle failure
-    if (shouldPrintNormally)
-      OS << symbolName << "()";
-    OS << RESET;
+    OS << separator() << BRIGHT_GREEN
+       << Frame.symbol << RESET;
     // Print the offset
     if (Opts.PrintFunctionOffset) {
       // ...
@@ -168,11 +156,11 @@ void exi::PrintCpptraceStackTraceFrame(raw_ostream& OS,
 static void PrintCpptraceTrace(raw_ostream& OS,
                                sys::StackTraceOptions Opts,
                                const StackTrace& Trace) {
+  WithColor Save(OS);
   exi::buffer_ostream BufOS(OS);
   if (Opts.ColoredOutput)
     BufOS.enable_colors(OS.colors_enabled());
   
-  WithColor Save(OS);
   ListSeparator LS("\n");
   for (const StackFrame& Frame : Trace) {
     BufOS << LS;
