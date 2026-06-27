@@ -30,7 +30,7 @@
 #include <exi/Basic/D/ExiInitialValues.impl>
 #include <algorithm>
 
-#define DEBUG_TYPE "StringTables"
+#define DEBUG_TYPE "Encode.StringTables"
 #define GEN_IV(URI, PFX, LV) #LV
 #define SEP ,
 
