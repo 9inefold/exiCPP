@@ -237,12 +237,10 @@ static void AssertWithDetails(H::AssertionKind Kind, const char* Msg) {
  const char* File, const char* Func, unsigned Line
 ) {
   fmt::print(stderr, "\n");
-#if !EXI_ENABLE_STACKTRACES
   AssertWithLocation(File, Func, Line);
-#endif
   AssertWithDetails(Kind, Msg);
   errs() << "\nStacktrace:\n";
-  sys::PrintStackTrace(errs(), 0);
+  sys::PrintStackTrace(errs());
 #if EXI_DEBUG
   if (!sys::Process::IsDebugging())
     // This avoids annoying signal handling.
