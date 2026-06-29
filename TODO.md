@@ -59,6 +59,7 @@ This is a TODO list for the C++ version of exiCPP.
 - Update `ABIBreak.*` for next version
 - Prepare for doxygen support
 - Update rapidxml
+- Fix mimalloc setup on windows
 - `ErrorCode` customization
 - Remove EXIP, merge `NewLib`
 - Fix weird `__FILE__` normalization on windows
@@ -68,6 +69,7 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## Not Started
 
+- Prefix `BuiltinSchema`s with `Decode`/`Encode`
 - Add `wrapped_raw_ostream`
 - Add logger channels, will make testing much easier
 - **Split out implementation of `ExiDecoder` like with `ExiEncoder`**
@@ -78,8 +80,8 @@ This is a TODO list for the C++ version of exiCPP.
 - Improve custom logging api
 - *Add version `.rc` file on windows?*
 - Add `ANSIState` class for colored output + rethink strategy
-- Fix mimalloc setup on windows
 - **`sys::` implementation on linux**
+- Add deducing this to the many `*Reader` types
 - Fully test `IntCast` and friends, improve support for non-integral types
 - Implement `StackExhaustionHandler`
 - Schema parser

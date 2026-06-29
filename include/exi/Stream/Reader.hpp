@@ -30,6 +30,7 @@
 #include <exi/Basic/BitBuffer.hpp>
 #include <exi/Basic/NBitInt.hpp>
 #include <exi/Stream/Stream.hpp>
+#include "D/ReaderMethods.hpp"
 
 namespace exi {
 
@@ -42,8 +43,7 @@ public:
   using ProxyT   = proxy_t;
 
 public:
-# define CLASSNAME ReaderBase
-# include "D/ReaderMethods.mac"
+  EXI_GENERATE_READER_METHODS(ReaderBase)
 
   /// Reads a single bit.
   virtual ExiResult<bool> readBit() = 0;

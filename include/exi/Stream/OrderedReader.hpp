@@ -27,6 +27,7 @@
 #include <core/Support/Logging.hpp>
 #include <exi/Basic/Runes.hpp>
 #include <exi/Stream/Reader.hpp>
+#include "D/ReaderMethods.hpp"
 #if EXI_LOGGING
 # include <fmt/ranges.h>
 #endif
@@ -35,6 +36,7 @@
 
 namespace exi {
 
+#undef DEBUG_TYPE
 #define DEBUG_TYPE "OrderedReader"
 
 /// The bases for BitReader/ByteReader, which consume data in the order it
@@ -66,8 +68,7 @@ public:
   explicit OrderedReader(StrRef Buf) : Stream(arrayRefFromStringRef(Buf)) {}
   explicit OrderedReader(MemoryBufferRef MB) : OrderedReader(MB.getBuffer()) {}
 
-# define CLASSNAME OrderedReader
-# include "D/OrdReaderMethods.mac"
+  EXI_GENERATE_ORDREADER_METHODS(OrderedReader)
 
   /// Decodes a UInt size, then reads a unicode string to the buffer.
   /// Should only be used for URIs and Prefixes.
@@ -153,9 +154,7 @@ class BitReader final : public OrderedReader {
 
 public:
   using BaseT::BaseT;
-# define CLASSNAME BitReader
-# define UNDEF_OVERRIDES
-# include "D/OrdReaderMethods.mac"
+  EXI_GENERATE_ORDREADER_METHODS(BitReader)
 
   BitReader(proxy_t Proxy) : OrderedReader() {
     this->setProxy(Proxy);
@@ -405,8 +404,7 @@ class ByteReader final : public OrderedReader {
 
 public:
   using BaseT::BaseT;
-# define CLASSNAME ByteReader
-# include "D/OrdReaderMethods.mac"
+  EXI_GENERATE_ORDREADER_METHODS(ByteReader)
 
   ByteReader(proxy_t Proxy) : OrderedReader() {
     this->setProxy(Proxy);
@@ -641,5 +639,3 @@ concept is_ordreader_stream = std::derived_from<StrmT, OrderedReader>;
 using OrdReader = Poly<OrderedReader, BitReader, ByteReader>;
 
 } // namespace exi
-
-#undef METHOD_BAG
