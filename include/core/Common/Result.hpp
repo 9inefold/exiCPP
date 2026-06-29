@@ -1,6 +1,6 @@
 //===- Common/Result.hpp --------------------------------------------===//
 //
-// Copyright (C) 2024-2025 Ninefold
+// Copyright (C) 2024-2026 Ninefold
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@
 #include <Common/Option.hpp>
 #include <Common/D/Expect.hpp>
 #include <Common/D/AssertExpect.hpp>
+#include <Common/D/TrivialTraits.hpp>
 
 // TODO: expect_error
 
@@ -79,20 +80,9 @@ public:
 template <typename T>
 using result_storage = typename ResultType<T>::storage_type;
 
-template <typename T>
-concept trivially_copy_constructible
-  =  std::is_copy_constructible_v<T>
-  && std::is_trivially_constructible_v<T>;
-
-template <typename T>
-concept trivially_move_constructible
-  =  std::is_copy_constructible_v<T>
-  && std::is_trivially_constructible_v<T>;
-
-template <typename T>
-concept trivially_destructible
-  =  std::is_lvalue_reference_v<T>
-  || std::is_trivially_destructible_v<T>;
+using H::trivially_copy_constructible;
+using H::trivially_move_constructible;
+using H::trivially_destructible;
 
 template <typename T>
 concept trivial_copy_ctor = trivially_copy_constructible<result_storage<T>>;

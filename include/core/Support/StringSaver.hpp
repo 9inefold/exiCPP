@@ -33,15 +33,18 @@
 
 #include <Common/CRTPTraits.hpp>
 #include <Common/DenseSet.hpp>
-#include <Common/StrRef.hpp>
+#include <Common/InlineStr.hpp>
 #include <Common/Twine.hpp>
 #include <Support/Allocator.hpp>
 #include <Support/D/FlexArray.hpp>
 
 // TODO: Make InlineStr returns const...
+// TODO: Make version without InlineStr? Hide the InlineStr include?
 
 namespace exi {
 
+#if 0
+/// A string with the size inline, structured like:
 struct InlineStr {
   /// As small as possible to pack things tightly.
   using size_type = u16;
@@ -53,6 +56,7 @@ public:
     return StrRef(Data, Size);
   }
 };
+#endif
 
 class StringSaverBase {
 public:

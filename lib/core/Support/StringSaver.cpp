@@ -29,10 +29,12 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/StringSaver.hpp>
+#include <Common/InlineStr.hpp>
 #include <Common/SmallStr.hpp>
 
 using namespace exi;
 
+#if 0
 namespace {
 enum : usize {
   kAddNullTerm = kHasFlexibleArrayMembers ? 1 : 0,
@@ -60,6 +62,12 @@ ALWAYS_INLINE static InlineStr*
     std::memcpy(P->Data, S.data(), Size);
   P->Data[Size] = '\0';
   return P;
+}
+#endif
+
+ALWAYS_INLINE static InlineStr*
+ SaveWithRaw(BumpPtrAllocator& Alloc, StrRef S) {
+  return make_inlinestr(Alloc, S, /*NullTerminate=*/true);
 }
 
 ALWAYS_INLINE static StrRef
@@ -97,15 +105,11 @@ InlineStr* StringSaverBase::SaveRaw(
 EXI_INLINE const InlineStr* InlStrFromData(const char* Data,
                           [[maybe_unused]] usize Size) {
   exi_invariant(Data != nullptr);
-  auto* const Off = Data - kReverseOffset;
+  auto* const Off = Data - offsetof(InlineStr, Data);
   auto* const Str = reinterpret_cast<const InlineStr*>(Off);
   exi_invariant(Str->Size == Size);
   return Str;
 }
-
-#if !EXI_INVARIANTS
-# define InlStrFromData(DATA, SIZE) ::InlStrFromData(DATA, 0)
-#endif
 
 StrRef UniqueStringSaver::save(StrRef S) {
   auto [It, CacheMiss] = Unique.insert(S);

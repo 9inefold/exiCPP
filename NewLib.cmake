@@ -9,6 +9,7 @@ include_items(CORE_COMMON "lib/core"
   Common/APSInt.cpp
   Common/BitSpan.cpp
   Common/FoldingSet.cpp
+  Common/InlineArray.cpp
   Common/Option.cpp
   Common/SmallVec.cpp
   Common/StringExtras.cpp
