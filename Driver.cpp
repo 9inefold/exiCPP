@@ -1122,7 +1122,13 @@ void doTestTests(RefCntPtr<XMLManager> Mgr) {
   //CheckOutput("el.el-01", "yPcdi");
   //CheckOutput("ch.ch-01", "yPc");
   //DoEncodeOnly("el2.el2-07", "iPcdi");
-  DoEncodeOnly("el2.el2-09", "i");
+  //DoEncodeOnly("el2.el2-09", "i");
+  //DoEncodeOnly("at.at-01", "iPcdi");
+
+  //CheckOutput("at.at-02", "iPcdi");
+  DoEncodeOnly("at.at-02", "iPcdi", false);
+  //DoEncodeOnly("at.at-02", "i");
+
   // TODO: Support universal names in decoding
   //DoEncodeOnly("el2.el2-07a", "iPpcdi");
 
