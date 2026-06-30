@@ -183,10 +183,12 @@ std::pair<URIInfo*, CompactID>
 
 void StringTable::appendLocalNames(CompactID ID, ArrayRef<StrRef> LocalNames) {
   exi_invariant(ID < *LNCount);
+  URIInfo& Info = URIMap[ID];
   LNMapType& NameMap = LNMap[ID];
   for (StrRef Local : LocalNames) {
     auto* LN = createLocalName(Local);
     NameMap.push_back(LN);
+    ++Info.LNElts;
   }
 }
 

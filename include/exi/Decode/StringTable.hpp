@@ -43,6 +43,7 @@
 
 // TODO: Refactor to use embedded counters with RTTI handles
 // TODO: Replace some assertions with Throw(...)?
+// TODO: Implement xsi:type handling
 
 namespace exi {
   
