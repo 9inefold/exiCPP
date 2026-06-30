@@ -234,5 +234,5 @@ if(PROJECT_IS_TOP_LEVEL OR EXICPP_DRIVER)
   add_dependencies(exi-exicpp exi-irgen)
 endif()
 
-exi_add_driver(exi-xml-compare XMLCompareDriver.cpp)
-exi_add_driver(exi-xml-print XMLPrintDriver.cpp)
+#exi_add_driver(exi-xml-compare XMLCompareDriver.cpp)
+#exi_add_driver(exi-xml-print XMLPrintDriver.cpp)
