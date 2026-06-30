@@ -852,12 +852,18 @@ public:
   ////////////////////////////////////////////////////////////////////////
   // Getters
 
+  /// Returns the `PrefixEntry` for the empty prefix `""`.
+  /// @tparam IsAttribute If the lookup is for an attribute.
+  template <bool IsAttribute = false>
+  ALWAYS_INLINE STPrefixEntry* lookupEmptyPfx() {
+    return X(IsAttribute ? AT_NIL : Pfx_NIL);
+  }
   /// Returns the `PrefixEntry` for `Pfx`, if it exists.
   /// @tparam IsAttribute If the lookup is for an attribute.
   template <bool IsAttribute = false>
   STPrefixEntry* lookupPfx(ImplicitHashStrRef Pfx) {
     if (Pfx == GetEmptyHashString())
-      return X(IsAttribute ? AT_NIL : Pfx_NIL);
+      return lookupEmptyPfx<IsAttribute>();
     auto It = PrefixMap.find(Pfx);
     if (It == PrefixMap.end())
       return nullptr;

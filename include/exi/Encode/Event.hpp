@@ -79,6 +79,9 @@ public:
   ALWAYS_INLINE constexpr StrRef name() const {
     return StrRef(Data, Size);
   }
+  ALWAYS_INLINE constexpr StrRef value() const {
+    return StrRef(Data, Size);
+  }
   ALWAYS_INLINE constexpr StringEventKind tag() const {
     return static_cast<StringEventKind>(this->Tag);
   }
@@ -94,6 +97,12 @@ public:
     exi_invariant(Ix <= 1, "Index out of range!");
     return StrRef(Data[Ix], Size[Ix]);
   }
+  ALWAYS_INLINE constexpr StrRef name() const {
+    return StrRef(Data[0], Size[0]);
+  }
+  ALWAYS_INLINE constexpr StrRef value() const {
+    return StrRef(Data[1], Size[1]);
+  }
 };
 
 // Start Element (qname)
@@ -105,7 +114,7 @@ struct StartElemEvent : StringEventData {
   }
 };
 // Start Element (uri:*)
-struct StartElemURIEvent : StartElemEvent {
+struct EXI_EMPTY_BASES StartElemURIEvent : StartElemEvent {
   union {
     const char* URI;
     encode::STURIEntry* OpaqueURI;
@@ -128,6 +137,16 @@ struct NamespaceEvent : BaseEvent {
   u32 IsLocal : 1  = false;
   const char* PfxData = nullptr;
   const char* UriData = nullptr;
+public:
+  ALWAYS_INLINE constexpr StrRef pfx() const {
+    return StrRef(PfxData, PfxSize);
+  }
+  ALWAYS_INLINE constexpr StrRef uri() const {
+    return StrRef(UriData, UriSize);
+  }
+  ALWAYS_INLINE constexpr bool isLocal() const {
+    return !!IsLocal;
+  }
 };
 /// Start Document
 struct StartDocEvent  : NoEventData {};

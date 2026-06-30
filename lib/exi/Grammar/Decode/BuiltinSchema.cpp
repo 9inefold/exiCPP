@@ -492,9 +492,10 @@ private:
     Event.setTerm(XsiTerm);
     // Change the currently active grammar.
     //BuiltinGrammar*& CurrG = GStack.back();
+    // TODO: Fix this!
     if (GStack.back()->getName() != Event.Name) {
       auto* G = Grammars.lookup(Event.Name);
-      LOG_WARN("xsi:type grammar changes are unimplemented!");
+      exi_todo("xsi:type grammars are unimplemented!");
     }
     return Event;
   }

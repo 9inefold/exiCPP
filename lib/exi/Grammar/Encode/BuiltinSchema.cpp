@@ -545,7 +545,7 @@ private:
         return this->handleXsiNil(OE, AT, LN, G);
     }
     this->seenAT();
-    return this->handleATKnownLN(OE, AT, LN, G);
+    return this->handleATNonXsiLN(OE, AT, LN, G);
   }
   /// Handles cases where the AT is known to not be `xsi:{nil, type}`.
   CC_INLINE ExiError handleATNonXsiLN(OrderedEncoder* OE, const AttrEvent& AT,
@@ -561,6 +561,7 @@ private:
     tail_return this->handleATKnownLN(OE, AT, LN, G);
   }
   /// Handles cases where the AT LocalName is non-null.
+  /// TODO: Make this more efficient? We have some cached values that aren't being used.
   template <bool DoValue = true>
   CC ExiError handleATKnownLN(OrderedEncoder* OE, const AttrEvent& AT,
                               LocalNameInfo* LN, BuiltinGrammar* G) {
@@ -578,19 +579,35 @@ private:
   CC ExiError handleXsiType(OrderedEncoder* OE, const AttrEvent& AT,
                             LocalNameInfo* LN, BuiltinGrammar* G) {
     this->seenXsiType();
-    exi_try(handleATKnownLN</*DoValue=*/false>(OE, AT, LN, G));
     // PSEUDOCODE:
+    /// XsiPrefix = SplitName(Value)[0]
+    /// encodeAT(URI_CONSTANTS.xsi, "type", XsiPrefix)
+    ///
+    exi_try(handleATKnownLN</*DoValue=*/false>(OE, AT, LN, G));
     /// Prefix, LocalName = SplitName(Value)
-    /// if exists(Prefix):
-    ///   qname = encodeQName(Prefix.URI, LocalName, Prefix)
+    /// PrefixTblEntry = lookupATPrefix(Prefix)
+    /// if PrefixTblEntry and hasURI(PrefixTblEntry):
+    ///   URI = getURI(PrefixTblEntry)
     /// else:
-    ///   qname = encodeQName("", Value, "")
-    /// 
+    ///   PrefixTblEntry = lookupATPrefix("")
+    ///   URI = getURI(PrefixTblEntry)
+    ///   LocalName = Value
+    /// if Preserve.LexicalValues:
+    ///   encodeString(Value)
+    /// else:
+    ///   encodeQName(PrefixTblEntry, LocalName, URI)
+    ///
+    ExiResult<OrderedEncoder::XsiTypeEncoding> GLOrErr
+        = OE->encodeXsiTypeValueQName<StrmT>(AT.value());
+    if EXI_UNLIKELY(GLOrErr.is_err())
+      return GLOrErr.error();
+    auto [URIV, TextualLocalName] = *GLOrErr;
     /// G = grammars.find(qname)
     /// if G is not None:
     ///   setElementGrammar(G)
     ///
-    exi_todo("handle xsi:type value -> qname encoding");
+    /// See Table 7-1 for normal, Table 7-2 for Preserve.LexicalValues
+    exi_todo("handle xsi:type value -> type grammar lookup");
   }
   EXI_NO_INLINE CC ExiError handleXsiNil(OrderedEncoder* OE, const AttrEvent& AT,
                                          LocalNameInfo* LN, BuiltinGrammar* G) {

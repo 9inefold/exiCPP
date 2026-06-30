@@ -246,6 +246,8 @@ public:
 
   /// Represents a [Prefix, IsNew] pair
   using TaggedPrefixEntry = std::pair<PrefixEntry*, bool>;
+  /// Represents a [URI, FullLocalName] pair
+  using XsiTypeEncoding = std::pair<URIEntry*, StrRef>;
 
   using BodyEncoder::SplitName;
 
@@ -293,22 +295,22 @@ public:
 
   template <typename StrmT, bool DoValue = true>
   ExiResult<NameEntry*> encodeAT(const AttrEvent& AT) {
-    auto [Pfx, LN] = SplitName(AT[0]);
+    auto [Pfx, LN] = SplitName(AT.name());
     encode::LocalNameInfo* LNV
       = EXI_UNWRAP((encodeQName<StrmT, /*IsAT=*/true>(Pfx, LN)));
     exi_guard_invariant(LNV != nullptr);
     if constexpr (DoValue)
-      exi_try_r(encodeValue<StrmT>(LNV, AT[1]));
+      exi_try_r(encodeValue<StrmT>(LNV, AT.value()));
     return LNV;
   }
   template <typename StrmT, bool DoValue = true>
   ExiError encodeATKnown(const AttrEvent& AT) {
-    auto [Pfx, LN] = SplitName(AT[0]);
+    auto [Pfx, LN] = SplitName(AT.name());
     encode::LocalNameInfo* LNV
       = EXI_UNWRAP((onlyGetKnownQName<StrmT, /*IsAT=*/true>(Pfx, LN)));
     exi_guard_invariant(LNV != nullptr);
     if constexpr (DoValue)
-      return encodeValue<StrmT>(LNV, AT[1]);
+      return encodeValue<StrmT>(LNV, AT.value());
     else
       return ExiError::OK;
   }
@@ -318,11 +320,10 @@ public:
 
   template <typename StrmT, bool IsRoot = false>
   ExiError encodeNS(const NamespaceEvent& NS) {
-    StrRef URI(NS.UriData, NS.UriSize);
-    URIEntry* URIV = encodeURI<StrmT>(URI);
+    URIEntry* URIV = encodeURI<StrmT>(NS.uri());
     exi_assert(URIV != nullptr);
-    StrRef Pfx(NS.PfxData, NS.PfxSize);
-    ExiResult<TaggedPrefixEntry> PfxInfoOrErr = encodePfx<StrmT>(URIV, Pfx);
+    ExiResult<TaggedPrefixEntry> PfxInfoOrErr
+        = encodePfx<StrmT>(URIV, NS.pfx());
     exi_try_unwrap(PfxInfoOrErr);
 
     if constexpr (!IsRoot)
@@ -337,9 +338,8 @@ public:
   /// Handles the case of a pseudo-NS event with Preserve.Prefixes off.
   template <bool IsRoot = false>
   ExiError saveNSToTableOnly(const NamespaceEvent& NS) {
-    StrRef Pfx(NS.PfxData, NS.PfxSize);
-    StrRef URI(NS.UriData, NS.UriSize);
-    TaggedPrefixEntry PfxInfo = Strings.enterNamespaceFacade(Pfx, URI);
+    TaggedPrefixEntry PfxInfo
+        = Strings.enterNamespaceFacade(NS.pfx(), NS.uri());
     if constexpr (!IsRoot)
       if (!PfxInfo.second)
         CtxStack.add(PfxInfo.first);
@@ -367,6 +367,20 @@ public:
     URIEntry* URIV = Strings.GetURIEntry(PfxV);
     if EXI_NEVER(URIV == nullptr) {
       LOG_ERROR("No URI bound to prefix '{}'", Pfx);
+      return Err(ErrorCode::kNullptrRef);
+    }
+    (void) encodeURIID<StrmT>(URIV);
+    NameEntry* LNV = EXI_UNWRAP(encodeName<StrmT>(URIV, LN));
+    exi_try_r(encodePfxQ<StrmT>(URIV, PfxV));
+    return LNV;
+  }
+  /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.
+  template <typename StrmT>
+  ALWAYS_INLINE ExiResult<NameEntry*> encodeQName(PrefixEntry* PfxV, StrRef LN) {
+    exi_invariant(PfxV != nullptr);
+    URIEntry* URIV = Strings.GetURIEntry(PfxV);
+    if EXI_NEVER(URIV == nullptr) {
+      LOG_ERROR("No URI bound to prefix '{}'", Strings.GetPfx(PfxV));
       return Err(ErrorCode::kNullptrRef);
     }
     (void) encodeURIID<StrmT>(URIV);
@@ -403,6 +417,55 @@ public:
     }
     Result LNOrIP = Strings.lookupLocalName(URIV, LN);
     return LNOrIP.expect("LN should exist for an SE/AT(qname) event.");
+  }
+
+  /// Encodes the value for a `xsi:type="pfx?:local-name"` AT event.
+  template <typename StrmT>
+  ExiResult<XsiTypeEncoding> encodeXsiTypeValueQName(StrRef XsiValue) {
+    auto [Pfx, LN] = SplitName(XsiValue);
+    PrefixEntry* PfxV = nullptr;
+    URIEntry* URIV = nullptr;
+    // Try and find [pfx]:local-name and the associated uri.
+    if (!lookupXsiTypeValueQName(Pfx, LN, PfxV, URIV)) {
+      // Set pfx to "" and local-name to [pfx:local-name].
+      PfxV = Strings.lookupEmptyPfx<true>();
+      URIV = Strings.GetURIEntry(PfxV);
+      exi_invariant(PfxV && URIV && !Strings.IsFakeID(URIV));
+      LN = XsiValue;
+      Pfx = "";
+    }
+    // Encode xsi:type=["pfx?:local-name"].
+    if (this->LexicalValues())
+      // Write the whole value as a string.
+      writer<StrmT>().writeString(XsiValue);
+    else {
+      // Write the value as a qname.
+      (void) encodeURIID<StrmT>(URIV);
+      Result LNVOrErr = encodeName<StrmT>(URIV, LN);
+      if EXI_UNLIKELY(LNVOrErr.is_err())
+        return Err(LNVOrErr.error());
+      exi_try_r(encodePfxQ<StrmT>(URIV, PfxV));
+    }
+    return XsiTypeEncoding{URIV, LN};
+  }
+  /// Looks up the value for a `xsi:type="pfx?:local-name"` AT event.
+  /// @returns `true` if known name, otherwise `false`.
+  bool lookupXsiTypeValueQName(StrRef Pfx, StrRef LN,
+                               PrefixEntry*& PfxV, URIEntry*& URIV) {
+    // Lookup [pfx]:local-name.
+    PfxV = Strings.lookupPfx<true>(Pfx);
+    if (PfxV == nullptr)
+      return false;
+    // Lookup uri for pfx.
+    URIV = Strings.GetURIEntry(PfxV);
+    if EXI_NEVER(URIV == nullptr) {
+      LOG_ERROR("No URI bound to prefix '{}'", Pfx);
+      return false;
+    }
+    // Should not be fake...
+    if (Strings.IsFakeID(URIV))
+      return false;
+    return true;
   }
 
   /// Encodes a uri.
