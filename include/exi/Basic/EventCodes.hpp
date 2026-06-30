@@ -83,6 +83,10 @@ public:
     exi_invariant(URI < kInvalidURI && LocalName < kInvalidLNI);
     return {.LocalID = LocalName, .URI = URI};
   }
+  /// Creates a SmallQName with an `xsi:type` value.
+  ALWAYS_INLINE static constexpr SmallQName NewXsiType() {
+    return {.LocalID = 1, .URI = 2};
+  }
 
   /// Checks if QName has a `(uri:?)`.
   constexpr bool hasURI() const {
@@ -109,6 +113,10 @@ public:
   /// Checks if QName has a `(uri:name)` value.
   EXI_INLINE EXI_FLATTEN constexpr bool isQName() const {
     return hasURI() && hasName();
+  }
+  EXI_INLINE constexpr bool isXsiType() const {
+    constexpr_static SmallQName XsiType = NewXsiType();
+    return *this == XsiType;
   }
 
   EXI_INLINE constexpr bool operator==(const SmallQName& RHS) const = default;

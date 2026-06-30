@@ -220,6 +220,7 @@ protected:
     case EventTerm::AT:       // Attribute (*, value)
     case EventTerm::ATUri:    // Attribute (uri:*, value)
     case EventTerm::ATQName:  // Attribute (qname, value)
+    case EventTerm::NL:       // xsi:nil (value)
       return this->handleAT<Ty>(S, Event);
     case EventTerm::NS:       // Namespace Declaration (uri, prefix, local-element-ns)
       return this->handleNS<Ty>(S, Event);
@@ -377,6 +378,19 @@ case##CODE:                                                                   \
     return static_cast<Ty*>(S)->AT(Name, Value);
   }
 
+  // xsi:type (*, qname)
+  // xsi:type (uri:*, qname)
+  // xsi:type (qname, qname)
+  ExiError handleXsiType(Deserializer* S, EventUID Event) {
+    exi_invariant(Event.hasQName());
+
+    const QName Name = this->getXsiTypeQName(Event);
+    const QName Value = this->getQName(Event);
+
+    LOG_EXTRA("Decoded AT/TP");
+    return S->AT_XsiType(Name, Value);
+  }
+
   // Namespace Declaration (uri, prefix, local-element-ns)
   template <typename Ty> ExiError handleNS(Deserializer* S, EventUID) {
     Result R = decodeNS();
@@ -409,6 +423,7 @@ case##CODE:                                                                   \
   EXI_COLD ExiError handleER(Deserializer* S);
 
   QName getQName(EventUID Event);
+  QName getXsiTypeQName(EventUID Event);
   // TODO: Add optional `UserPrefixLookup*` type.
   StrRef getPfxOrURI(EventUID Event);
   Option<StrRef> tryGetPfx(CompactID URI, CompactID PfxID);

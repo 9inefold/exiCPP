@@ -451,7 +451,7 @@ private:
 
   template <bool Cached = false>
   CC EventUID handleAT(ExiDecoder* D) {
-    const auto Event = Get::DecodeQName(D);
+    const ExiResult<EventUID> Event = Get::DecodeQName(D);
     if EXI_UNLIKELY(Event.is_err()) {
       Diagnose(Event);
       return EventUID::NewNull();
@@ -467,8 +467,35 @@ private:
     exi_invariant(Event.hasQName());
     if constexpr (!Cached)
       this->addTerm<ATQName>(Event);
-    // TODO: xsi:type
+    // Check for xsi:type
+    if EXI_UNLIKELY(Event.Name.isXsiType())
+      tail_return this->handleXsiType<Cached>(D);
+    // Set the type now
     Event.setTerm(Cached ? ATQName : AT);
+    return Event;
+  }
+
+  template <bool Cached = true>
+  CC EventUID handleXsiType(ExiDecoder* D) {
+    using enum EventTerm;
+    const u64 OldPfx = Event.hasPrefix() ? Event.Prefix : kInvalidVID;
+    const EventTerm XsiTerm = Cached ? TPQName : TP;
+    this->logEvent(XsiTerm);
+    // Read the value as a QName.
+    const ExiResult<EventUID> TargetType = Get::DecodeQName(D);
+    if EXI_UNLIKELY(TargetType.is_err()) {
+      Diagnose(TargetType);
+      return EventUID::NewNull();
+    }
+    this->Event = *TargetType;
+    Event.ValueID = OldPfx;
+    Event.setTerm(XsiTerm);
+    // Change the currently active grammar.
+    //BuiltinGrammar*& CurrG = GStack.back();
+    if (GStack.back()->getName() != Event.Name) {
+      auto* G = Grammars.lookup(Event.Name);
+      LOG_WARN("xsi:type grammar changes are unimplemented!");
+    }
     return Event;
   }
 

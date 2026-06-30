@@ -228,6 +228,10 @@ EXI_COLD ExiError ExiDecoder::dispatchUncommonEvent(Deserializer* S,
     if (ExiError E = S->ED())
       return E;
     return ExiError::DONE;
+  case EventTerm::TP:       // xsi:type (*, qname)
+  case EventTerm::TPUri:    // xsi:type (uri:*, qname)
+  case EventTerm::TPQName:  // xsi:type (qname, qname)
+    return this->handleXsiType(S, Event);
   case EventTerm::CM:       // Comment text (text)
     return this->handleCM(S);
   case EventTerm::PI:       // Processing Instruction (name, text)
@@ -343,6 +347,19 @@ QName ExiDecoder::getQName(EventUID Event) {
   /// Full name found.
   StrRef Pfx = Strings.getPrefix(
     Event.getURI(), Event.getPrefix());
+  return QName::New(URI, LocalName, Pfx);
+}
+
+QName ExiDecoder::getXsiTypeQName(EventUID Event) {
+  exi_invariant(Event.hasQName());
+  static constexpr auto kXsiType = SmallQName::NewXsiType();
+  auto [URI, LocalName] = Strings.getQName(kXsiType);
+  // Prefix is saved in the value.
+  if (!Event.hasValue())
+    return QName::New(URI, LocalName, "xsi");
+  /// Full name found.
+  StrRef Pfx = Strings.getPrefix(
+    kXsiType.URI, Event.getValue());
   return QName::New(URI, LocalName, Pfx);
 }
 

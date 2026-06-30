@@ -118,6 +118,14 @@ public:
     return ExiError::OK;
   }
 
+  /// xsi:type
+  ExiError AT_XsiType(QName Name, QName Value) override {
+    StrRef FullValue = this->getFullNameAT(Value, /*IsNS=*/false);
+    this->Attr = allocAttr</*IsNS=*/false>(Name, FullValue);
+    Curr->append_attribute(Attr);
+    return ExiError::OK;
+  }
+
   /// Namespace Declaration
   ExiError NS(StrRef URI, StrRef Prefix) override {
     const auto Name = QName::New(URI, Prefix, "xmlns"_str);

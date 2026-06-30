@@ -118,6 +118,11 @@ public:
     return ExiError::OK;
   }
 
+  /// xsi:type
+  virtual ExiError AT_XsiType(QName Name, QName Value) {
+    return ExiError::OK;
+  }
+
   // TODO: Make typed AT variants that forward to normal AT by default.
 
   /// Namespace Declaration
