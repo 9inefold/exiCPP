@@ -34,7 +34,7 @@
 // Revision $DateTime: 2009/05/13 01:46:17 $
 /// \file rapidxml.hpp This file contains xml parser and DOM implementation
 
-#include <Common/ConstexprLists.hpp>
+#include <Common/ConstexprLiteral.hpp>
 #include <Common/Fundamental.hpp>
 #include <Common/MaybeBox.hpp>
 #include <Common/Option.hpp>
@@ -1572,15 +1572,25 @@ private:
     }
   };
 
-  template <usize Off, char...CC>
+  //template <usize Off, char...CC>
+  //ALWAYS_INLINE EXI_FLATTEN static bool check(Ch*& Text) {
+  //  return [] <usize...II> (Ch*& Text, exi::idxseq<II...>) -> bool {
+  //    return (... && (Text[Off + II] == Ch(CC)));
+  //  } (Text, exi::make_idxseq<sizeof...(CC)>{});
+  //}
+  //template <char...CC>
+  //ALWAYS_INLINE static bool check2(Ch*& Text) {
+  //  return check<2, CC...>(Text);
+  //}
+  template <exi::charseq_c S, usize Off = 0>
   ALWAYS_INLINE EXI_FLATTEN static bool check(Ch*& Text) {
     return [] <usize...II> (Ch*& Text, exi::idxseq<II...>) -> bool {
-      return (... && (Text[Off + II] == Ch(CC)));
-    } (Text, exi::make_idxseq<sizeof...(CC)>{});
+      return (... && (Text[Off + II] == Ch(S.Data[II])));
+    } (Text, exi::make_idxseq<S.kSize>{});
   }
-  template <char...CC>
+  template <exi::charseq_c S>
   ALWAYS_INLINE static bool check2(Ch*& Text) {
-    return check<2, CC...>(Text);
+    return check<S, 2>(Text);
   }
 
   // Insert coded character, using UTF8 or 8-bit ASCII
@@ -1639,11 +1649,13 @@ private:
   /// Assumes you checked `check<0,'<','!','['>(Text)`.
   template <usize Off = 2>
   ALWAYS_INLINE static bool is_cdata_start(Ch* Text) {
-    return check<Off, 'C','D','A','T','A','['>(Text);
+    //return check<Off, 'C','D','A','T','A','['>(Text);
+    return check<"CDATA[", Off>(Text);
   }
 
   ALWAYS_INLINE static void skip_cdata_content(Ch*& Text) {
-    while (Text[0] != Ch(']') || Text[1] != Ch(']') || Text[2] != Ch('>')) {
+    //while (Text[0] != Ch(']') || Text[1] != Ch(']') || Text[2] != Ch('>')) {
+    while (!check<"]]>">(Text)) {
       if (!Text[0])
         RAPIDXML_PARSE_ERROR("unexpected end of data", Text);
       ++Text;
@@ -1666,13 +1678,15 @@ private:
 
           // &amp; &apos;
           case Ch('a'):
-            if (check2<'m','p',';'>(src)) {
+            //if (check2<'m','p',';'>(src)) {
+            if (check2<"mp;">(src)) {
               *dest = Ch('&');
               ++dest;
               src += 5;
               continue;
             }
-            if (check2<'p','o','s',';'>(src)) {
+            //if (check2<'p','o','s',';'>(src)) {
+            if (check2<"pos;">(src)) {
               *dest = Ch('\'');
               ++dest;
               src += 6;
@@ -1682,7 +1696,8 @@ private:
 
           // &quot;
           case Ch('q'):
-            if (check2<'u','o','t',';'>(src)) {
+            //if (check2<'u','o','t',';'>(src)) {
+            if (check2<"uot;">(src)) {
               *dest = Ch('"');
               ++dest;
               src += 6;
@@ -2054,8 +2069,8 @@ private:
       skip_and_expand_character_refs<text_pred, text_pure_no_ws_pred, Flags>(Text, end);
 
     if constexpr (Flags & parse_merge_cdata_nodes) {
-      if (!(check<0, '<','!','['>(Text) &&
-            is_cdata_start<3>(Text))) {
+      //if (!(check<0, '<','!','['>(Text) && is_cdata_start<3>(Text))) {
+      if (!(check<"<![">(Text) && is_cdata_start<3>(Text))) {
         // Exit early, this isn't a CDATA node.
         break;
       }
@@ -2237,8 +2252,9 @@ private:
 
       // <!D
       case Ch('D'):
-        if (Text[2] == Ch('O') && Text[3] == Ch('C') && Text[4] == Ch('T') && Text[5] == Ch('Y') &&
-            Text[6] == Ch('P') && Text[7] == Ch('E') && whitespace_pred::test(Text[8])) {
+        //if (Text[2] == Ch('O') && Text[3] == Ch('C') && Text[4] == Ch('T') && Text[5] == Ch('Y') &&
+        //    Text[6] == Ch('P') && Text[7] == Ch('E') && whitespace_pred::test(Text[8])) {
+        if (check2<"OCTYPE">(Text) && whitespace_pred::test(Text[8])) {
           // '<!DOCTYPE ' - doctype
           Text += 9; // skip '!DOCTYPE '
           tail_return parse_doctype<Flags>(Text);

@@ -18,6 +18,7 @@
 
 #include "Driver.hpp"
 #include <Common/APInt.hpp>
+#include <Common/ConstexprLiteral.hpp>
 #include <Common/EnumArray.hpp>
 #include <Common/RefCntPtr.hpp>
 #include <Common/MMatch.hpp>
@@ -1162,6 +1163,13 @@ int main(int Argc, char* Argv[]) {
   XMLManagerRef Mgr = make_refcounted<XMLManager>(ParseOpts);
 
   //outs() << "Is debugging: " << sys::Process::IsReallyDebugging() << '\n';
+
+  using HelloWorld = make_charseq<"Hello world!">;
+  static_assert(matches_seq<HelloWorld>("Hello world!!"));
+
+  static constexpr char CDATA_EX[] = "<![CDATA";
+  static_assert(matches_seq<"<![">(CDATA_EX)
+             && matches_seq<"CDATA", 3>(CDATA_EX));
 
 #if 1
   doTestTests(Mgr);
