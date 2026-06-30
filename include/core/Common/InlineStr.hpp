@@ -78,6 +78,7 @@ InlineStr* make_inlinestr(AllocatorT& Alloc, StrRef S, bool NullTerminate = true
   if (!NullTerminate)
     return InlineStr::New(Alloc, S);
   auto* Out = InlineStr::NewUninit(Alloc, S.size() + 1);
+  Out->Size = S.size();
   FastUninitCopy(Out->Data, S.data(), S.size());
   Out->Data[S.size()] = '\0';
   return Out;

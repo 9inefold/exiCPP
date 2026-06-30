@@ -67,7 +67,7 @@ void FoldingSetNodeID::AddString(StrRef Str) {
   unsigned Size = Str.size();
 
   unsigned NumInserts = 1 + divideCeil(Size, 4);
-  Bits.reserve(Bits.size() + NumInserts);
+  Bits.reserve_back(NumInserts);
 
   Bits.push_back(Size);
   if (!Size) return;

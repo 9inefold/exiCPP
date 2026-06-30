@@ -393,6 +393,10 @@ public:
   /// object to be used to compute a new profile.
   inline void clear() { Bits.clear(); }
 
+  inline FoldingSetNodeIDRef getIDRef() const {
+    return FoldingSetNodeIDRef(Bits.data(), Bits.size());
+  }
+
   // Compute a strong hash value for this FoldingSetNodeID, used to lookup the
   // node in the FoldingSetBase. The hash value is not guaranteed to be
   // deterministic across processes.
