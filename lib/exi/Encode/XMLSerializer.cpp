@@ -170,7 +170,7 @@ private:
                     PPAttributeCtx& Ctx) {
     static constexpr bool kIsNil = (IK == xml::IK_XsiNil);
     static_assert(kIsNil || IK == xml::IK_XsiType);
-    exi_invariant(A && A->id_kind() == xml::IK_XsiNil);
+    exi_invariant(A != nullptr);
     static constexpr auto XsiV = kIsNil 
       ? &PPAttributeCtx::XsiNil
       : &PPAttributeCtx::XsiType;
@@ -203,11 +203,13 @@ private:
                                          PPAttributeCtx& Ctx) {
     switch (A->id_kind()) {
     case xml::IK_Name:
-      tail_return this->ppAddAttr(A, Pfx, Ctx);
     case xml::IK_XsiNil:
-      tail_return this->ppAddXsi<xml::IK_XsiNil>(A, Pfx, Ctx);
     case xml::IK_XsiType:
-      tail_return this->ppAddXsi<xml::IK_XsiType>(A, Pfx, Ctx);
+      tail_return this->ppAddAttr(A, Pfx, Ctx);
+    //case xml::IK_XsiNil:
+    //  tail_return this->ppAddXsi<xml::IK_XsiNil>(A, Pfx, Ctx);
+    //case xml::IK_XsiType:
+    //  tail_return this->ppAddXsi<xml::IK_XsiType>(A, Pfx, Ctx);
     case xml::IK_AnonNS:
       tail_return this->ppAddNamespace<true>(A, Pfx, Ctx);
     case xml::IK_NamedNS:
@@ -295,8 +297,9 @@ private:
   ExiError handleNSWithLocalNS(XMLNode*, PPAttributeCtx& Ctx) {
     SmallVec<NamespaceEvent> NSBatch;
     NSBatch.reserve(Ctx.NS.size());
+    XMLAttribute* Local = Ctx.LocalNS;
     for (XMLAttribute* NS : Ctx.NS)
-      NSBatch.push_back(MakeNSEvent(NS, Ctx.LocalNS));
+      NSBatch.push_back(MakeNSEvent(NS, Local));
     return BE.BatchNamespace<IsRoot>(NSBatch);
   }
 
@@ -311,18 +314,29 @@ private:
   }
 
   /// Handles the `xsi:{type, nil}` ATtributes, if required.
-  ExiError handleXsiBuiltins(XMLNode*, PPAttributeCtx& Ctx) {
-    if EXI_NEVER(Ctx.XsiNil || Ctx.XsiType) {
-      LOG_ERROR("'xsi:*' builtins are currently unimplemented!");
-      return ExiError::TODO;
-    }
-    return ExiError::OK;
+  ExiError handleXsiBuiltins(XMLNode* N, PPAttributeCtx& Ctx) {
+    exi_invariant(Ctx.XsiType);
+    if (Ctx.XsiType)
+      LOG_ERROR("'xsi:type' builtin is currently unimplemented!");
+    //if (Ctx.XsiNil)
+    //  LOG_ERROR("'xsi:nil' builtin is currently unimplemented!");
+    return ExiError::TODO;
   }
 
-  /// Handles ATtributes. Assumes unsorted.
+  /// Handles the `xsi:type` ATtribute, if required.
+  ExiError handleXsiType(XMLAttribute* XsiType) {
+    exi_invariant(XsiType && XsiType->is_xsi_type());
+    LOG_ERROR("'xsi:type' builtin is currently unimplemented!");
+    return ExiError::TODO;
+  }
+
+  /// Handles ATtributes & `xsi:nil`. Assumes unsorted.
   ExiError handleAttributes(XMLNode*, PPAttributeCtx& Ctx) {
     SmallVec<AttrEvent> ATBatch;
     ATBatch.reserve(Ctx.Attrs.size());
+    if (auto* Nil = Ctx.XsiNil) [[unlikely]]
+      // TODO: Check if xsi:nil needs anything extra
+      ATBatch.push_back(MakeATEvent(Nil));
     for (XMLAttribute* AT : Ctx.Attrs)
       ATBatch.push_back(MakeATEvent(AT));
     return BE.BatchAttribute(ATBatch);
@@ -337,7 +351,8 @@ private:
               Ctx.Attrs.size());
     exi_try(dispatchHandleSE(N, Ctx));
     exi_try(dispatchHandleNS<IsRoot>(N, Ctx));
-    exi_try(handleXsiBuiltins(N, Ctx));
+    if (auto* XsiType = Ctx.XsiType) [[unlikely]]
+      exi_try(handleXsiType(XsiType));
     tail_return handleAttributes(N, Ctx);
   }
 

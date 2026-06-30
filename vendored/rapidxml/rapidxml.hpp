@@ -890,9 +890,14 @@ public:
     return id_rank() >= unsigned(IK_Name)
         && id_rank() <= unsigned(IK_XsiType);
   }
-  bool is_xsi() const {
-    return id_kind() == IK_XsiNil
-        || id_kind() == IK_XsiType;
+  bool is_xsi_type() const {
+    return id_kind() == IK_XsiType;
+  }
+  bool is_xsi_nil() const {
+    return id_kind() == IK_XsiNil;
+  }
+  EXI_FLATTEN bool is_xsi() const {
+    return is_xsi_type() || is_xsi_nil();
   }
   bool is_namespace() const {
     return id_rank() >= unsigned(IK_AnonNS);

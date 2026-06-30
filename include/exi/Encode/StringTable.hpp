@@ -387,7 +387,6 @@ private:
 #else
   /// Used to map URIs to IDs.
   IntrusiveLogCounter<URIMapType, 1> URIMap;
-//#endif
   /// Used to keep track of fake URIs when Preserve.Prefixes is false.
   /// Stores URIs declared in namespaces before they get used.
   /// TODO: Remove this? It's pretty clunky and there's other ways to implement it.
@@ -534,6 +533,7 @@ public:
     std::pair<LocalNameInfo*, u32> RecentLV = {nullptr, 0xFFFFFFFF};
   };
   /// Maps a Value to its corresponding data.
+  /// TODO: Use `FoldingSetVector` for ValueMap?
   using ValueMapType = BumpStringMap<ValueInfo, /*IsOwned=*/true>;
   /// Stores the mapping between a Value and its corresponding data.
   using ValueEntry = ValueMapType::value_type;
@@ -553,6 +553,7 @@ private:
   PrefixEntry* Pfx_xml = nullptr; // xmlns:xml="..."
   PrefixEntry* Pfx_xsi = nullptr; // xmlns:xsi="..."
   PrefixEntry* Pfx_xsd = nullptr; // xmlns:xsd="..."
+  URIEntry* AT_xsd = nullptr; // xmlns:xsd="..."
 
   /// If prefixes are preserved (fake URIs allowed)
   bool PreservePrefixes = true;
@@ -693,6 +694,21 @@ public:
     exi_invariant(Entry != nullptr);
     return VOfX(Entry)->RecentLV.second;
   }
+
+  /// Gets the type if `xsi:{type, nil}`.
+  static EventTerm GetXsiBuiltinType(const LNEntry* LN) {
+    exi_invariant(LN != nullptr);
+    // Check if third entry in partition table.
+    if (LN->uri() != 2)
+      return EventTerm::Invalid;
+    const unsigned LNID = LN->id();
+    if (LNID == 0)
+      return EventTerm::NL;
+    else if (LNID == 1)
+      return EventTerm::TP;
+    else
+      return EventTerm::Invalid;
+  } 
 
   ////////////////////////////////////////////////////////////////////////
   // Setters

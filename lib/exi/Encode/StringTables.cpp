@@ -29,6 +29,7 @@
 #include <exi/Basic/ExiOptions.hpp>
 #include <exi/Basic/D/ExiInitialValues.impl>
 #include <algorithm>
+#include <fmt/ranges.h>
 
 #define DEBUG_TYPE "Encode.StringTables"
 #define GEN_IV(URI, PFX, LV) #LV
@@ -384,6 +385,12 @@ NSContext StringTable::createURIAssociationForInit(StrRef URI, StrRef Pfx) {
   return Ctx;
 }
 
+static void PrintFoldingSetNodeID(const FoldingSetNodeID& ID) {
+  FoldingSetNodeIDRef Ref = ID.getIDRef();
+  ArrayRef<unsigned> Arr(Ref.getData(), Ref.getSize());
+  fmt::println("{}: {:#08x}", static_cast<const void*>(Arr.data()), fmt::join(Arr, " "));
+}
+
 LocalNameInfo* StringTable::createNewLocalName(URIEntry* URI, StrRef Raw) {
   const InlineStr* Name = internLocalName(Raw);
   auto* LN = new (Alloc) LocalNameInfo(X(URI), Name);
@@ -472,6 +479,7 @@ void StringTable::createInitialEntries(bool UsesSchema) {
     // attribute, element and type explicitly declared in the schema.
     auto Xsd = createURIAssociation(XSD_URI);
     this->Pfx_xsd = Xsd.Pfx;
+    this->AT_xsd = Xsd.URI;
     appendLocalNames(Xsd.URI, XSD_InitialValues);
   }
 }

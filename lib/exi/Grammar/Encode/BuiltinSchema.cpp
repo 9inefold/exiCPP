@@ -45,6 +45,8 @@ using namespace exi;
 using namespace exi::encode;
 
 #define DEBUG_TYPE "Encode.BuiltinSchema"
+// TODO: Move EXI_CHECK_XSI_ORDER
+#define EXI_CHECK_XSI_ORDER 1
 
 #if EXI_LOG_POSITION
 /// Encodes extra information.
@@ -159,9 +161,16 @@ class INTERNAL_LINKAGE OrderedBuiltinSchema final : public BuiltinSchema {
   /// Maps `SimpleEventTerm`s to event codes.
   BIEventMap TMap;
   /// The grammar stack.
-  SmallVec<encode::BuiltinGrammar*, 0> GStack;
+  SmallVec<BuiltinGrammar*, 0> GStack;
   /// Stores all the SE grammars.
   DenseMap<LocalNameInfo*, BuiltinGrammar*> Grammars;
+
+#if EXI_CHECK_XSI_ORDER
+  bool SeenNS = false;
+  bool SeenXsiType = false;
+  bool SeenXsiNil = false;
+  bool SeenAT = false;
+#endif
 
   OrderedBuiltinSchema(OrderedEncoder& OE, const BIEventMap& TMap) : TMap(TMap) {
 #if !defined(NDEBUG) || EXI_ENABLE_DUMP
@@ -431,6 +440,8 @@ private:
   }
   template <State S>
   CC ExiError handleSE(OrderedEncoder* OE, const StartElemEvent& SE) {
+    if constexpr (S != DocContent)
+      this->resetSeen();
     // Check if this isn't a SE(qname)
     if (isa<StartElemURIEvent>(SE))
       // Handle SE(uri:*) separately
@@ -526,6 +537,19 @@ private:
               && !GStack.empty() && GStack.back());
     auto* G = GStack.back();
     auto [URIV, LN] = OE->lookupAT(AT);
+    if (LN != nullptr) {
+      EventTerm XsiEvent = OE->getXsiBuiltinType(LN);
+      if (XsiEvent == EventTerm::TP)
+        return this->handleXsiType(OE, AT, LN, G);
+      else if (XsiEvent == EventTerm::NL)
+        return this->handleXsiNil(OE, AT, LN, G);
+    }
+    this->seenAT();
+    return this->handleATKnownLN(OE, AT, LN, G);
+  }
+  /// Handles cases where the AT is known to not be `xsi:{nil, type}`.
+  CC_INLINE ExiError handleATNonXsiLN(OrderedEncoder* OE, const AttrEvent& AT,
+                                      LocalNameInfo* LN, BuiltinGrammar* G) {
     if (LN == nullptr) {
       LOG_META(">>> No LN for '{}'", AT[0]);
       G->writeFallbackCode<true>(&Get::Writer(OE));
@@ -534,19 +558,50 @@ private:
       G->addNewATTerm(OE, LN);
       return ExiError::OK;
     }
+    tail_return this->handleATKnownLN(OE, AT, LN, G);
+  }
+  /// Handles cases where the AT LocalName is non-null.
+  template <bool DoValue = true>
+  CC ExiError handleATKnownLN(OrderedEncoder* OE, const AttrEvent& AT,
+                              LocalNameInfo* LN, BuiltinGrammar* G) {
+    exi_invariant(LN != nullptr);
     if (void* IP = G->setATTerm(&Get::Writer(OE), LN)) {
       // LocalName does exist.
       LOG_META(">>> No LN for '{}' in grammar", AT[0]);
       this->encodeSLCode<true, SimpleEventTerm::AT>(OE);
       G->addATTerm(OE, LN, IP);
-      return OE->encodeAT<StrmT>(AT).error_or(ExiError::OK);
+      return OE->encodeAT<StrmT, DoValue>(AT).error_or(ExiError::OK);
     }
-    return OE->encodeATKnown<StrmT>(AT);
+    return OE->encodeATKnown<StrmT, DoValue>(AT);
+  }
+
+  CC ExiError handleXsiType(OrderedEncoder* OE, const AttrEvent& AT,
+                            LocalNameInfo* LN, BuiltinGrammar* G) {
+    this->seenXsiType();
+    exi_try(handleATKnownLN</*DoValue=*/false>(OE, AT, LN, G));
+    // PSEUDOCODE:
+    /// Prefix, LocalName = SplitName(Value)
+    /// if exists(Prefix):
+    ///   qname = encodeQName(Prefix.URI, LocalName, Prefix)
+    /// else:
+    ///   qname = encodeQName("", Value, "")
+    /// 
+    /// G = grammars.find(qname)
+    /// if G is not None:
+    ///   setElementGrammar(G)
+    ///
+    exi_todo("handle xsi:type value -> qname encoding");
+  }
+  EXI_NO_INLINE CC ExiError handleXsiNil(OrderedEncoder* OE, const AttrEvent& AT,
+                                         LocalNameInfo* LN, BuiltinGrammar* G) {
+    this->seenXsiNil();
+    tail_return this->handleATKnownLN(OE, AT, LN, G);
   }
 
   /// Dispatcher function for all NS codes.
   template <bool IsRoot = false>
   EXI_FLATTEN CC ExiError handleNS(ORDERED_ARGS) {
+    this->seenNS();
     return this->handleNS<IsRoot>(OE,
       event_cast<SimpleEventTerm::NS>(Event, K));
   }
@@ -622,22 +677,73 @@ private:
   }
 
   // Batching
-  // TODO: Add optimizations specific to batches.
 
-  CC ExiError batchAT(ORDERED_BARGS) {
+  /// Packs the [AT, LocalName] info.
+  using BatchedATEntry = std::pair<const AttrEvent*, LocalNameInfo*>;
+
+  /// Sets up the event array for `batchAT`.
+  EXI_NO_INLINE CC ExiError setupBatchedAT(ORDERED_BARGS,
+                                           SmallVecImpl<BatchedATEntry>& Events,
+                                           BuiltinGrammar* G) {
     auto* VArr = static_cast<const AttrEvent*>(Arr);
-    for (usize Ix = 0; Ix < N - 1; ++Ix) {
+    Option<BatchedATEntry> XsiNil;
+    Events.reserve(N);
+    // Scan for xsi:{nil, type} ahead of time.
+    for (usize Ix = 0; Ix < N; ++Ix) {
+      const AttrEvent& AT = VArr[Ix];
+      auto [URIV, LN] = OE->lookupAT(AT);
+      if (LN != nullptr) {
+        // Check if we have a special event.
+        EventTerm XsiEvent = OE->getXsiBuiltinType(LN);
+        if (XsiEvent == EventTerm::NL) {
+          // Save this for later
+          XsiNil = BatchedATEntry {&AT, LN};
+          continue;
+        } else if (XsiEvent == EventTerm::TP) {
+          LOG_POSITION(OE);
+          this->logEvent(K);
+          exi_try(handleXsiType(OE, AT, LN, G));
+          continue;
+        }
+      }
+      Events.push_back({&AT, LN});
+    }
+    // Handle xsi:nil.
+    if (XsiNil.has_value()) {
       LOG_POSITION(OE);
       this->logEvent(K);
-      exi_try(handleAT(OE, VArr[Ix]));
+      auto [AT, LN] = *XsiNil;
+      exi_try(handleXsiNil(OE, *AT, LN, G));
     }
-    LOG_POSITION(OE);
-    this->logEvent(K);
-    return handleAT(OE, VArr[N - 1]);
+    // Continue on!
+    return ExiError::OK;
   }
+
+  /// Handles a batch of AT events, rather than passing them in individually.
+  /// Assumes all attributes are included.
+  CC ExiError batchAT(ORDERED_BARGS) {
+    BuiltinGrammar* G = GStack.back();
+    SmallVec<BatchedATEntry> Events;
+    Events.reserve(N);
+    exi_try(setupBatchedAT(ORDERED_BNEXT, Events, G));
+#if EXI_CHECK_XSI_ORDER
+    if (!Events.empty())
+      this->seenAT();
+#endif
+    // Handle the rest of the events.
+    for (auto [AT, LN] : Events) {
+      LOG_POSITION(OE);
+      this->logEvent(K);
+      exi_try(handleATNonXsiLN(OE, *AT, LN, G));
+    }
+    return ExiError::OK;
+  }
+
+  // TODO: Add optimizations specific to batches.
 
   template <bool IsRoot = false>
   CC ExiError batchNS(ORDERED_BARGS) {
+    this->seenNS();
     auto* VArr = static_cast<const NamespaceEvent*>(Arr);
     for (usize Ix = 0; Ix < N - 1; ++Ix) {
       LOG_POSITION(OE);
@@ -665,7 +771,7 @@ private:
     auto* VArr = static_cast<const CharEvent*>(Arr);
     LOG_POSITION(OE);
     this->logEvent(K);
-    if (N <= 1)
+    if (N == 1)
       return handleCH<true>(OE, *VArr);
     exi_try(handleCH<true>(OE, *VArr));
     tail_return this->batchCHElem(OE, VArr + 1, N - 1, K);
@@ -746,13 +852,48 @@ private:
   }
 
   ////////////////////////////////////////////////////////////////////////
-  // Printing
+  // Miscellaneous
 
 public:
   void dump() const override {}
   // ...
 
 private:
+#if EXI_CHECK_XSI_ORDER
+  EXI_PRESERVE_CALLSITE void seenNS() {
+    exi_relassert(!SeenAT, "Seen NS after processing AT");
+    exi_relassert(!SeenXsiType, "Seen NS after processing xsi:type");
+    exi_relassert(!SeenXsiNil, "Seen NS after processing xsi:nil");
+    this->SeenNS = true;
+  }
+  EXI_PRESERVE_CALLSITE void seenXsiType() {
+    exi_relassert(!SeenAT, "Seen xsi:type after processing AT");
+    exi_relassert(!SeenXsiType, "Already processed xsi:type");
+    exi_relassert(!SeenXsiNil, "Seen xsi:type after processing xsi:nil");
+    this->SeenXsiType = true;
+  }
+  EXI_PRESERVE_CALLSITE void seenXsiNil() {
+    exi_relassert(!SeenXsiNil, "Already processed xsi:nil");
+    if (hasDbgLogLevel(WARN) && SeenAT)
+      LOG_WARN("Seen xsi:nil after processing AT");
+    this->SeenXsiNil = true;
+  }
+  ALWAYS_INLINE void seenAT() {
+    this->SeenAT = true;
+  }
+  EXI_PRESERVE_CALLSITE void resetSeen() {
+    this->SeenNS = false;
+    this->SeenXsiType = false;
+    this->SeenXsiNil = false;
+    this->SeenAT = false;
+  }
+#else
+  ALWAYS_INLINE constexpr void seenNS() {}
+  ALWAYS_INLINE constexpr void seenXsiType() {}
+  ALWAYS_INLINE constexpr void seenXsiNil() {}
+  ALWAYS_INLINE constexpr void seenAT() {}
+  ALWAYS_INLINE constexpr void resetSeen() {}
+#endif
 #if EXI_LOGGING
   EXI_PRESERVE_CALLSITE void logCurrentGrammar();
   EXI_PRESERVE_CALLSITE void logPrecomputedCode(auto EC);

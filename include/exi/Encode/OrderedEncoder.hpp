@@ -291,22 +291,26 @@ public:
     return encodeLateBoundQName<StrmT>(SE.name(), GetSEUriValue(SE));
   }
 
-  template <typename StrmT>
+  template <typename StrmT, bool DoValue = true>
   ExiResult<NameEntry*> encodeAT(const AttrEvent& AT) {
     auto [Pfx, LN] = SplitName(AT[0]);
     encode::LocalNameInfo* LNV
       = EXI_UNWRAP((encodeQName<StrmT, /*IsAT=*/true>(Pfx, LN)));
     exi_guard_invariant(LNV != nullptr);
-    exi_try_r(encodeValue<StrmT>(LNV, AT[1]));
+    if constexpr (DoValue)
+      exi_try_r(encodeValue<StrmT>(LNV, AT[1]));
     return LNV;
   }
-  template <typename StrmT>
+  template <typename StrmT, bool DoValue = true>
   ExiError encodeATKnown(const AttrEvent& AT) {
     auto [Pfx, LN] = SplitName(AT[0]);
     encode::LocalNameInfo* LNV
       = EXI_UNWRAP((onlyGetKnownQName<StrmT, /*IsAT=*/true>(Pfx, LN)));
     exi_guard_invariant(LNV != nullptr);
-    return encodeValue<StrmT>(LNV, AT[1]);
+    if constexpr (DoValue)
+      return encodeValue<StrmT>(LNV, AT[1]);
+    else
+      return ExiError::OK;
   }
 
   // FIXME: Handle popping scope after inner ns decl?
@@ -340,6 +344,10 @@ public:
       if (!PfxInfo.second)
         CtxStack.add(PfxInfo.first);
     return ExiError::OK;
+  }
+  /// Checks if a LocalName is related to `xsi:{type, nil}`
+  EXI_INLINE EventTerm getXsiBuiltinType(NameEntry* LN) {
+    return Strings.GetXsiBuiltinType(LN);
   }
 
   /// Encodes a `pfx?:local-name` with a predefined prefix-uri mapping.
