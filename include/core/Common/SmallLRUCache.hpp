@@ -28,6 +28,10 @@
 // #include <Common/ManualDrop.hpp>
 #include <Common/Option.hpp>
 #include <Common/function_ref.hpp>
+#include <Support/D/MemOps.hpp>
+
+// TODO: Move EXI_USE_FAST_LRUCACHE_SHIFTING
+#define EXI_USE_FAST_LRUCACHE_SHIFTING 1
 
 namespace exi {
 
@@ -61,10 +65,17 @@ class SmallLRUCache {
   /// Handles the shifting of old elements.
   inline void shiftFrom(usize Ix = 0) {
     const usize MRU = (Size - 1);
+#if EXI_USE_FAST_LRUCACHE_SHIFTING
+    // TODO: Add LRUCache tests
+    exi_invariant(Ix < MRU, "Index out of range!");
+    auto* Begin = Elts.data() + Ix;
+    exi::FastInitMove(Begin, Begin + 1, MRU - Ix);
+#else
     for (; Ix < MRU; ++Ix) {
       // Move element back one position.
       Elts[Ix] = std::move(Elts[Ix + 1]);
     }
+#endif
   }
 
 public:
