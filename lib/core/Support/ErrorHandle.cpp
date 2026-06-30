@@ -239,12 +239,13 @@ static void AssertWithDetails(H::AssertionKind Kind, const char* Msg) {
   fmt::print(stderr, "\n");
   AssertWithLocation(File, Func, Line);
   AssertWithDetails(Kind, Msg);
-  errs() << "\nStacktrace:\n";
-  sys::PrintStackTrace(errs());
 #if EXI_DEBUG
-  if (!sys::Process::IsDebugging())
+  if (!sys::Process::IsDebugging()) {
+    errs() << "\nStacktrace:\n";
+    sys::PrintStackTrace(errs());
     // This avoids annoying signal handling.
     std::exit(1);
+  }
 #endif // EXI_DEBUG
   // Always abort in release.
   std::abort();
