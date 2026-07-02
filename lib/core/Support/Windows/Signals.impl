@@ -1075,7 +1075,13 @@ static LONG WINAPI EXIUnhandledExceptionFilter(LPEXCEPTION_POINTERS ep) {
     memcpy(&ContextCopy, ep->ContextRecord, sizeof(ContextCopy));
 
   exi::errs().enable_colors(false);
+#if EXI_ENABLE_STACKTRACES
+  exi::errs() << cpptrace::generate_trace(/*skip=*/1) << '\n';
+  // Restore the state!
+  memcpy(ep->ContextRecord, &ContextCopy, sizeof(ContextCopy));
+#else
   LocalPrintStackTrace(exi::errs(), ep ? &ContextCopy : nullptr, -1);
+#endif
 
   return EXCEPTION_EXECUTE_HANDLER;
 }
