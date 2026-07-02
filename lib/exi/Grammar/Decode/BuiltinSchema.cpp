@@ -482,6 +482,12 @@ private:
     const EventTerm XsiTerm = Cached ? TPQName : TP;
     this->logEvent(XsiTerm);
     // Read the value as a QName.
+    if (D->PreservePrefixes()) {
+      Event.ValueID = OldPfx;
+      Event.setTerm(XsiTerm);
+      return Event;
+    }
+    // TODO: Check Preserve.LexicalValues
     const ExiResult<EventUID> TargetType = Get::DecodeQName(D);
     if EXI_UNLIKELY(TargetType.is_err()) {
       Diagnose(TargetType);
@@ -490,13 +496,6 @@ private:
     this->Event = *TargetType;
     Event.ValueID = OldPfx;
     Event.setTerm(XsiTerm);
-    // Change the currently active grammar.
-    //BuiltinGrammar*& CurrG = GStack.back();
-    // TODO: Fix this!
-    if (GStack.back()->getName() != Event.Name) {
-      auto* G = Grammars.lookup(Event.Name);
-      exi_todo("xsi:type grammars are unimplemented!");
-    }
     return Event;
   }
 

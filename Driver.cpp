@@ -1085,18 +1085,20 @@ void doTestTests(RefCntPtr<XMLManager> Mgr) {
 
     if (DecodeAfter) {
       PrintBreak();
-      exi_try(Decode(EncodeBuf.str(), Opts));
+      //exi_try(Decode(EncodeBuf.str(), Opts));
       XMLDeserializer XD;
       //XD.UURIType = UnboundURIKind::UURI_OPENEXI;
       //XD.UURIType = UnboundURIKind::UURI_EXIFICIENT;
-      //exi_try(Decode(EncodeBuf.str(), Opts, &XD));
-      XMLDump::full(XD.document(), {.Conforming = true});
+      exi_try(Decode(EncodeBuf.str(), Opts, &XD));
+      //XMLDump::full(XD.document(), {.Conforming = true});
+      XMLDump::raw(XD.document(), {.Conforming = true});
     }
 
     return 0;
   };
 
-  auto CheckOutput = [&] (StrRef SubFolder, StrRef Mangling) -> int {
+  auto CheckOutput = [&] (StrRef SubFolder, StrRef Mangling,
+                          bool DecodeAfter = false) -> int {
     exi_demangle_options(Opts, Mangling);
     const bool IsHex = (Opts.Alignment != AlignKind::BitPacked);
     const int BreakOn = IsHex ? 8 : 4;
@@ -1117,8 +1119,25 @@ void doTestTests(RefCntPtr<XMLManager> Mgr) {
     exi_try(DoEncodeOnly(SubFolder, Mangling, /*DecodeAfter=*/false));
     PadByteDiffViewer(MBo, EncodeBuf.str(), BreakOn, IsHex);
 
+    if (DecodeAfter) {
+      PrintBreak();
+      exi_try(Decode(EncodeBuf.str(), Opts));
+      XMLDeserializer XD;
+      //XD.UURIType = UnboundURIKind::UURI_OPENEXI;
+      //XD.UURIType = UnboundURIKind::UURI_EXIFICIENT;
+      //exi_try(Decode(EncodeBuf.str(), Opts, &XD));
+      XMLDump::full(XD.document(), {.Conforming = true});
+    }
+
     return 0;
   };
+
+  //StrRef Mangling = "iPcdi";
+  //StrRef Mangling = "yPp";
+  //exi_demangle_options(Opts, Mangling);
+  //auto MBo = LoadExiBuffer("at.at-02/" + Twine(Mangling) + ".o.exi");
+  //if (Decode(MBo, Opts))
+  //  return;
 
   //CheckOutput("el.el-01", "yPcdi");
   //CheckOutput("ch.ch-01", "yPc");
@@ -1127,7 +1146,8 @@ void doTestTests(RefCntPtr<XMLManager> Mgr) {
   //DoEncodeOnly("at.at-01", "iPcdi");
 
   //CheckOutput("at.at-02", "iPcdi");
-  DoEncodeOnly("at.at-02", "iPcdi", false);
+  //DoEncodeOnly("at.at-02", "iPcdi");
+  DoEncodeOnly("at.at-02", "iPcdip");
   //DoEncodeOnly("at.at-02", "i");
 
   // TODO: Support universal names in decoding

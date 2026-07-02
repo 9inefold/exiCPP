@@ -95,6 +95,7 @@ class StringTable {
   /// Allocator used for LocalNames.
   exi::SpecificBumpPtrAllocator<LocalName> LNAllocator;
   /// Used to unique strings for output.
+  /// FIXME: Use StringMap? That way we can save the active element...
   exi::OwningStringSaver NameValueCache;
 
   /// Small size for schema adjacent values.

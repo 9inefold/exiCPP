@@ -363,6 +363,24 @@ QName ExiDecoder::getXsiTypeQName(EventUID Event) {
   return QName::New(URI, LocalName, Pfx);
 }
 
+ExiResult<QName> ExiDecoder::getXsiTypeValue(EventUID Event) {
+  if (!this->LexicalValues())
+    return this->getQName(Event);
+  // Handle the case where the value is a string.
+  SmallStr<32> Buf;
+  ExiResult<StrRef> ValueOrErr = Reader->decodeString(Buf);
+  if EXI_UNLIKELY(ValueOrErr.is_err())
+    return Err(ValueOrErr.error());
+  StrRef Value = *ValueOrErr;
+  InternString(this->BP, Value);
+  // Parse the representation.
+  if (!this->PreservePrefixes())
+    return QName::New("", Value, "");
+  auto [Pfx, LocalName] = Value.rsplit_back(':');
+  // TODO: Actually handle the URI lookup
+  return QName::New("", LocalName, Pfx);
+}
+
 StrRef ExiDecoder::getPfxOrURI(EventUID Event) {
   if (!Event.hasQName())
     return "*"_str;
@@ -496,7 +514,7 @@ ExiResult<CompactID> ExiDecoder::decodeName(CompactID URI) {
 
 template <typename StrmT>
 ExiResult<Option<CompactID>> ExiDecoder::decodePfxQ(CompactID URI) {
-  if (!Preserve.Prefixes)
+  if (!this->PreservePrefixes())
     return Ok(std::nullopt);
   if (URI == 0) {
     LOG_INFO(">> PXQ (null)");
@@ -524,7 +542,8 @@ ExiResult<Option<CompactID>> ExiDecoder::decodePfxQ(CompactID URI) {
 
 template <typename StrmT>
 ExiResult<CompactID> ExiDecoder::decodePfx(CompactID URI) {
-  exi_invariant(Preserve.Prefixes, "NS event occurred without prefixes.");
+  exi_invariant(this->PreservePrefixes(),
+                "NS event occurred without prefixes.");
   CompactID PfxID = 0;
   const u64 NBits = Strings.getPrefixLog(URI);
 

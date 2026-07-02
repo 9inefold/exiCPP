@@ -36,7 +36,7 @@ _mangle_body_re = [
   '(?P<Alignment>[iypc])',
   '(?P<Strict>S)?',
   '(?P<SelfContained>C)?',
-  '(?:P(?P<Preserve>c?d?l?i?p?))?',
+  '(?:P(?P<Preserve>c?d?i?l?p?))?',
   '(?:Y(?P<SchemaID>[{}]*)Y)?'.format(_zbase32_alpha),
   '(?:B(?P<BlockSize>\\d+))?',
   '(?:M(?P<ValueMaxLength>\\d+))?',

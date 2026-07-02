@@ -26,6 +26,7 @@
 #include <core/Common/Box.hpp>
 #include <core/Common/DenseMap.hpp>
 #include <core/Common/Twine.hpp>
+#include <core/Common/bitset.hpp>
 #include <core/Support/raw_ostream.hpp>
 #include <exi/Basic/Except.hpp>
 #include <exi/Basic/XMLContainer.hpp>
@@ -50,6 +51,7 @@ class XMLDeserializer final : public Deserializer, public XMLCoderOptions {
   StrRef CurrURI = "";
   MiBox<NSSlotMap> NSSlots;
   SmallStr<32> ScratchBuf;
+  exi::bitset<4> ActiveInitialURIPartitions;
   // For exificient compat
   bool HasPrefix = true;
 
@@ -298,6 +300,9 @@ private:
     exi_invariant(Name.hasID());
     return getURIPrefixForUnbound(Name.uri(), Name.name(), Name.id());
   }
+
+  /// Gets the initial partition prefix.
+  Option<StrRef> getInitialURIPartitionPrefix(StrRef URI);
 
   /// Creates a name like `{URI}LocalName`.
   StrRef getUnboundPrefixUniversal(StrRef URI, StrRef LocalName);

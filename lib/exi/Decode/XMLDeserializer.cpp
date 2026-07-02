@@ -28,6 +28,10 @@
 
 using namespace exi;
 
+namespace {
+static constexpr StrRef kInitialURIPartitionPrefix[] {"", "xml", "xsi", "xsd"};
+} // namespace `anonymous`
+
 StrRef XMLDeserializer::getUnboundPrefixUniversal(StrRef URI, StrRef LocalName) {
   // Creates a `{URI}LocalName` name.
   ScratchBuf.clear();
@@ -65,9 +69,64 @@ StrRef XMLDeserializer::getUnboundPrefixCommon(StrRef URI, StrRef LocalName, boo
   return intern(Prefix, LocalName);
 }
 
+static Option<unsigned> GetInitialURIPartitionPrefix(StrRef URI) {
+  // Check sizes first?
+  if (URI.empty())
+    return 0;
+  if (!URI.consume_front("http://www.w3.org/"))
+    return std::nullopt;
+  if (URI.consume_front("2001/XMLSchema")) {
+    if (URI.empty())
+      return 3;
+    else if (URI == "-instance")
+      return 2;
+    else
+      return std::nullopt;
+  }
+  if (URI == "XML/1998/namespace")
+    return 1;
+  else
+    return std::nullopt;
+}
+
+static XMLNode* FindFirstSE(XMLDocument* Doc) {
+  unsigned ItersLeft = 30;
+  XMLNode* Curr = Doc->first_node();
+  while (Curr && ItersLeft) {
+    if (Curr->type() == xml::NodeKind::node_element)
+      return Curr;
+    Curr = Curr->next_sibling();
+    --ItersLeft;
+  }
+  return nullptr;
+}
+
+Option<StrRef> XMLDeserializer::getInitialURIPartitionPrefix(StrRef URI) {
+  Option ID = GetInitialURIPartitionPrefix(URI);
+  if (!ID.has_value())
+    return None;
+  // Create the entry.
+  exi_guard_invariant(*ID <= 3);
+  const unsigned EntryID = *ID;
+  StrRef Entry = kInitialURIPartitionPrefix[EntryID];
+  if (!ActiveInitialURIPartitions.test(EntryID) && Curr) {
+    XMLNode* TopLevel = FindFirstSE(Doc->document());
+    const auto Name = QName::New(URI, Entry, "xmlns"_str);
+    auto* LocalAttr = allocAttr</*IsNS=*/true>(Name, intern(URI));
+    if (!TopLevel)
+      Curr->prepend_attribute(LocalAttr);
+    else {
+      TopLevel->prepend_attribute(LocalAttr);
+      ActiveInitialURIPartitions.set(EntryID);
+    }
+  }
+  return Some(Entry);
+}
+
 StrRef XMLDeserializer::getURIPrefixForUnbound(StrRef URI, StrRef LocalName, u64 ID) {
   exi_invariant(!URI.empty());
-  // TODO: Handle initial entries in URI partition
+  if (Option Entry = this->getInitialURIPartitionPrefix(URI))
+    return intern(*Entry, LocalName);
   // Create new name.
   switch (XMLCoderOptions::UURIType) {
   case UURI_UNIVERSAL:

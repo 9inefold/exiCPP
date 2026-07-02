@@ -188,6 +188,8 @@ def print_results(results: TestCounter):
   percent, color = results.percent_and_color()
   OUTPUT.always(
     '\nTEST RESULTS:',
+    color=Color.BRIGHT_WHITE)
+  OUTPUT.always(
     f'{passed}/{total} tests passed',
     f'{percent:.1f}% success',
     sep='\n', color=color)

@@ -3,14 +3,21 @@
     "alignment": ["i", "y"],
     "preserve": ["c", "di", "p"],
   },
+  "at/*": {
+    "preserve": {
+      "#include": "l"
+    }
+  },
   "xml/097": {
     "#depends": "xml/097.ent"
   },
   "#ignore": [
-    "at/*",
-    //"ch/*",
-    //"el/*",
-    //"el2/*",
+    //"at/*",
+    
+    "ch/*",
+    "el/*",
+    "el2/*",
+
     "me/*",
     "xml/*",
 

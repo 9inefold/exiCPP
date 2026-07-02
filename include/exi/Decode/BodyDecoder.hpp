@@ -113,6 +113,11 @@ public:
   /// Returns the bit position of the reader.
   EXI_FLATTEN usize bitPos() const { return Reader->bitPos(); }
 
+  /// Gets the value of Preserve.Prefixes.
+  bool PreservePrefixes() const { return Preserve.Prefixes; }
+  /// Gets the value of Preserve.LexicalValues.
+  bool LexicalValues() const { return Preserve.LexicalValues; }
+
   ////////////////////////////////////////////////////////////////////////
   // Initialization
 
@@ -383,12 +388,13 @@ case##CODE:                                                                   \
   // xsi:type (qname, qname)
   ExiError handleXsiType(Deserializer* S, EventUID Event) {
     exi_invariant(Event.hasQName());
-
     const QName Name = this->getXsiTypeQName(Event);
-    const QName Value = this->getQName(Event);
+    ExiResult<QName> ValueOrErr = this->getXsiTypeValue(Event);
+    if EXI_UNLIKELY(ValueOrErr.is_err())
+      return ValueOrErr.error();
 
     LOG_EXTRA("Decoded AT/TP");
-    return S->AT_XsiType(Name, Value);
+    return S->AT_XsiType(Name, *ValueOrErr);
   }
 
   // Namespace Declaration (uri, prefix, local-element-ns)
@@ -424,6 +430,7 @@ case##CODE:                                                                   \
 
   QName getQName(EventUID Event);
   QName getXsiTypeQName(EventUID Event);
+  ExiResult<QName> getXsiTypeValue(EventUID Event);
   // TODO: Add optional `UserPrefixLookup*` type.
   StrRef getPfxOrURI(EventUID Event);
   Option<StrRef> tryGetPfx(CompactID URI, CompactID PfxID);

@@ -31,25 +31,19 @@ namespace exi::encode {
 class StringTable;
 class LocalNameInfo;
 
-// TODO: Enable macro expansion for EXI_OPAQUE_HANDLE[_T]
+// TODO: Enable macro expansion for EXI_OPAQUE_HANDLE[_T]?
 // See https://stackoverflow.com/questions/42300539/documenting-macros-using-doxygen
 
-/// @typedef STPrefixEntry
 /// Typed handle for `StringTable::PrefixEntry`.
-using STPrefixEntry = EXI_OPAQUE_HANDLE_T(STPrefixEntry, StringTable);
-/// @typedef STURIEntry
+struct STPrefixEntry;
 /// Typed handle for `StringTable::URIEntry`.
-using STURIEntry = EXI_OPAQUE_HANDLE_T(STURIEntry, StringTable);
-/// @typedef LocalNameInsert
+struct STURIEntry;
 /// Insertion point for a LocalName.
-using LocalNameInsert = EXI_OPAQUE_HANDLE_T(LocalNameInsert, StringTable);
-//struct STURIEntry;
-/// @typedef STValueEntry
+struct LocalNameInsert;
 /// Typed handle for `StringTable::ValueEntry`.
-using STValueEntry = EXI_OPAQUE_HANDLE_T(STValueEntry, StringTable);
-/// @typedef QualName
+struct STValueEntry;
 /// Handle for an `InlineString` representing a QName's data as `"URI$ln"`.
-using QualName = EXI_OPAQUE_HANDLE_T(QualName, StringTable);
+struct QualName;
 
 namespace H {
 enum : int {
@@ -64,6 +58,23 @@ enum : int {
 // Traits
 
 namespace exi {
+
+/// Generates the `OpaqueHandleInfo` for these entries.
+#define STRINGTABLEHANDLES_GEN(NAME)                                          \
+template <> struct OpaqueHandleInfo<NAME> {                                   \
+  static constexpr bool is_handle = true;                                     \
+  using name_t = NAME;                                                        \
+  using group_t = encode::StringTable;                                        \
+  using features_t = OpaqueFeatures<>;                                        \
+}
+
+STRINGTABLEHANDLES_GEN(encode::STPrefixEntry);
+STRINGTABLEHANDLES_GEN(encode::STURIEntry);
+STRINGTABLEHANDLES_GEN(encode::LocalNameInsert);
+STRINGTABLEHANDLES_GEN(encode::STValueEntry);
+STRINGTABLEHANDLES_GEN(encode::QualName);
+
+#undef STRINGTABLEHANDLES_GEN
 
 // TODO: Add OpaquePointerLikeTypeTraits?
 

@@ -599,15 +599,12 @@ private:
     ///
     ExiResult<OrderedEncoder::XsiTypeEncoding> GLOrErr
         = OE->encodeXsiTypeValueQName<StrmT>(AT.value());
-    if EXI_UNLIKELY(GLOrErr.is_err())
-      return GLOrErr.error();
-    auto [URIV, TextualLocalName] = *GLOrErr;
-    /// G = grammars.find(qname)
+    /// G = type_grammars.find(qname)
     /// if G is not None:
     ///   setElementGrammar(G)
     ///
     /// See Table 7-1 for normal, Table 7-2 for Preserve.LexicalValues
-    exi_todo("handle xsi:type value -> type grammar lookup");
+    return GLOrErr.error_or(ExiError::OK);
   }
   EXI_NO_INLINE CC ExiError handleXsiNil(OrderedEncoder* OE, const AttrEvent& AT,
                                          LocalNameInfo* LN, BuiltinGrammar* G) {
