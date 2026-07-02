@@ -22,6 +22,15 @@ include_items(CORE_CONFIG "lib/core"
   Config/ABIBreak.cpp
 )
 
+include_items(CORE_DEMANGLE "lib/core"
+  Demangle/Demangle.cpp
+  Demangle/ItaniumDemangle.cpp
+  Demangle/MicrosoftDemangle.cpp
+  Demangle/MicrosoftDemangleNodes.cpp
+  Demangle/RustDemangle.cpp
+  Demangle/DLangDemangle.cpp
+)
+
 include_items(CORE_SUPPORT "lib/core"
   Support/Alloc.cpp
   Support/Allocator.cpp
@@ -62,31 +71,82 @@ include_items(CORE_SUPPORT "lib/core"
   Support/raw_ostream.cpp
 )
 
-add_library(exi-core STATIC ${CORE_COMMON} ${CORE_CONFIG} ${CORE_SUPPORT})
+add_library(exi-core INTERFACE)
 add_library(exi::core ALIAS exi-core)
-exi_add_target_options(exi-core)
 
-target_include_directories(exi-core
-  PUBLIC include include/core
-  PRIVATE lib/core)
-target_link_libraries(exi-core PUBLIC fmt::fmt exi-cpptrace)
+add_library(exi-core-config STATIC ${CORE_CONFIG})
+add_library(exi-core::config ALIAS exi-core-config)
+exi_add_target_options(exi-core-config)
+
+target_include_directories(exi-core-config PUBLIC include include/core)
+target_link_libraries(exi-core-config PUBLIC fmt::fmt exi-cpptrace)
+target_link_libraries(exi-core INTERFACE exi-core-config)
 
 if(EXI_USE_MIMALLOC)
-  target_link_libraries(exi-core PUBLIC mimalloc)
-  if(EXI_REDIRECT)
-    target_compile_definitions(exi-core
-      PRIVATE EXI_REDIRECT_GLOBAL_NEW=1)
-  endif(EXI_REDIRECT)
-endif()
-if(WIN32)
-  target_link_libraries(exi-core PRIVATE
-    ntdll psapi shell32 ole32 uuid advapi32 ws2_32)
-endif()
-
+  target_link_libraries(exi-core-config PUBLIC mimalloc)
+endif(EXI_USE_MIMALLOC)
 if(NOT EXI_EXCEPTIONS)
-  target_compile_definitions(exi-core
-    PUBLIC EXI_NO_EXCEPTIONS=1)
-endif()
+  target_compile_definitions(exi-core-config PUBLIC EXI_NO_EXCEPTIONS=1)
+endif(NOT EXI_EXCEPTIONS)
+
+# Generate other core libraries
+function(exi_core_add_library lib src)
+  # Create the library
+  set(LIBNAME exi-core-${lib})
+  add_library(${LIBNAME} STATIC ${${src}})
+  add_library(exi-core::${lib} ALIAS ${LIBNAME})
+  target_link_libraries(exi-core INTERFACE ${LIBNAME})
+  # Add options
+  exi_add_target_options(${LIBNAME})
+  target_link_libraries(${LIBNAME} PUBLIC exi-core-config)
+  target_include_directories(${LIBNAME} PRIVATE lib/core)
+  if(EXI_USE_MIMALLOC AND EXI_REDIRECT)
+    target_compile_definitions(${LIBNAME} PRIVATE EXI_REDIRECT_GLOBAL_NEW=1)
+  endif()
+  #if(WIN32)
+  #  target_link_libraries(${LIBNAME} PRIVATE
+  #    ntdll psapi shell32 ole32 uuid advapi32 ws2_32)
+  #endif(WIN32)
+endfunction(exi_core_add_library)
+
+exi_core_add_library(common CORE_COMMON)
+exi_core_add_library(demangle CORE_DEMANGLE)
+exi_core_add_library(support CORE_SUPPORT)
+
+target_link_libraries(exi-core-common PRIVATE exi-core::support)
+target_link_libraries(exi-core-demangle PRIVATE exi-core::common exi-core::support)
+target_link_libraries(exi-core-support PUBLIC exi-core::demangle PRIVATE exi-core::common)
+
+if(WIN32)
+  target_link_libraries(exi-core-support PRIVATE
+    ntdll psapi shell32 ole32 uuid advapi32 ws2_32)
+endif(WIN32)
+
+#add_library(exi-core STATIC ${CORE_COMMON} ${CORE_CONFIG} ${CORE_SUPPORT})
+#add_library(exi::core ALIAS exi-core)
+#exi_add_target_options(exi-core)
+#
+#target_include_directories(exi-core
+#  PUBLIC include include/core
+#  PRIVATE lib/core)
+#target_link_libraries(exi-core PUBLIC fmt::fmt exi-cpptrace)
+#
+#if(EXI_USE_MIMALLOC)
+#  target_link_libraries(exi-core PUBLIC mimalloc)
+#  if(EXI_REDIRECT)
+#    target_compile_definitions(exi-core
+#      PRIVATE EXI_REDIRECT_GLOBAL_NEW=1)
+#  endif(EXI_REDIRECT)
+#endif()
+#if(WIN32)
+#  target_link_libraries(exi-core PRIVATE
+#    ntdll psapi shell32 ole32 uuid advapi32 ws2_32)
+#endif()
+#
+#if(NOT EXI_EXCEPTIONS)
+#  target_compile_definitions(exi-core
+#    PUBLIC EXI_NO_EXCEPTIONS=1)
+#endif()
 
 ##########################################################################
 ## Exicpp

@@ -3,7 +3,7 @@ include_guard(DIRECTORY)
 
 project(
   exi-cpp
-  VERSION 0.8.21
+  VERSION 0.8.22
   LANGUAGES CXX C
 )
 
@@ -163,7 +163,6 @@ endif()
 set(EXI_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE FILEPATH "The root exi directory.")
 set(EXI_VENDORED_DIR "${EXI_BASE_DIR}/vendored" CACHE FILEPATH "The vendored directory.")
 set(EXI_MI_DIR "${EXI_VENDORED_DIR}/mimalloc" CACHE FILEPATH "The mimalloc directory.")
-add_subdirectory(include/core) # Configure files
 
 function(exi_minject tgt)
   # Does nothing...
@@ -213,14 +212,19 @@ add_subdirectory(vendored/dtl)
 add_subdirectory(vendored/rapidxml)
 
 add_library(exi-cpptrace INTERFACE)
+add_library(exi::cpptrace ALIAS exi-cpptrace)
 if(EXI_ENABLE_STACKTRACES AND NOT EXI_USE_MIMALLOC)
   # TODO: Add check for debug symbols
+  # TODO: Add option to demangle with nothing at runtime
+  option(CPPTRACE_DEMANGLE_WITH_NOTHING "" ON)
+  set(EXI_CPPTRACE_DEMANGLE_WITH_NOTHING "${CPPTRACE_DEMANGLE_WITH_NOTHING}")
   set(CMAKE_REQUIRED_QUIET_OLD "${CMAKE_REQUIRED_QUIET}")
   set(CMAKE_REQUIRED_QUIET ON CACHE BOOL "" FORCE)
   CPMAddPackage(
     URI "gh:jeremy-rifkin/cpptrace@1.0.4"
     OPTIONS
       "CPPTRACE_DISABLE_CXX_20_MODULES ON"
+      "CPPTRACE_DEMANGLE_WITH_NOTHING ${CPPTRACE_DEMANGLE_WITH_NOTHING}"
       #"CMAKE_REQUIRED_QUIET ON"
   )
   unset(CMAKE_REQUIRED_QUIET CACHE)
@@ -230,6 +234,7 @@ elseif(EXI_ENABLE_STACKTRACES)
   message(WARNING "cpptrace does not work with mimalloc!")
 endif()
 
+add_subdirectory(include/core) # Configure files
 if(EXI_USE_EXIP)
   message(STATUS "[exicpp] Using exip.")
   add_subdirectory(vendored/exip)

@@ -478,7 +478,7 @@ ALWAYS_INLINE static void PrintStackTraceAtPC(exi::raw_ostream &OS,
     }
     // Handle demangle failure
     if (shouldPrintNormally)
-      OS << symbolName << "()";
+      OS << symbolName;
     OS << RESET;
     // Print the offset
     if (Opts.PrintFunctionOffset) {

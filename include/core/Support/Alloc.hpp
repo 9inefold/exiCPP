@@ -26,11 +26,10 @@
 #include <Common/Fundamental.hpp>
 #include <Support/D/FlexArray.hpp>
 #include <cstdlib>
+#include <cstring>
 #include <memory>
 #if EXI_USE_MIMALLOC
 # include <mimalloc.h>
-#else
-# include <cstring>
 #endif
 
 #if defined(EXPENSIVE_CHECKS) && EXI_USE_MIMALLOC
@@ -40,7 +39,7 @@
   }                                                                           \
 } while(false)
 #else
-# define EXI_CHECK_ALLOC_PTR(PTR, MSG) do { } while(false)
+# define EXI_CHECK_ALLOC_PTR(PTR, MSG) ((void)0)
 #endif
 
 namespace exi {

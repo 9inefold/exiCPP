@@ -22,58 +22,23 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/RTTI.hpp>
-#include <Common/Box.hpp>
-#include <Common/DenseSet.hpp>
-#include <Common/SmallStr.hpp>
+//#include <Common/SmallStr.hpp>
 #include <Common/SmallVec.hpp>
 #include <Config/Config.inc>
+#include <Demangle/Demangle.hpp>
+#include <Demangle/StringViewExtras.hpp>
 #include <Support/Allocator.hpp>
-#include <Support/IntCast.hpp>
-#include <Support/ManagedStatic.hpp>
 #include <Support/raw_ostream.hpp>
+#include <cctype>
+#include <cstdlib>
 #include <cstring>
-#include <mutex>
-#include <new>
+#include <string_view>
 
-// TODO: Make EXI_MULTIBUFFER_DEMANGLING a flag
-#define EXI_MULTIBUFFER_DEMANGLING 1
-
-#if EXI_USE_THREADS && !EXI_MULTIBUFFER_DEMANGLING
-/// Locks on every call to a demangling function instead of once per thread.
-# define USE_NAIVE_LOCKING 1
-#endif
-
-#ifndef EXI_MSVC_ENABLE_DEMANGLING
-# define EXI_MSVC_ENABLE_DEMANGLING 0
-#endif
-
-#if __has_include(<cxxabi.h>)
-# include <cstddef>
-# include <cxxabi.h>
-# define EXI_REQUIRES_DEMANGLING 1
-# define CXXABI_DEMANGLE 1
-#elif EXI_MSVC_ENABLE_DEMANGLING
-# pragma comment(lib, "dbghelp.lib")
-# define WIN32_LEAN_AND_MEAN
-# define NOMINMAX
-# include <Windows.h>
-# include <DbgHelp.h>
-# include "UndName.hpp"
-# define EXI_REQUIRES_DEMANGLING 1
-# define UNDNAME_DEMANGLE 1
-#endif
-
-#ifndef EXI_REQUIRES_DEMANGLING
-# define EXI_REQUIRES_DEMANGLING 0
-#endif
-
-#ifndef EXI_MAX_SYMBOL_LENGTH
-# define EXI_MAX_SYMBOL_LENGTH ((usize)(64 * 1024))
-#endif // EXI_MAX_SYMBOL_LENGTH
-
-// TODO: Add optional SymbolCache?
 using namespace exi;
 using namespace exi::rtti;
+
+/// Calls the implementation-specific demangling API.
+static RttiResult<String> DemangleSymbol(StrRef MangledName);
 
 static StrRef AppendToBuffer(StrRef S, SmallVecImpl<char>& Buf) {
   Buf.clear();
@@ -82,27 +47,10 @@ static StrRef AppendToBuffer(StrRef S, SmallVecImpl<char>& Buf) {
   return StrRef(Buf.begin(), S.size());
 }
 
-static std::recursive_mutex& GetBufferPoolMtx() {
-  static std::recursive_mutex BufferPoolMtx;
-  return BufferPoolMtx;
-}
-
-//===----------------------------------------------------------------===//
-// Interface
-//===----------------------------------------------------------------===//
-
-#if EXI_REQUIRES_DEMANGLING
-
-/// Calls the implementation-specific demangling API.
-static RttiResult<StrRef> DemangleSymbol(StrRef Symbol);
-
 template <typename CB>
 ALWAYS_INLINE static auto RttiDemangleCommon(StrRef Symbol, CB&& Callable)
  -> RttiResult<std::invoke_result_t<CB, StrRef>> {
   try {
-#if USE_NAIVE_LOCKING
-    std::scoped_lock Lock(GetBufferPoolMtx());
-#endif
     auto Out = DemangleSymbol(Symbol);
     if (Out.is_err())
       return Err(Out.error());
@@ -113,246 +61,35 @@ ALWAYS_INLINE static auto RttiDemangleCommon(StrRef Symbol, CB&& Callable)
 }
 
 static RttiResult<String> RttiDemangleImpl(StrRef Symbol) {
-  return RttiDemangleCommon(Symbol, [] (StrRef S) {
-    return S.str();
-  });
+  try {
+    return DemangleSymbol(Symbol);
+  } catch (const std::bad_alloc&) {
+    return Err(RttiError::InvalidMemoryAlloc);
+  }
 }
 
-static RttiResult<StrRef> RttiDemangleImpl(
- StrRef Symbol, SmallVecImpl<char>& Buf) {
-  return RttiDemangleCommon(Symbol, [&Buf] (StrRef S) {
-    return AppendToBuffer(S, Buf);
-  });
+static RttiResult<StrRef> RttiDemangleImpl(StrRef Symbol, SmallVecImpl<char>& Buf) {
+  try {
+    RttiResult<String> OutOrErr = DemangleSymbol(Symbol);
+    if (OutOrErr.is_err())
+      return Err(OutOrErr.error());
+    return AppendToBuffer(*OutOrErr, Buf);
+  } catch (const std::bad_alloc&) {
+    return Err(RttiError::InvalidMemoryAlloc);
+  }
 }
 
-static RttiError RttiDemangleImpl(
- StrRef Symbol, raw_ostream& OS) {
-  return RttiDemangleCommon(Symbol, [&OS] (StrRef S) {
-    OS.write(S.data(), S.size());
-    return 0;
-  }).error_or(RttiError::Success);
+static RttiError RttiDemangleImpl(StrRef Symbol, raw_ostream& OS) {
+  try {
+    RttiResult<String> Out = DemangleSymbol(Symbol);
+    if (Out.is_err())
+      return Out.error();
+    OS << *Out;
+    return RttiError::Success;
+  } catch (const std::bad_alloc&) {
+    return RttiError::InvalidMemoryAlloc;
+  }
 }
-
-namespace {
-
-//////////////////////////////////////////////////////////////////////////
-// DemanglerBuffer
-
-struct DemanglerBufferDeleter {
-  void operator()(char* Ptr) const {
-    if EXI_UNLIKELY(!Ptr)
-      return;
-    std::free(Ptr);
-  }
-};
-
-class DemanglerBuffer {
-  /// The type used to store the buffer.
-  using StorageType = Box<char[], DemanglerBufferDeleter>;
-  /// The actual buffer.
-  StorageType Storage = nullptr;
-
-  /// Whether the buffer has been resized.
-  usize HasResized : 1 = 0;
-
-  /// The estimated size of the buffer.
-  usize Size : bitsizeof_v<usize> - 1 = 0;
-
-  /// Allocates the initial character buffer.
-  static char* AllocateBuffer(usize Size);
-
-  void setSize(usize NewSize) {
-    // FIXME: Make warning?
-    exi_invariant(NewSize > Size);
-    this->HasResized = true;
-    this->Size = NewSize;
-  }
-
-  bool isPtrInRange(const char* Ptr) const {
-    const char* Begin = Storage.get();
-    const char* End = Begin + Size;
-    return (Ptr >= Begin) && (Ptr < End);
-  }
-
-public:
-  DemanglerBuffer() : DemanglerBuffer(EXI_MAX_SYMBOL_LENGTH) {}
-  DemanglerBuffer(usize Size) :
-   Storage(AllocateBuffer(Size)),
-   HasResized(false), Size(Size) {
-  }
-
-  std::pair<char*, usize> bufAndSize() const {
-    return {Storage.get(), Size};
-  }
-
-  void reallocate(usize NewSize) {
-    if (NewSize <= Size)
-      return;
-    char* NewPtr = AllocateBuffer(NewSize);
-    Storage.reset(NewPtr);
-    this->setSize(NewSize);
-  }
-
-  void maybeReplace(char* NewPtr, usize NewSize);
-
-  bool hasResized() const {
-    return this->HasResized;
-  }
-  usize size() const {
-    return this->Size;
-  }
-};
-
-char* DemanglerBuffer::AllocateBuffer(usize Size) {
-  // FIXME: This can actually be done with mimalloc on MSVC.
-  char* Ptr = (char*)std::malloc(Size);
-  if EXI_UNLIKELY(!Ptr) {
-    if (Size == 0)
-      return AllocateBuffer(1);
-    fatal_alloc_error("DemanglerBuffer allocation failed");
-  }
-  Ptr[0] = '\0';
-  return Ptr;
-}
-
-void DemanglerBuffer::maybeReplace(char* NewPtr, usize NewSize) {
-  if EXI_UNLIKELY(!NewPtr)
-    return;
-  
-  //StorageType LocalStore(NewPtr);
-  if EXI_LIKELY(isPtrInRange(NewPtr)) {
-    // Release to avoid double frees.
-    if EXI_LIKELY(NewSize <= Size)
-      // This is the most likely path as our buffers are huge.
-      return;
-    // The buffer has been reallocated in place, resize.
-    this->setSize(NewSize);
-    return;
-  }
-
-  if EXI_UNLIKELY(NewSize <= Size) {
-    // This should basically never be reached, as storage is generally only
-    // obtained when reallocating. The condition is checked either way.
-    return;
-  }
-
-  // Swap to deallocate the old storage.
-  Storage.reset(NewPtr);
-  //std::swap(this->Storage, LocalStore);
-  this->setSize(NewSize);
-}
-
-//////////////////////////////////////////////////////////////////////////
-// DemanglerBufferPool
-
-class DemanglerBufferPool;
-
-#if !EXI_USE_THREADS || !EXI_MULTIBUFFER_DEMANGLING
-
-/// Simple single threaded "pool".
-class DemanglerBufferPool {
-  DemanglerBuffer Buffer;
-public:
-  DemanglerBufferPool() = default;
-  DemanglerBuffer* claimBuffer() { return &Buffer; }
-};
-
-#else
-
-class DemanglerBufferHandle {
-  friend class DemanglerBufferPool;
-  DemanglerBufferPool* Pool = nullptr;
-  DemanglerBuffer* Buffer = nullptr;
-
-  DemanglerBufferHandle(DemanglerBufferPool* Pool, 
-                        DemanglerBuffer* Buf) : Pool(Pool), Buffer(Buf) {}
-public:
-  inline ~DemanglerBufferHandle();
-  ALWAYS_INLINE DemanglerBuffer* get() const { return Buffer; }
-};
-
-/// Thread-safe buffer manager with reusable handles.
-class DemanglerBufferPool {
-  /// Allocator to unique Buffers.
-  SpecificBumpPtrAllocator<DemanglerBuffer> Alloc;
-  /// The set of active Buffers.
-  SmallDenseSet<DemanglerBuffer*, 8> ActiveList;
-  /// The list of available Buffers.
-  SmallVec<DemanglerBuffer*, 1> FreeList;
-
-  /// Returns a unique handle for the current thread.
-  DemanglerBufferHandle getHandle();
-  std::pair<DemanglerBuffer*, bool> claimBufferLocked();
-
-public:
-  DemanglerBufferPool() = default;
-  DemanglerBuffer* claimBuffer();
-  void freeBuffer(DemanglerBufferHandle* Hold);
-};
-
-std::pair<DemanglerBuffer*, bool> DemanglerBufferPool::claimBufferLocked() {
-  std::scoped_lock Lock(GetBufferPoolMtx());
-  if (!FreeList.empty()) {
-    DemanglerBuffer* Buf = FreeList.pop_back_val();
-    const bool DidInsert = ActiveList.insert(Buf).second;
-    return {Buf, DidInsert};
-  }
-
-  DemanglerBuffer* Buf = Alloc.Allocate(1);
-  const bool DidInsert = ActiveList.insert(Buf).second;
-  exi_assert(DidInsert, "Invalid program state (reused storage)");
-  return {Buf, DidInsert};
-}
-
-DemanglerBufferHandle DemanglerBufferPool::getHandle() {
-  auto [Buf, DidInsert] = this->claimBufferLocked();
-  exi_relassert(DidInsert, "Invalid pool state, item in "
-                           "FreeList was found in ActiveList");
-  return DemanglerBufferHandle(this, Buf);
-}
-
-/// Claims buffer for the current thread.
-DemanglerBuffer* DemanglerBufferPool::claimBuffer() {
-  static thread_local DemanglerBufferHandle
-    ThreadLocalHandle = this->getHandle();
-  return ThreadLocalHandle.get();
-}
-
-void DemanglerBufferPool::freeBuffer(DemanglerBufferHandle* Hold) {
-  exi_relassert(Hold != nullptr);
-  DemanglerBuffer* Buf = Hold->get();
-  bool DidErase = true;
-
-  {
-    std::scoped_lock Lock(GetBufferPoolMtx());
-    const bool DidErase = ActiveList.erase(Buf);
-    FreeList.emplace_back(Buf);
-  }
-
-  exi_invariant(DidErase);
-}
-
-DemanglerBufferHandle::~DemanglerBufferHandle() {
-  if (!Pool) return;
-  Pool->freeBuffer(this);
-}
-
-#endif
-
-} // namespace `anonymous`
-
-static ManagedStatic<DemanglerBufferPool> Pool;
-
-#else
-static ALWAYS_INLINE RttiResult<String> RttiDemangleImpl(StrRef Symbol) {
-  return String(Symbol.data(), Symbol.size());
-}
-
-static ALWAYS_INLINE RttiResult<StrRef> RttiDemangleImpl(
- StrRef Symbol, SmallVecImpl<char>& Buf) {
-  return AppendToBuffer(Symbol, Buf);
-}
-#endif
 
 //===----------------------------------------------------------------===//
 // Exposed API
@@ -411,7 +148,7 @@ RttiResult<StrRef> exi::rtti::demangle(
  StrRef Symbol, SmallVecImpl<char>& Buf) {
   if (auto OptErr = DemangleChk(Symbol))
     return Err(*OptErr);
-  win_tail_return RttiDemangleImpl(Symbol, Buf);
+  return RttiDemangleImpl(Symbol, Buf);
 }
 
 RttiResult<StrRef> exi::rtti::demangle(
@@ -432,7 +169,7 @@ RttiError exi::rtti::demangle(const char* Symbol, raw_ostream& OS) {
 RttiError exi::rtti::demangle(StrRef Symbol, raw_ostream& OS) {
   if (auto OptErr = DemangleChk(Symbol))
     return *OptErr;
-  win_tail_return RttiDemangleImpl(Symbol, OS);
+  return RttiDemangleImpl(Symbol, OS);
 }
 
 RttiError exi::rtti::demangle(
@@ -444,67 +181,66 @@ RttiError exi::rtti::demangle(
 // Implementation
 //===----------------------------------------------------------------===//
 
-#if EXI_REQUIRES_DEMANGLING
+/*
+using Demangler = itanium_demangle::ManglingParser<DefaultAllocator>;
 
-# if CXXABI_DEMANGLE
-
-/// Returns the data or status code.
-static Result<StrRef, int> Invoke__cxa_demangle(const char* Symbol) {
-  DemanglerBuffer* Buf = Pool->claimBuffer();
-  exi_invariant(Buf != nullptr, "DemanglerBuffer allocation failed.");
-
-  int Status = 0;
-  auto [Data, Len] = Buf->bufAndSize();
-  char* Out = abi::__cxa_demangle(Symbol, Data, &Len, &Status);
-
-  if (Out == nullptr)
-    return Err(Status);
-  
-  Buf->maybeReplace(Out, Len);
-  return StrRef(Out, Len);
+namespace {
+enum : int {
+  demangle_invalid_args = -3,
+  demangle_invalid_mangled_name = -2,
+  demangle_memory_alloc_failure = -1,
+  demangle_success = 0,
+};
 }
 
-static RttiError MapDemangleStatus(int Status) {
-  if EXI_LIKELY(Status <= 0 && Status >= -3)
-    return static_cast<RttiError>(Status);
-  return RttiError::Other;
-}
-
-static RttiResult<StrRef> DemangleSymbol(StrRef Symbol) {
-  Result Out = Invoke__cxa_demangle(Symbol.data());
-  if (Out.is_err()) {
-    const int Status = Out.error();
-    return Err(MapDemangleStatus(Status));
+extern "C" char * __cxa_demangle(const char *MangledName, char *Buf, size_t *N, int *Status) {
+  if (MangledName == nullptr || (Buf != nullptr && N == nullptr)) {
+    if (Status)
+      *Status = demangle_invalid_args;
+    return nullptr;
   }
-  return Ok(*Out);
+
+  int InternalStatus = demangle_success;
+  Demangler Parser(MangledName, MangledName + std::strlen(MangledName));
+  Node *AST = Parser.parse();
+
+  if (AST == nullptr)
+    InternalStatus = demangle_invalid_mangled_name;
+  else {
+    OutputBuffer O(Buf, N);
+    DEMANGLE_ASSERT(Parser.ForwardTemplateRefs.empty(), "");
+    AST->print(O);
+    O += '\0';
+    if (N != nullptr)
+      *N = O.getCurrentPosition();
+    Buf = O.getBuffer();
+  }
+
+  if (Status)
+    *Status = InternalStatus;
+  return InternalStatus == demangle_success ? Buf : nullptr;
 }
+*/
 
-# elif UNDNAME_DEMANGLE
+// TODO: Add option to remove stuff like ABI tags.
+static RttiResult<String> DemangleSymbol(StrRef MangledName) {
+  std::string Result;
 
-ALWAYS_INLINE static char* Bridge__unDName(
- const char* Symbol, char* Buffer, usize Size, UndStrategy::Type Flags) {
-  const int ChkSize = exi::IntCastOrZero<int>(Size);
-  return __unDName(Buffer, Symbol, ChkSize, &std::malloc, &std::free, Flags);
+  if (exi::nonMicrosoftDemangle(MangledName, Result))
+    return Result;
+
+  if (MangledName.starts_with('_')) {
+    if (exi::nonMicrosoftDemangle(MangledName.substr(1), Result,
+                                 /*CanHaveLeadingDot=*/false)) {
+      return Result;
+    }
+  }
+
+  char *Demangled = exi::microsoftDemangle(MangledName, nullptr, nullptr);
+  if (Demangled == nullptr)
+    return Err(RttiError::InvalidName);
+  
+  Result = Demangled;
+  exi::exi_free(Demangled);
+  return Result;
 }
-
-// TODO: Make this better? Might need a method of reloading symbols
-[[nodiscard]] EXI_NO_INLINE static int DemangleSymInit() {
-  SymSetOptions(SYMOPT_ALLOW_ABSOLUTE_SYMBOLS | SYMOPT_DEFERRED_LOADS);
-  bool DidInit = !!SymInitialize(GetCurrentProcess(), nullptr, TRUE);
-  assert(did_initialize && "Failed to initialize the symbol handler!");
-  return true;
-}
-
-// TODO: Implement undname demangling, adapt LLVM impl
-
-static RttiResult<StrRef> DemangleSymbol(StrRef Symbol) {
-  { [[maybe_unused]] static volatile int LazyLoad = DemangleSymInit(); }
-  bool IsInternal = Symbol.consume_front('.');
-  exi_unimplemented("implement undname DemangleSymbol");
-}
-
-# else
-#  error Unknown demangling API!
-# endif
-
-#endif // EXI_REQUIRES_DEMANGLING

@@ -22,17 +22,20 @@
 //===----------------------------------------------------------------===//
 
 #include <Support/Stacktrace.hpp>
+#if EXI_ENABLE_STACKTRACES
 #include <Common/SmallVec.hpp>
 #include <Common/StringExtras.hpp>
+#include <Config/Config.inc>
 #include <Support/Format.hpp>
 #include <Support/Signals.hpp>
 #include <Support/WithColor.hpp>
 #include <Support/raw_ostream.hpp>
+#if EXI_CPPTRACE_DEMANGLE_WITH_NOTHING
+# include <Support/RTTI.hpp>
+#endif
 
 using namespace exi;
 using namespace exi::trace;
-
-#if EXI_ENABLE_STACKTRACES
 
 StackTrace exi::ResolveCpptraceStackTrace(const SmallVecImpl<sys::StackFrame>& Frames) {
   cpptrace::raw_trace Raw;
@@ -137,9 +140,25 @@ ALWAYS_INLINE static void PrintCpptraceFrameImpl(raw_ostream& OS,
   }
 
   if (Opts.PrintFunction) {
+#if EXI_CPPTRACE_DEMANGLE_WITH_NOTHING
+    // Print the actual name.
+    OS << separator() << BRIGHT_GREEN;
+    StrRef symbolName = Frame.symbol;
+    bool shouldPrintNormally = !Opts.DemangleFunctionName;
+    if (Opts.DemangleFunctionName) {
+      auto status = rtti::demangle(symbolName, OS);
+      if (status != rtti::RttiError::Success)
+        shouldPrintNormally = true;
+    }
+    // Handle demangle failure
+    if (shouldPrintNormally)
+      OS << symbolName;
+    OS << RESET;
+#else
     // Print the symbol name.
     OS << separator() << BRIGHT_GREEN
        << Frame.symbol << RESET;
+#endif
     // Print the offset
     if (Opts.PrintFunctionOffset) {
       // ...

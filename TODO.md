@@ -33,6 +33,7 @@ This is a TODO list for the C++ version of exiCPP.
 
 ## In Progress
 
+- Update demangling to be a bit easier to read.
 - Implement fixes for exificient/openexi xerces parsing
   - ~~Handle *all* DOCTYPE info~~
   - Make setting features a bit easier to work with
