@@ -30,6 +30,9 @@
 #include <Common/StringSwitch.hpp>
 #include <Common/Twine.hpp>
 
+#include <Demangle/Demangle.hpp>
+#include <Demangle/ItaniumDemangle.hpp>
+
 #include <Support/BinaryToText.hpp>
 #include <Support/Filesystem.hpp>
 #include <Support/InitDriver.hpp>
@@ -1172,6 +1175,55 @@ void doTestTests(RefCntPtr<XMLManager> Mgr) {
   }*/
 }
 
+struct DemanglingInfoCorrectnessTestCase {
+  std::string_view mangled;
+  std::string_view demangled;
+};
+
+// Returns [Failed, Total]
+static std::pair<usize, usize> RunDemangleTests() {
+  static constexpr DemanglingInfoCorrectnessTestCase DemangleCases[] {
+  // Hide this from intellisense
+#if !EXI_IS_LANG_SERVER
+# include <core/Demangle/TestCases.mac>
+#endif
+  };
+  // Run the tests
+  const usize Total = usize(std::size(DemangleCases));
+  SmallVec<std::pair<const DemanglingInfoCorrectnessTestCase*, char*>> FailedCases;
+  usize Count = 0;
+  errs() << '\n';
+  for (const DemanglingInfoCorrectnessTestCase& Case : DemangleCases) {
+    if ((Count & 0b1111) == 0)
+      errs() << "Test " << Count << "/" << Total << "\r";
+    auto [Mangled, Demangled] = Case;
+    char* Result = exi::itaniumDemangle(Mangled);
+    if (!Result) {
+      FailedCases.push_back({&Case, nullptr});
+    } else {
+      if (std::string_view(Result) == Demangled)
+        exi::exi_free(Result);
+      else
+        FailedCases.push_back({&Case, Result});
+    }
+    ++Count;
+  }
+  errs() << "Test " << Count << "/" << Total << "\n";
+
+  for (auto& [Case, Result] : FailedCases) {
+    auto [Mangled, Demangled] = *Case;
+    errs() << "For " << Mangled
+           << "\n  Expected: " << Demangled
+           << "\n  Got     : ";
+    if (Result) {
+      errs() << Result << "\n";
+      exi::exi_free(Result);
+    } else
+      errs() << "<nothing>\n";
+  }
+  return {FailedCases.size(), Total};
+}
+
 int main(int Argc, char* Argv[]) {
   using enum raw_ostream::Colors;
   SetLogLevel(LogLevel::WARN);
@@ -1192,7 +1244,39 @@ int main(int Argc, char* Argv[]) {
              && matches_seq<"CDATA", 3>(CDATA_EX));
 
 #if 1
-  doTestTests(Mgr);
+  {
+    errs() << "Running tests...\n";
+    auto [Failed, Total] = RunDemangleTests();
+    errs() << "Passed " << (Total - Failed) << "/" << Total << " demangling tests.\n\n";
+    if (Failed > 0)
+      return 1;
+  }
+#endif
+
+  std::string_view OtherTests[] = {
+    //"_ZZL9SortAttrsPKN3xml7XMLNodeIcEERN3exi12SmallVecImplIPKNS_12XMLAttributeIcEEEEPSA_ENK3$_0clIS8_S8_EEbPT_PT0_",
+    "_ZZ1fvEN3$_0clI1SS1_EEbT_T0_",
+    "_ZZ2f1vEN3$_1clIK1SEEbPT_S4_",
+    "_ZZ2f2vEN3$_0clI1SS1_EEbT_T0_",
+    "_ZZ1tIV1SEvvEN3$_2clIS0_EEbS0_T_",
+    "_ZZZ1tIV1SEvvEN3$_2clIS0_EEbS0_T_ENUlS4_T0_E_clIS0_S0_EEbS4_S5_",
+    "_ZZ2ffvEN3$_1clIZZ2ffvEN3$_0clI1SEEDaT_E1SZZ2ffvENS2_IS5_EEDaS4_E1SEEbS4_T0_",
+  };
+
+  for (auto Test : OtherTests) {
+    char* Output = exi::itaniumDemangle(Test);
+    if (!Output)
+      fmt::println(stderr, "{}: FAILED", Test);
+    else {
+      fmt::println(stderr, "{}: {}", Test, Output);
+      exi::exi_free(Output);
+    }
+  }
+
+  errs() << "Done!\n";
+
+#if 1
+  //doTestTests(Mgr);
   return 0;
 #endif
 

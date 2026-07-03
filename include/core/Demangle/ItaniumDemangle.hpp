@@ -28,6 +28,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <limits>
+#include <optional>
 #include <new>
 #include <string_view>
 #include <type_traits>
@@ -2952,7 +2953,7 @@ template <typename Derived, typename Alloc> struct AbstractManglingParser {
   Node *parseClassEnumType();
   Node *parseQualifiedType();
 
-  Node *parseEncoding(bool ParseParams = true);
+  Node *parseEncoding(bool ParseParams = true, bool TopLevel = false);
   bool parseCallOffset();
   Node *parseSpecialName();
 
@@ -2965,6 +2966,7 @@ template <typename Derived, typename Alloc> struct AbstractManglingParser {
     FunctionRefQual ReferenceQualifier = FrefQualNone;
     size_t ForwardTemplateRefsBegin;
     bool HasExplicitObjectParameter = false;
+    bool IsTopLevelName = false;
 
     NameState(AbstractManglingParser *Enclosing)
         : ForwardTemplateRefsBegin(Enclosing->ForwardTemplateRefs.size()) {}
@@ -3134,9 +3136,11 @@ Node *AbstractManglingParser<Derived, Alloc>::parseLocalName(NameState *State) {
     return make<LocalName>(Encoding, StringLitName);
   }
 
-  // The template parameters of the inner name are unrelated to those of the
-  // enclosing context.
-  SaveTemplateParams SaveTemplateParamsScope(this);
+  // The template parameters of the inner name are (often) unrelated to those of
+  // the enclosing context.
+  std::optional<SaveTemplateParams> SaveTemplateParamsScope;
+  if (!State || !State->IsTopLevelName)
+    SaveTemplateParamsScope.emplace(this);
 
   if (consumeIf('d')) {
     parseNumber(true);
@@ -5692,7 +5696,8 @@ Node *AbstractManglingParser<Derived, Alloc>::parseSpecialName() {
 //            ::= <data name>
 //            ::= <special-name>
 template <typename Derived, typename Alloc>
-Node *AbstractManglingParser<Derived, Alloc>::parseEncoding(bool ParseParams) {
+Node *AbstractManglingParser<Derived, Alloc>::parseEncoding(bool ParseParams,
+                                                            bool TopLevel) {
   // The template parameters of an encoding are unrelated to those of the
   // enclosing context.
   SaveTemplateParams SaveTemplateParamsScope(this);
@@ -5708,6 +5713,7 @@ Node *AbstractManglingParser<Derived, Alloc>::parseEncoding(bool ParseParams) {
   };
 
   NameState NameInfo(this);
+  NameInfo.IsTopLevelName = TopLevel;
   Node *Name = getDerived().parseName(&NameInfo);
   if (Name == nullptr)
     return nullptr;
@@ -6212,7 +6218,7 @@ Node *AbstractManglingParser<Derived, Alloc>::parse(bool ParseParams) {
   }
 
   if (consumeIf("_Z") || consumeIf("__Z")) {
-    Node *Encoding = getDerived().parseEncoding(ParseParams);
+    Node *Encoding = getDerived().parseEncoding(ParseParams, /*TopLevel=*/true);
     if (Encoding == nullptr)
       return nullptr;
     if (look() == '.') {
@@ -6228,7 +6234,7 @@ Node *AbstractManglingParser<Derived, Alloc>::parse(bool ParseParams) {
   }
 
   if (consumeIf("___Z") || consumeIf("____Z")) {
-    Node *Encoding = getDerived().parseEncoding(ParseParams);
+    Node *Encoding = getDerived().parseEncoding(ParseParams, /*TopLevel=*/true);
     if (Encoding == nullptr || !consumeIf("_block_invoke"))
       return nullptr;
     bool RequireNumber = consumeIf('_');
