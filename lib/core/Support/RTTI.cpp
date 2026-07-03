@@ -236,7 +236,9 @@ static RttiResult<String> DemangleSymbol(StrRef MangledName) {
     }
   }
 
-  char *Demangled = exi::microsoftDemangle(MangledName, nullptr, nullptr);
+  auto Flags = MSDF_NoAccessSpecifier
+             | MSDF_NoCallingConvention;
+  char *Demangled = exi::microsoftDemangle(MangledName, nullptr, nullptr, MSDemangleFlags(Flags));
   if (Demangled == nullptr)
     return Err(RttiError::InvalidName);
   

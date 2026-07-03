@@ -1256,10 +1256,12 @@ int main(int Argc, char* Argv[]) {
   std::string_view OtherTests[] = {
     //"_ZZL9SortAttrsPKN3xml7XMLNodeIcEERN3exi12SmallVecImplIPKNS_12XMLAttributeIcEEEEPSA_ENK3$_0clIS8_S8_EEbPT_PT0_",
     "_ZZ1fvEN3$_0clI1SS1_EEbT_T0_",
+    "_ZZ2f1vEN3$_0clIK1SS2_EEbPT_PT0_",
     "_ZZ2f1vEN3$_1clIK1SEEbPT_S4_",
     "_ZZ2f2vEN3$_0clI1SS1_EEbT_T0_",
     "_ZZ1tIV1SEvvEN3$_2clIS0_EEbS0_T_",
     "_ZZZ1tIV1SEvvEN3$_2clIS0_EEbS0_T_ENUlS4_T0_E_clIS0_S0_EEbS4_S5_",
+    "_ZZ2ffvEN3$_1clIZZ2ffvEN3$_0clI1SEEDaT_E1SS5_EEbS4_T0_",
     "_ZZ2ffvEN3$_1clIZZ2ffvEN3$_0clI1SEEDaT_E1SZZ2ffvENS2_IS5_EEDaS4_E1SEEbS4_T0_",
   };
 

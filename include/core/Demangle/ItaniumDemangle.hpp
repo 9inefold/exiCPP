@@ -2953,7 +2953,7 @@ template <typename Derived, typename Alloc> struct AbstractManglingParser {
   Node *parseClassEnumType();
   Node *parseQualifiedType();
 
-  Node *parseEncoding(bool ParseParams = true, bool TopLevel = false);
+  Node *parseEncoding(bool ParseParams = true);
   bool parseCallOffset();
   Node *parseSpecialName();
 
@@ -2966,7 +2966,6 @@ template <typename Derived, typename Alloc> struct AbstractManglingParser {
     FunctionRefQual ReferenceQualifier = FrefQualNone;
     size_t ForwardTemplateRefsBegin;
     bool HasExplicitObjectParameter = false;
-    bool IsTopLevelName = false;
 
     NameState(AbstractManglingParser *Enclosing)
         : ForwardTemplateRefsBegin(Enclosing->ForwardTemplateRefs.size()) {}
@@ -3137,9 +3136,10 @@ Node *AbstractManglingParser<Derived, Alloc>::parseLocalName(NameState *State) {
   }
 
   // The template parameters of the inner name are (often) unrelated to those of
-  // the enclosing context.
+  // the enclosing context. NameState is only passed in from parseEncoding,
+  // which needs the template arguments from local names.
   std::optional<SaveTemplateParams> SaveTemplateParamsScope;
-  if (!State || !State->IsTopLevelName)
+  if (!State)
     SaveTemplateParamsScope.emplace(this);
 
   if (consumeIf('d')) {
@@ -3384,7 +3384,7 @@ Node *AbstractManglingParser<Derived, Alloc>::parseSourceName(NameState *) {
   std::string_view Name(First, Length);
   First += Length;
   if (starts_with(Name, "_GLOBAL__N"))
-    return make<NameType>("(anonymous namespace)");
+    return make<NameType>("(anonymous namespace)"); // TODO: `anonymous`
   return make<NameType>(Name);
 }
 
@@ -5696,8 +5696,7 @@ Node *AbstractManglingParser<Derived, Alloc>::parseSpecialName() {
 //            ::= <data name>
 //            ::= <special-name>
 template <typename Derived, typename Alloc>
-Node *AbstractManglingParser<Derived, Alloc>::parseEncoding(bool ParseParams,
-                                                            bool TopLevel) {
+Node *AbstractManglingParser<Derived, Alloc>::parseEncoding(bool ParseParams) {
   // The template parameters of an encoding are unrelated to those of the
   // enclosing context.
   SaveTemplateParams SaveTemplateParamsScope(this);
@@ -5713,7 +5712,6 @@ Node *AbstractManglingParser<Derived, Alloc>::parseEncoding(bool ParseParams,
   };
 
   NameState NameInfo(this);
-  NameInfo.IsTopLevelName = TopLevel;
   Node *Name = getDerived().parseName(&NameInfo);
   if (Name == nullptr)
     return nullptr;
@@ -6218,7 +6216,7 @@ Node *AbstractManglingParser<Derived, Alloc>::parse(bool ParseParams) {
   }
 
   if (consumeIf("_Z") || consumeIf("__Z")) {
-    Node *Encoding = getDerived().parseEncoding(ParseParams, /*TopLevel=*/true);
+    Node *Encoding = getDerived().parseEncoding(ParseParams);
     if (Encoding == nullptr)
       return nullptr;
     if (look() == '.') {
@@ -6234,7 +6232,7 @@ Node *AbstractManglingParser<Derived, Alloc>::parse(bool ParseParams) {
   }
 
   if (consumeIf("___Z") || consumeIf("____Z")) {
-    Node *Encoding = getDerived().parseEncoding(ParseParams, /*TopLevel=*/true);
+    Node *Encoding = getDerived().parseEncoding(ParseParams);
     if (Encoding == nullptr || !consumeIf("_block_invoke"))
       return nullptr;
     bool RequireNumber = consumeIf('_');
