@@ -22,6 +22,7 @@
     "xml/*",
 
     "el2/el2-07a",
+    "me/Demangle",
     "xml/097",
   ]
 }

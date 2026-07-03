@@ -1,0 +1,74 @@
+<!-- _ZZ1fvEN3$_0clI1SS1_EEbT_T0_ -->
+<mangled-name>
+<!-- _Z -->
+<encoding>
+  <function-name>
+    <!-- Z -->
+    <function-encoding value="1fv" />
+    <!-- E -->
+    <entity-name>
+      <nested-name>
+        <!-- N -->
+        <template-prefix>
+          <prefix>
+            <unqualified-name>
+              <source-name>
+                <positive-number value=3 />
+                <identifier value="$_0" />
+              </source-name>
+            </unqualified-name>
+          </prefix>
+          <unqualified-name>
+            <operator-name value="cl" />
+          </unqualified-name>
+        </template-prefix>
+        <template-args>
+          <!-- I -->
+          <template-arg>
+            <type>
+              <class-enum-type>
+                <unscoped-name>
+                  <unqualified-name>
+                    <source-name>
+                      <number value=1 />
+                      <identifier value="S" />
+                    </source-name>
+                  </unqualified-name>
+                </unscoped-name>
+              </class-enum-type>
+            </type>
+          </template-arg>
+          <template-arg>
+            <type>
+              <substitution>
+                <!-- S -->
+                <number value=1 />
+                <!-- _ -->
+              </substitution>
+            </type>
+          </template-arg>
+          <!-- E -->
+        </template-args>
+      <!-- E -->
+      </nested-name>
+    </entity-name>
+  </function-name>
+  <bare-function-type>
+    <type>
+      <builtin-type value="b" />
+    </type>
+    <type>
+      <template-param>
+        <!-- T_ -->
+      </template-param>
+    </type>
+    <type>
+      <template-param>
+        <!-- T -->
+        <number value=0 />
+        <!-- _ -->
+      </template-param>
+    </type>
+  </bare-function-type>
+</encoding>
+</mangled-name>
