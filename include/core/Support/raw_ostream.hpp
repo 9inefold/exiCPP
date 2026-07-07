@@ -333,6 +333,8 @@ public:
   // Formatted output, see the format_bytes() function in Support/Format.h.
   raw_ostream &operator<<(const FormattedBytes &);
 
+  template <char C> inline raw_ostream &write_padding(unsigned NumChars);
+
   /// indent - Insert 'NumSpaces' spaces.
   raw_ostream &indent(unsigned NumSpaces);
 

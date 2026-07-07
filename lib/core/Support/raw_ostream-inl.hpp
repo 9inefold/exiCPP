@@ -23,6 +23,26 @@
 
 namespace exi {
 
+template <char C>
+inline raw_ostream &raw_ostream::write_padding(unsigned NumChars) {
+  static const char Chars[] = {C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C,
+                               C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C,
+                               C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C,
+                               C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C,
+                               C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C};
+
+  // Usually the indentation is small, handle it with a fastpath.
+  if (NumChars < std::size(Chars))
+    return this->write(Chars, NumChars);
+
+  while (NumChars) {
+    unsigned NumToWrite = std::min(NumChars, (unsigned)std::size(Chars) - 1);
+    this->write(Chars, NumToWrite);
+    NumChars -= NumToWrite;
+  }
+  return *this;
+}
+
 inline void raw_ostream::write_colorcode([[maybe_unused]] enum Colors Color) {
 #if !EXI_DEBUG_OSCOLOR
   exi_unreachable("do not call this without EXI_DEBUG_OSCOLOR=1");

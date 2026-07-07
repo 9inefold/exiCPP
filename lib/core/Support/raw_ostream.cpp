@@ -486,34 +486,14 @@ raw_ostream &raw_ostream::operator<<(const FormattedBytes &FB) {
   return *this;
 }
 
-template <char C>
-static raw_ostream &write_padding(raw_ostream &OS, unsigned NumChars) {
-  static const char Chars[] = {C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C,
-                               C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C,
-                               C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C,
-                               C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C,
-                               C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C};
-
-  // Usually the indentation is small, handle it with a fastpath.
-  if (NumChars < std::size(Chars))
-    return OS.write(Chars, NumChars);
-
-  while (NumChars) {
-    unsigned NumToWrite = std::min(NumChars, (unsigned)std::size(Chars) - 1);
-    OS.write(Chars, NumToWrite);
-    NumChars -= NumToWrite;
-  }
-  return OS;
-}
-
 /// indent - Insert 'NumSpaces' spaces.
 raw_ostream &raw_ostream::indent(unsigned NumSpaces) {
-  return write_padding<' '>(*this, NumSpaces);
+  return write_padding<' '>(NumSpaces);
 }
 
 /// write_zeros - Insert 'NumZeros' nulls.
 raw_ostream &raw_ostream::write_zeros(unsigned NumZeros) {
-  return write_padding<'\0'>(*this, NumZeros);
+  return write_padding<'\0'>(NumZeros);
 }
 
 bool raw_ostream::prepare_colors() {
