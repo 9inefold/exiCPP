@@ -167,7 +167,7 @@ template <typename T> EXI_INLINE bool any_isa(const Any& Value) {
 
 template <class T> T any_cast(const Any& Value) {
   using U = std::remove_cvref_t<T>;
-  exi_assert(any_isa<T>(Value) && "Bad any cast!");
+  exi_assert(any_isa<T>(Value), "Bad any cast!");
   return static_cast<T>(*any_cast<U>(&Value));
 }
 
