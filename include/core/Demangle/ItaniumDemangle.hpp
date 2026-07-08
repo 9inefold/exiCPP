@@ -24,6 +24,7 @@
 #include <core/Support/Alloc.hpp>
 #include <algorithm>
 #include <cctype>
+#include <concepts>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -160,6 +161,7 @@ public:
   }
 };
 
+struct NodeProxyNode;
 class NodeArray;
 
 // Base class of all AST nodes. The AST is built by the parser, then is
@@ -168,7 +170,8 @@ class Node {
 public:
   enum Kind : uint8_t {
 #define NODE(NodeKind) K##NodeKind,
-#include "ItaniumNodes.def"
+#include "ItaniumNodes.mac"
+    KNodeProxyNode,
   };
 
   /// Three-way bool to track a cached value. Unknown is possible if this node
@@ -307,6 +310,7 @@ public:
 #endif
 
 private:
+  friend struct NodeProxyNode;
   friend class OutputBuffer;
 
   // Print the "left" side of this Node into OutputBuffer.
@@ -376,6 +380,35 @@ struct NodeArrayNode : Node {
   void printLeft(OutputBuffer &OB) const override { Array.printWithComma(OB); }
 };
 
+struct NodeProxyNode : Node {
+  Node *Child;
+  NodeProxyNode(Node *Node_) : Node(KNodeProxyNode), Child(Node_) {}
+
+  template<typename Fn> void match(Fn F) const { F(Child); }
+
+  bool hasRHSComponentSlow(OutputBuffer &OB) const override {
+    return Child->hasRHSComponentSlow(OB);
+  }
+  bool hasArraySlow(OutputBuffer &OB) const override {
+    return Child->hasArraySlow(OB);
+  }
+  bool hasFunctionSlow(OutputBuffer &OB) const override {
+    return Child->hasFunctionSlow(OB);
+  }
+
+  bool printInitListAsType(OutputBuffer &OB,
+                           const NodeArray &Array) const override {
+    return Child->printInitListAsType(OB, Array);
+  }
+
+  std::string_view getBaseName() const override {
+    return Child->getBaseName();
+  }
+
+  void printLeft(OutputBuffer &OB) const override { Child->printLeft(OB); }
+  void printRight(OutputBuffer &OB) const override { Child->printRight(OB); }
+};
+
 class DotSuffix final : public Node {
   const Node *Prefix;
   const std::string_view Suffix;
@@ -442,11 +475,11 @@ protected:
 
   void printQuals(OutputBuffer &OB) const {
     if (Quals & QualConst)
-      OB += " const";
+      OB += "const ";
     if (Quals & QualVolatile)
-      OB += " volatile";
+      OB += "volatile ";
     if (Quals & QualRestrict)
-      OB += " restrict";
+      OB += "restrict ";
   }
 
 public:
@@ -471,8 +504,8 @@ public:
   }
 
   void printLeft(OutputBuffer &OB) const override {
-    OB.printLeft(*Child);
     printQuals(OB);
+    OB.printLeft(*Child);
   }
 
   void printRight(OutputBuffer &OB) const override { OB.printRight(*Child); }
@@ -2663,19 +2696,32 @@ void Node::visit(Fn F) const {
 #define NODE(X)                                                                \
   case K##X:                                                                   \
     return F(static_cast<const X *>(this));
-#include "ItaniumNodes.def"
+#include "ItaniumNodes.mac"
+  case KNodeProxyNode: {
+    auto super = static_cast<const NodeProxyNode*>(this);
+    if EXI_NEVER(this == super->Child)
+      // Stop recursion
+      return;
+    // Recurse lower...
+    return super->Child->visit(F);
+  }
   }
   DEMANGLE_ASSERT(0, "unknown mangling node kind");
+  DEMANGLE_UNREACHABLE;
 }
 
 /// Determine the kind of a node from its type.
 template<typename NodeT> struct NodeKind;
+template <> struct NodeKind<NodeProxyNode> {
+  static constexpr Node::Kind Kind = Node::KNodeProxyNode;
+  static constexpr const char *name() { return "NodeProxyNode"; }
+};
 #define NODE(X)                                                                \
   template <> struct NodeKind<X> {                                             \
     static constexpr Node::Kind Kind = Node::K##X;                             \
     static constexpr const char *name() { return #X; }                         \
   };
-#include "ItaniumNodes.def"
+#include "ItaniumNodes.mac"
 
 inline bool NodeArray::printAsString(OutputBuffer &OB) const {
   auto StartPos = OB.getCurrentPosition();
@@ -2867,6 +2913,8 @@ template <typename Derived, typename Alloc> struct AbstractManglingParser {
   template <class T, class... Args> Node *make(Args &&... args) {
     return ASTAllocator.template makeNode<T>(std::forward<Args>(args)...);
   }
+
+  template <class Fundamental> inline Node *makeType(const char *Fallback);
 
   template <class It> NodeArray makeNodeArray(It begin, It end) {
     size_t sz = static_cast<size_t>(end - begin);
@@ -3384,7 +3432,7 @@ Node *AbstractManglingParser<Derived, Alloc>::parseSourceName(NameState *) {
   std::string_view Name(First, Length);
   First += Length;
   if (starts_with(Name, "_GLOBAL__N"))
-    return make<NameType>("(anonymous namespace)"); // TODO: `anonymous`
+    return make<NameType>("`anonymous`");
   return make<NameType>(Name);
 }
 
@@ -4204,6 +4252,35 @@ Node *AbstractManglingParser<Derived, Alloc>::parseQualifiedType() {
   return Ty;
 }
 
+template <std::integral Integer>
+inline constexpr const char* mapItaniumTypeToFundamental(const char* Fallback) {
+  if constexpr (std::unsigned_integral<Integer>) {
+    switch (bitsizeof_v<Integer>) {
+    case 8:   return "u8";
+    case 16:  return "u16";
+    case 32:  return "u32";
+    case 64:  return "u64";
+    case 128: return "u128";
+    }
+  } else {
+    switch (bitsizeof_v<Integer>) {
+    case 8:   return "i8";
+    case 16:  return "i16";
+    case 32:  return "i32";
+    case 64:  return "i64";
+    case 128: return "i128";
+    }
+  }
+  return Fallback;
+}
+
+template <typename Derived, typename Alloc>
+template <class Fundamental>
+Node *AbstractManglingParser<Derived, Alloc>::makeType(const char *Fallback) {
+  const char *Name = mapItaniumTypeToFundamental<Fundamental>(Fallback);
+  return make<NameType>(Name);
+}
+
 // <type>      ::= <builtin-type>
 //             ::= <qualified-type>
 //             ::= <function-type>
@@ -4227,7 +4304,8 @@ Node *AbstractManglingParser<Derived, Alloc>::parseQualifiedType() {
 template <typename Derived, typename Alloc>
 Node *AbstractManglingParser<Derived, Alloc>::parseType() {
   Node *Result = nullptr;
-
+  
+  // FIXME: Don't hardcode the exi names, just record some info and save it later.
   switch (look()) {
   //             ::= <qualified-type>
   case 'r':
@@ -4270,59 +4348,73 @@ Node *AbstractManglingParser<Derived, Alloc>::parseType() {
   //                ::= a    # signed char
   case 'a':
     ++First;
-    return make<NameType>("signed char");
+    //return make<NameType>("signed char");
+    return makeType<signed char>("signed char");
   //                ::= h    # unsigned char
   case 'h':
     ++First;
-    return make<NameType>("unsigned char");
+    //return make<NameType>("unsigned char");
+    return makeType<unsigned char>("unsigned char");
   //                ::= s    # short
   case 's':
     ++First;
-    return make<NameType>("short");
+    //return make<NameType>("short");
+    return makeType<short>("short");
   //                ::= t    # unsigned short
   case 't':
     ++First;
-    return make<NameType>("unsigned short");
+    //return make<NameType>("unsigned short");
+    return makeType<unsigned short>("unsigned short");
   //                ::= i    # int
   case 'i':
     ++First;
-    return make<NameType>("int");
+    //return make<NameType>("int");
+    return makeType<int>("int");
   //                ::= j    # unsigned int
   case 'j':
     ++First;
-    return make<NameType>("unsigned int");
+    //return make<NameType>("unsigned int");
+    return makeType<unsigned int>("unsigned");
   //                ::= l    # long
   case 'l':
     ++First;
-    return make<NameType>("long");
+    //return make<NameType>("long");
+    return makeType<long>("long");
   //                ::= m    # unsigned long
   case 'm':
     ++First;
-    return make<NameType>("unsigned long");
+    //return make<NameType>("unsigned long");
+    return makeType<unsigned long>("unsigned long");
   //                ::= x    # long long, __int64
   case 'x':
     ++First;
-    return make<NameType>("long long");
+    //return make<NameType>("long long");
+    return makeType<long long>("long long");
   //                ::= y    # unsigned long long, __int64
   case 'y':
     ++First;
-    return make<NameType>("unsigned long long");
+    //return make<NameType>("unsigned long long");
+    return makeType<unsigned long long>("unsigned long long");
   //                ::= n    # __int128
   case 'n':
     ++First;
-    return make<NameType>("__int128");
+    //return make<NameType>("__int128");
+    return make<NameType>("i128");
   //                ::= o    # unsigned __int128
   case 'o':
     ++First;
-    return make<NameType>("unsigned __int128");
+    //return make<NameType>("unsigned __int128");
+    return make<NameType>("u128");
   //                ::= f    # float
   case 'f':
     ++First;
-    return make<NameType>("float");
+    //return make<NameType>("float");
+    return make<NameType>("f32");
   //                ::= d    # double
   case 'd':
     ++First;
-    return make<NameType>("double");
+    //return make<NameType>("double");
+    return make<NameType>("f64");
   //                ::= e    # long double, __float80
   case 'e':
     ++First;
@@ -4330,7 +4422,8 @@ Node *AbstractManglingParser<Derived, Alloc>::parseType() {
   //                ::= g    # __float128
   case 'g':
     ++First;
-    return make<NameType>("__float128");
+    //return make<NameType>("__float128");
+    return make<NameType>("f128");
   //                ::= z    # ellipsis
   case 'z':
     ++First;

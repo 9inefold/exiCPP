@@ -72,7 +72,8 @@ bool exi::nonMicrosoftDemangle(std::string_view MangledName,
   }
 
   if (isItaniumEncoding(MangledName))
-    Demangled = itaniumDemangle(MangledName, ParseParams);
+    //Demangled = itaniumDemangle(MangledName, ParseParams);
+    Demangled = itaniumDemangleSimple(MangledName, ParseParams);
   else if (isRustEncoding(MangledName))
     Demangled = rustDemangle(MangledName);
   else if (isDLangEncoding(MangledName))

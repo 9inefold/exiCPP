@@ -45,7 +45,7 @@
 #elif defined(_MSC_VER)
 # define DEMANGLE_UNREACHABLE __assume(false)
 #else
-# define DEMANGLE_UNREACHABLE
+# define DEMANGLE_UNREACHABLE ((void)0)
 #endif
 
 #if EXI_HAS_ATTR(noinline) || DEMANGLE_GNUC_PREREQ(3, 4, 0)

@@ -14,7 +14,10 @@
 
 #include <core/Demangle/Demangle.hpp>
 #include <core/Demangle/ItaniumDemangle.hpp>
+#include <core/Common/DenseSet.hpp>
 #include <core/Support/Alloc.hpp>
+#include <core/Support/IntCast.hpp>
+#include <core/Support/ScopedSave.hpp>
 #include <cassert>
 #include <cctype>
 #include <cstdio>
@@ -22,6 +25,9 @@
 #include <exception>
 #include <functional>
 #include <utility>
+//#include <vector>
+
+CLANG_IGNORED("-Wmissing-field-initializers")
 
 using namespace exi;
 using namespace exi::itanium_demangle;
@@ -56,29 +62,182 @@ const char *itanium_demangle::parse_discriminator(const char *first,
   return first;
 }
 
+namespace {
+
+template <typename NodeT>
+concept itanium_node = std::derived_from<NodeT, itanium_demangle::Node>;
+
+struct BaseVisitor {
+  constexpr BaseVisitor() = default;
+
+  EXI_NO_INLINE static usize node_size(const itanium_demangle::Node* N) {
+    DEMANGLE_ASSERT(N, "Node cannot be null!");
+    switch (N->getKind()) {
+#define NODE(X)                                                                \
+    case Node::K##X:                                                           \
+      return sizeof(itanium_demangle::X);
+#include <core/Demangle/ItaniumNodes.mac>
+    case Node::KNodeProxyNode:
+      return sizeof(itanium_demangle::NodeProxyNode);
+    }
+    DEMANGLE_ASSERT(0, "unknown mangling node kind");
+    DEMANGLE_UNREACHABLE;
+  }
+  template <itanium_node NodeT>
+  static constexpr usize node_size(const NodeT* N) {
+    return sizeof(NodeT);
+  }
+
+  EXI_NO_INLINE static const char* node_name(const itanium_demangle::Node* N) {
+    DEMANGLE_ASSERT(N, "Node cannot be null!");
+    switch (N->getKind()) {
+#define NODE(X)                                                                \
+    case Node::K##X:                                                           \
+      return #X;
+#include <core/Demangle/ItaniumNodes.mac>
+    case Node::KNodeProxyNode:
+      return "NodeProxyNode";
+    }
+    DEMANGLE_ASSERT(0, "unknown mangling node kind");
+    DEMANGLE_UNREACHABLE;
+  }
+  template <itanium_node NodeT>
+  static constexpr const char* node_name(const NodeT*) {
+    return NodeKind<NodeT>::name();
+  }
+
+  template <itanium_node To>
+  static constexpr bool node_isa(const itanium_demangle::Node& N) {
+    return N.getKind() == itanium_demangle::NodeKind<To>::Kind;
+  }
+  template <class To>
+  ALWAYS_INLINE static constexpr bool node_isa(const itanium_demangle::Node* N) {
+    DEMANGLE_ASSERT(N, "Node cannot be null!");
+    return node_isa<To>(*N);
+  }
+
+  template <itanium_node To1, itanium_node To2, itanium_node...ToRest>
+  EXI_FLATTEN static constexpr bool node_isa(const itanium_demangle::Node& N) {
+    return node_isa<To1>(N) || node_isa<To2, ToRest...>(N);
+  }
+  template <itanium_node To1, itanium_node To2, itanium_node...ToRest>
+  ALWAYS_INLINE static constexpr bool node_isa(const itanium_demangle::Node* N) {
+    DEMANGLE_ASSERT(N, "Node cannot be null!");
+    return node_isa<To1, To2, ToRest...>(*N);
+  }
+
+  template <itanium_node To>
+  static constexpr To& node_cast(itanium_demangle::Node& N) {
+    DEMANGLE_ASSERT(node_isa<To>(N), "Invalid node type!");
+    return *static_cast<To*>(&N);
+  }
+  template <itanium_node To>
+  static constexpr const To& node_cast(const itanium_demangle::Node& N) {
+    DEMANGLE_ASSERT(node_isa<To>(N), "Invalid node type!");
+    return *static_cast<const To*>(&N);
+  }
+  template <itanium_node To>
+  static constexpr To* node_cast(itanium_demangle::Node* N) {
+    if (node_isa<To>(N))
+      return static_cast<To*>(N);
+    return nullptr;
+  }
+  template <itanium_node To>
+  static constexpr const To* node_cast(const itanium_demangle::Node* N) {
+    if (node_isa<To>(N))
+      return static_cast<const To*>(N);
+    return nullptr;
+  }
+
+  template <itanium_node To>
+  static constexpr To* node_cast_if_present(itanium_demangle::Node* N) {
+    if (N == nullptr)
+      return nullptr;
+    return &node_cast<To>(*N);
+  }
+  template <itanium_node To>
+  static constexpr const To* node_cast_if_present(const itanium_demangle::Node* N) {
+    if (N == nullptr)
+      return nullptr;
+    return &node_cast<To>(*N);
+  }
+};
+
+struct BasePrintVisitor : public BaseVisitor {
+  constexpr BasePrintVisitor() = default;
+
+  using BaseVisitor::node_isa;
+  using BaseVisitor::node_cast;
+  using BaseVisitor::node_cast_if_present;
+
+  void printStr(const char *S) const { fprintf(stderr, "%s", S); }
+  template <bool Quote = false>
+  void printStr(const char *S, auto Size) const {
+    const int IntSize = IntCastOr<int>(Size, -1);
+    if EXI_ALWAYS(IntSize > 0) {
+      if constexpr (!Quote)
+        fprintf(stderr, "%.*s", IntSize, S);
+      else
+        fprintf(stderr, "\"%.*s\"", IntSize, S);
+    }
+  }
+  ALWAYS_INLINE void print(std::string_view SV) const {
+    printStr</*Quote=*/true>(SV.data(), SV.size());
+  }
+
+  template <char C>
+  EXI_NO_INLINE void printPadding(unsigned NumChars) const {
+    static const char Chars[] = {C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C,
+                                 C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C,
+                                 C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C,
+                                 C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C,
+                                 C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C};
+
+    // Usually the indentation is small, handle it with a fastpath.
+    if EXI_LIKELY(NumChars < std::size(Chars)) {
+      printStr(Chars, NumChars);
+      return;
+    }
+
+    while (NumChars) {
+      unsigned NumToWrite = std::min(NumChars, unsigned(std::size(Chars)) - 1u);
+      printStr(Chars, NumToWrite);
+      NumChars -= NumToWrite;
+    }
+  }
+
+  // Overload used when T is exactly 'bool', not merely convertible to 'bool'.
+  void print(bool B) { printStr(B ? "true" : "false"); }
+
+  template <class T> std::enable_if_t<std::is_unsigned<T>::value> print(T N) {
+    fprintf(stderr, "%llu", (unsigned long long)N);
+  }
+
+  template <class T> std::enable_if_t<std::is_signed<T>::value> print(T N) {
+    fprintf(stderr, "%lld", (long long)N);
+  }
+};
+} // namespace `anonymous`
+
 #ifndef NDEBUG
 namespace {
-struct DumpVisitor {
+struct DumpVisitor : public BasePrintVisitor {
   unsigned Depth = 0;
   bool PendingNewline = false;
 
-  template<typename NodeT> static constexpr bool wantsNewline(const NodeT *) {
-    return true;
-  }
+  template <typename NodeT>
+  static constexpr bool wantsNewline(const NodeT *) { return true; }
   static bool wantsNewline(NodeArray A) { return !A.empty(); }
   static constexpr bool wantsNewline(...) { return false; }
 
-  template<typename ...Ts> static bool anyWantNewline(Ts ...Vs) {
-    for (bool B : {wantsNewline(Vs)...})
-      if (B)
-        return true;
-    return false;
+  template <typename...Ts> static bool anyWantNewline(Ts...Vs) {
+    return (wantsNewline(Vs) || ...);
   }
 
-  void printStr(const char *S) { fprintf(stderr, "%s", S); }
-  void print(std::string_view SV) {
-    fprintf(stderr, "\"%.*s\"", (int)SV.size(), SV.data());
-  }
+  using BasePrintVisitor::printStr;
+  using BasePrintVisitor::print;
+  using BasePrintVisitor::printPadding;
+
   void print(const Node *N) {
     if (N)
       N->visit(std::ref(*this));
@@ -98,17 +257,6 @@ struct DumpVisitor {
     }
     printStr("}");
     --Depth;
-  }
-
-  // Overload used when T is exactly 'bool', not merely convertible to 'bool'.
-  void print(bool B) { printStr(B ? "true" : "false"); }
-
-  template <class T> std::enable_if_t<std::is_unsigned<T>::value> print(T N) {
-    fprintf(stderr, "%llu", (unsigned long long)N);
-  }
-
-  template <class T> std::enable_if_t<std::is_signed<T>::value> print(T N) {
-    fprintf(stderr, "%lld", (long long)N);
   }
 
   void print(ReferenceKind RK) {
@@ -217,8 +365,8 @@ struct DumpVisitor {
 
   void newLine() {
     printStr("\n");
-    for (unsigned I = 0; I != Depth; ++I)
-      printStr(" ");
+    if EXI_LIKELY(Depth > 0)
+      printPadding<' '>(Depth);
     PendingNewline = false;
   }
 
@@ -273,7 +421,7 @@ struct DumpVisitor {
     Depth -= 2;
   }
 };
-}
+} // namespace `anonymous`
 
 void itanium_demangle::Node::dump() const {
   DumpVisitor V;
@@ -354,14 +502,782 @@ public:
   void *allocateNodeArray(size_t sz) {
     return Alloc.allocate(sizeof(Node *) * sz);
   }
+
+  char *internString(std::string_view sv) {
+    auto* Out = (char *)Alloc.allocate(sv.size() + 1);
+    std::memcpy(Out, sv.data(), sv.size());
+    Out[sv.size()] = '\0';
+    return Out;
+  }
 };
 }  // unnamed namespace
 
-//===----------------------------------------------------------------------===//
-// Code beyond this point should not be synchronized with libc++abi.
-//===----------------------------------------------------------------------===//
-
 using Demangler = itanium_demangle::ManglingParser<DefaultAllocator>;
+
+#define DUMP_SIMPLIFY 0
+
+namespace {
+struct SimplifyVisitor : public BaseVisitor {
+  Demangler& Parser;
+  OutputBuffer OB;
+#if DUMP_SIMPLIFY
+  int Depth = 0;
+#endif
+
+  mutable PODSmallVector<const Node*, 32> NodeStack;
+  bool AlreadyInNestedName = false;
+
+  const Node* getNode(isize Pos = -1) const {
+    if (Pos < 0) {
+      const usize Off = std::abs(Pos) - 1;
+      if EXI_LIKELY(Off < NodeStack.size())
+        return NodeStack.end()[Pos];
+    } else {
+      if EXI_LIKELY(usize(Pos) < NodeStack.size())
+        return NodeStack[Pos];
+    }
+    return nullptr;
+  }
+  Node* getNode(isize Pos = -1) {
+    // We know the underlying type is mutable, so it's ok to cast.
+    const Node* N = std::as_const(*this).getNode(Pos);
+    return const_cast<Node*>(N);
+  }
+
+  /// Marks a node to be replaced.
+  struct NodeReplacement {
+    union {
+      Node** DirectReplacement;
+      const Node** ConstDirectReplacement;
+      Node* OverwriteReplacement;
+    };
+    const Node* ReplaceWith;
+    /// The size when doing `OverwriteReplacement`.
+    u32 Size : 30;
+    /// If `DirectReplacement` (`true`) or `OverwriteReplacement`.
+    u32 IsDirect : 1;
+    /// If the type is actually const.
+    u32 IsReallyConst : 1;
+  };
+  /// Holds the list of replacements.
+  PODSmallVector<NodeReplacement, 8> Replacements;
+  /// Holds the list of already handled items.
+  exi::DenseSet<const Node*> AlreadyReplaced;
+
+  using BaseVisitor::node_size;
+
+  static const void* GetReplacementPoint(const NodeReplacement& R) {
+    if (!R.IsDirect)
+      return R.OverwriteReplacement;
+    // Direct replacements
+    if (R.IsReallyConst)
+      return R.ConstDirectReplacement;
+    else
+      return R.DirectReplacement;
+  }
+  bool areAnyOtherReplacementsInsidePoint(const Node* Point, usize Size) {
+    const char* const Begin = (const char*)Point;
+    const char* const End = Begin + Size;
+    for (const NodeReplacement& Replace : Replacements) {
+      auto* P = (const char*)GetReplacementPoint(Replace);
+      if (P >= Begin && P < End)
+        return true;
+      // Check our replacement isn't being overwritten either!
+      auto* W = (const char*)Replace.ReplaceWith;
+      if (W >= Begin && W < End)
+        return true;
+    }
+    return false;
+  }
+
+  template <typename PointT>
+  void addReplacement(PointT** Point, const Node* ReplaceWith) {
+    NodeReplacement Replacement {
+      .ReplaceWith = ReplaceWith,
+      .IsDirect = 1
+    };
+    if constexpr (!std::is_const_v<PointT>)
+      Replacement.DirectReplacement = Point;
+    else {
+      Replacement.ConstDirectReplacement = Point;
+      Replacement.IsReallyConst = 1;
+    }
+    Replacements.push_back(Replacement);
+  }
+  void addReplacement(const Node* Point, const Node* ReplaceWith) {
+    const usize PointSize = node_size(Point);
+    if (areAnyOtherReplacementsInsidePoint(Point, PointSize)) {
+      // Other replacements would be inside this one!
+      return;
+    }
+    // Check if we need to proxy our replacement.
+    usize ReplaceWithSize = node_size(ReplaceWith);
+    if (PointSize < ReplaceWithSize) {
+      DEMANGLE_ASSERT(PointSize >= sizeof(NodeProxyNode),
+                      "Replacement is not possible!");
+      ReplaceWith = wrap(ReplaceWith);
+      ReplaceWithSize = sizeof(NodeProxyNode);
+    }
+    Replacements.push_back({
+      .OverwriteReplacement = const_cast<Node*>(Point),
+      .ReplaceWith = ReplaceWith,
+      .Size = u32(ReplaceWithSize),
+      .IsDirect = 0, .IsReallyConst = 0
+    });
+  }
+
+  void doReplacements() {
+    for (const NodeReplacement& Replace : Replacements) {
+      if (!Replace.IsDirect) {
+        const void* Src = Replace.ReplaceWith;
+        void* Dst = Replace.OverwriteReplacement;
+        std::memcpy(Dst, Src, Replace.Size);
+        continue;
+      }
+      if (Replace.IsReallyConst)
+        *Replace.ConstDirectReplacement = Replace.ReplaceWith;
+      else {
+        Node* N = const_cast<Node*>(Replace.ReplaceWith);
+        *Replace.DirectReplacement = N;
+      }
+    }
+    // Clear it all.
+    Replacements.clear();
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Utility
+
+  SimplifyVisitor(Demangler& Parser) : Parser(Parser) {}
+  ~SimplifyVisitor() {
+    if (char* Buf = OB.getBuffer())
+      exi::exi_free(Buf);
+  }
+
+  template <class T, class...Args>
+  ALWAYS_INLINE Node* make(Args&&...args) {
+    return Parser.template make<T>(std::forward<Args>(args)...);
+  }
+  Node* makeName(std::string_view SV) {
+    const char* Data = Parser.ASTAllocator.internString(SV);
+    return make<NameType>(Data);
+  }
+  Node* wrap(const Node* N) {
+    return make<NodeProxyNode>(const_cast<Node*>(N));
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Dispatching
+
+#if DUMP_SIMPLIFY
+  void padding() {
+    if (Depth <= 0) return;
+    for (int I = 0; I < Depth; ++I)
+      fputs("  ", stderr);
+  }
+  void printNode(const Node* N) {
+    if (!N) return;
+    N->print(OB);
+    /*print*/ {
+      const char* Data = OB.getBuffer();
+      const usize Size = OB.getCurrentPosition();
+      this->padding();
+      fprintf(stderr, "%.*s\n", IntCastOrZero<int>(Size), Data);
+    }
+    OB.setCurrentPosition(0);
+  }
+#else
+  ALWAYS_INLINE constexpr void printNode(const Node*) {}
+#endif
+
+  class ScopedName {
+#if DUMP_SIMPLIFY
+    SimplifyVisitor& Visitor;
+    const void* Ptr = nullptr;
+    const char* Name = nullptr;
+  public:
+    template <typename NodeT>
+    ScopedName(SimplifyVisitor& thiz, const NodeT* N) : Visitor(thiz) {
+      if (node_isa<NameWithTemplateArgs, NestedName, NameType>(N))
+        this->Ptr = N;
+      this->Name = node_name(N);
+      Visitor.padding();
+      if (this->Ptr)
+        fprintf(stderr, "<%s:%p>", Name, Ptr);
+      else
+        fprintf(stderr, "<%s>", Name);
+      if (Visitor.AlreadyReplaced.contains(N))
+        fputc('*', stderr);
+      fputc('\n', stderr);
+      ++Visitor.Depth;
+    }
+    ~ScopedName() {
+      --Visitor.Depth;
+      Visitor.padding();
+      if (this->Ptr)
+        fprintf(stderr, "</%s:%p>\n", Name, Ptr);
+      else
+        fprintf(stderr, "</%s>\n", Name);
+    }
+#else
+  public:
+    ALWAYS_INLINE constexpr ScopedName(SimplifyVisitor&, const Node*) {}
+#endif
+  };
+
+  void next(const Node* N) {
+    if (N)
+      N->visit(std::ref(*this));
+  }
+  void next(NodeArray A) {
+    // Node array has data.
+    for (const Node* N : A) {
+      if EXI_LIKELY(N)
+        N->visit(std::ref(*this));
+    }
+  }
+  void next(...) {}
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Specialization
+
+  struct ArgVisitor {
+    SimplifyVisitor& Visitor;
+    template <typename...Ts> void operator()(Ts...Vs) {
+      ((Visitor.next(Vs)), ...);
+    }
+  };
+
+  template <typename NodeT> ALWAYS_INLINE void match(const NodeT* Node) {
+    NodeStack.push_back(Node);
+    Node->match(ArgVisitor{*this});
+    NodeStack.pop_back();
+  }
+
+  template <typename NodeT> void operator()(const NodeT* Node) {
+    ScopedName SN(*this, Node);
+    exi::ScopedSave InNestedName(AlreadyInNestedName, false);
+    match(Node);
+  }
+  void operator()(const ForwardTemplateReference* Node) {
+    ScopedName SN(*this, Node);
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Tree Modifications
+
+  enum ComplexNameKind {
+    CNK_none,
+    CNK_exi,    // exi::*
+    CNK_std__1, // std::__1::*
+    CNK_xml,    // xml::*
+  };
+
+  static bool areBothNamesSimple(const NestedName* Node) {
+    //return isa<NestedName>(Node->Qual) && isa<NameType>(Node->Name);
+    return !node_isa<NestedName>(Node->Qual) /*&& node_isa<NameType>(Node->Name)*/;
+  }
+  static bool matchNameType(const Node* N, std::string_view ToMatch) {
+    if (auto* Name = node_cast<NameType>(N))
+      return Name->getName() == ToMatch;
+    return false;
+  }
+
+  /// Loop through to find the base name pair.
+  /// For example, with the name std::pmr::string, we would have:
+  ///  [[[std, __1], pmr], string]
+  ///
+  /// which would return `{[std, __1], [[std, __1], pmr]}`.
+  static std::pair<NestedName*, NestedName*>
+   getBaseNestedNamePair(NestedName* const N) {
+    NestedName *Last = N, *Curr = node_cast<NestedName>(N->Qual);
+    if EXI_UNLIKELY(!Curr)
+      return {nullptr, Last};
+    // Loop through to find the name [std, __1].
+    // For example, with the name std::pmr::string, we would have:
+    //  [[[std, __1], pmr], string]
+    while (!areBothNamesSimple(Curr)) {
+      auto* Qual = node_cast<NestedName>(Curr->Qual);
+      if EXI_UNLIKELY(!Qual)
+        return {nullptr, Curr};
+      Last = Curr;
+      Curr = Qual;
+    }
+    // Found the base name!
+    return {Curr, Last};
+  }
+
+  NameWithTemplateArgs* getLastNodeAsTArgs() {
+    if (Node* Last = getNode(-1)) {
+      if (auto* TArgs = node_cast<NameWithTemplateArgs>(Last))
+        return TArgs;
+    }
+    return nullptr;
+  }
+  bool isLastNodeFunctionEncoding() {
+    if (auto* Last = getNode(-1))
+      return node_isa<FunctionEncoding>(Last);
+    return false;
+  }
+
+  bool handle_exi(NestedName* N) {
+    if (!areBothNamesSimple(N)) {
+      // In this case we have something like [[exi, H], Foo].
+      // This means a simple replacement can be done.
+      AlreadyReplaced.insert(N);
+      auto [Curr, Last] = getBaseNestedNamePair(N);
+      if EXI_UNLIKELY(!Curr) return false; // ???
+      // Found the base name, so make sure it's correct!
+      if (AlreadyReplaced.contains(Last)) return false;
+      if (!matchNameType(Curr->Qual, "exi")) return false;
+      // Set up the modification
+      AlreadyReplaced.insert(Last);
+      addReplacement(&Last->Qual, Curr->Name);
+      return true;
+    }
+    // In this case we have something like [exi, Bar].
+    // This complicates things, but some cases are simple.
+    // To start with, let's try to replace a template.
+    if (auto* TArgs = getLastNodeAsTArgs()) {
+      // Since this worked, we can do a simpler replacement.
+      DEMANGLE_ASSERT(TArgs->Name == N, "Invalid state?");
+      if (AlreadyReplaced.contains(TArgs)) return false;
+      AlreadyReplaced.insert(TArgs);
+      addReplacement(&TArgs->Name, N->Name);
+      return true;
+    }
+    // The last case didn't work, so we have to do a full replacement.
+    AlreadyReplaced.insert(N);
+    addReplacement(N, N->Name);
+    return true;
+  }
+  bool handle_std__1(NestedName* N) {
+    auto [Curr, Last] = getBaseNestedNamePair(N);
+    if EXI_UNLIKELY(!Curr) return false; // ???
+    // Found the base name, so make sure it's correct!
+    if (AlreadyReplaced.contains(Last)) return false;
+    if (!matchNameType(Curr->Qual, "std")) return false;
+    if (!matchNameType(Curr->Name, "__1")) return false;
+    // Set up the modification
+    AlreadyReplaced.insert(N);
+    AlreadyReplaced.insert(Last);
+    addReplacement(&Last->Qual, Curr->Qual);
+    return true;
+  }
+  bool handle_xml(NestedName* N) {
+    if (!areBothNamesSimple(N)) {
+      AlreadyReplaced.insert(N);
+      return false;
+    }
+    auto* TArgs = getLastNodeAsTArgs();
+    if (!TArgs) {
+      // Should be a template, so ignore this...
+      AlreadyReplaced.insert(N);
+      return false;
+    }
+    DEMANGLE_ASSERT(TArgs->Name == N, "Invalid state?");
+    // Replace the inner name.
+    // This is replicating the alias in the exi namespace, but we remove that,
+    // so the namespace can be entirely replaced.
+    if (AlreadyReplaced.contains(TArgs)) return false;
+    AlreadyReplaced.insert(TArgs);
+    addReplacement(TArgs, N->Name);
+    return true;
+  }
+
+  static ComplexNameKind GetComplexNameKind(std::string_view Name) {
+    if (starts_with(Name, "exi::"))
+      return CNK_exi;
+    else if (starts_with(Name, "std::__1::"))
+      return CNK_std__1;
+    else
+      return CNK_none;
+  }
+  static bool IsXMLName(std::string_view BaseName) {
+    if (!starts_with(BaseName, "XML"))
+      return false;
+    BaseName.remove_prefix(3);
+    switch (BaseName.size()) {
+    case 9:
+      return BaseName == "Attribute";
+    case 8:
+      return BaseName == "Document";
+    case 4:
+      return BaseName == "Base" || BaseName == "Node";
+    default:
+      return false;
+    }
+  }
+
+  bool handleComplexName(NestedName* Node) {
+    if (this->AlreadyInNestedName) return false;
+    else if (AlreadyReplaced.contains(Node)) return false;
+    if (const auto* Qual = node_cast<NameType>(Node->Qual)) {
+      if (isLastNodeFunctionEncoding()) {
+        AlreadyReplaced.insert(Node);
+        return false;
+      }
+      std::string_view Name = Qual->getName();
+      if (Name == "exi")
+        return handle_exi(Node);
+      else if (Name == "xml") {
+        if (IsXMLName(Node->getBaseName()))
+          return handle_xml(Node);
+        return false;
+      }
+    }
+    // Search with strings.
+    Node->print(OB);
+    const auto K = GetComplexNameKind(OB);
+    OB.setCurrentPosition(0);
+    if (K != CNK_std__1 && isLastNodeFunctionEncoding()) {
+      AlreadyReplaced.insert(Node);
+      return false;
+    }
+    // Dispatch the handler.
+    switch (K) {
+    case CNK_exi:
+      return handle_exi(Node);
+    case CNK_std__1:
+      return handle_std__1(Node);
+    case CNK_xml:
+    case CNK_none:
+      return false;
+    }
+  }
+
+  void operator()(const NestedName* Node) {
+    // We know the underlying type is mutable, so it's ok to cast.
+    auto* MutNode = const_cast<NestedName*>(Node);
+    // Strip abi tags.
+    if (auto* ABI = node_cast<AbiTagAttr>(Node->Name))
+      MutNode->Name = ABI->Base;
+    // Search for a special name...
+    const bool InNestedName = handleComplexName(MutNode);
+    const bool OldValue = AlreadyInNestedName;
+    if (InNestedName)
+      this->AlreadyInNestedName = true;
+    ScopedName SN(*this, Node);
+    this->printNode(Node);
+    match(Node);
+    // Restore the old value
+    if (InNestedName)
+      this->AlreadyInNestedName = OldValue;
+  }
+
+  void operator()(const NameType* Node) {
+    ScopedName SN(*this, Node);
+    this->printNode(Node);
+    // Check if this is a lambda.
+    auto Name = Node->getName();
+    if (!starts_with(Name, "$_")) return;
+    if (AlreadyReplaced.contains(Node)) return;
+    // Convert $_NNN into 'lambda#NNN'.
+    Name.remove_prefix(2);
+    OB << "'lambda#" << Name << "'";
+    const auto* NewNode = makeName(OB);
+    OB.setCurrentPosition(0);
+    // Add the new replacement.
+    AlreadyReplaced.insert(Node);
+    addReplacement(Node, NewNode);
+  }
+};
+
+struct XMLVisitor : public BasePrintVisitor {
+  OutputBuffer OB;
+  int Depth = 0;
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Utility
+
+  ~XMLVisitor() {
+    if (char* Buf = OB.getBuffer())
+      exi::exi_free(Buf);
+  }
+
+  template <typename T> struct NamedArg {
+    T Value;
+    const char* Name = "";
+  };
+
+  template <typename NodeT>
+  static constexpr bool isChild(const NodeT* Node) { return !!Node; }
+  static bool isChild(NodeArray A) { return !A.empty(); }
+  static constexpr bool isChild(...) { return false; }
+
+  template <typename T>
+  ALWAYS_INLINE static bool isChild(NamedArg<T> V) { return isChild(V.Value); }
+
+  template <typename...Ts> static bool anyIsChild(Ts...Vs) {
+    return (isChild(Vs) || ...);
+  }
+
+  template <typename NodeT>
+  static constexpr bool isInline(const NodeT* Node) { return false; }
+  static bool isInline(NodeArray) { return false; }
+  static constexpr bool isInline(Node::Prec) { return false; }
+  static constexpr bool isInline(...) { return true; }
+
+  template <typename T>
+  ALWAYS_INLINE static bool isInline(NamedArg<T> V) { return isInline(V.Value); }
+
+  struct HasInlineVisitor {
+    bool HasChildren = false;
+    bool HasInline = false;
+  
+    template <typename...Ts> constexpr void operator()(Ts...Vs) {
+      this->HasChildren = anyIsChild(Vs...);
+      this->HasInline = (isInline(Vs) || ...);
+    }
+  };
+
+  template <typename NodeT>
+  static bool hasChildren(const NodeT* Node) {
+    HasInlineVisitor V{};
+    Node->match(std::ref(V));
+    return V.HasChildren;
+  }
+  template <typename NodeT>
+  static bool hasInline(const NodeT* Node) {
+    HasInlineVisitor V{};
+    Node->match(std::ref(V));
+    return V.HasInline;
+  }
+
+  using BasePrintVisitor::printStr;
+  using BasePrintVisitor::print;
+  using BasePrintVisitor::printPadding;
+
+  void print(const Node *N) = delete;
+  void print(NodeArray A) = delete;
+
+  void print(ReferenceKind RK) {
+    print("ReferenceKind::*");
+  }
+  void print(FunctionRefQual RQ) {
+    print("FunctionRefQual::*");
+  }
+  void print(Qualifiers Qs) {
+    print("Qualifiers::*");
+  }
+  void print(SpecialSubKind SSK) {
+    print("SpecialSubKind::*");
+  }
+  void print(TemplateParamKind TPK) {
+    print("TemplateParamKind::*");
+  }
+  void print(Node::Prec P) = delete;
+
+  template <typename T> void print(NamedArg<T> V) {
+    if (V.Name && V.Name[0])
+      fprintf(stderr, "%s=", V.Name);
+    print(V.Value);
+  }
+
+  void padding() const {
+    if EXI_LIKELY(Depth > 0)
+      printPadding<' '>(Depth * 2u);
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Node Printing
+
+  template <typename T> void printInlineValue(unsigned& N, T V) {
+    if (isInline(V)) {
+      if constexpr (requires { this->print(V); }) {
+        if (N > 0)
+          fprintf(stderr, " arg%u=", N);
+        else
+          fprintf(stderr, " value=");
+        print(V);
+      }
+      N += 1;
+    }
+  }
+  template <typename T> void printInlineValue(unsigned& N, NamedArg<T> V) {
+    if (!V.Name || !V.Name[0]) {
+      printInlineValue(N, V.Value);
+      return;
+    } else if (isInline(V)) {
+      if constexpr (requires { this->print(V.Value); }) {
+        fprintf(stderr, " %s=", V.Name);
+        print(V.Value);
+      }
+      N += 1;
+    }
+  }
+  template <typename...Ts>
+  void printInlineValues(unsigned& N, Ts...Vs) {
+    ((printInlineValue(N, Vs)), ...);
+  }
+  void startInlineName(const char* Name) const {
+    this->padding();
+    fprintf(stderr, "<%s", Name);
+  }
+  void endInlineName(bool InlineOnly, unsigned N) const {
+    static constexpr const char Data[] = " />\n";
+    const unsigned StrOff = !InlineOnly ? 2 : (N > 0) ? 1 : 0;
+    fprintf(stderr, "%s", Data + StrOff);
+  }
+
+  template <typename...Ts>
+  unsigned startNameImpl(bool InlineOnly, const char* Name, Ts...Vs) {
+    startInlineName(Name);
+    unsigned N = 0;
+    if constexpr (sizeof...(Ts) > 0)
+      printInlineValues(N, Vs...);
+    endInlineName(InlineOnly, N);
+    return N;
+  }
+  template <class NodeT>
+  bool startNameImpl(const NodeT* Node) {
+    const bool HasChildren = hasChildren(Node);
+    auto Functor = [this, HasChildren] (auto...Vs) {
+      const char* Name = itanium_demangle::NodeKind<NodeT>::name();
+      const bool InlineOnly = !HasChildren;
+      (void) this->startNameImpl(InlineOnly, Name, Vs...);
+    };
+    Node->match(std::ref(Functor));
+    if (HasChildren)
+      ++Depth;
+    return HasChildren;
+  }
+
+  template <typename...Ts>
+  ALWAYS_INLINE bool startName(const char* Name, Ts...Vs) {
+    (void) startNameImpl(/*InlineOnly=*/false, Name, Vs...);
+    ++Depth;
+    return true;
+  }
+  template <typename...Ts>
+  ALWAYS_INLINE bool inlineName(const char* Name, Ts...Vs) {
+    (void) startNameImpl(/*InlineOnly=*/true, Name, Vs...);
+    return false;
+  }
+  /// @return `true` if the node has children, otherwise `false`.
+  template <class NodeT>
+  bool startName(const NodeT* Node) {
+    const bool HasChildren = hasChildren(Node);
+    auto Functor = [this, HasChildren] (auto...Vs) {
+      const char* Name = NodeKind<NodeT>::name();
+      const bool InlineOnly = !HasChildren;
+      (void) this->startNameImpl(InlineOnly, Name, Vs...);
+    };
+    Node->match(std::ref(Functor));
+    if (HasChildren)
+      ++Depth;
+    return HasChildren;
+  }
+  void endName(const char* Name) {
+    --Depth;
+    this->padding();
+    fprintf(stderr, "</%s>\n", Name);
+  }
+
+  void comment(std::string_view SV) {
+    this->padding();
+    printStr("<!-- ");
+    printStr(SV.data(), SV.size());
+    printStr(" -->");
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Dispatching
+
+  class ScopedName {
+    XMLVisitor& Visitor;
+    const char* Name = nullptr;
+  public:
+    template <typename NodeT>
+    ScopedName(XMLVisitor& thiz, const NodeT* N) : Visitor(thiz) {
+      if EXI_NEVER(N == nullptr)
+        return;
+      if (!Visitor.startName(N))
+        return;
+      this->Name = NodeKind<NodeT>::name();
+    }
+    ALWAYS_INLINE ScopedName(XMLVisitor& thiz, const char* Name)
+        : Visitor(thiz), Name(Name) {
+      Visitor.startName(Name); 
+    }
+    ~ScopedName() {
+      if (Name)
+        Visitor.endName(Name);
+    }
+  };
+
+  void next(const Node* N) {
+    if (N)
+      N->visit(std::ref(*this));
+  }
+  void next(NodeArray A, const char* Name = nullptr) {
+    if (!Name || !Name[0])
+      Name = "NodeArray";
+    // Check if this array is empty
+    if (A.size() == 0) {
+      this->inlineName(Name);
+      return;
+    }
+    // Node array has data.
+    ScopedName SN(*this, Name);
+    for (const Node* N : A) {
+      if EXI_LIKELY(N)
+        N->visit(std::ref(*this));
+    }
+  }
+  template <typename T>
+  ALWAYS_INLINE void next(NamedArg<T> V) {
+    next(V.Value);
+  }
+  ALWAYS_INLINE void next(NamedArg<NodeArray> A) {
+    next(A.Value, A.Name);
+  }
+  void next(...) {}
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Specialization
+
+  struct ArgVisitor {
+    XMLVisitor& Visitor;
+    template <typename...Ts> void operator()(Ts...Vs) {
+      ((Visitor.next(Vs)), ...);
+    }
+  };
+
+  template <typename NodeT> ALWAYS_INLINE void match(const NodeT* Node) {
+    Node->match(ArgVisitor{*this});
+  }
+
+  template <typename NodeT> void operator()(const NodeT* Node) {
+    ScopedName SN(*this, Node);
+    match(Node);
+  }
+
+  void operator()(const FunctionEncoding* Node) {
+    ScopedName SN(*this, Node);
+    ArgVisitor{*this}(
+      NamedArg{Node->getReturnType(), "ReturnType"},
+      NamedArg{Node->getName(), "FunctionName"},
+      NamedArg{Node->getParams(), "FunctionParams"},
+      NamedArg{Node->getAttrs(), "FunctionAttrs"},
+      NamedArg{Node->getRequires(), "Requires"},
+      NamedArg{Node->getCVQuals(), "CVQuals"},
+      NamedArg{Node->getRefQual(), "RefQual"}
+    );
+  }
+
+  void operator()(const ForwardTemplateReference* Node) {
+    if (Node->Ref && !Node->Printing) {
+      ScopedName SN(*this, "ForwardTemplateReference");
+      Node->Printing = true;
+      ArgVisitor{*this}(Node->Ref);
+      Node->Printing = false;
+    } else {
+      inlineName("ForwardTemplateReference", Node->Index);
+    }
+  }
+};
+} // namespace `anonymous`
 
 char *exi::itaniumDemangle(std::string_view MangledName, bool ParseParams) {
   if (MangledName.empty())
@@ -372,6 +1288,32 @@ char *exi::itaniumDemangle(std::string_view MangledName, bool ParseParams) {
   Node *AST = Parser.parse(ParseParams);
   if (!AST)
     return nullptr;
+
+  OutputBuffer OB;
+  assert(Parser.ForwardTemplateRefs.empty());
+  AST->print(OB);
+  OB += '\0';
+  return OB.getBuffer();
+}
+
+char *exi::itaniumDemangleSimple(std::string_view MangledName, bool ParseParams) {
+  if (MangledName.empty())
+    return nullptr;
+
+  Demangler Parser(MangledName.data(),
+                   MangledName.data() + MangledName.length());
+  Node *AST = Parser.parse(ParseParams);
+  if (!AST)
+    return nullptr;
+  
+  SimplifyVisitor V(Parser);
+  AST->visit(std::ref(V));
+  V.doReplacements();
+
+#if !DUMP_SIMPLIFY && 0
+  XMLVisitor XMLV;
+  AST->visit(std::ref(XMLV));
+#endif
 
   OutputBuffer OB;
   assert(Parser.ForwardTemplateRefs.empty());

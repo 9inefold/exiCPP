@@ -100,10 +100,11 @@ public:
   /// Called when we make the \c CurrentPosition of this object smaller.
   virtual void notifyDeletion(size_t /*OldPos*/, size_t /*NewPos*/) {}
 
+  static constexpr unsigned kPackNpos = std::numeric_limits<unsigned>::max();
   /// If a ParameterPackExpansion (or similar type) is encountered, the offset
   /// into the pack that we're currently printing.
-  unsigned CurrentPackIndex = std::numeric_limits<unsigned>::max();
-  unsigned CurrentPackMax = std::numeric_limits<unsigned>::max();
+  unsigned CurrentPackIndex = OutputBuffer::kPackNpos;
+  unsigned CurrentPackMax = OutputBuffer::kPackNpos;
 
   struct {
     /// The depth of '(' and ')' inside the currently printed template
@@ -221,6 +222,21 @@ public:
   char *getBuffer() { return Buffer; }
   char *getBufferEnd() { return Buffer + CurrentPosition - 1; }
   size_t getBufferCapacity() const { return BufferCapacity; }
+
+  void clear() {
+    this->clearBuffer();
+    this->CurrentPackIndex = kPackNpos;
+    this->CurrentPackMax = kPackNpos;
+    this->TemplateTracker = {};
+  }
+  void clearBuffer() {
+    if EXI_LIKELY(Buffer != nullptr) {
+      exi::exi_free(Buffer);
+      this->Buffer = nullptr;
+      this->CurrentPosition = 0;
+      this->BufferCapacity = 0;
+    }
+  }
 };
 
 template <class T> class ScopedOverride {

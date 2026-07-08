@@ -39,6 +39,13 @@ enum : int {
 DEMANGLE_ABI char *itaniumDemangle(std::string_view mangled_name,
                                    bool ParseParams = true);
 
+/// Works like `itaniumDemangle`, but simplifies the output.
+/// Returns a non-NULL pointer to a NUL-terminated C style string
+/// that should be explicitly freed, if successful. Otherwise, may return
+/// nullptr if mangled_name is not a valid mangling or is nullptr.
+DEMANGLE_ABI char *itaniumDemangleSimple(std::string_view mangled_name,
+                                         bool ParseParams = true);
+
 enum MSDemangleFlags {
   MSDF_None = 0,
   MSDF_DumpBackrefs = 1 << 0,
