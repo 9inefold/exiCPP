@@ -1087,12 +1087,41 @@ struct SimplifyVisitor : public SimplifyVisitorBase {
     SmallPtrSet<const Node*, 8> FnParams(exi::from_range, FE->getParams());
     SmallVec<Node*, 8> NewTParams;
 
+    auto RemoveCVPtrRef = [] (Node*& N) -> bool {
+      if (!node_isa<PointerType, ReferenceType, QualType>(N))
+        return false;
+      if (auto* P = node_cast<PointerType>(N)) {
+        N = const_cast<Node*>(P->getPointee());
+        return true;
+      } else if (auto* R = node_cast<ReferenceType>(N)) {
+        R->match([&N](const Node* Pointee, ReferenceKind) {
+          N = const_cast<Node*>(Pointee);
+        });
+        return true;
+      } else if (auto* Q = node_cast<QualType>(N)) {
+        N = const_cast<Node*>(Q->getChild());
+        return true;
+      }
+      return false;
+    };
+
     // Loop through the template params, see if any EXACTLY match fn params.
     // TODO: Handle parameter packs?
     NodeArray TParams = TArgs->getParams();
     for (Node* N : TParams) {
-      if (!FnParams.contains(N))
+      if (!FnParams.contains(N)) {
         NewTParams.push_back(N);
+        break;
+      }
+      // Try removing quals. Set a limit to make it more realistic.
+      for (int I = 0; I < 4; ++I) {
+        if (!RemoveCVPtrRef(N))
+          break;
+        if (!FnParams.contains(N)) {
+          NewTParams.push_back(N);
+          break;
+        }
+      }
     }
     if (NewTParams.size() == TParams.size()) {
       // No changes to the template.
