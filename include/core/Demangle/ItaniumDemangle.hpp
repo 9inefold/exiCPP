@@ -556,6 +556,49 @@ public:
   void printLeft(OutputBuffer &OB) const override { OB += Name; }
 };
 
+enum class FundamentalTypeKind : unsigned {
+  Integer,
+  Float,
+  Decimal,
+  Accum,
+  Fract,
+  SatAccum,
+  SatFract,
+};
+
+class FundamentalType final : public Node {
+  const char* Name;
+  unsigned NameSize = 0;
+  unsigned DistinguishingBits : 16 = 0;
+  unsigned IsUnsigned : 1 = 0;
+  unsigned Kind : 15 = 0;
+
+public:
+  FundamentalType(std::string_view Name_, unsigned Bits,
+                  FundamentalTypeKind Kind_, bool Unsigned_ = false)
+      : Node(KFundamentalType), Name(Name_.data()), NameSize(Name_.size()),
+        DistinguishingBits(Bits), IsUnsigned(Unsigned_), Kind(unsigned(Kind_)) {}
+
+  template<typename Fn> void match(Fn F) const {
+    const auto K = getFundamentalType();
+    if (K != FundamentalTypeKind::Integer)
+      F(getName(), DistinguishingBits, K);
+    else
+      F(getName(), DistinguishingBits, K, isUnsigned());
+  }
+
+  std::string_view getName() const { return std::string_view(Name, NameSize); }
+  std::string_view getBaseName() const override { return getName(); }
+
+  unsigned getBits() const { return DistinguishingBits; }
+  FundamentalTypeKind getFundamentalType() const {
+    return FundamentalTypeKind(Kind);
+  }
+  bool isUnsigned() const { return IsUnsigned; }
+
+  void printLeft(OutputBuffer &OB) const override { OB += getName(); }
+};
+
 class BitIntType final : public Node {
   const Node *Size;
   bool Signed;
@@ -1019,6 +1062,7 @@ public:
   const Node *getName() const { return Name; }
 
   void printLeft(OutputBuffer &OB) const override {
+    OB.printFuncOpen('{');
     if (Ret) {
       OB.printLeft(*Ret);
       if (!Ret->hasRHSComponent(OB))
@@ -1055,6 +1099,7 @@ public:
       OB += " requires ";
       Requires->print(OB);
     }
+    OB.printFuncClose('}');
   }
 };
 
@@ -1603,6 +1648,7 @@ public:
   template<typename Fn> void match(Fn F) const { F(Params, Requires); }
 
   NodeArray getParams() { return Params; }
+  Node *getRequires() { return Requires; }
 
   void printLeft(OutputBuffer &OB) const override {
     ScopedOverride<bool> LT(OB.TemplateTracker.InsideTemplate, true);
@@ -4252,34 +4298,46 @@ Node *AbstractManglingParser<Derived, Alloc>::parseQualifiedType() {
   return Ty;
 }
 
-template <std::integral Integer>
-inline constexpr const char* mapItaniumTypeToFundamental(const char* Fallback) {
-  if constexpr (std::unsigned_integral<Integer>) {
-    switch (bitsizeof_v<Integer>) {
-    case 8:   return "u8";
-    case 16:  return "u16";
-    case 32:  return "u32";
-    case 64:  return "u64";
-    case 128: return "u128";
-    }
-  } else {
-    switch (bitsizeof_v<Integer>) {
-    case 8:   return "i8";
-    case 16:  return "i16";
-    case 32:  return "i32";
-    case 64:  return "i64";
-    case 128: return "i128";
-    }
-  }
-  return Fallback;
-}
-
 template <typename Derived, typename Alloc>
 template <class Fundamental>
-Node *AbstractManglingParser<Derived, Alloc>::makeType(const char *Fallback) {
-  const char *Name = mapItaniumTypeToFundamental<Fundamental>(Fallback);
+Node *AbstractManglingParser<Derived, Alloc>::makeType(const char *Name) {
+  using enum FundamentalTypeKind;
+  const usize Bits = bitsizeof_v<Fundamental>;
+  if constexpr (std::integral<Fundamental>) {
+    const bool IsUnsigned = std::unsigned_integral<Fundamental>;
+    return make<FundamentalType>(Name, Bits, Integer, IsUnsigned);
+  } else if constexpr (std::floating_point<Fundamental>) {
+    return make<FundamentalType>(Name, Bits, Float);
+  }
   return make<NameType>(Name);
 }
+
+#define GENERATE_FIXED_POINT_SWITCH(TYPE, PREFIX, POSTFIX) do {               \
+  char c = look(2);                                                           \
+  First += 3;                                                                 \
+  switch (c) {                                                                \
+  case 's':                                                                   \
+    return make<FundamentalType>(PREFIX "short " POSTFIX,                     \
+                                 bitsizeof_v<short>, TYPE);                   \
+  case 't':                                                                   \
+    return make<FundamentalType>(PREFIX "unsigned short " POSTFIX,            \
+                                 bitsizeof_v<short>, TYPE, true);             \
+  case 'i':                                                                   \
+    return make<FundamentalType>(PREFIX "" POSTFIX,                           \
+                                 bitsizeof_v<int>, TYPE);                     \
+  case 'j':                                                                   \
+    return make<FundamentalType>(PREFIX "unsigned " POSTFIX,                  \
+                                 bitsizeof_v<int>, TYPE, true);               \
+  case 'l':                                                                   \
+    return make<FundamentalType>(PREFIX "long " POSTFIX,                      \
+                                 bitsizeof_v<long>, TYPE);                    \
+  case 'm':                                                                   \
+    return make<FundamentalType>(PREFIX "unsigned long " POSTFIX,             \
+                                 bitsizeof_v<long>, TYPE, true);              \
+  default:                                                                    \
+    return nullptr;                                                           \
+  }                                                                           \
+} while (false)
 
 // <type>      ::= <builtin-type>
 //             ::= <qualified-type>
@@ -4303,9 +4361,9 @@ Node *AbstractManglingParser<Derived, Alloc>::makeType(const char *Fallback) {
 // <objc-type> ::= <source-name>  # PU<11+>objcproto 11objc_object<source-name> 11objc_object -> id<source-name>
 template <typename Derived, typename Alloc>
 Node *AbstractManglingParser<Derived, Alloc>::parseType() {
+  using enum FundamentalTypeKind;
   Node *Result = nullptr;
   
-  // FIXME: Don't hardcode the exi names, just record some info and save it later.
   switch (look()) {
   //             ::= <qualified-type>
   case 'r':
@@ -4348,82 +4406,67 @@ Node *AbstractManglingParser<Derived, Alloc>::parseType() {
   //                ::= a    # signed char
   case 'a':
     ++First;
-    //return make<NameType>("signed char");
     return makeType<signed char>("signed char");
   //                ::= h    # unsigned char
   case 'h':
     ++First;
-    //return make<NameType>("unsigned char");
     return makeType<unsigned char>("unsigned char");
   //                ::= s    # short
   case 's':
     ++First;
-    //return make<NameType>("short");
     return makeType<short>("short");
   //                ::= t    # unsigned short
   case 't':
     ++First;
-    //return make<NameType>("unsigned short");
     return makeType<unsigned short>("unsigned short");
   //                ::= i    # int
   case 'i':
     ++First;
-    //return make<NameType>("int");
     return makeType<int>("int");
   //                ::= j    # unsigned int
   case 'j':
     ++First;
-    //return make<NameType>("unsigned int");
     return makeType<unsigned int>("unsigned");
   //                ::= l    # long
   case 'l':
     ++First;
-    //return make<NameType>("long");
     return makeType<long>("long");
   //                ::= m    # unsigned long
   case 'm':
     ++First;
-    //return make<NameType>("unsigned long");
     return makeType<unsigned long>("unsigned long");
   //                ::= x    # long long, __int64
   case 'x':
     ++First;
-    //return make<NameType>("long long");
     return makeType<long long>("long long");
   //                ::= y    # unsigned long long, __int64
   case 'y':
     ++First;
-    //return make<NameType>("unsigned long long");
     return makeType<unsigned long long>("unsigned long long");
   //                ::= n    # __int128
   case 'n':
     ++First;
-    //return make<NameType>("__int128");
-    return make<NameType>("i128");
+    return make<FundamentalType>("__int128", 128, Integer);
   //                ::= o    # unsigned __int128
   case 'o':
     ++First;
-    //return make<NameType>("unsigned __int128");
-    return make<NameType>("u128");
+    return make<FundamentalType>("unsigned __int128", 128, Integer, true);
   //                ::= f    # float
   case 'f':
     ++First;
-    //return make<NameType>("float");
-    return make<NameType>("f32");
+    return makeType<float>("float");
   //                ::= d    # double
   case 'd':
     ++First;
-    //return make<NameType>("double");
-    return make<NameType>("f64");
+    return makeType<double>("double");
   //                ::= e    # long double, __float80
   case 'e':
     ++First;
-    return make<NameType>("long double");
+    return make<FundamentalType>("long double", 80, Float);
   //                ::= g    # __float128
   case 'g':
     ++First;
-    //return make<NameType>("__float128");
-    return make<NameType>("f128");
+    return make<FundamentalType>("__float128", 128, Float);
   //                ::= z    # ellipsis
   case 'z':
     ++First;
@@ -4454,19 +4497,19 @@ Node *AbstractManglingParser<Derived, Alloc>::parseType() {
     //                ::= Dd   # IEEE 754r decimal floating point (64 bits)
     case 'd':
       First += 2;
-      return make<NameType>("decimal64");
+      return make<FundamentalType>("decimal64", 64, Decimal);
     //                ::= De   # IEEE 754r decimal floating point (128 bits)
     case 'e':
       First += 2;
-      return make<NameType>("decimal128");
+      return make<FundamentalType>("decimal128", 128, Decimal);
     //                ::= Df   # IEEE 754r decimal floating point (32 bits)
     case 'f':
       First += 2;
-      return make<NameType>("decimal32");
+      return make<FundamentalType>("decimal32", 32, Decimal);
     //                ::= Dh   # IEEE 754r half-precision floating point (16 bits)
     case 'h':
       First += 2;
-      return make<NameType>("half");
+      return make<FundamentalType>("half", 16, Decimal);
     //       ::= DF16b         # C++23 std::bfloat16_t
     //       ::= DF <number> _ # ISO/IEC TS 18661 binary floating point (N bits)
     case 'F': {
@@ -4490,89 +4533,19 @@ Node *AbstractManglingParser<Derived, Alloc>::parseType() {
     //                ::= l # long
     //                ::= m # unsigned long
     case 'A': {
-      char c = look(2);
-      First += 3;
-      switch (c) {
-      case 's':
-        return make<NameType>("short _Accum");
-      case 't':
-        return make<NameType>("unsigned short _Accum");
-      case 'i':
-        return make<NameType>("_Accum");
-      case 'j':
-        return make<NameType>("unsigned _Accum");
-      case 'l':
-        return make<NameType>("long _Accum");
-      case 'm':
-        return make<NameType>("unsigned long _Accum");
-      default:
-        return nullptr;
-      }
+      GENERATE_FIXED_POINT_SWITCH(Accum, "", "_Accum");
     }
     case 'R': {
-      char c = look(2);
-      First += 3;
-      switch (c) {
-      case 's':
-        return make<NameType>("short _Fract");
-      case 't':
-        return make<NameType>("unsigned short _Fract");
-      case 'i':
-        return make<NameType>("_Fract");
-      case 'j':
-        return make<NameType>("unsigned _Fract");
-      case 'l':
-        return make<NameType>("long _Fract");
-      case 'm':
-        return make<NameType>("unsigned long _Fract");
-      default:
-        return nullptr;
-      }
+      GENERATE_FIXED_POINT_SWITCH(Fract, "", "_Fract");
     }
     case 'S': {
       First += 2;
       if (look() != 'D')
         return nullptr;
-      if (look(1) == 'A') {
-        char c = look(2);
-        First += 3;
-        switch (c) {
-        case 's':
-          return make<NameType>("_Sat short _Accum");
-        case 't':
-          return make<NameType>("_Sat unsigned short _Accum");
-        case 'i':
-          return make<NameType>("_Sat _Accum");
-        case 'j':
-          return make<NameType>("_Sat unsigned _Accum");
-        case 'l':
-          return make<NameType>("_Sat long _Accum");
-        case 'm':
-          return make<NameType>("_Sat unsigned long _Accum");
-        default:
-          return nullptr;
-        }
-      }
-      if (look(1) == 'R') {
-        char c = look(2);
-        First += 3;
-        switch (c) {
-        case 's':
-          return make<NameType>("_Sat short _Fract");
-        case 't':
-          return make<NameType>("_Sat unsigned short _Fract");
-        case 'i':
-          return make<NameType>("_Sat _Fract");
-        case 'j':
-          return make<NameType>("_Sat unsigned _Fract");
-        case 'l':
-          return make<NameType>("_Sat long _Fract");
-        case 'm':
-          return make<NameType>("_Sat unsigned long _Fract");
-        default:
-          return nullptr;
-        }
-      }
+      if (look(1) == 'A')
+        GENERATE_FIXED_POINT_SWITCH(SatAccum, "_Sat ", "_Accum");
+      if (look(1) == 'R')
+        GENERATE_FIXED_POINT_SWITCH(SatFract, "_Sat ", "_Fract");
       return nullptr;
     }
     //                ::= DB <number> _                             # C23 signed _BitInt(N)
@@ -4810,6 +4783,8 @@ Node *AbstractManglingParser<Derived, Alloc>::parseType() {
     Subs.push_back(Result);
   return Result;
 }
+
+#undef GENERATE_FIXED_POINT_SWITCH
 
 template <typename Derived, typename Alloc>
 Node *
@@ -6336,6 +6311,24 @@ Node *AbstractManglingParser<Derived, Alloc>::parse(bool ParseParams) {
     if (numLeft() != 0)
       return nullptr;
     return make<SpecialName>("invocation function for block in ", Encoding);
+  }
+
+  if (look() == 'Z') {
+    const char *Saved = First;
+    ++First;
+    Node *Encoding = getDerived().parseEncoding(ParseParams);
+    if (Encoding != nullptr) {
+      if (look() == '.') {
+        Encoding =
+            make<DotSuffix>(Encoding, std::string_view(First, Last - First));
+        First = Last;
+      }
+      if (AllocToken)
+        Encoding = make<DotSuffix>(Encoding, ".alloc_token");
+      if (numLeft() == 0)
+        return Encoding;
+    }
+    First = Saved;
   }
 
   Node *Ty = getDerived().parseType();

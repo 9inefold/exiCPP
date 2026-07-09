@@ -115,6 +115,9 @@ public:
     bool InsideTemplate = false;
   } TemplateTracker;
 
+  /// True if we've already parsed the base function name.
+  unsigned FunctionEncodingDepth = 0;
+
   /// Returns true if we're currently between a '(' and ')' when printing
   /// template args.
   bool isInParensInTemplateArgs() const {
@@ -133,6 +136,20 @@ public:
     if (isInsideTemplateArgs())
       TemplateTracker.ParenDepth--;
     *this += Close;
+  }
+
+  /// Returns true if we're in a top level function name.
+  bool inTopLevelName() const { return FunctionEncodingDepth == 0; }
+
+  void printFuncOpen(char Open = '(') {
+    if (!inTopLevelName())
+      *this += Open;
+    ++FunctionEncodingDepth;
+  }
+  void printFuncClose(char Close = ')') {
+    --FunctionEncodingDepth;
+    if (!inTopLevelName())
+      *this += Close;
   }
 
   OutputBuffer &operator+=(std::string_view R) {

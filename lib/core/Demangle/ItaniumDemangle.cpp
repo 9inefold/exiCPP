@@ -14,7 +14,9 @@
 
 #include <core/Demangle/Demangle.hpp>
 #include <core/Demangle/ItaniumDemangle.hpp>
-#include <core/Common/DenseSet.hpp>
+#include <core/Common/SmallPtrSet.hpp>
+#include <core/Common/SmallVec.hpp>
+#include <core/Common/STLExtras.hpp>
 #include <core/Support/Alloc.hpp>
 #include <core/Support/IntCast.hpp>
 #include <core/Support/ScopedSave.hpp>
@@ -292,6 +294,24 @@ struct DumpVisitor : public BasePrintVisitor {
       }
     }
   }
+  void print(FundamentalTypeKind FTK) {
+    switch (FTK) {
+    case FundamentalTypeKind::Integer:
+      return printStr("FundamentalTypeKind::Integer");
+    case FundamentalTypeKind::Float:
+      return printStr("FundamentalTypeKind::Float");
+    case FundamentalTypeKind::Decimal:
+      return printStr("FundamentalTypeKind::Decimal");
+    case FundamentalTypeKind::Accum:
+      return printStr("FundamentalTypeKind::Accum");
+    case FundamentalTypeKind::Fract:
+      return printStr("FundamentalTypeKind::Fract");
+    case FundamentalTypeKind::SatAccum:
+      return printStr("FundamentalTypeKind::SatAccum");
+    case FundamentalTypeKind::SatFract:
+      return printStr("FundamentalTypeKind::SatFract");
+    }
+  }
   void print(SpecialSubKind SSK) {
     switch (SSK) {
     case SpecialSubKind::allocator:
@@ -517,7 +537,14 @@ using Demangler = itanium_demangle::ManglingParser<DefaultAllocator>;
 #define DUMP_SIMPLIFY 0
 
 namespace {
-struct SimplifyVisitor : public BaseVisitor {
+
+#if DUMP_SIMPLIFY
+using SimplifyVisitorBase = BasePrintVisitor;
+#else
+using SimplifyVisitorBase = BaseVisitor;
+#endif
+
+struct SimplifyVisitor : public SimplifyVisitorBase {
   Demangler& Parser;
   OutputBuffer OB;
 #if DUMP_SIMPLIFY
@@ -525,6 +552,7 @@ struct SimplifyVisitor : public BaseVisitor {
 #endif
 
   mutable PODSmallVector<const Node*, 32> NodeStack;
+  bool IsExiFunction = false;
   bool AlreadyInNestedName = false;
 
   const Node* getNode(isize Pos = -1) const {
@@ -547,33 +575,42 @@ struct SimplifyVisitor : public BaseVisitor {
   /// Marks a node to be replaced.
   struct NodeReplacement {
     union {
-      Node** DirectReplacement;
-      const Node** ConstDirectReplacement;
-      Node* OverwriteReplacement;
+      Node** Direct;
+      const Node** ConstDirect;
     };
     const Node* ReplaceWith;
-    /// The size when doing `OverwriteReplacement`.
-    u32 Size : 30;
-    /// If `DirectReplacement` (`true`) or `OverwriteReplacement`.
-    u32 IsDirect : 1;
     /// If the type is actually const.
-    u32 IsReallyConst : 1;
+    bool IsReallyConst;
   };
   /// Holds the list of replacements.
   PODSmallVector<NodeReplacement, 8> Replacements;
-  /// Holds the list of already handled items.
-  exi::DenseSet<const Node*> AlreadyReplaced;
+  /// Marks a node to be overwritten.
+  struct NodeOverwrite {
+    Node* Overwrite;
+    const Node* ReplaceWith;
+    /// The size of the overwrite.
+    u32 Size;
+  };
+  /// Holds the list of overwrites.
+  PODSmallVector<NodeOverwrite, 4> Overwrites;
 
+  // TODO: Use SmallPtrSet
+
+  /// Holds the list of already handled items.
+  exi::SmallPtrSet<const Node*, 8> AlreadyReplaced;
+  exi::SmallPtrSet<const Node*, 4> AlreadyReplacedFunctions;
+
+  using BaseVisitor::node_isa;
+  using BaseVisitor::node_cast;
+  using BaseVisitor::node_cast_if_present;
   using BaseVisitor::node_size;
 
   static const void* GetReplacementPoint(const NodeReplacement& R) {
-    if (!R.IsDirect)
-      return R.OverwriteReplacement;
     // Direct replacements
     if (R.IsReallyConst)
-      return R.ConstDirectReplacement;
+      return R.ConstDirect;
     else
-      return R.DirectReplacement;
+      return R.Direct;
   }
   bool areAnyOtherReplacementsInsidePoint(const Node* Point, usize Size) {
     const char* const Begin = (const char*)Point;
@@ -587,6 +624,15 @@ struct SimplifyVisitor : public BaseVisitor {
       if (W >= Begin && W < End)
         return true;
     }
+    for (const NodeOverwrite& Overwrite : Overwrites) {
+      auto* P = (const char*)Overwrite.Overwrite;
+      if (P >= Begin && P < End)
+        return true;
+      // Check our replacement isn't being overwritten either!
+      auto* W = (const char*)Overwrite.ReplaceWith;
+      if (W >= Begin && W < End)
+        return true;
+    }
     return false;
   }
 
@@ -594,14 +640,12 @@ struct SimplifyVisitor : public BaseVisitor {
   void addReplacement(PointT** Point, const Node* ReplaceWith) {
     NodeReplacement Replacement {
       .ReplaceWith = ReplaceWith,
-      .IsDirect = 1
+      .IsReallyConst = std::is_const_v<PointT>
     };
     if constexpr (!std::is_const_v<PointT>)
-      Replacement.DirectReplacement = Point;
-    else {
-      Replacement.ConstDirectReplacement = Point;
-      Replacement.IsReallyConst = 1;
-    }
+      Replacement.Direct = Point;
+    else
+      Replacement.ConstDirect = Point;
     Replacements.push_back(Replacement);
   }
   void addReplacement(const Node* Point, const Node* ReplaceWith) {
@@ -618,31 +662,30 @@ struct SimplifyVisitor : public BaseVisitor {
       ReplaceWith = wrap(ReplaceWith);
       ReplaceWithSize = sizeof(NodeProxyNode);
     }
-    Replacements.push_back({
-      .OverwriteReplacement = const_cast<Node*>(Point),
+    Overwrites.push_back({
+      .Overwrite = const_cast<Node*>(Point),
       .ReplaceWith = ReplaceWith,
       .Size = u32(ReplaceWithSize),
-      .IsDirect = 0, .IsReallyConst = 0
     });
   }
 
   void doReplacements() {
     for (const NodeReplacement& Replace : Replacements) {
-      if (!Replace.IsDirect) {
-        const void* Src = Replace.ReplaceWith;
-        void* Dst = Replace.OverwriteReplacement;
-        std::memcpy(Dst, Src, Replace.Size);
-        continue;
-      }
       if (Replace.IsReallyConst)
-        *Replace.ConstDirectReplacement = Replace.ReplaceWith;
+        *Replace.ConstDirect = Replace.ReplaceWith;
       else {
         Node* N = const_cast<Node*>(Replace.ReplaceWith);
-        *Replace.DirectReplacement = N;
+        *Replace.Direct = N;
       }
+    }
+    for (const NodeOverwrite& Overwrite : Overwrites) {
+      const void* Src = Overwrite.ReplaceWith;
+      void* Dst = Overwrite.Overwrite;
+      std::memcpy(Dst, Src, Overwrite.Size);
     }
     // Clear it all.
     Replacements.clear();
+    Overwrites.clear();
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -666,48 +709,60 @@ struct SimplifyVisitor : public BaseVisitor {
     return make<NodeProxyNode>(const_cast<Node*>(N));
   }
 
+  template <itanium_node NodeT, class...Args>
+  static NodeT* reinit(const NodeT* N, Args&&...args) {
+    return std::construct_at(const_cast<NodeT*>(N),
+                             std::forward<Args>(args)...);
+  }
+
   //////////////////////////////////////////////////////////////////////////////
   // Dispatching
 
 #if DUMP_SIMPLIFY
   void padding() {
     if (Depth <= 0) return;
-    for (int I = 0; I < Depth; ++I)
-      fputs("  ", stderr);
+    BasePrintVisitor::printPadding<' '>(Depth * 2);
+  }
+  void print(std::string_view SV) {
+    this->padding();
+    BasePrintVisitor::print(SV);
+    BasePrintVisitor::printStr("\n");
   }
   void printNode(const Node* N) {
     if (!N) return;
     N->print(OB);
-    /*print*/ {
-      const char* Data = OB.getBuffer();
-      const usize Size = OB.getCurrentPosition();
-      this->padding();
-      fprintf(stderr, "%.*s\n", IntCastOrZero<int>(Size), Data);
-    }
+    this->print(OB);
     OB.setCurrentPosition(0);
   }
 #else
+  ALWAYS_INLINE constexpr void print(std::string_view SV) {}
   ALWAYS_INLINE constexpr void printNode(const Node*) {}
 #endif
 
   class ScopedName {
 #if DUMP_SIMPLIFY
     SimplifyVisitor& Visitor;
-    const void* Ptr = nullptr;
+    const Node* N = nullptr;
     const char* Name = nullptr;
+    bool Ptr : 1 = false;
+    bool AlreadyReplaced : 1 = false;
   public:
     template <typename NodeT>
-    ScopedName(SimplifyVisitor& thiz, const NodeT* N) : Visitor(thiz) {
+    ScopedName(SimplifyVisitor& thiz, const NodeT* N) : Visitor(thiz), N(N) {
       if (node_isa<NameWithTemplateArgs, NestedName, NameType>(N))
-        this->Ptr = N;
+        this->Ptr = true;
+      else if (node_isa<PointerType, ReferenceType>(N))
+        this->Ptr = true;
       this->Name = node_name(N);
       Visitor.padding();
       if (this->Ptr)
-        fprintf(stderr, "<%s:%p>", Name, Ptr);
+        fprintf(stderr, "<%s:%p>", Name, N);
       else
         fprintf(stderr, "<%s>", Name);
-      if (Visitor.AlreadyReplaced.contains(N))
+      if (Visitor.AlreadyReplaced.contains(N)) {
+        this->AlreadyReplaced = true;
         fputc('*', stderr);
+      }
       fputc('\n', stderr);
       ++Visitor.Depth;
     }
@@ -715,9 +770,12 @@ struct SimplifyVisitor : public BaseVisitor {
       --Visitor.Depth;
       Visitor.padding();
       if (this->Ptr)
-        fprintf(stderr, "</%s:%p>\n", Name, Ptr);
+        fprintf(stderr, "</%s:%p>", Name, N);
       else
-        fprintf(stderr, "</%s>\n", Name);
+        fprintf(stderr, "</%s>", Name);
+      if (Visitor.AlreadyReplaced.contains(N))
+        fputs(AlreadyReplaced ? "*" : "**", stderr);
+      fputc('\n', stderr);
     }
 #else
   public:
@@ -773,6 +831,26 @@ struct SimplifyVisitor : public BaseVisitor {
     CNK_xml,    // xml::*
   };
 
+  /// Returns if a function is in the exi namespace.
+  EXI_COLD EXI_NO_INLINE static bool
+   isExiFunctionEncoding(const FunctionEncoding* FE) {
+    DEMANGLE_ASSERT(FE, "Function cannot be null!");
+    const NestedName* NN = node_cast<NestedName>(FE->getName());
+    if (!NN) {
+      if (auto* NWTA = node_cast<NameWithTemplateArgs>(FE->getName()))
+        NN = node_cast<NestedName>(NWTA->Name);
+      if (!NN) return false; // Global (or unknown), cannot be exi.
+    }
+    if (node_isa<NestedName>(NN->Qual)) {
+      NN = getBaseNestedNamePair(const_cast<NestedName*>(NN)).first;
+      if (!NN) return false;
+    }
+    // Check the actual name value.
+    if (auto* Name = node_cast<NameType>(NN->Qual))
+      return Name->getName() == "exi";
+    return false;
+  }
+
   static bool areBothNamesSimple(const NestedName* Node) {
     //return isa<NestedName>(Node->Qual) && isa<NameType>(Node->Name);
     return !node_isa<NestedName>(Node->Qual) /*&& node_isa<NameType>(Node->Name)*/;
@@ -814,17 +892,48 @@ struct SimplifyVisitor : public BaseVisitor {
     }
     return nullptr;
   }
-  bool isLastNodeFunctionEncoding() {
-    if (auto* Last = getNode(-1))
-      return node_isa<FunctionEncoding>(Last);
+  bool isLastNodeFunctionEncoding(const NestedName* Name) {
+    if (auto* Last = getNode(-1)) {
+      if (auto* FE = node_cast<FunctionEncoding>(Last))
+        return FE->getName() == Name;
+    }
     return false;
   }
 
-  bool handle_exi(NestedName* N) {
-    if (!areBothNamesSimple(N)) {
+  bool handle_ExiResult(NestedName* N) {
+    auto* TName = getLastNodeAsTArgs();
+    DEMANGLE_ASSERT(TName, "exi::Result without template arguments?");
+    auto* TArgs = node_cast<TemplateArgs>(TName->TemplateArgs);
+    if EXI_NEVER(!TArgs)
+      return false;
+    // Check the type of the E argument.
+    NodeArray TParams = TArgs->getParams();
+    if EXI_NEVER(TParams.size() != 2)
+      return false;
+    if (TParams[1]->getBaseName() != "ExiError")
+      return false;
+    // Create our new name and signature.
+    Node* NewName = make<NameType>("ExiResult");
+    Node* NewTArgs = make<TemplateArgs>(NodeArray(TParams.begin(), 1),
+                                        TArgs->getRequires());
+    AlreadyReplaced.insert(TName);
+    addReplacement(&TName->Name, NewName);
+    addReplacement(&TName->TemplateArgs, NewTArgs);
+    return true;
+  }
+
+  bool handle_exi(NestedName* N, bool IsSimpleHint = false) {
+    AlreadyReplaced.insert(N);
+    if (N->getBaseName() == "AssertionKind") {
+      addReplacement(N, N->Name);
+      return true;
+    } else if (N->getBaseName() == "Result") {
+      if (handle_ExiResult(N))
+        return true;
+    }
+    if (!IsSimpleHint && !areBothNamesSimple(N)) {
       // In this case we have something like [[exi, H], Foo].
       // This means a simple replacement can be done.
-      AlreadyReplaced.insert(N);
       auto [Curr, Last] = getBaseNestedNamePair(N);
       if EXI_UNLIKELY(!Curr) return false; // ???
       // Found the base name, so make sure it's correct!
@@ -839,18 +948,17 @@ struct SimplifyVisitor : public BaseVisitor {
     // This complicates things, but some cases are simple.
     // To start with, let's try to replace a template.
     if (auto* TArgs = getLastNodeAsTArgs()) {
-      // Since this worked, we can do a simpler replacement.
-      DEMANGLE_ASSERT(TArgs->Name == N, "Invalid state?");
-      if (AlreadyReplaced.contains(TArgs)) return false;
-      AlreadyReplaced.insert(TArgs);
-      addReplacement(&TArgs->Name, N->Name);
-      return true;
+      if (TArgs->Name == N) {
+        // Since this worked, we can do a simpler replacement.
+        addReplacement(&TArgs->Name, N->Name);
+        return true;
+      }
     }
     // The last case didn't work, so we have to do a full replacement.
-    AlreadyReplaced.insert(N);
     addReplacement(N, N->Name);
     return true;
   }
+  /// Convert `std::__1::*` to `std::*`.
   bool handle_std__1(NestedName* N) {
     auto [Curr, Last] = getBaseNestedNamePair(N);
     if EXI_UNLIKELY(!Curr) return false; // ???
@@ -864,6 +972,7 @@ struct SimplifyVisitor : public BaseVisitor {
     addReplacement(&Last->Qual, Curr->Qual);
     return true;
   }
+  /// Strip the namespace from names matching `xml::XML*`.
   bool handle_xml(NestedName* N) {
     if (!areBothNamesSimple(N)) {
       AlreadyReplaced.insert(N);
@@ -913,13 +1022,13 @@ struct SimplifyVisitor : public BaseVisitor {
     if (this->AlreadyInNestedName) return false;
     else if (AlreadyReplaced.contains(Node)) return false;
     if (const auto* Qual = node_cast<NameType>(Node->Qual)) {
-      if (isLastNodeFunctionEncoding()) {
+      if (isLastNodeFunctionEncoding(Node)) {
         AlreadyReplaced.insert(Node);
         return false;
       }
       std::string_view Name = Qual->getName();
       if (Name == "exi")
-        return handle_exi(Node);
+        return handle_exi(Node, true);
       else if (Name == "xml") {
         if (IsXMLName(Node->getBaseName()))
           return handle_xml(Node);
@@ -930,7 +1039,7 @@ struct SimplifyVisitor : public BaseVisitor {
     Node->print(OB);
     const auto K = GetComplexNameKind(OB);
     OB.setCurrentPosition(0);
-    if (K != CNK_std__1 && isLastNodeFunctionEncoding()) {
+    if (K != CNK_std__1 && isLastNodeFunctionEncoding(Node)) {
       AlreadyReplaced.insert(Node);
       return false;
     }
@@ -965,21 +1074,122 @@ struct SimplifyVisitor : public BaseVisitor {
       this->AlreadyInNestedName = OldValue;
   }
 
-  void operator()(const NameType* Node) {
-    ScopedName SN(*this, Node);
-    this->printNode(Node);
+  void coalesceFunctionTArgs(const FunctionEncoding* FE) {
+    auto* Name = node_cast<NameWithTemplateArgs>(
+                   const_cast<Node*>(FE->getName()));
+    if (!Name || AlreadyReplacedFunctions.contains(FE))
+      return;
+    AlreadyReplacedFunctions.insert(FE);
+    auto* TArgs = node_cast<TemplateArgs>(Name->TemplateArgs);
+    if (!TArgs || AlreadyReplaced.contains(TArgs)) return;
+
+    // Check if any arguments are direct substitutions.
+    SmallPtrSet<const Node*, 8> FnParams(exi::from_range, FE->getParams());
+    SmallVec<Node*, 8> NewTParams;
+
+    // Loop through the template params, see if any EXACTLY match fn params.
+    // TODO: Handle parameter packs?
+    NodeArray TParams = TArgs->getParams();
+    for (Node* N : TParams) {
+      if (!FnParams.contains(N))
+        NewTParams.push_back(N);
+    }
+    if (NewTParams.size() == TParams.size()) {
+      // No changes to the template.
+      return;
+    }
+
+    if (NewTParams.empty()) {
+      AlreadyReplaced.insert(Name);
+      addReplacement(Name, Name->Name);
+      return;
+    }
+
+    NodeArray NewTParamsForInit =
+        Parser.makeNodeArray(NewTParams.begin(),
+                             NewTParams.end());
+    auto* NewTArgs = make<TemplateArgs>(NewTParamsForInit,
+                                        TArgs->getRequires());
+    AlreadyReplaced.insert(TArgs);
+    addReplacement(&Name->TemplateArgs, NewTArgs);
+  }
+
+  void operator()(const FunctionEncoding* FE) {
+    if EXI_UNLIKELY(NodeStack.empty())
+      this->IsExiFunction = isExiFunctionEncoding(FE);
+    coalesceFunctionTArgs(FE);
+    ScopedName SN(*this, FE);
+    exi::ScopedSave InNestedName(AlreadyInNestedName, false);
+    match(FE);
+  }
+
+  void handleLambdaName(const NameType* Node) {
     // Check if this is a lambda.
     auto Name = Node->getName();
     if (!starts_with(Name, "$_")) return;
     if (AlreadyReplaced.contains(Node)) return;
     // Convert $_NNN into 'lambda#NNN'.
     Name.remove_prefix(2);
-    OB << "'lambda#" << Name << "'";
+    OB << "'lambda<" << Name << ">'";
     const auto* NewNode = makeName(OB);
     OB.setCurrentPosition(0);
     // Add the new replacement.
     AlreadyReplaced.insert(Node);
     addReplacement(Node, NewNode);
+  }
+
+  void operator()(const NameType* Node) {
+    handleLambdaName(Node);
+    ScopedName SN(*this, Node);
+    this->printNode(Node);
+  }
+
+  static const char* getExiFundamentalName(const FundamentalType* Node) {
+    const auto K = Node->getFundamentalType();
+    if (K == FundamentalTypeKind::Integer) {
+      const bool Unsigned = Node->isUnsigned();
+      switch (Node->getBits()) {
+      case 8:   return Unsigned ? "u8"   : "i8";
+      case 16:  return Unsigned ? "u16"  : "i16";
+      case 32:  return Unsigned ? "u32"  : "i32";
+      case 64:  return Unsigned ? "u64"  : "i64";
+      case 128: return Unsigned ? "u128" : "i128";
+      }
+    }
+    if (K == FundamentalTypeKind::Float) {
+      if (Node->getBits() == 32) return "f32";
+      if (Node->getBits() == 64) return "f64";
+      if (Node->getBits() == 128) return "f128";
+    }
+    return nullptr;
+  }
+  const FundamentalType* handleFundamentalType(const FundamentalType* Node) {
+    using K = FundamentalTypeKind;
+    // Only transform in exi:: functions
+    if (!IsExiFunction) return Node;
+    // Only handle iN, uN, and fN
+    const auto FTK = Node->getFundamentalType();
+    if (FTK != K::Integer && FTK != K::Float)
+      return Node;
+    if (AlreadyReplaced.contains(Node))
+      return Node;
+    // Don't handle long double!
+    if (Node->getBits() == 80)
+      return Node;
+    // Try and get the name of the type.
+    const char* Name = getExiFundamentalName(Node);
+    if EXI_UNLIKELY(Name == nullptr)
+      return Node; // ?
+    // Modify the node!
+    AlreadyReplaced.insert(Node);
+    return reinit(Node, Name, Node->getBits(),
+                        FTK, Node->isUnsigned());
+  }
+
+  void operator()(const FundamentalType* Node) {
+    Node = handleFundamentalType(Node);
+    ScopedName SN(*this, Node);
+    this->printNode(Node);
   }
 };
 
@@ -1059,6 +1269,9 @@ struct XMLVisitor : public BasePrintVisitor {
   }
   void print(Qualifiers Qs) {
     print("Qualifiers::*");
+  }
+  void print(FundamentalTypeKind FTK) {
+    print("FundamentalTypeKind::*");
   }
   void print(SpecialSubKind SSK) {
     print("SpecialSubKind::*");
