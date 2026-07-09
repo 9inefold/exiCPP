@@ -296,6 +296,31 @@ template <typename T> struct LeadingZerosCounter<T, 8> {
 /// Count number of 0's from the most significant bit to the least
 ///   stopping at the first 1.
 ///
+/// A constexpr version of countl_zero.
+///
+/// Only unsigned integral types are allowed.
+///
+/// Returns std::numeric_limits<T>::digits on an input of 0.
+template <typename T> [[nodiscard]] constexpr int countl_zero_constexpr(T Val) {
+  static_assert(std::is_unsigned_v<T>,
+                "Only unsigned integral types are allowed.");
+  if (!Val)
+    return std::numeric_limits<T>::digits;
+
+  unsigned ZeroBits = 0;
+  for (T Shift = std::numeric_limits<T>::digits >> 1; Shift; Shift >>= 1) {
+    T Tmp = Val >> Shift;
+    if (Tmp)
+      Val = Tmp;
+    else
+      ZeroBits |= Shift;
+  }
+  return ZeroBits;
+}
+
+/// Count number of 0's from the most significant bit to the least
+///   stopping at the first 1.
+///
 /// Only unsigned integral types are allowed.
 ///
 /// Returns std::numeric_limits<T>::digits on an input of 0.
@@ -341,6 +366,18 @@ template <typename T> [[nodiscard]] int bit_width(T Value) {
   return std::numeric_limits<T>::digits - exi::countl_zero(Value);
 }
 
+/// Returns the number of bits needed to represent Value if Value is nonzero.
+/// Returns 0 otherwise.
+///
+/// A constexpr version of bit_width.
+///
+/// Ex. bit_width_constexpr(5) == 3.
+template <typename T> [[nodiscard]] constexpr int bit_width_constexpr(T Value) {
+  static_assert(std::is_unsigned_v<T>,
+                "Only unsigned integral types are allowed.");
+  return std::numeric_limits<T>::digits - exi::countl_zero_constexpr(Value);
+}
+
 /// Returns the largest integral power of two no greater than Value if Value is
 /// nonzero.  Returns 0 otherwise.
 ///
@@ -366,6 +403,21 @@ template <typename T> [[nodiscard]] T bit_ceil(T Value) {
   if (Value < 2)
     return 1;
   return T(1) << exi::bit_width<T>(Value - 1u);
+}
+
+/// Returns the smallest integral power of two no smaller than Value if Value is
+/// nonzero.  Returns 1 otherwise.
+///
+/// Ex. bit_ceil(5) == 8.
+///
+/// The return value is undefined if the input is larger than the largest power
+/// of two representable in T.
+template <typename T> [[nodiscard]] constexpr T bit_ceil_constexpr(T Value) {
+  static_assert(std::is_unsigned_v<T>,
+                "Only unsigned integral types are allowed.");
+  if (Value < 2)
+    return 1;
+  return T(1) << exi::bit_width_constexpr<T>(Value - 1u);
 }
 
 namespace detail {

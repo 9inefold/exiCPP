@@ -11,6 +11,7 @@ include_items(CORE_COMMON "lib/core"
   Common/FoldingSet.cpp
   Common/InlineArray.cpp
   Common/Option.cpp
+  Common/SmallPtrSet.cpp
   Common/SmallVec.cpp
   Common/StringExtras.cpp
   Common/StringMap.cpp

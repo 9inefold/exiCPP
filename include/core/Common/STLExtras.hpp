@@ -40,6 +40,7 @@
 #include <Common/function_ref.hpp>
 #include <Common/iterator.hpp>
 #include <Common/iterator_range.hpp>
+#include <Common/D/Detector.hpp>
 #include <Config/ABIBreak.inc>
 #include <Support/ErrorHandle.hpp>
 #include <algorithm>
@@ -100,26 +101,6 @@ template <typename T> struct make_const_ptr {
 template <typename T> struct make_const_ref {
   using type = std::add_lvalue_reference_t<std::add_const_t<T>>;
 };
-
-namespace H {
-template <class, template <class...> class Op, class... Args> struct detector {
-  using value_t = std::false_type;
-};
-template <template <class...> class Op, class... Args>
-struct detector<std::void_t<Op<Args...>>, Op, Args...> {
-  using value_t = std::true_type;
-};
-} // namespace H
-
-/// Detects if a given trait holds for some set of arguments 'Args'.
-/// For example, the given trait could be used to detect if a given type
-/// has a copy assignment operator:
-///   template <class T>
-///   using has_copy_assign_t = decltype(std::declval<T&>()
-///                                                 = std::declval<const T&>());
-///   bool fooHasCopyAssign = is_detected<has_copy_assign_t, FooClass>::value;
-template <template <class...> class Op, class... Args>
-using is_detected = typename H::detector<void, Op, Args...>::value_t;
 
 /// concept for checking whether type T is one of the given types in the
 /// variadic list.
