@@ -57,7 +57,13 @@ option(EXI_NO_CMAKE_INFO "If exicpp info should be disabled" OFF)
 option(EXI_USE_EXIP "[DEPRECATED] Enables the old version of exicpp." OFF)
 option(EXI_ANSI     "[DEPRECATED] If ANSI should be enabled." ON)
 
-if (NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+if(MSVC_IDE)
+  option(EXI_ADD_DEBUG_VISUALIZERS "Configure project to use Visual Studio native visualizers" ON)
+else()
+  option(EXI_ADD_DEBUG_VISUALIZERS "Embed GDB python pretty printers" ON)
+endif()
+
+if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
   message(FATAL_ERROR "Currently only supported on 64bit!")
 endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -123,6 +129,11 @@ message(STATUS "[exicpp] Unstable features: ${EXI_ENABLE_UNSTABLE_FEATURES}")
 if(EXI_MARCH_ENABLED)
   message(STATUS "[exicpp] Arch (-march=...): ${EXI_MARCH}")
 endif()
+if(MSVC_IDE)
+  message(STATUS "[exicpp] Natvis           : ${EXI_ADD_DEBUG_VISUALIZERS}")
+else()
+  message(STATUS "[exicpp] GDB Printers     : ${EXI_ADD_DEBUG_VISUALIZERS}")
+endif(MSVC_IDE)
 if(DEFINED EXI_CODEGEN_TESTS)
   message(STATUS "[exicpp] Codegen tests    : ${EXI_CODEGEN_TESTS}")
 endif()
@@ -148,6 +159,7 @@ canonicalize_cmake_booleans(
   EXI_FMT_OVERRIDE
   EXI_ON_WIN32
   EXI_ON_UNIX
+  EXI_ADD_DEBUG_VISUALIZERS
 )
 
 find_program(CCACHE_FOUND ccache)

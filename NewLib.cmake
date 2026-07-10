@@ -90,6 +90,9 @@ if(NOT EXI_EXCEPTIONS)
   target_compile_definitions(exi-core-config PUBLIC EXI_NO_EXCEPTIONS=1)
 endif(NOT EXI_EXCEPTIONS)
 
+add_subdirectory(utils/visualizers)
+target_link_libraries(exi-core-config PRIVATE exi::visualizers)
+
 # Generate other core libraries
 function(exi_core_add_library lib src)
   # Create the library
@@ -99,7 +102,7 @@ function(exi_core_add_library lib src)
   target_link_libraries(exi-core INTERFACE ${LIBNAME})
   # Add options
   exi_add_target_options(${LIBNAME})
-  target_link_libraries(${LIBNAME} PUBLIC exi-core-config)
+  target_link_libraries(${LIBNAME} PUBLIC exi-core-config PRIVATE exi::visualizers)
   target_include_directories(${LIBNAME} PRIVATE lib/core)
   if(EXI_USE_MIMALLOC AND EXI_REDIRECT)
     target_compile_definitions(${LIBNAME} PRIVATE EXI_REDIRECT_GLOBAL_NEW=1)
@@ -122,32 +125,6 @@ if(WIN32)
   target_link_libraries(exi-core-support PRIVATE
     ntdll psapi shell32 ole32 uuid advapi32 ws2_32)
 endif(WIN32)
-
-#add_library(exi-core STATIC ${CORE_COMMON} ${CORE_CONFIG} ${CORE_SUPPORT})
-#add_library(exi::core ALIAS exi-core)
-#exi_add_target_options(exi-core)
-#
-#target_include_directories(exi-core
-#  PUBLIC include include/core
-#  PRIVATE lib/core)
-#target_link_libraries(exi-core PUBLIC fmt::fmt exi-cpptrace)
-#
-#if(EXI_USE_MIMALLOC)
-#  target_link_libraries(exi-core PUBLIC mimalloc)
-#  if(EXI_REDIRECT)
-#    target_compile_definitions(exi-core
-#      PRIVATE EXI_REDIRECT_GLOBAL_NEW=1)
-#  endif(EXI_REDIRECT)
-#endif()
-#if(WIN32)
-#  target_link_libraries(exi-core PRIVATE
-#    ntdll psapi shell32 ole32 uuid advapi32 ws2_32)
-#endif()
-#
-#if(NOT EXI_EXCEPTIONS)
-#  target_compile_definitions(exi-core
-#    PUBLIC EXI_NO_EXCEPTIONS=1)
-#endif()
 
 ##########################################################################
 ## Exicpp
@@ -217,7 +194,7 @@ function(exi_add_library lib src)
   target_include_directories(${LIBNAME}
     PUBLIC include
     PRIVATE lib/core lib/exi)
-  target_link_libraries(${LIBNAME} PUBLIC ${EXI_LINK_LIBS})
+  target_link_libraries(${LIBNAME} PUBLIC ${EXI_LINK_LIBS} PRIVATE exi::visualizers)
 endfunction(exi_add_library)
 
 exi_add_library(basic EXICPP_BASIC)
@@ -286,7 +263,7 @@ endif()
 
 macro(exi_add_driver target)
   exi_add_executable(${target} ${ARGN})
-  target_link_libraries(${target} PUBLIC exi::exicpp)
+  target_link_libraries(${target} PUBLIC exi::exicpp exi::visualizers)
   #exi_minject(exi-driver CLASSIC BACKUP)
 endmacro(exi_add_driver)
 
